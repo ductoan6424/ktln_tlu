@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .abstract-pattern {
+            background-color: #f6f6f8;
+            background-image: radial-gradient(#2463eb10 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header / Navigation -->
+<header class="w-full px-6 py-6 lg:px-12 flex justify-between items-center bg-transparent">
+<div class="flex items-center gap-2 group cursor-pointer">
+<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-xl">school</span>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-xl font-bold tracking-tight">UniConnect</h2>
+</div>
+<div>
+<a class="text-sm font-medium text-slate-500 hover:text-primary transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-lg">help_outline</span>
+                Help Center
+            </a>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow flex items-center justify-center px-4 relative overflow-hidden abstract-pattern">
+<!-- Subtle Branding Element (Background Watermark) -->
+<div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">
+<span class="material-symbols-outlined text-[40rem]">auto_awesome</span>
+</div>
+<div class="w-full max-w-[440px] z-10">
+<!-- Login Card -->
+<div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 p-8 lg:p-10">
+<div class="text-center mb-10">
+<h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">Welcome back</h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Secure access to your academic portal</p>
+</div>
+<div class="space-y-4">
+<!-- Primary SSO Button -->
+<button class="w-full flex items-center justify-center gap-3 h-12 px-6 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-all shadow-md shadow-primary/20">
+<span class="material-symbols-outlined text-xl">login</span>
+<span>Login with University SSO</span>
+</button>
+<div class="relative py-4">
+<div class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-slate-100 dark:border-slate-800"></div>
+</div>
+<div class="relative flex justify-center text-xs uppercase">
+<span class="bg-white dark:bg-slate-900 px-4 text-slate-400 font-medium tracking-wider">or</span>
+</div>
+</div>
+<!-- Secondary Login Button -->
+<button class="w-full flex items-center justify-center gap-3 h-12 px-6 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 rounded-lg font-medium transition-all">
+<span class="material-symbols-outlined text-xl">person</span>
+<span>Staff/Guest Login</span>
+</button>
+</div>
+<div class="mt-8 pt-6 border-t border-slate-50 dark:border-slate-800 text-center">
+<p class="text-xs text-slate-400">
+                        By signing in, you agree to our 
+                        <a class="text-primary hover:underline underline-offset-4" href="#">Terms of Service</a>.
+                    </p>
+</div>
+</div>
+<!-- Additional Support Info -->
+<div class="mt-8 text-center">
+<p class="text-sm text-slate-500 dark:text-slate-400">
+                    Need help? <a class="text-primary font-medium hover:underline" href="#">Contact System Admin</a>
+</p>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-8 px-6 lg:px-12 bg-transparent">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-xs text-slate-400">
+                © 2024 UniConnect Academic Network. All rights reserved.
+            </p>
+<div class="flex items-center gap-6">
+<a class="text-xs font-medium text-slate-400 hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="text-xs font-medium text-slate-400 hover:text-primary transition-colors" href="#">Security Standards</a>
+<a class="text-xs font-medium text-slate-400 hover:text-primary transition-colors" href="#">Accessibility</a>
+</div>
+</div>
+</footer>
+</body></html>

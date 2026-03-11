@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>UniConnect Home Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#2463eb",
+                "background-light": "#f6f6f8",
+                "background-dark": "#111621",
+              },
+              fontFamily: {
+                "display": ["Inter"]
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="w-64 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark">
+<div class="p-6 flex items-center gap-3">
+<div class="bg-primary rounded-lg p-2 flex items-center justify-center">
+<span class="material-symbols-outlined text-white">school</span>
+</div>
+<div>
+<h1 class="text-lg font-bold leading-none">UniConnect</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400">University Portal</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary font-medium" href="#">
+<span class="material-symbols-outlined">home</span>
+<span>Home</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">rss_feed</span>
+<span>Feed</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span>Clubs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span>Messages</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span>Notifications</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3 p-2">
+<div class="size-10 rounded-full bg-slate-200 dark:bg-slate-700 bg-cover bg-center" data-alt="Student profile picture" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBMZlzpSBSoUqIRRBSC6jmykEvMjFlHDCa431EWgGPqCWMNVxv90jcOnwQxVfV49FFT2Y8aPZEGArGAoYkFe9umM7K18mzp0abfm5vo545z5bkYC1rhJcEwghVSqp1SdSs91MXuYhxcXMjOZopx3iaYHZJ5blUS_m3R1KGwgfWT36QqlPtyeipjrfPqYaSg37knnCr8USY23Ne4aLLCUqkafp4wYHkaQzsOXYZUK4SwlIqeHdFcnnMJ6Ic5RK2tdbHHPg-lmKYCMOM')"></div>
+<div class="flex-1 overflow-hidden">
+<p class="text-sm font-semibold truncate">Alex Johnson</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 truncate">Computer Science</p>
+</div>
+<button class="text-slate-400 hover:text-primary">
+<span class="material-symbols-outlined text-sm">settings</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col overflow-hidden">
+<!-- Top Header -->
+<header class="h-16 flex items-center justify-between px-8 bg-white dark:bg-background-dark border-b border-slate-200 dark:border-slate-800 z-10">
+<h2 class="text-xl font-bold">Home Dashboard</h2>
+<div class="flex items-center gap-6">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="w-full pl-10 pr-4 py-1.5 text-sm rounded-lg bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-primary/50" placeholder="Search campus events..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined">help</span>
+</button>
+<button class="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>Create Post</span>
+</button>
+</div>
+</div>
+</header>
+<div class="flex-1 flex overflow-hidden">
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto p-8 space-y-8">
+<!-- Official Announcement Carousel -->
+<section>
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">Official Announcements</h3>
+<div class="flex gap-1">
+<button class="size-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800">
+<span class="material-symbols-outlined text-lg">chevron_left</span>
+</button>
+<button class="size-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800">
+<span class="material-symbols-outlined text-lg">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="flex gap-6 overflow-x-hidden">
+<div class="flex-none w-full md:w-[600px] bg-primary rounded-xl overflow-hidden relative group">
+<div class="absolute inset-0 bg-gradient-to-r from-primary to-transparent opacity-60"></div>
+<div class="h-64 bg-cover bg-center" data-alt="University campus in spring" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBRyN6AjktwKAcLWWsGWOXhttB3YYgfhZoAaIYMIe2F1JYGOnIP31oNBCdeHbnB7X3nnbKgJ4yVQDpCpP3bT7Yyyi-mq5CWhqz-4EBOLTZ1SFL7Pbqb8WIAHP9Yi7qmbCPbxwcfBbdHEIU6Fgxf-Nu2sXLU8peS3GpqvovVOvnpx6T31lWtgXXCbUoMsVWyc3TOxFgmTQQORPbk4F2Zx3ZoCpdb-kqImjcTdzTA1grmGQisW9WU7iT4TzQHecwaqUITQbBG_DwJTUw')"></div>
+<div class="absolute bottom-0 left-0 p-8 text-white w-2/3">
+<span class="bg-white/20 backdrop-blur-md px-2 py-1 rounded text-xs font-bold uppercase mb-3 inline-block">University News</span>
+<h4 class="text-2xl font-bold mb-2">Campus Reopening Update</h4>
+<p class="text-primary-100 text-sm mb-4">Important safety protocols and updated semester dates for the Fall 2024 academic year.</p>
+<button class="bg-white text-primary px-6 py-2 rounded-lg font-bold text-sm shadow-lg hover:bg-slate-100 transition-colors">Learn More</button>
+</div>
+</div>
+<div class="flex-none w-full md:w-[400px] bg-slate-100 dark:bg-slate-800 rounded-xl p-8 flex flex-col justify-center border border-slate-200 dark:border-slate-700">
+<span class="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold uppercase mb-3 inline-block w-max">Financial Aid</span>
+<h4 class="text-xl font-bold mb-2 text-slate-900 dark:text-white">Scholarship 2024</h4>
+<p class="text-slate-600 dark:text-slate-400 text-sm mb-4">Applications for the President's Merit Scholarship are now open for all departments.</p>
+<button class="border border-primary text-primary px-6 py-2 rounded-lg font-bold text-sm hover:bg-primary/5 transition-colors w-max">Apply Now</button>
+</div>
+</div>
+</section>
+<!-- Smart Newsfeed -->
+<section>
+<h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">Smart Newsfeed</h3>
+<div class="space-y-4">
+<!-- Post 1 -->
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex items-center gap-3 mb-4">
+<div class="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">robot_2</span>
+</div>
+<div>
+<h5 class="font-bold">Engineering Society</h5>
+<p class="text-xs text-slate-500">2 hours ago • <span class="text-primary font-medium">Event</span></p>
+</div>
+<button class="ml-auto text-slate-400 hover:text-slate-600"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<h4 class="text-lg font-bold mb-2">Annual Tech Symposium is Here!</h4>
+<p class="text-slate-600 dark:text-slate-400 mb-4">Join us this weekend for the 10th annual tech symposium. 20+ speakers, 5 workshops, and a $2,000 hackathon prize pool. Don't miss out!</p>
+<div class="rounded-xl overflow-hidden h-64 bg-slate-100 dark:bg-slate-800 mb-4 bg-cover bg-center" data-alt="Hackathon participants coding" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCl0d9pHVlQGeh4QSQHuCKitf-vlGlXEc_42MQikZwUkcg7zqvoVyjLkDgpxY6FHSoE3_hsMFU8rjEP69T25tpVIsKLQadvC4bFMKY9epWY_qn6Kqtlhgo6JnkNY_OC6lG8bkWGwo-63GOlU86lB6VPwREucoRMkIEgKx-F1mVYMzTOEixg3KiKmdrRNPvCO28_wasGqsuJqPm-AS67VRNgEeEGoX39qUReUzR0jx0afBqEmqkgSJpK9J6XnagI5pjjZ1TL4xgKJHY')"></div>
+<div class="flex items-center gap-6 text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-4 text-sm font-medium">
+<button class="flex items-center gap-1.5 hover:text-primary"><span class="material-symbols-outlined text-lg">favorite</span> 128</button>
+<button class="flex items-center gap-1.5 hover:text-primary"><span class="material-symbols-outlined text-lg">chat</span> 24</button>
+<button class="flex items-center gap-1.5 hover:text-primary"><span class="material-symbols-outlined text-lg">share</span> Share</button>
+<button class="ml-auto bg-primary text-white px-4 py-1.5 rounded-lg text-xs font-bold">Register</button>
+</div>
+</div>
+<!-- Post 2 -->
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex items-center gap-3 mb-4">
+<div class="size-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+<span class="material-symbols-outlined text-slate-500">account_balance</span>
+</div>
+<div>
+<h5 class="font-bold">Humanities Department</h5>
+<p class="text-xs text-slate-500">5 hours ago • <span class="text-slate-500">News</span></p>
+</div>
+<button class="ml-auto text-slate-400 hover:text-slate-600"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<h4 class="text-lg font-bold mb-2">Guest Lecture: Philosophy in the Digital Age</h4>
+<p class="text-slate-600 dark:text-slate-400">Dr. Sarah Vance will be joining us for a discussion on how modern technology influences ethical decision-making. Location: Main Hall, 4:00 PM Friday.</p>
+<div class="flex items-center gap-6 text-slate-500 dark:text-slate-400 mt-6 text-sm font-medium">
+<button class="flex items-center gap-1.5 hover:text-primary"><span class="material-symbols-outlined text-lg">favorite</span> 45</button>
+<button class="flex items-center gap-1.5 hover:text-primary"><span class="material-symbols-outlined text-lg">chat</span> 8</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Sidebar -->
+<aside class="w-80 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark p-6 overflow-y-auto space-y-8">
+<!-- Academic Updates -->
+<section>
+<h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Academic Updates</h3>
+<div class="space-y-4">
+<div class="p-4 rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
+<div class="flex items-center gap-2 mb-2 text-orange-600 dark:text-orange-400">
+<span class="material-symbols-outlined text-sm">event_busy</span>
+<span class="text-xs font-bold uppercase">Deadline Tomorrow</span>
+</div>
+<h4 class="font-bold text-slate-900 dark:text-white text-sm">Data Structures A2</h4>
+<p class="text-xs text-slate-600 dark:text-slate-400">Submit by 11:59 PM via LMS</p>
+</div>
+<div class="p-4 rounded-xl bg-primary/5 border border-primary/10">
+<div class="flex items-center gap-2 mb-2 text-primary">
+<span class="material-symbols-outlined text-sm">event</span>
+<span class="text-xs font-bold uppercase">Upcoming Exam</span>
+</div>
+<h4 class="font-bold text-slate-900 dark:text-white text-sm">Midterm: Applied Physics</h4>
+<p class="text-xs text-slate-600 dark:text-slate-400">Oct 24, 09:00 AM • Hall C</p>
+</div>
+</div>
+<button class="w-full mt-4 py-2 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors border border-primary/20">View Calendar</button>
+</section>
+<!-- Suggested Clubs -->
+<section>
+<h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Suggested Clubs</h3>
+<div class="space-y-4">
+<div class="flex items-center gap-3 group cursor-pointer">
+<div class="size-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined">photo_camera</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<h4 class="text-sm font-bold truncate">Lens &amp; Light</h4>
+<p class="text-xs text-slate-500">120 Members</p>
+</div>
+<button class="size-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:border-primary hover:text-white transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+<div class="flex items-center gap-3 group cursor-pointer">
+<div class="size-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined">hiking</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<h4 class="text-sm font-bold truncate">Trail Blazers</h4>
+<p class="text-xs text-slate-500">85 Members</p>
+</div>
+<button class="size-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:border-primary hover:text-white transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+<div class="flex items-center gap-3 group cursor-pointer">
+<div class="size-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined">chess</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<h4 class="text-sm font-bold truncate">Grandmasters Chess</h4>
+<p class="text-xs text-slate-500">42 Members</p>
+</div>
+<button class="size-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:border-primary hover:text-white transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+</div>
+<button class="w-full mt-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors">See All Clubs</button>
+</section>
+<!-- Quick Contacts -->
+<section>
+<h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Support</h3>
+<div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+<p class="text-xs text-slate-600 dark:text-slate-400 mb-3">Need help with registration or administrative issues?</p>
+<button class="flex items-center justify-center gap-2 w-full py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold hover:shadow-sm transition-all">
+<span class="material-symbols-outlined text-sm">support_agent</span>
+                                Contact Registrar
+                            </button>
+</div>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</body></html>

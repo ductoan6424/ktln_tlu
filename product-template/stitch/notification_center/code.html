@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>UniConnect Notification Center</title>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<header class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-4 lg:px-40">
+<div class="flex items-center gap-3">
+<div class="flex items-center justify-center rounded-lg bg-primary p-2 text-white">
+<span class="material-symbols-outlined text-2xl">school</span>
+</div>
+<h2 class="text-xl font-bold tracking-tight">UniConnect</h2>
+</div>
+<div class="flex items-center gap-3">
+<button class="hidden sm:flex items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors">
+                        Mark all as read
+                    </button>
+<button class="flex items-center justify-center rounded-lg h-10 w-10 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<main class="flex flex-1 flex-col lg:flex-row lg:px-40 py-6 gap-6">
+<aside class="w-full lg:w-64 flex flex-col gap-2 px-4 lg:px-0">
+<div class="mb-4">
+<h1 class="text-lg font-bold">Notifications</h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Stay updated with your campus life</p>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 text-primary font-semibold" href="#">
+<span class="material-symbols-outlined">home</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+<span>Schedule</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span>Inbox</span>
+<span class="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">3</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">person</span>
+<span>Profile</span>
+</a>
+</nav>
+</aside>
+<div class="flex-1 flex flex-col gap-6 px-4 lg:px-0">
+<div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+<div class="flex border-b border-slate-200 dark:border-slate-800 px-4">
+<button class="px-6 py-4 text-sm font-bold border-b-2 border-primary text-primary">All</button>
+<button class="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary transition-colors">Academic</button>
+<button class="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary transition-colors">Social</button>
+<button class="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary transition-colors">System</button>
+</div>
+<div class="p-4 lg:p-6 space-y-6">
+<div>
+<h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Priority Alerts</h3>
+<div class="relative overflow-hidden rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/30 p-5 flex flex-col md:flex-row gap-5">
+<div class="flex-1 space-y-3">
+<div class="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+<span class="material-symbols-outlined text-lg">warning</span>
+<span class="text-xs font-bold uppercase">Urgent Academic</span>
+</div>
+<div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-slate-100 leading-snug">Deadline: CS301 Final Project Submission</h4>
+<p class="text-sm text-slate-600 dark:text-slate-400 mt-1">The submission portal closes in 2 hours. Ensure all repository links and documentation are finalized.</p>
+</div>
+<button class="bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 transition-colors w-fit">
+                                            Upload Now
+                                        </button>
+</div>
+<div class="w-full md:w-48 h-32 rounded-lg bg-cover bg-center shrink-0" data-alt="Modern laptop displaying code in a dark room" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBO8Vo5LY__nuLler48Kllpsera3fB6_o1SRwzvD_1QdUHXeAmbugnO55kiPQQ9dgYi_V4uWsSSQQIyaMKIqx0knWAP_nAOzeYw-uyguamQt4n-x4NxGeOiYj8nBhJxaKOaeRUJhdkS8eEAiJf6L9_CY_HakusWO8gIOjUIkC9TUCtDCr2w3o5ddrHKU5Vu7-g81pPlb8IERNF4z7FY926CR4jbIVztaA_f8y7XEUTOrjoj16yQ9hTXfTX7pZFk99v6WsU7qNWpADs')">
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Recent Activity</h3>
+<div class="divide-y divide-slate-100 dark:divide-slate-800">
+<div class="py-4 flex gap-4 group cursor-pointer">
+<div class="h-10 w-10 shrink-0 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+<span class="material-symbols-outlined">school</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Grade Posted: Advanced Calculus</p>
+<span class="text-xs text-slate-400">10m ago</span>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400">Professor Thompson has posted the results for Midterm 2.</p>
+</div>
+<div class="w-2 h-2 rounded-full bg-primary mt-2"></div>
+</div>
+<div class="py-4 flex gap-4 group cursor-pointer">
+<div class="h-10 w-10 shrink-0 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+<span class="material-symbols-outlined">groups</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">New Social Event: Tech Mixer</p>
+<span class="text-xs text-slate-400">4h ago</span>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400">Join the IEEE Student Branch for a networking mixer in the Student Union.</p>
+</div>
+</div>
+<div class="py-4 flex gap-4 group cursor-pointer">
+<div class="h-10 w-10 shrink-0 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center">
+<span class="material-symbols-outlined">dns</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">System Maintenance Notice</p>
+<span class="text-xs text-slate-400">Yesterday</span>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400">UniConnect portal will be offline for scheduled maintenance on Sunday, 2AM - 4AM EST.</p>
+</div>
+</div>
+<div class="py-4 flex gap-4 group cursor-pointer">
+<div class="h-10 w-10 shrink-0 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+<span class="material-symbols-outlined">history_edu</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Assignment Feedback: Ethics in AI</p>
+<span class="text-xs text-slate-400">Yesterday</span>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400">New comments available on your latest essay submission.</p>
+</div>
+</div>
+</div>
+<div class="mt-6 flex justify-center">
+<button class="text-sm font-bold text-primary hover:underline">View All Notifications</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 lg:px-40">
+<div class="flex flex-col md:flex-row justify-between items-center gap-4 px-6">
+<div class="flex items-center gap-2 opacity-50">
+<span class="material-symbols-outlined text-sm">copyright</span>
+<span class="text-xs">2024 UniConnect Student Portal. All rights reserved.</span>
+</div>
+<div class="flex gap-6">
+<a class="text-xs font-medium text-slate-500 hover:text-primary" href="#">Privacy Policy</a>
+<a class="text-xs font-medium text-slate-500 hover:text-primary" href="#">Support Center</a>
+<a class="text-xs font-medium text-slate-500 hover:text-primary" href="#">Campus Map</a>
+</div>
+</div>
+</footer>
+</div>
+</div>
+</body></html>
