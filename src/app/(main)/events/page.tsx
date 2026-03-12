@@ -8,6 +8,7 @@ import { SectionHeader } from "@/components/shared/section-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageContainer } from "@/components/layout/page-container"
 import {
   CalendarDays,
   MapPin,
@@ -136,7 +137,7 @@ export default function EventsPage() {
     : EVENTS.filter((e) => e.status === activeTab)
 
   return (
-    <div className="w-full px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -285,7 +286,7 @@ export default function EventsPage() {
           </Card>
         </aside>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 
@@ -401,7 +402,7 @@ function EventCardSkeleton() {
 
 export function EventsPageSkeleton() {
   return (
-    <div className="w-full px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       <div className="flex justify-between">
         <Skeleton className="h-7 w-32" />
         <Skeleton className="h-9 w-36" />
@@ -422,6 +423,6 @@ export function EventsPageSkeleton() {
           <Skeleton className="h-48 w-full rounded-lg" />
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

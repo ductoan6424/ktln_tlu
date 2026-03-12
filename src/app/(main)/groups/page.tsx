@@ -9,6 +9,7 @@ import { SectionHeader } from "@/components/shared/section-header"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageContainer } from "@/components/layout/page-container"
 import {
   Plus,
   Users,
@@ -127,7 +128,7 @@ export default function GroupsPage() {
       : GROUPS
 
   return (
-    <div className="w-full px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -246,7 +247,7 @@ export default function GroupsPage() {
           </Card>
         </aside>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 
@@ -347,7 +348,7 @@ function GroupCardSkeleton() {
 
 export function GroupsPageSkeleton() {
   return (
-    <div className="w-full px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       <div className="flex justify-between">
         <Skeleton className="h-7 w-24" />
         <Skeleton className="h-9 w-28" />
@@ -371,6 +372,6 @@ export function GroupsPageSkeleton() {
           <Skeleton className="h-36 w-full rounded-lg" />
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

@@ -7,6 +7,7 @@ import { PriorityAlert, PriorityAlertSkeleton } from "@/components/notifications
 import { NotificationItem, NotificationItemSkeleton } from "@/components/notifications/notification-item"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageContainer } from "@/components/layout/page-container"
 import { GraduationCap, Users, Server, BookOpen } from "lucide-react"
 
 const TABS = [
@@ -59,7 +60,7 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState("all")
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -125,13 +126,13 @@ export default function NotificationsPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   )
 }
 
 export function NotificationsPageSkeleton() {
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       <div className="flex justify-between">
         <Skeleton className="h-7 w-32" />
         <Skeleton className="h-9 w-36" />
@@ -145,6 +146,6 @@ export function NotificationsPageSkeleton() {
           ))}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   )
 }

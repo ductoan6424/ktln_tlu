@@ -11,6 +11,7 @@ import { PostCard, PostCardSkeleton } from "@/components/feed/post-card"
 import { PostComposer } from "@/components/feed/post-composer"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageContainer } from "@/components/layout/page-container"
 import { Rss, Users, CalendarDays, Info } from "lucide-react"
 
 const CLUB_DATA = {
@@ -53,7 +54,7 @@ export default function ClubsPage() {
   const [activeTab, setActiveTab] = useState("feed")
 
   return (
-    <div className="w-full px-4 lg:px-8 py-6">
+    <PageContainer variant="centered">
       {/* Hero banner */}
       <ClubHero
         coverImage={CLUB_DATA.coverImage}
@@ -157,13 +158,13 @@ export default function ClubsPage() {
           </Card>
         </aside>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 
 export function ClubsPageSkeleton() {
   return (
-    <div className="w-full px-4 lg:px-8 py-6 space-y-4">
+    <PageContainer variant="centered" className="space-y-4">
       <ClubHeroSkeleton />
       <ClubProfileHeaderSkeleton />
       <Skeleton className="h-10 w-full" />
@@ -181,6 +182,6 @@ export function ClubsPageSkeleton() {
           ))}
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

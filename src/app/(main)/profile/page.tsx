@@ -5,6 +5,7 @@ import { AcademicProgressCard, AcademicProgressCardSkeleton } from "@/components
 import { ConnectionsGrid, ConnectionsGridSkeleton } from "@/components/profile/connections-grid"
 import { PostCard, PostCardSkeleton } from "@/components/feed/post-card"
 import { PostComposer, PostComposerSkeleton } from "@/components/feed/post-composer"
+import { PageContainer } from "@/components/layout/page-container"
 
 const PROFILE = {
   name: "Nguyễn Đức Toàn",
@@ -24,7 +25,7 @@ const CONNECTIONS = [
 
 export default function ProfilePage() {
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       {/* Profile Header */}
       <ProfileHeader
         name={PROFILE.name}
@@ -78,13 +79,13 @@ export default function ProfilePage() {
           />
         </section>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 
 export function ProfilePageSkeleton() {
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       <ProfileHeaderSkeleton />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <aside className="lg:col-span-4 space-y-6">
@@ -97,6 +98,6 @@ export function ProfilePageSkeleton() {
           <PostCardSkeleton />
         </section>
       </div>
-    </div>
+    </PageContainer>
   )
 }

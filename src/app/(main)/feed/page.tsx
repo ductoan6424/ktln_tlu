@@ -10,6 +10,7 @@ import { PostComposer } from "@/components/feed/post-composer"
 import { PollCard } from "@/components/feed/poll-card"
 import { TrendingItem } from "@/components/dashboard/trending-item"
 import { EventItem } from "@/components/dashboard/event-item"
+import { PageContainer } from "@/components/layout/page-container"
 import { LayoutGrid, BookOpen, Users, Bookmark } from "lucide-react"
 import Link from "next/link"
 
@@ -45,7 +46,7 @@ const POLL_OPTIONS = [
 
 export default function FeedPage() {
   return (
-    <div className="w-full px-4 lg:px-8 py-8">
+    <PageContainer variant="full" className="py-8">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Sidebar trái — Thông tin cá nhân & Điều hướng */}
         <aside className="hidden lg:block lg:col-span-3">
@@ -186,6 +187,6 @@ export default function FeedPage() {
           </div>
         </aside>
       </div>
-    </div>
+    </PageContainer>
   )
 }
