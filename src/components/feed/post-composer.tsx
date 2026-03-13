@@ -25,7 +25,7 @@ export function PostComposer({
   if (variant === "compact") {
     return (
       <Card className={cn("shadow-sm", className)}>
-        <CardContent className="p-4 flex items-center gap-4">
+        <CardContent className="p-3 flex items-center gap-3">
           <UserAvatar src={userAvatar} name={userName} size="md" />
           <div className="flex-1 bg-muted rounded-full px-4 py-2 text-muted-foreground text-sm cursor-text hover:bg-muted/80 transition-colors">
             Chia sẻ điều gì đó...
@@ -38,8 +38,8 @@ export function PostComposer({
 
   return (
     <Card className={cn("shadow-sm", className)}>
-      <CardContent className="p-4">
-        <div className="flex gap-4">
+      <CardContent className="p-3">
+        <div className="flex gap-3">
           <UserAvatar
             src={userAvatar}
             name={userName}
@@ -49,9 +49,9 @@ export function PostComposer({
           <div className="flex-1">
             <Textarea
               placeholder="Chia sẻ điều gì đó với cộng đồng..."
-              className="bg-muted border-border min-h-[100px] resize-none focus-visible:ring-1 focus-visible:ring-primary"
+              className="bg-muted border-border min-h-[80px] resize-none text-[13px] focus-visible:ring-1 focus-visible:ring-primary"
             />
-            <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center justify-between mt-2">
               <div className="flex gap-1 md:gap-2">
                 <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
                   <ImageIcon className="size-4" />
