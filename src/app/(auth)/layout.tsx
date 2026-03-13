@@ -1,13 +1,9 @@
-export default function AuthLayout({
+import { AuthLayout } from "@/components/layout/auth-layout"
+
+export default function AuthRouteLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="w-full max-w-md px-4">
-        {children}
-      </div>
-    </div>
-  );
+  return <AuthLayout>{children}</AuthLayout>
 }
