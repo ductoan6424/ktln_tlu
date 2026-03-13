@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { ConversationList, ConversationListSkeleton } from "@/components/messages/conversation-list"
 import { ConversationItem } from "@/components/messages/conversation-item"
 import { ChatHeader, ChatHeaderSkeleton } from "@/components/messages/chat-header"
@@ -9,6 +10,8 @@ import { ChatAttachment } from "@/components/messages/chat-attachment"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
 
 const CONVERSATIONS = [
   {
@@ -49,34 +52,57 @@ const ACTIVE_CHAT = {
 }
 
 export default function MessagesPage() {
-  return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      {/* Danh sách hội thoại */}
-      <ConversationList>
-        {CONVERSATIONS.map((conv) => (
-          <ConversationItem
-            key={conv.id}
-            name={conv.name}
-            lastMessage={conv.lastMessage}
-            time={conv.time}
-            unreadCount={conv.unreadCount}
-            isActive={conv.id === "1"}
-            status={conv.status}
-            isGroup={conv.isGroup}
-          />
-        ))}
-      </ConversationList>
+  const [activeConversationId, setActiveConversationId] = useState<string | null>("1")
 
-      {/* Khung chat chính */}
-      <section className="flex-1 flex flex-col bg-card relative">
+  return (
+    <div className="flex h-[calc(100vh-4rem-3.5rem)] lg:h-[calc(100vh-4rem)] overflow-hidden">
+      {/* Danh sách hội thoại — ẩn trên mobile khi đang xem chat */}
+      <div className={activeConversationId ? "hidden lg:flex" : "flex w-full lg:w-auto"}>
+        <ConversationList>
+          {CONVERSATIONS.map((conv) => (
+            <div key={conv.id} onClick={() => setActiveConversationId(conv.id)}>
+              <ConversationItem
+                name={conv.name}
+                lastMessage={conv.lastMessage}
+                time={conv.time}
+                unreadCount={conv.unreadCount}
+                isActive={conv.id === activeConversationId}
+                status={conv.status}
+                isGroup={conv.isGroup}
+              />
+            </div>
+          ))}
+        </ConversationList>
+      </div>
+
+      {/* Khung chat chính — ẩn trên mobile khi chưa chọn conversation */}
+      <section className={
+        activeConversationId
+          ? "flex-1 flex flex-col bg-card relative"
+          : "hidden lg:flex flex-1 flex-col bg-card relative"
+      }>
+        {/* Nút quay lại — chỉ hiện trên mobile */}
+        <div className="lg:hidden absolute top-0 left-0 z-10 h-14 flex items-center pl-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9 rounded-full"
+            onClick={() => setActiveConversationId(null)}
+            aria-label="Quay lại"
+          >
+            <ArrowLeft className="size-5" />
+          </Button>
+        </div>
+
         <ChatHeader
           name={ACTIVE_CHAT.name}
           role={ACTIVE_CHAT.role}
           isOnline={ACTIVE_CHAT.isOnline}
+          className="lg:pl-4 pl-12"
         />
 
         {/* Luồng tin nhắn */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 flex flex-col">
           <ChatDateDivider label="Hôm nay" />
 
           <ChatBubble
@@ -135,3 +161,4 @@ export function MessagesPageSkeleton() {
     </div>
   )
 }
+

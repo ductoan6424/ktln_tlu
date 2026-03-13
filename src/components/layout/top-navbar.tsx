@@ -23,6 +23,8 @@ import {
   LogOut,
   Moon,
   ChevronDown,
+  Search,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
@@ -56,6 +58,7 @@ export function TopNavbar({
 }: TopNavbarProps) {
   const pathname = usePathname()
   const [darkMode, setDarkMode] = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
 
   const handleDarkModeToggle = (checked: boolean) => {
     setDarkMode(checked)
@@ -65,22 +68,44 @@ export function TopNavbar({
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 h-16 bg-card border-b border-border",
+        "fixed top-0 left-0 right-0 z-50 h-14 lg:h-16 bg-card border-b border-border",
         className
       )}
     >
-      <div className="w-full px-4 lg:px-8 h-full flex items-center justify-between gap-4 relative">
+      {/* Mobile search overlay */}
+      {mobileSearchOpen && (
+        <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 lg:hidden">
+          <SearchInput
+            placeholder={searchPlaceholder}
+            className="flex-1"
+            autoFocus
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 size-9 rounded-full"
+            onClick={() => setMobileSearchOpen(false)}
+            aria-label="Đóng tìm kiếm"
+          >
+            <X className="size-5" />
+          </Button>
+        </div>
+      )}
+
+      <div className="w-full px-3 lg:px-8 h-full flex items-center justify-between gap-4 relative">
         {/* Logo + Search */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 lg:gap-6">
           <Link href="/feed">
             <AppLogo size="md" />
           </Link>
+          {/* Desktop search */}
           <SearchInput
             placeholder={searchPlaceholder}
-            className="hidden md:block w-64"
+            className="hidden lg:block w-64"
           />
         </div>
 
+        {/* Desktop nav — ẩn trên mobile */}
         {navItems.length > 0 && (
           <nav className="hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item) => (
@@ -97,21 +122,30 @@ export function TopNavbar({
 
         {/* Actions */}
         <div className="flex items-center gap-1">
-          {/* Thông báo */}
-          <Link href="/notifications">
+          {/* Mobile: search button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden relative size-9 rounded-full text-muted-foreground hover:text-foreground"
+            onClick={() => setMobileSearchOpen(true)}
+            aria-label="Tìm kiếm"
+          >
+            <Search className="size-5" />
+          </Button>
+
+          {/* Desktop: notification + message icons */}
+          <Link href="/notifications" className="hidden lg:inline-flex">
             <NotificationButton icon={Bell} count={notificationCount} label="Thông báo" />
           </Link>
-
-          {/* Tin nhắn */}
-          <Link href="/messages">
+          <Link href="/messages" className="hidden lg:inline-flex">
             <NotificationButton icon={MessageSquare} count={messageCount} label="Tin nhắn" />
           </Link>
 
-          {/* Avatar Dropdown */}
+          {/* Desktop: Avatar Dropdown — ẩn trên mobile (đã có trong bottom nav) */}
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-muted transition-colors cursor-pointer ml-1 outline-none"
+                className="hidden lg:flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-muted transition-colors cursor-pointer ml-1 outline-none"
               >
                 <UserAvatar
                   src={user.avatarSrc}
@@ -151,7 +185,6 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                {/* Cài đặt */}
                 <DropdownMenuItem>
                   <Link href="/settings" className="flex items-center gap-2 w-full">
                     <Settings className="size-4" />
@@ -175,7 +208,6 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                {/* Đăng xuất */}
                 <DropdownMenuItem variant="destructive" className="cursor-pointer">
                   <LogOut className="size-4" />
                   Đăng xuất
@@ -215,3 +247,4 @@ function NotificationButton({
     </Button>
   )
 }
+
