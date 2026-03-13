@@ -21,7 +21,7 @@ export function ConversationList({
   return (
     <aside
       className={cn(
-        "w-80 border-r border-border flex flex-col bg-card shrink-0",
+        "w-full lg:w-80 border-r border-border flex flex-col bg-card shrink-0",
         className
       )}
     >

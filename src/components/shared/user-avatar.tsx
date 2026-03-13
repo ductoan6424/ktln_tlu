@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 const SIZE_MAP = {
+  xs: "size-6",
   sm: "size-8",
   md: "size-10",
   lg: "size-12",
@@ -12,6 +13,7 @@ const SIZE_MAP = {
 } as const
 
 const STATUS_SIZE_MAP = {
+  xs: "size-1.5",
   sm: "size-2",
   md: "size-2.5",
   lg: "size-3",

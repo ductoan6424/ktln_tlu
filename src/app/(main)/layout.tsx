@@ -1,6 +1,7 @@
 "use client"
 
 import { TopNavbar } from "@/components/layout/top-navbar"
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
 import { Home, Users, CalendarDays, UsersRound } from "lucide-react"
 
 const NAV_ITEMS = [
@@ -30,7 +31,12 @@ export default function MainLayout({
         messageCount={5}
         searchPlaceholder="Tìm kiếm trong cộng đồng..."
       />
-      <main className="pt-16">{children}</main>
+      <main className="pt-16 pb-16 lg:pb-0">{children}</main>
+      <MobileBottomNav
+        user={MOCK_USER}
+        notificationCount={3}
+        messageCount={5}
+      />
     </div>
   )
 }

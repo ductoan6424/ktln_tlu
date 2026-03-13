@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { SectionHeader } from "@/components/shared/section-header"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageContainer } from "@/components/layout/page-container"
 import {
   User,
   Bell,
@@ -31,7 +32,7 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile")
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold">Cài đặt</h1>
@@ -81,7 +82,7 @@ export default function SettingsPage() {
           {activeSection === "language" && <LanguageSection />}
         </section>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 
@@ -456,7 +457,7 @@ function LanguageOption({
 /* Skeleton */
 export function SettingsPageSkeleton() {
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+    <PageContainer variant="centered" className="space-y-6">
       <Skeleton className="h-7 w-28" />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <aside className="lg:col-span-3">
@@ -492,6 +493,6 @@ export function SettingsPageSkeleton() {
           </Card>
         </section>
       </div>
-    </div>
+    </PageContainer>
   )
 }

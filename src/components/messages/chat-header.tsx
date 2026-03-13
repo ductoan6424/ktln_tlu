@@ -3,6 +3,7 @@ import { IconButton } from "@/components/shared/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Video, Phone, Info } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 
 interface ChatHeaderProps {
   name: string
@@ -10,6 +11,7 @@ interface ChatHeaderProps {
   role?: string
   avatarSrc?: string
   isOnline?: boolean
+  className?: string
 }
 
 export function ChatHeader({
@@ -17,9 +19,10 @@ export function ChatHeader({
   role,
   avatarSrc,
   isOnline = false,
+  className,
 }: ChatHeaderProps) {
   return (
-    <div className="h-16 border-b border-border flex items-center justify-between px-6 shrink-0 bg-card/80 backdrop-blur-md">
+    <div className={cn("h-14 lg:h-16 border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0 bg-card/80 backdrop-blur-md", className)}>
       <div className="flex items-center gap-4">
         <UserAvatar
           src={avatarSrc}
