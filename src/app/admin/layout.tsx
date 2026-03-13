@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { BreadcrumbNav } from "@/components/admin/breadcrumb-nav"
@@ -45,26 +45,23 @@ export default function AdminLayout({
   const breadcrumbs = BREADCRUMB_MAP[pathname] || [{ label: "Bảng điều khiển" }]
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  /* Đóng sidebar khi chuyển trang (click nav item) */
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
+
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Desktop sidebar — ẩn trên mobile */}
-      <div className="hidden lg:flex">
-        <AdminSidebar
-          activeHref={pathname}
-          user={ADMIN_USER}
-        />
-      </div>
-
-      {/* Mobile sidebar drawer overlay */}
+      {/* Sidebar overlay — áp dụng cho mọi kích thước */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/40 transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
           {/* Sidebar panel */}
-          <div className="absolute inset-y-0 left-0 w-64 shadow-xl">
+          <div className="absolute inset-y-0 left-0 w-64 shadow-xl animate-in slide-in-from-left duration-200">
             <AdminSidebar
               activeHref={pathname}
               user={ADMIN_USER}
@@ -85,11 +82,11 @@ export default function AdminLayout({
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 lg:h-16 border-b border-border bg-card flex items-center justify-between px-4 lg:px-8 shrink-0 gap-3">
           <div className="flex items-center gap-2">
-            {/* Hamburger — chỉ hiện trên mobile */}
+            {/* Nút mở sidebar — hiện trên mọi kích thước */}
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden size-9 rounded-full shrink-0"
+              className="size-9 rounded-full shrink-0"
               onClick={() => setSidebarOpen(true)}
               aria-label="Mở menu"
             >

@@ -55,7 +55,7 @@ export default function MessagesPage() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>("1")
 
   return (
-    <div className="flex h-[calc(100vh-4rem-3.5rem)] lg:h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex h-[calc(100vh-3.5rem-3.5rem)] lg:h-[calc(100vh-4rem)] overflow-hidden">
       {/* Danh sách hội thoại — ẩn trên mobile khi đang xem chat */}
       <div className={activeConversationId ? "hidden lg:flex" : "flex w-full lg:w-auto"}>
         <ConversationList>

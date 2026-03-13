@@ -23,7 +23,7 @@ export default function MainLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="h-screen overflow-hidden bg-muted/30">
       <TopNavbar
         navItems={NAV_ITEMS}
         user={MOCK_USER}
@@ -31,7 +31,7 @@ export default function MainLayout({
         messageCount={5}
         searchPlaceholder="Tìm kiếm trong cộng đồng..."
       />
-      <main className="pt-16 pb-16 lg:pb-0">{children}</main>
+      <main className="h-full overflow-y-auto pt-14 pb-14 lg:pt-16 lg:pb-0">{children}</main>
       <MobileBottomNav
         user={MOCK_USER}
         notificationCount={3}

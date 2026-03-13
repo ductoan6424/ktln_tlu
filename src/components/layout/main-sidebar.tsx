@@ -32,17 +32,17 @@ export function MainSidebar({
   return (
     <aside
       className={cn(
-        "w-64 flex flex-col border-r border-border bg-card shrink-0",
+        "w-64 h-full flex flex-col border-r border-border bg-card shrink-0",
         className
       )}
     >
       {/* Logo */}
-      <div className="p-6">
+      <div className="p-6 shrink-0">
         <AppLogo size="md" />
       </div>
 
-      {/* Điều hướng */}
-      <nav className="flex-1 px-4 space-y-1">
+      {/* Điều hướng — chỉ phần này scroll khi danh sách dài */}
+      <nav className="flex-1 overflow-y-auto min-h-0 px-4 space-y-1">
         {navItems.map((item) => (
           <SidebarNavItem
             key={item.href}
@@ -59,7 +59,7 @@ export function MainSidebar({
       {user && (
         <>
           <Separator />
-          <div className="p-4">
+          <div className="p-4 shrink-0">
             <SidebarUserInfo
               name={user.name}
               role={user.role}

@@ -9,6 +9,7 @@ interface CommentListProps {
   comments: CommentData[]
   currentUser?: { name: string; avatar?: string }
   autoFocusInput?: boolean
+  hideInput?: boolean
   className?: string
 }
 
@@ -16,6 +17,7 @@ export function CommentList({
   comments,
   currentUser,
   autoFocusInput = false,
+  hideInput = false,
   className,
 }: CommentListProps) {
   return (
@@ -39,14 +41,17 @@ export function CommentList({
         </div>
       </div>
 
-      {/* Input bình luận — cố định ở dưới */}
-      <div className="shrink-0 border-t border-border pt-3 mt-3">
-        <CommentInput
-          userName={currentUser?.name}
-          userAvatar={currentUser?.avatar}
-          autoFocus={autoFocusInput}
-        />
-      </div>
+      {/* Input bình luận — cố định ở dưới (ẩn khi hideInput=true) */}
+      {!hideInput && (
+        <div className="shrink-0 border-t border-border pt-3 mt-3">
+          <CommentInput
+            userName={currentUser?.name}
+            userAvatar={currentUser?.avatar}
+            autoFocus={autoFocusInput}
+          />
+        </div>
+      )}
     </div>
   )
 }
+
