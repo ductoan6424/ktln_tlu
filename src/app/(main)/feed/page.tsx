@@ -46,11 +46,13 @@ const POLL_OPTIONS = [
 
 export default function FeedPage() {
   return (
-    <PageContainer variant="full" className="py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Sidebar trái — Thông tin cá nhân & Điều hướng */}
-        <aside className="hidden lg:block lg:col-span-3">
-          <div className="flex flex-col gap-2 sticky top-24">
+    <PageContainer variant="full" className="h-full py-0">
+      {/* Holy Grail Layout — mỗi cột có overflow-y-auto riêng → scroll độc lập */}
+      <div className="flex h-full gap-5 lg:gap-6">
+
+        {/* Sidebar trái — scroll độc lập */}
+        <aside className="hidden lg:block lg:w-[280px] xl:w-[300px] shrink-0 overflow-y-auto">
+          <div className="py-6 flex flex-col gap-2 w-full">
             <Card>
               <CardContent className="p-4">
                 {/* Thông tin người dùng */}
@@ -81,8 +83,9 @@ export default function FeedPage() {
           </div>
         </aside>
 
-        {/* Nội dung chính — Composer + Posts */}
-        <section className="lg:col-span-6 flex flex-col gap-6">
+        {/* Nội dung chính — scroll độc lập, nội dung căn giữa với max-width */}
+        <section className="flex-1 min-w-0 overflow-y-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="py-6 max-w-[640px] mx-auto flex flex-col gap-3">
           {/* Form tạo bài viết */}
           <PostComposer
             userName={MOCK_USER.name}
@@ -126,11 +129,12 @@ export default function FeedPage() {
               />
             </div>
           </article>
+          </div>{/* end max-w-[640px] wrapper */}
         </section>
 
-        {/* Sidebar phải — Xu hướng & Sự kiện */}
-        <aside className="hidden xl:block xl:col-span-3">
-          <div className="flex flex-col gap-6 sticky top-24">
+        {/* Sidebar phải — scroll độc lập */}
+        <aside className="hidden xl:block xl:w-[280px] shrink-0 overflow-y-auto">
+          <div className="py-6 flex flex-col gap-4 w-full">
             {/* Xu hướng */}
             <Card>
               <CardContent className="p-5">
