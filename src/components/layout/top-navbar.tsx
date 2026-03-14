@@ -8,6 +8,8 @@ import { NavbarLink } from "@/components/layout/navbar-link"
 import { SearchInput } from "@/components/shared/search-input"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Button } from "@/components/ui/button"
+import { NotificationPopup } from "@/components/layout/notification-popup"
+import { MessagePopup } from "@/components/layout/message-popup"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,8 +19,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
 import {
-  Bell,
-  MessageSquare,
   Settings,
   LogOut,
   Moon,
@@ -51,8 +51,8 @@ interface TopNavbarProps {
 export function TopNavbar({
   navItems = [],
   user,
-  notificationCount,
-  messageCount,
+  notificationCount: _notificationCount, // TODO: Kết nối API sẽ sử dụng
+  messageCount: _messageCount, // TODO: Kết nối API sẽ sử dụng
   searchPlaceholder = "Tìm kiếm...",
   className,
 }: TopNavbarProps) {
@@ -133,13 +133,13 @@ export function TopNavbar({
             <Search className="size-5" />
           </Button>
 
-          {/* Desktop: notification + message icons */}
-          <Link href="/notifications" className="hidden lg:inline-flex">
-            <NotificationButton icon={Bell} count={notificationCount} label="Thông báo" />
-          </Link>
-          <Link href="/messages" className="hidden lg:inline-flex">
-            <NotificationButton icon={MessageSquare} count={messageCount} label="Tin nhắn" />
-          </Link>
+          {/* Desktop: notification + message icons with popup */}
+          <div className="hidden lg:block">
+            <NotificationPopup />
+          </div>
+          <div className="hidden lg:block">
+            <MessagePopup />
+          </div>
 
           {/* Desktop: Avatar Dropdown — ẩn trên mobile (đã có trong bottom nav) */}
           {user && (
@@ -218,33 +218,6 @@ export function TopNavbar({
         </div>
       </div>
     </header>
-  )
-}
-
-/* Nút thông báo / tin nhắn với số badge */
-function NotificationButton({
-  icon: Icon,
-  count,
-  label,
-}: {
-  icon: LucideIcon
-  count?: number
-  label: string
-}) {
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="relative size-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-      aria-label={label}
-    >
-      <Icon className="size-5" />
-      {count !== undefined && count > 0 && (
-        <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-white text-[10px] font-bold leading-none">
-          {count > 99 ? "99+" : count}
-        </span>
-      )}
-    </Button>
   )
 }
 
