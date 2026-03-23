@@ -1,7 +1,21 @@
-// Mock data for notifications and messages - Tạm thời để test UI
+
 
 import type { LucideIcon } from "lucide-react"
 import { Heart, MessageCircle, UserPlus, Share2, Calendar, Image, ThumbsUp } from "lucide-react"
+
+export interface GroupData {
+  id: string
+  name: string
+  memberCount: number
+  href: string
+}
+
+export const mockGroups: GroupData[] = [
+  { id: "1", name: "CLB Thiết kế", memberCount: 120, href: "/clubs/design-club" },
+  { id: "2", name: "Nhóm Công nghệ", memberCount: 85, href: "/groups/tech-group" },
+  { id: "3", name: "CLB Tiếng Anh", memberCount: 200, href: "/clubs/english-club" },
+  { id: "4", name: "Nhóm Âm nhạc", memberCount: 45, href: "/groups/music" },
+]
 
 export interface NotificationData {
   id: string

@@ -11,6 +11,8 @@ import { PollCard } from "@/components/feed/poll-card"
 import { TrendingItem } from "@/components/dashboard/trending-item"
 import { EventItem } from "@/components/dashboard/event-item"
 import { PageContainer } from "@/components/layout/page-container"
+import { SidebarGroupItem } from "@/components/layout/sidebar-group-item"
+import { mockGroups } from "@/components/layout/mock-data"
 import { LayoutGrid, BookOpen, Users, Bookmark } from "lucide-react"
 import Link from "next/link"
 
@@ -78,6 +80,18 @@ export default function FeedPage() {
                     />
                   ))}
                 </nav>
+
+                {/* Nhóm của bạn */}
+                <div className="mt-4">
+                  <p className="px-1 py-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                    Nhóm của bạn
+                  </p>
+                  <div className="space-y-0.5">
+                    {mockGroups.map((group) => (
+                      <SidebarGroupItem key={group.id} group={group} />
+                    ))}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
