@@ -187,3 +187,25 @@ export const mockMessages: MessageData[] = [
     isGroup: true,
   },
 ]
+
+// Mock Active Friends
+export interface ActiveFriend {
+  id: string
+  name: string
+  avatar?: string
+  status: "online" | "offline" | "away"
+}
+
+export const mockActiveFriends: ActiveFriend[] = [
+  { id: "1", name: "Nguyễn Văn An", status: "online" },
+  { id: "2", name: "Trần Thị B", status: "online" },
+  { id: "3", name: "Lê Văn C", status: "away" },
+  { id: "4", name: "Phạm Hoàng Nam", status: "online" },
+  { id: "5", name: "Đỗ Minh Tuấn", status: "online" },
+  { id: "6", name: "Bùi Thu Hà", status: "offline" },
+  { id: "7", name: "Ngô Đức Minh", status: "online" },
+  { id: "8", name: "Trịnh Thanh Hà", status: "online" },
+  { id: "9", name: "Vũ Khánh Linh", status: "away" },
+  { id: "10", name: "Đặng Quang Minh", status: "online" },
+  { id: "11", name: "Hoàng Thuỳ Dung", status: "offline" },
+]
