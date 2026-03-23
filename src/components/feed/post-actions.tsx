@@ -1,9 +1,10 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Heart, MessageCircle, Bookmark } from "lucide-react"
+import { Heart, MessageCircle, Bookmark, BookmarkCheck } from "lucide-react"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
 import { cn } from "@/lib/utils"
+import { useState } from "react"
 
 interface PostActionsProps {
   likes?: number
@@ -16,6 +17,7 @@ interface PostActionsProps {
   onComment?: () => void
   onCommentClick?: () => void
   onSave?: () => void
+  onUnsave?: () => void
   onRegister?: () => void
   className?: string
 }
@@ -31,9 +33,21 @@ export function PostActions({
   onComment,
   onCommentClick,
   onSave,
+  onUnsave,
   onRegister,
   className,
 }: PostActionsProps) {
+  const [isSaved, setIsSaved] = useState(false)
+
+  const handleSave = () => {
+    if (isSaved) {
+      onUnsave?.()
+    } else {
+      onSave?.()
+    }
+    setIsSaved((prev) => !prev)
+  }
+
   const handleCommentClick = () => {
     onComment?.()
     onCommentClick?.()
@@ -74,11 +88,18 @@ export function PostActions({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onSave}
-            className="gap-1 text-muted-foreground"
+            onClick={handleSave}
+            className={cn(
+              "gap-1 text-muted-foreground",
+              isSaved && "text-primary"
+            )}
           >
-            <Bookmark className="size-4" />
-            Lưu lại
+            {isSaved ? (
+              <BookmarkCheck className="size-4" />
+            ) : (
+              <Bookmark className="size-4" />
+            )}
+            {isSaved ? "Đã lưu" : "Lưu lại"}
           </Button>
         )}
         {showRegister && (
