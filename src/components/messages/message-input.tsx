@@ -8,11 +8,13 @@ import { cn } from "@/lib/utils"
 
 interface MessageInputProps {
   recipientName?: string
+  compact?: boolean
   className?: string
 }
 
 export function MessageInput({
   recipientName,
+  compact = false,
   className,
 }: MessageInputProps) {
   const placeholder = recipientName
@@ -20,44 +22,46 @@ export function MessageInput({
     : "Nhập tin nhắn..."
 
   return (
-    <div className={cn("p-4 bg-card", className)}>
-      <div className="bg-muted border border-border rounded-2xl p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
-        <div className="flex items-end gap-2">
+    <div className={cn("bg-card", compact ? "p-3" : "p-4", className)}>
+      <div className="bg-muted border border-border rounded-2xl p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+        <div className="flex items-end gap-1.5">
           <IconButton
             icon={PlusCircle}
             size="sm"
             ariaLabel="Thêm tệp đính kèm"
-            className="rounded-xl"
+            className="rounded-lg shrink-0"
           />
-          <div className="flex-1 py-1">
+          <div className="flex-1 min-w-0 py-0.5">
             <Textarea
               placeholder={placeholder}
               rows={1}
-              className="bg-transparent border-none focus-visible:ring-0 text-sm resize-none py-1 min-h-0 placeholder:text-muted-foreground"
+              className="bg-transparent border-none focus-visible:ring-0 text-sm resize-none py-0.5 min-h-0 placeholder:text-muted-foreground"
             />
           </div>
-          <div className="flex items-center gap-1 pb-1">
+          <div className="flex items-center gap-0.5 shrink-0">
             <IconButton
               icon={Smile}
               size="sm"
               ariaLabel="Biểu tượng cảm xúc"
-              className="rounded-xl"
+              className="rounded-lg"
             />
             <IconButton
               icon={Paperclip}
               size="sm"
               ariaLabel="Đính kèm tệp"
-              className="rounded-xl"
+              className="rounded-lg"
             />
-            <Button size="icon" className="rounded-xl shadow-lg shadow-primary/20 size-9">
-              <Send className="size-4" />
+            <Button size="icon" className="rounded-lg shadow-sm size-8">
+              <Send className="size-3.5" />
             </Button>
           </div>
         </div>
       </div>
-      <p className="text-[10px] text-center text-muted-foreground mt-2">
-        Tin nhắn được mã hóa và bảo mật trong hệ thống nội bộ.
-      </p>
+      {!compact && (
+        <p className="text-[10px] text-center text-muted-foreground mt-2">
+          Tin nhắn được mã hóa và bảo mật trong hệ thống nội bộ.
+        </p>
+      )}
     </div>
   )
 }

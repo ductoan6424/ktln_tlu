@@ -3,7 +3,6 @@
 import { ChatHeader } from "@/components/messages/chat-header"
 import { MessageInput } from "@/components/messages/message-input"
 import type { ActiveFriend } from "./mock-data"
-import { X } from "lucide-react"
 
 interface ChatMessage {
   id: string
@@ -34,25 +33,21 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
       style={{
         width: 320,
         height: 420,
-        bottom: 16 + index * (420 + 16),
-        right: 16,
+        bottom: 16,
+        right: 16 + index * (320 + 16),
         zIndex: 10 + index,
       }}
       onMouseDown={onFocus}
     >
-      <div className="relative shrink-0">
+      <div className="shrink-0">
         <ChatHeader
           name={friend.name}
           avatarSrc={friend.avatar}
           isOnline={friend.status === "online"}
-          className="h-12 px-3"
+          compact
+          showClose
+          onClose={onClose}
         />
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 size-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
-        >
-          <X className="size-4 text-muted-foreground" />
-        </button>
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {DEFAULT_MESSAGES.map((msg) => (
@@ -74,7 +69,7 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
         ))}
       </div>
       <div className="shrink-0 border-t border-border">
-        <MessageInput recipientName={friend.name} />
+        <MessageInput recipientName={friend.name} compact />
       </div>
     </div>
   )
