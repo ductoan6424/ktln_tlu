@@ -12,7 +12,8 @@ import { PostComposer } from "@/components/feed/post-composer"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageContainer } from "@/components/layout/page-container"
-import { Rss, Users, CalendarDays, Info } from "lucide-react"
+import { Rss, Users, CalendarDays, Info, Settings } from "lucide-react"
+import { ManageTabs } from "@/components/clubs/manage/manage-tabs"
 
 const CLUB_DATA = {
   name: "CLB Tin học",
@@ -27,6 +28,7 @@ const TABS = [
   { label: "Thành viên", value: "members", icon: Users },
   { label: "Sự kiện", value: "events", icon: CalendarDays },
   { label: "Giới thiệu", value: "about", icon: Info },
+  { label: "Quản lý", value: "manage", icon: Settings },
 ]
 
 const LEADERS = [
@@ -67,6 +69,8 @@ export default function ClubsPage() {
         hub={CLUB_DATA.hub}
         memberCount={CLUB_DATA.memberCount}
         location={CLUB_DATA.location}
+        showManageButton
+        manageHref="/clubs/tin-hoc/manage"
       />
 
       {/* Tabs */}
@@ -78,6 +82,9 @@ export default function ClubsPage() {
       />
 
       {/* Nội dung chính */}
+      {activeTab === "manage" ? (
+        <ManageTabs />
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cột trái — Feed */}
         <section className="lg:col-span-2 space-y-6">
@@ -158,6 +165,7 @@ export default function ClubsPage() {
           </Card>
         </aside>
       </div>
+      )}
     </PageContainer>
   )
 }
