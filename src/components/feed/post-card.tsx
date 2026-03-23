@@ -25,6 +25,7 @@ interface PostCardProps {
   shares?: number
   showSave?: boolean
   showRegister?: boolean
+  onUnsave?: () => void
   className?: string
 }
 
@@ -44,6 +45,7 @@ export function PostCard({
   shares,
   showSave,
   showRegister,
+  onUnsave,
   className,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
@@ -109,6 +111,7 @@ export function PostCard({
             shares={shares}
             showSave={showSave}
             showRegister={showRegister}
+            onUnsave={onUnsave}
             onCommentClick={handleOpenDetail}
             className="mt-2.5"
           />
