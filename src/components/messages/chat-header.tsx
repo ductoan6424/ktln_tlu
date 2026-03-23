@@ -1,7 +1,7 @@
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { IconButton } from "@/components/shared/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Video, Phone, Info } from "lucide-react"
+import { Video, Phone, Info, X } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 
@@ -11,6 +11,9 @@ interface ChatHeaderProps {
   role?: string
   avatarSrc?: string
   isOnline?: boolean
+  compact?: boolean
+  showClose?: boolean
+  onClose?: () => void
   className?: string
 }
 
@@ -19,34 +22,50 @@ export function ChatHeader({
   role,
   avatarSrc,
   isOnline = false,
+  compact = false,
+  showClose = false,
+  onClose,
   className,
 }: ChatHeaderProps) {
   return (
-    <div className={cn("h-14 lg:h-16 border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0 bg-card/80 backdrop-blur-md", className)}>
-      <div className="flex items-center gap-4">
+    <div className={cn(
+      "border-b border-border flex items-center justify-between shrink-0 bg-card/80 backdrop-blur-md",
+      compact ? "h-12 px-3" : "h-14 lg:h-16 px-4 lg:px-6",
+      className
+    )}>
+      <div className="flex items-center gap-3 min-w-0">
         <UserAvatar
           src={avatarSrc}
           name={name}
-          size="md"
+          size={compact ? "sm" : "md"}
           showStatus
           status={isOnline ? "online" : "offline"}
         />
-        <div>
-          <h3 className="font-bold leading-tight">{name}</h3>
+        <div className="min-w-0">
+          <h3 className={cn("font-bold leading-tight truncate", compact ? "text-sm" : "")}>{name}</h3>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             {isOnline && (
-              <span className="size-1.5 bg-green-500 rounded-full" />
+              <span className="size-1.5 bg-green-500 rounded-full shrink-0" />
             )}
-            {isOnline ? "Đang hoạt động" : "Ngoại tuyến"}
-            {role && ` • ${role}`}
+            <span className="truncate">{isOnline ? "Đang hoạt động" : "Ngoại tuyến"}</span>
+            {role && <span className="shrink-0">• {role}</span>}
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <IconButton icon={Video} ariaLabel="Gọi video" />
-        <IconButton icon={Phone} ariaLabel="Gọi thoại" />
-        <Separator orientation="vertical" className="h-6 mx-2" />
-        <IconButton icon={Info} ariaLabel="Thông tin" />
+      <div className="flex items-center gap-1 shrink-0">
+        <IconButton icon={Video} ariaLabel="Gọi video" size="sm" />
+        <IconButton icon={Phone} ariaLabel="Gọi thoại" size="sm" />
+        {showClose && onClose ? (
+          <>
+            <Separator orientation="vertical" className="h-5" />
+            <IconButton icon={X} ariaLabel="Đóng" size="sm" onClick={onClose} />
+          </>
+        ) : (
+          <>
+            <Separator orientation="vertical" className="h-5" />
+            <IconButton icon={Info} ariaLabel="Thông tin" size="sm" />
+          </>
+        )}
       </div>
     </div>
   )
