@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { mockActiveFriends } from "./mock-data"
 import type { ActiveFriend } from "./mock-data"
@@ -23,10 +24,11 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
         </div>
         <div className="space-y-1">
           {onlineFriends.map((friend) => (
-            <button
+            <Button
               key={friend.id}
+              variant="ghost"
+              className="w-full justify-start gap-3 px-2 py-2 h-auto"
               onClick={() => onFriendClick?.(friend)}
-              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted transition-colors text-left"
             >
               <UserAvatar
                 src={friend.avatar}
@@ -36,7 +38,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
                 status={friend.status}
               />
               <p className="text-sm font-medium truncate">{friend.name}</p>
-            </button>
+            </Button>
           ))}
           {onlineFriends.length === 0 && (
             <p className="text-sm text-muted-foreground py-2">Không có ai đang hoạt động</p>
