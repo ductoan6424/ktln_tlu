@@ -23,6 +23,14 @@ export default function LoginPage() {
             Liên hệ quản trị hệ thống
           </Link>
         </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          <Link
+            href="/forgot-password"
+            className="text-primary/70 hover:text-primary font-medium hover:underline underline-offset-4 transition-colors"
+          >
+            Quên mật khẩu?
+          </Link>
+        </p>
       </div>
     </div>
   )
