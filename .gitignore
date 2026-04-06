@@ -50,4 +50,5 @@ next-env.d.ts
 /vercel
 
 CLAUDE.md
-/docs/superpowers
+/docs/
+.planning
