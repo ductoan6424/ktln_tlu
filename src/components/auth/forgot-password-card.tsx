@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { forgotPassword } from "@/actions/auth"
 import {
   Mail,
   ArrowLeft,
@@ -124,11 +125,14 @@ export function ForgotPasswordCard() {
     if (!validate()) return
 
     setLoading(true)
-    // TODO: Gọi Server Action để gửi email reset
-    // await forgotPasswordAction(email)
-    await new Promise((r) => setTimeout(r, 1500))
+    const result = await forgotPassword(email)
     setLoading(false)
-    setSubmitted(true)
+
+    if (result.success) {
+      setSubmitted(true)
+    } else {
+      setError(result.error ?? "Đã xảy ra lỗi. Vui lòng thử lại.")
+    }
   }
 
   if (submitted) {

@@ -1,20 +1,26 @@
-// Prisma client singleton
-// Import sẽ hoạt động sau khi chạy `npx prisma generate`
-// Hiện tại export placeholder để không ảnh hưởng build
+import { PrismaClient } from "@/generated/prisma"
+import { PrismaPg } from "@prisma/adapter-pg"
+import { Pool } from "pg"
 
-// import { PrismaClient } from "@/generated/prisma";
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
 
-// Singleton pattern cho Prisma client
-// Uncomment khi đã có DATABASE_URL và chạy `npx prisma generate`
+function createPrismaClient(): PrismaClient {
+  const connectionString = process.env.DATABASE_URL
 
-// const globalForPrisma = globalThis as unknown as {
-//   prisma: PrismaClient | undefined;
-// };
+  if (!connectionString) {
+    throw new Error("DATABASE_URL environment variable is not set")
+  }
 
-// export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+  const pool = new Pool({ connectionString })
+  const adapter = new PrismaPg(pool)
 
-// if (process.env.NODE_ENV !== "production") {
-//   globalForPrisma.prisma = prisma;
-// }
+  return new PrismaClient({ adapter })
+}
 
-export {};
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma
+}

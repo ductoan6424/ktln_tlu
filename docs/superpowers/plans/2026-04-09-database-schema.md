@@ -1,7 +1,26 @@
-// prisma/schema.prisma
-// UniConnect — Database Schema Phase 1
-// Tech stack: Neon PostgreSQL + Prisma ORM
+# Database Schema Implementation Plan
 
+> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Viết Prisma schema đầy đủ 15 models vào `prisma/schema.prisma`, chạy migration, generate client, cập nhật types.
+
+**Architecture:** Prisma schema với 15 models (UserProfile, Club, Group, ClubMember, GroupMember, Post, Comment, Like, Conversation, ConversationParticipant, Message, Notification, Friendship, EmailVerification, PasswordReset), dùng Neon PostgreSQL. Supabase Auth user ID làm FK trong mọi model.
+
+**Tech Stack:** Prisma ORM, PostgreSQL (Neon), TypeScript
+
+---
+
+## Chunk 1: Prisma Schema
+
+### Task 1: Viết full Prisma schema
+
+**Files:**
+- Modify: `prisma/schema.prisma`
+
+- [ ] **Step 1: Viết toàn bộ schema vào prisma/schema.prisma**
+
+```prisma
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -9,9 +28,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// ─── Enums ────────────────────────────────────────────────────────────────────────
+// ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum UserRole {
   STUDENT
@@ -54,7 +74,7 @@ enum NotificationType {
   ANNOUNCEMENT
 }
 
-// ─── Models ──────────────────────────────────────────────────────────────────
+// ─── Models ───────────────────────────────────────────────────────────────────
 
 model UserProfile {
   userId       String    @id @map("user_id")
@@ -81,7 +101,7 @@ model UserProfile {
   initiatedFriendships  Friendship[] @relation("FriendshipRequester")
   receivedFriendships   Friendship[] @relation("FriendshipAddressee")
 
-  sentMessages          Message[]                @relation("MessageSender")
+  sentMessages          Message[]        @relation("MessageSender")
   conversationParticipations ConversationParticipant[]
 
   emailVerifications    EmailVerification[]
@@ -146,9 +166,9 @@ model ClubMember {
 
 model GroupMember {
   userId   String     @map("user_id")
-  groupId String     @map("group_id")
-  role    MemberRole @default(MEMBER) @map("role")
-  joinedAt DateTime  @default(now()) @map("joined_at")
+  groupId  String     @map("group_id")
+  role     MemberRole @default(MEMBER) @map("role")
+  joinedAt DateTime   @default(now()) @map("joined_at")
 
   user  UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
   group Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -337,3 +357,216 @@ model PasswordReset {
 
   @@map("password_resets")
 }
+```
+
+- [ ] **Step 2: Run lint trên schema**
+
+Run: `npx prisma validate`
+Expected: ✅ Schema is valid
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add prisma/schema.prisma
+git commit -m "feat: viết prisma schema phase 1 — 15 models"
+```
+
+---
+
+## Chunk 2: Migration & Client Generation
+
+### Task 2: Chạy migration lên Neon
+
+- [ ] **Step 1: Tạo migration**
+
+Run: `npx prisma migrate dev --name init_phase1_schema`
+Expected: Migration created successfully, applied to database
+
+- [ ] **Step 2: Generate Prisma client**
+
+Run: `npx prisma generate`
+Expected: Client generated at src/generated/prisma
+
+- [ ] **Step 3: Verify connection**
+
+Run: `npx prisma studio`
+Expected: Browser opens, can browse all tables
+
+- [ ] **Step 4: Commit migration**
+
+```bash
+git add prisma/migrations/ prisma/schema.prisma
+git commit -m "feat: apply migration phase 1 lên neon db"
+```
+
+---
+
+## Chunk 3: TypeScript Types
+
+### Task 3: Cập nhật types/database.ts
+
+**Files:**
+- Modify: `src/types/database.ts`
+
+- [ ] **Step 1: Cập nhật types/database.ts với infer types từ Prisma**
+
+```typescript
+// src/types/database.ts
+import type {
+  UserProfile,
+  Club,
+  Group,
+  ClubMember,
+  GroupMember,
+  Post,
+  Comment,
+  Like,
+  Conversation,
+  ConversationParticipant,
+  Message,
+  Notification,
+  Friendship,
+  EmailVerification,
+  PasswordReset,
+  PostVisibility,
+  MemberRole,
+  ConversationType,
+  FriendshipStatus,
+  NotificationType,
+  UserRole,
+} from "@/generated/prisma"
+
+// Re-export enums
+export type {
+  PostVisibility,
+  MemberRole,
+  ConversationType,
+  FriendshipStatus,
+  NotificationType,
+  UserRole,
+}
+
+// Re-export models
+export type {
+  UserProfile,
+  Club,
+  Group,
+  ClubMember,
+  GroupMember,
+  Post,
+  Comment,
+  Like,
+  Conversation,
+  ConversationParticipant,
+  Message,
+  Notification,
+  Friendship,
+  EmailVerification,
+  PasswordReset,
+}
+
+// Convenient aliases
+export type User = UserProfile
+export type ClubMemberWithUser = ClubMember & { user: UserProfile }
+export type GroupMemberWithUser = GroupMember & { user: UserProfile }
+export type PostWithAuthor = Post & { author: UserProfile }
+export type CommentWithAuthor = Comment & { author: UserProfile }
+export type MessageWithSender = Message & { sender: UserProfile }
+export type NotificationWithUser = Notification & { user: UserProfile }
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add src/types/database.ts
+git commit -m "feat: cập nhật types/database.ts từ prisma client"
+```
+
+---
+
+## Chunk 4: Prisma Client Singleton
+
+### Task 4: Bật Prisma client singleton
+
+**Files:**
+- Modify: `src/lib/prisma/client.ts`
+
+- [ ] **Step 1: Uncomment và sửa Prisma client**
+
+```typescript
+// src/lib/prisma/client.ts
+import { PrismaClient } from "@/generated/prisma"
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma
+}
+```
+
+- [ ] **Step 2: Verify build**
+
+Run: `npm run build 2>&1 | head -50`
+Expected: Build completes without errors related to Prisma
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/lib/prisma/client.ts
+git commit -m "feat: bật prisma client singleton"
+```
+
+---
+
+## Chunk 5: Database Documentation
+
+### Task 5: Cập nhật PROJECT-OVERVIEW.md
+
+**Files:**
+- Modify: `docs/PROJECT-OVERVIEW.md`
+
+- [ ] **Step 1: Cập nhật trạng thái phát triển**
+
+```markdown
+| Module | Trạng thái |
+|---|---|
+| Database Schema | ✅ Hoàn thành (15 models) |
+| UI Components (Frontend) | ✅ Hoàn thành (~70+ components) |
+| Auth UI | ✅ Hoàn thành (login, register, forgot-password) |
+| Backend Logic | ❌ Cần xây dựng (Server Actions trống) |
+| Real-time (Ably) | ⚠️ Client scaffold có, cần implement logic |
+| Redis Cache | ⚠️ Client scaffold có, cần implement |
+| Email | ❌ Cần xây dựng |
+| Cloudinary Upload | ⚠️ Client scaffold có, cần implement |
+| Tests | ❌ Cần xây dựng |
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add docs/PROJECT-OVERVIEW.md
+git commit -m "docs: cập nhật trạng thái database schema phase 1 hoàn thành"
+```
+
+---
+
+## Verification
+
+Sau khi hoàn thành tất cả tasks, chạy:
+
+```bash
+# 1. Validate schema
+npx prisma validate
+
+# 2. Generate client
+npx prisma generate
+
+# 3. Build
+npm run build
+```
+
+Expected: ✅ Tất cả pass không lỗi

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { register } from "@/actions/auth"
 import { cn } from "@/lib/utils"
 import {
   Mail,
@@ -182,7 +183,7 @@ function StepAccount({
             type="email"
             value={data.email}
             onChange={(e) => onChange("email", e.target.value)}
-            placeholder="student@e.tlu.edu.vn"
+            placeholder="email@example.com"
             autoComplete="email"
             className="pl-9"
             aria-invalid={!!errors.email}
@@ -298,7 +299,7 @@ function StepPersonal({
             type="text"
             value={data.studentId}
             onChange={(e) => onChange("studentId", e.target.value)}
-            placeholder="21001234"
+            placeholder="A46287"
             autoComplete="off"
             className="pl-9"
             aria-invalid={!!errors.studentId}
@@ -530,8 +531,6 @@ export function RegisterCard() {
       newErrors.email = "Email không được để trống"
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Email không hợp lệ"
-    } else if (!formData.email.endsWith("@e.tlu.edu.vn")) {
-      newErrors.email = "Email phải thuộc tài khoản trường (@e.tlu.edu.vn)"
     }
 
     if (!formData.password) {
@@ -559,10 +558,8 @@ export function RegisterCard() {
       newErrors.fullName = "Họ và tên quá ngắn"
     }
 
-    if (!formData.studentId.trim()) {
-      newErrors.studentId = "Mã sinh viên không được để trống"
-    } else if (!/^\d{6,12}$/.test(formData.studentId.trim())) {
-      newErrors.studentId = "Mã sinh viên phải là 6-12 chữ số"
+    if (formData.studentId && !/^[A-Za-z]\d{5,10}$/.test(formData.studentId.trim())) {
+      newErrors.studentId = "Mã sinh viên phải có định dạng A + số (ví dụ: A46287)"
     }
 
     if (!formData.faculty) {
@@ -583,11 +580,17 @@ export function RegisterCard() {
 
   const handleSubmit = async () => {
     setLoading(true)
-    // TODO: Gọi Server Action để đăng ký
-    // await registerAction(formData)
-    await new Promise((r) => setTimeout(r, 1500)) // simulate
+    const result = await register({
+      email: formData.email,
+      password: formData.password,
+      displayName: formData.fullName,
+      studentId: formData.studentId || undefined,
+      faculty: formData.faculty || undefined,
+    })
     setLoading(false)
-    setSubmitted(true)
+    if (result.success) {
+      setSubmitted(true)
+    }
   }
 
   if (submitted) {

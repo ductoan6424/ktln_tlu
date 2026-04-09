@@ -1,5 +1,6 @@
+// src/app/(auth)/login/page.tsx
 import type { Metadata } from "next"
-import { LoginCard } from "@/components/auth/login-card"
+import { LoginForm } from "@/components/auth/login-form"
 import Link from "next/link"
 
 export const metadata: Metadata = {
@@ -10,9 +11,7 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <div className="space-y-8">
-      <LoginCard />
-
-      {/* Hỗ trợ */}
+      <LoginForm />
       <div className="text-center">
         <p className="text-sm text-muted-foreground">
           Cần hỗ trợ?{" "}
