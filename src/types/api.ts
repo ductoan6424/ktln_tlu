@@ -5,6 +5,7 @@ export interface ActionResult<T = unknown> {
   data?: T
   error?: string
   code?: string
+  message?: string
 }
 
 export function successResult<T>(data: T): ActionResult<T> {

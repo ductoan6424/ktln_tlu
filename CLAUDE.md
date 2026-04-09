@@ -86,7 +86,7 @@ Chi tiết: [docs/working-principles.md](./docs/working-principles.md)
 **4 nguyên tắc bắt buộc:**
 
 1. **KHÔNG HARDCORE** — Mọi giá trị cần config phải đưa vào `.env` hoặc `src/lib/config/`. Không có magic strings, URLs, limits, numbers trong code.
-2. **TESTS BẮT BUỘC** — Mỗi task xong → viết test → chạy test → xác nhận pass trước khi đánh dấu hoàn thành.
+2. **TESTS BẮT BUỘC** — Mỗi task xong → viết test → chạy test → xác nhận pass trước khi đánh dấu hoàn thành, sau khi xong thì kiểm tra lại các file docs, đánh dấu tiến độ.
 3. **COMMENTS CHỈ TRONG FRONTEND** — Chỉ dùng `{/* comment */}` trong file `.tsx`. Không comments trong `.ts`.
 4. **ƯU TIÊN COMPONENT CÓ SẴN** — Luôn kiểm tra `src/components/ui/` trước. Gần đúng → adjust. Không có → mới tạo.
 
