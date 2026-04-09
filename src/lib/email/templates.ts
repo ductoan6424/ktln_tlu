@@ -25,7 +25,7 @@ function wrapTemplate(title: string, content: string): string {
     <h1 style="margin:0;font-size:20px;">${title}</h1>
   </div>
   <div class="content">${content}</div>
-  <div class="footer">TLU Community — Đại học Thủy Lợi</div>
+  <div class="footer">TLU Community — Đại học Thăng Long</div>
 </body>
 </html>`
 }
