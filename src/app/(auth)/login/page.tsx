@@ -5,7 +5,7 @@ import Link from "next/link"
 
 export const metadata: Metadata = {
   title: "Đăng nhập — TLU Community",
-  description: "Đăng nhập vào cổng thông tin sinh viên Đại học Thủy lợi",
+  description: "Đăng nhập vào cổng thông tin sinh viên Đại học Thăng Long",
 }
 
 export default function LoginPage() {

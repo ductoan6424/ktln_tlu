@@ -2,7 +2,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { SsoButton } from "@/components/auth/sso-button"
 import { DividerLabel } from "@/components/shared/divider-label"
@@ -12,12 +11,9 @@ import { Button } from "@/components/ui/button"
 import { login } from "@/actions/auth"
 import { LogIn, User, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
 
-interface LoginFormProps {
-  onSuccess?: () => void
-}
+interface LoginFormProps {}
 
-export function LoginForm({ onSuccess }: LoginFormProps) {
-  const router = useRouter()
+export function LoginForm(_props: LoginFormProps) {
   const [showForm, setShowForm] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -38,9 +34,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setLoading(false)
 
     if (result.success) {
-      router.push("/feed")
-      router.refresh()
-      onSuccess?.()
+      window.location.href = "/feed"
+      return
     } else {
       setError(result.error ?? "Đăng nhập thất bại.")
     }
