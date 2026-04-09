@@ -4,6 +4,7 @@
 import { z } from "zod"
 import { randomBytes } from "crypto"
 import { createClient, createAdminClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma/client"
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email/sender"
 import { successResult, errorResult } from "@/types/api"
@@ -231,6 +232,17 @@ export async function login(
 export async function logout(): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.signOut()
+
+  const cookieStore = await cookies()
+  cookieStore.getAll().forEach((cookie) => {
+    if (
+      cookie.name.startsWith("sb-") ||
+      cookie.name.startsWith("supabase-") ||
+      cookie.name === "supabase-auth-token"
+    ) {
+      cookieStore.delete(cookie.name)
+    }
+  })
 }
 
 export async function forgotPassword(
