@@ -299,7 +299,7 @@ function StepPersonal({
             type="text"
             value={data.studentId}
             onChange={(e) => onChange("studentId", e.target.value)}
-            placeholder="21001234"
+            placeholder="A46287"
             autoComplete="off"
             className="pl-9"
             aria-invalid={!!errors.studentId}
@@ -558,10 +558,8 @@ export function RegisterCard() {
       newErrors.fullName = "Họ và tên quá ngắn"
     }
 
-    if (!formData.studentId.trim()) {
-      newErrors.studentId = "Mã sinh viên không được để trống"
-    } else if (!/^\d{6,12}$/.test(formData.studentId.trim())) {
-      newErrors.studentId = "Mã sinh viên phải là 6-12 chữ số"
+    if (formData.studentId && !/^[A-Za-z]\d{5,10}$/.test(formData.studentId.trim())) {
+      newErrors.studentId = "Mã sinh viên phải có định dạng A + số (ví dụ: A46287)"
     }
 
     if (!formData.faculty) {
