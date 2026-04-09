@@ -15,7 +15,7 @@ const registerSchema = z.object({
   email: z.string().email().min(1, "Email không được trống"),
   password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
   displayName: z.string().min(2).max(100),
-  studentId: z.string().optional(),
+  studentId: z.string().regex(/^[A-Za-z]\d{5,10}$/, "Mã sinh viên phải có định dạng A + số (ví dụ: A46287)").optional(),
   faculty: z.string().optional(),
 })
 
