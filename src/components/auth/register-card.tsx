@@ -183,7 +183,7 @@ function StepAccount({
             type="email"
             value={data.email}
             onChange={(e) => onChange("email", e.target.value)}
-            placeholder="student@e.tlu.edu.vn"
+            placeholder="email@example.com"
             autoComplete="email"
             className="pl-9"
             aria-invalid={!!errors.email}
@@ -531,8 +531,6 @@ export function RegisterCard() {
       newErrors.email = "Email không được để trống"
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Email không hợp lệ"
-    } else if (!formData.email.endsWith("@e.tlu.edu.vn")) {
-      newErrors.email = "Email phải thuộc tài khoản trường (@e.tlu.edu.vn)"
     }
 
     if (!formData.password) {
