@@ -162,7 +162,7 @@ Schema chi tiết: `prisma/schema.prisma`
 |---|---|
 | UI Components (Frontend) | ✅ Hoàn thành (~70+ components) |
 | Auth UI | ✅ Hoàn thành (login, register, forgot-password) |
-| Database Schema | ❌ Cần xây dựng (Prisma schema rỗng) |
+| Database Schema | ✅ Hoàn thành (15 models, đã migrate lên Neon) |
 | Backend Logic | ❌ Cần xây dựng (Server Actions trống) |
 | Real-time (Ably) | ⚠️ Client scaffold có, cần implement logic |
 | Redis Cache | ⚠️ Client scaffold có, cần implement |
