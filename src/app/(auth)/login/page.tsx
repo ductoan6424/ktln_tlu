@@ -12,7 +12,16 @@ export default function LoginPage() {
   return (
     <div className="space-y-8">
       <LoginForm />
-      <div className="text-center">
+      <div className="text-center space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Chưa có tài khoản?{" "}
+          <Link
+            href="/register"
+            className="text-primary font-medium hover:underline underline-offset-4"
+          >
+            Đăng ký ngay
+          </Link>
+        </p>
         <p className="text-sm text-muted-foreground">
           Cần hỗ trợ?{" "}
           <Link
