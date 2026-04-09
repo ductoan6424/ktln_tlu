@@ -3,7 +3,7 @@
 
 import { z } from "zod"
 import { randomBytes } from "crypto"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma/client"
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email/sender"
 import { successResult, errorResult } from "@/types/api"
@@ -54,15 +54,27 @@ export async function register(
 
     const { email, password, displayName, studentId, faculty } = validated.data
 
-    const existingProfile = await prisma.userProfile.findUnique({
-      where: { email },
-    })
+    const supabaseAdmin = createAdminClient()
+
+    // Kiểm tra Supabase — user có thể tồn tại nhưng chưa xác minh
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+    const existingSupabaseUser = existingUsers?.users.find((u) => u.email === email)
+
+    if (existingSupabaseUser && !existingSupabaseUser.email_confirmed_at) {
+      // User đã tồn tại trong Supabase, chưa xác minh → xoá và tạo lại
+      await supabaseAdmin.auth.admin.deleteUser(existingSupabaseUser.id)
+      await prisma.userProfile.deleteMany({ where: { userId: existingSupabaseUser.id } }).catch(() => {})
+    } else if (existingSupabaseUser && existingSupabaseUser.email_confirmed_at) {
+      return errorResult("Email đã được đăng ký.", "EMAIL_EXISTS")
+    }
+
+    // Kiểm tra Prisma profile (trường hợp Supabase đã xoá nhưng Prisma còn)
+    const existingProfile = await prisma.userProfile.findUnique({ where: { email } })
     if (existingProfile) {
       return errorResult("Email đã được đăng ký.", "EMAIL_EXISTS")
     }
 
-    const supabase = await createClient()
-    const { data, error } = await supabase.auth.admin.createUser({
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: false,
@@ -126,10 +138,10 @@ export async function verifyEmail(
       return errorResult("Liên kết đã hết hạn. Vui lòng yêu cầu gửi lại.", "TOKEN_EXPIRED")
     }
 
-    const supabase = await createClient()
-    const { error } = await supabase.auth.admin.updateUserById(
+    const supabaseAdmin = createAdminClient()
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(
       verification.userId,
-      { user_metadata: { email_verified: true } }
+      { email_confirm: true }
     )
 
     if (error) {
@@ -277,8 +289,8 @@ export async function resetPassword(
       return errorResult("Liên kết đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới.", "TOKEN_EXPIRED")
     }
 
-    const supabase = await createClient()
-    const { error } = await supabase.auth.admin.updateUserById(reset.userId, {
+    const supabaseAdmin = createAdminClient()
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(reset.userId, {
       password,
     })
 
