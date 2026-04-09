@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { register } from "@/actions/auth"
 import { cn } from "@/lib/utils"
 import {
   Mail,
@@ -583,11 +584,17 @@ export function RegisterCard() {
 
   const handleSubmit = async () => {
     setLoading(true)
-    // TODO: Gọi Server Action để đăng ký
-    // await registerAction(formData)
-    await new Promise((r) => setTimeout(r, 1500)) // simulate
+    const result = await register({
+      email: formData.email,
+      password: formData.password,
+      displayName: formData.fullName,
+      studentId: formData.studentId || undefined,
+      faculty: formData.faculty || undefined,
+    })
     setLoading(false)
-    setSubmitted(true)
+    if (result.success) {
+      setSubmitted(true)
+    }
   }
 
   if (submitted) {
