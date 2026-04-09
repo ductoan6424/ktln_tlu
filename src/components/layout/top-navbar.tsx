@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { logout } from "@/actions/auth"
 import { AppLogo } from "@/components/layout/app-logo"
 import { NavbarLink } from "@/components/layout/navbar-link"
 import { SearchInput } from "@/components/shared/search-input"
@@ -59,10 +60,17 @@ export function TopNavbar({
   const pathname = usePathname()
   const [darkMode, setDarkMode] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const handleDarkModeToggle = (checked: boolean) => {
     setDarkMode(checked)
     document.documentElement.classList.toggle("dark", checked)
+  }
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    await logout()
+    window.location.href = "/login"
   }
 
   return (
@@ -208,9 +216,9 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem variant="destructive" className="cursor-pointer">
+                <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={handleLogout} disabled={loggingOut}>
                   <LogOut className="size-4" />
-                  Đăng xuất
+                  {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
