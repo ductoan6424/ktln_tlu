@@ -15,6 +15,11 @@ const AUTH_ROUTES = ["/login", "/register"]
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  const PUBLIC_FILE_EXTENSIONS = [".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico"]
+  if (PUBLIC_FILE_EXTENSIONS.some((ext) => pathname.endsWith(ext))) {
+    return NextResponse.next()
+  }
+
   if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r))) {
     return NextResponse.next()
   }
