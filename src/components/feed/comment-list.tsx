@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 interface CommentListProps {
   comments: CommentWithAuthorFlat[]
-  currentUser?: { id: string; displayName: string; avatarUrl?: string | null } | null
+  currentUser?: { id: string; displayName?: string; avatarUrl?: string | null | undefined } | null
   autoFocusInput?: boolean
   hideInput?: boolean
   isLoading?: boolean
@@ -60,7 +60,7 @@ export function CommentList({
         <div className="shrink-0 border-t border-border pt-3 mt-3">
           <CommentInput
             userName={currentUser?.displayName}
-            userAvatar={currentUser?.avatarUrl}
+            userAvatar={currentUser?.avatarUrl ?? undefined}
             autoFocus={autoFocusInput}
             onSubmit={onSubmit}
           />
