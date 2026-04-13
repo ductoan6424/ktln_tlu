@@ -67,6 +67,59 @@ export async function createPost(
   }
 }
 
+// ─── Toggle Post Like ───────────────────────────────────────────────────────
+
+export async function togglePostLike(
+  postId: string
+): Promise<ActionResult<{ liked: boolean; likes: number }>> {
+  const supabase = await createClient()
+  const { data: userData, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !userData.user) {
+    return errorResult("Bạn cần đăng nhập để thực hiện", "UNAUTHORIZED")
+  }
+
+  const userId = userData.user.id
+
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id: postId, deletedAt: null },
+      select: { authorId: true },
+    })
+
+    if (!post) {
+      return errorResult("Bài viết không tồn tại.", "NOT_FOUND")
+    }
+
+    if (post.authorId === userId) {
+      return errorResult("Bạn không thể thích bài viết của chính mình.", "CANNOT_LIKE_OWN")
+    }
+
+    const existingLike = await prisma.like.findUnique({
+      where: { userId_postId: { userId, postId } },
+    })
+
+    let liked: boolean
+
+    if (existingLike) {
+      await prisma.like.delete({
+        where: { userId_postId: { userId, postId } },
+      })
+      liked = false
+    } else {
+      await prisma.like.create({ data: { userId, postId } })
+      liked = true
+    }
+
+    const likeCount = await prisma.like.count({ where: { postId } })
+
+    return successResult({ liked, likes: likeCount })
+  } catch (error) {
+    console.error("togglePostLike error:", error)
+    return errorResult("Không thể thực hiện thao tác. Vui lòng thử lại.")
+  }
+}
+
 // ─── Load More Posts (infinite scroll) ────────────────────────────────────
 
 interface PostWithAuthorFlat {
@@ -79,6 +132,8 @@ interface PostWithAuthorFlat {
   authorId: string
   authorDisplayName: string
   authorAvatarUrl: string | null
+  isLiked: boolean
+  likes: number
 }
 
 export async function loadMorePosts(
@@ -86,6 +141,10 @@ export async function loadMorePosts(
   pageSize: number = 20
 ): Promise<ActionResult<PostWithAuthorFlat[]>> {
   try {
+    const supabase = await createClient()
+    const { data: userData } = await supabase.auth.getUser()
+    const currentUserId = userData?.user?.id ?? null
+
     const skip = page * pageSize
 
     const posts = await prisma.post.findMany({
@@ -99,6 +158,12 @@ export async function loadMorePosts(
             displayName: true,
             avatarUrl: true,
           },
+        },
+        likes: currentUserId
+          ? { where: { userId: currentUserId }, select: { id: true } }
+          : false,
+        _count: {
+          select: { likes: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -116,6 +181,8 @@ export async function loadMorePosts(
       authorId: post.authorId,
       authorDisplayName: post.author.displayName,
       authorAvatarUrl: post.author.avatarUrl,
+      isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
+      likes: post._count.likes,
     }))
 
     return successResult(formatted)
