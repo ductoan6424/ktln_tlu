@@ -27,6 +27,10 @@ interface PostCardProps {
   showRegister?: boolean
   onUnsave?: () => void
   className?: string
+  isLiked?: boolean
+  currentUserId?: string | null
+  authorId?: string
+  onLike?: () => void
 }
 
 export function PostCard({
@@ -47,6 +51,10 @@ export function PostCard({
   showRegister,
   onUnsave,
   className,
+  isLiked,
+  currentUserId,
+  authorId,
+  onLike,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
@@ -113,6 +121,10 @@ export function PostCard({
             showRegister={showRegister}
             onUnsave={onUnsave}
             onCommentClick={handleOpenDetail}
+            isLiked={isLiked}
+            currentUserId={currentUserId}
+            authorId={authorId}
+            onLike={onLike}
             className="mt-2.5"
           />
         </CardContent>
@@ -134,6 +146,10 @@ export function PostCard({
         likes={likes}
         comments={comments}
         shares={shares}
+        isLiked={isLiked}
+        currentUserId={currentUserId}
+        authorId={authorId}
+        onLike={onLike}
       />
     </>
   )
