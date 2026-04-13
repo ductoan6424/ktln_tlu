@@ -96,7 +96,7 @@ export function PostDetailDialog({
   }, [open, postId])
 
   const handleCommentSubmit = async (text: string) => {
-    if (!resolvedCurrentUser || resolvedCurrentUser.displayName == null || !postId) {
+    if (!resolvedCurrentUser?.id || !postId) {
       toast({ description: "Bạn cần đăng nhập để bình luận" })
       return
     }
@@ -108,7 +108,7 @@ export function PostDetailDialog({
       createdAt: new Date().toISOString(),
       createdAtRelative: "Vừa xong",
       authorId: resolvedCurrentUser.id,
-      authorDisplayName: resolvedCurrentUser.displayName,
+      authorDisplayName: resolvedCurrentUser.displayName ?? "Người dùng",
       authorAvatarUrl: resolvedCurrentUser.avatarUrl ?? null,
       likes: 0,
     }
