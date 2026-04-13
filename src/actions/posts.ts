@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma/client"
-import { postSchema } from "@/utils/validators"
+import { postSchema, commentSchema } from "@/utils/validators"
 import { formatRelativeTime } from "@/utils/formatters"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -134,6 +134,7 @@ interface PostWithAuthorFlat {
   authorAvatarUrl: string | null
   isLiked: boolean
   likes: number
+  comments: number
 }
 
 export async function loadMorePosts(
@@ -163,7 +164,7 @@ export async function loadMorePosts(
           ? { where: { userId: currentUserId }, select: { id: true } }
           : false,
         _count: {
-          select: { likes: true },
+          select: { likes: true, comments: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -183,6 +184,7 @@ export async function loadMorePosts(
       authorAvatarUrl: post.author.avatarUrl,
       isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
       likes: post._count.likes,
+      comments: post._count.comments,
     }))
 
     return successResult(formatted)
@@ -238,3 +240,173 @@ export async function deletePost(
     return errorResult("Không thể xóa bài viết. Vui lòng thử lại.")
   }
 }
+
+// ─── Types for Comment ──────────────────────────────────────────────────────
+
+interface CommentWithAuthorFlat {
+  id: string
+  content: string
+  createdAt: string
+  createdAtRelative: string
+  authorId: string
+  authorDisplayName: string
+  authorAvatarUrl: string | null
+  likes: number
+}
+
+// ─── Load Comments for a Post ──────────────────────────────────────────────
+
+export async function loadComments(
+  postId: string
+): Promise<ActionResult<CommentWithAuthorFlat[]>> {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: {
+        postId,
+        deletedAt: null,
+        parentId: null,
+      },
+      include: {
+        author: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        _count: {
+          select: { likes: true },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    })
+
+    const formatted: CommentWithAuthorFlat[] = comments.map((c) => ({
+      id: c.id,
+      content: c.content,
+      createdAt: c.createdAt.toISOString(),
+      createdAtRelative: formatRelativeTime(c.createdAt),
+      authorId: c.authorId,
+      authorDisplayName: c.author.displayName,
+      authorAvatarUrl: c.author.avatarUrl,
+      likes: c._count.likes,
+    }))
+
+    return successResult(formatted)
+  } catch (error) {
+    console.error("loadComments error:", error)
+    return errorResult("Không thể tải bình luận.")
+  }
+}
+
+// ─── Create Comment ─────────────────────────────────────────────────────────
+
+export async function createComment(
+  postId: string,
+  rawContent: unknown
+): Promise<ActionResult<CommentWithAuthorFlat>> {
+  const supabase = await createClient()
+  const { data: userData, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !userData.user) {
+    return errorResult("Bạn cần đăng nhập để bình luận", "UNAUTHORIZED")
+  }
+
+  const validated = commentSchema.safeParse({ content: rawContent })
+  if (!validated.success) {
+    return errorResult(
+      validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
+      "VALIDATION_ERROR"
+    )
+  }
+
+  const { content } = validated.data
+
+  try {
+    const comment = await prisma.comment.create({
+      data: {
+        content,
+        postId,
+        authorId: userData.user.id,
+      },
+      include: {
+        author: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        _count: {
+          select: { likes: true },
+        },
+      },
+    })
+
+    const result: CommentWithAuthorFlat = {
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.createdAt.toISOString(),
+      createdAtRelative: formatRelativeTime(comment.createdAt),
+      authorId: comment.authorId,
+      authorDisplayName: comment.author.displayName,
+      authorAvatarUrl: comment.author.avatarUrl,
+      likes: comment._count.likes,
+    }
+
+    return successResult(result)
+  } catch (error) {
+    console.error("createComment error:", error)
+    return errorResult("Không thể gửi bình luận. Vui lòng thử lại.")
+  }
+}
+
+// ─── Delete Comment (soft delete) ─────────────────────────────────────────
+
+export async function deleteComment(
+  commentId: string
+): Promise<ActionResult<{ id: string }>> {
+  const supabase = await createClient()
+  const { data: userData, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !userData.user) {
+    return errorResult("Bạn cần đăng nhập để thực hiện", "UNAUTHORIZED")
+  }
+
+  const userId = userData.user.id
+
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { authorId: true, deletedAt: true },
+    })
+
+    if (!comment) {
+      return errorResult("Bình luận không tồn tại.", "NOT_FOUND")
+    }
+
+    if (comment.deletedAt) {
+      return errorResult("Bình luận đã bị xóa.", "ALREADY_DELETED")
+    }
+
+    if (comment.authorId !== userId) {
+      return errorResult("Bạn không có quyền xóa bình luận này.", "FORBIDDEN")
+    }
+
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    })
+
+    return successResult({ id: commentId })
+  } catch (error) {
+    console.error("deleteComment error:", error)
+    return errorResult("Không thể xóa bình luận. Vui lòng thử lại.")
+  }
+}
+
+// ─── Phase 6+ Notes ─────────────────────────────────────────────────────────
+// TODO (Phase 6+): toggleCommentLike — dùng Like model với:
+//   prisma.like.findUnique({ where: { userId_commentId: { userId, commentId } } })
+//   prisma.like.create({ data: { userId, commentId } })
+//   prisma.like.delete({ where: { userId_commentId: { userId, commentId } } })
+// TODO (Phase 6+): Nested replies — bỏ filter `parentId: null` trong loadComments,
+//   thêm `depth` prop, hiện "Trả lời" button khi depth < MAX_REPLY_DEPTH
