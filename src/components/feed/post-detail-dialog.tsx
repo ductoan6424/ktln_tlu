@@ -79,6 +79,7 @@ const MOCK_CURRENT_USER = {
 interface PostDetailDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  postId?: string
   authorName: string
   authorAvatar?: string
   createdAt: string
@@ -91,6 +92,10 @@ interface PostDetailDialogProps {
   likes?: number
   comments?: number
   shares?: number
+  isLiked?: boolean
+  currentUserId?: string | null
+  authorId?: string
+  onLike?: () => void
 }
 
 export function PostDetailDialog({
@@ -108,30 +113,29 @@ export function PostDetailDialog({
   likes = 0,
   comments = 0,
   shares = 0,
+  isLiked = false,
+  currentUserId,
+  authorId,
+  onLike,
 }: PostDetailDialogProps) {
-  const [isLiked, setIsLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(likes)
   const [focusComment, setFocusComment] = useState(false)
-
-  const handleLike = () => {
-    setIsLiked((prev) => !prev)
-    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1))
-  }
 
   const handleCommentClick = () => {
     setFocusComment(true)
     setTimeout(() => setFocusComment(false), 100)
   }
 
+  const canLike = Boolean(currentUserId && authorId && currentUserId !== authorId)
+
   const hasImage = Boolean(imageUrl)
 
   /* Phần stats + actions dùng chung cho cả mobile và desktop */
   const statsBar = (
     <div className="shrink-0 px-4 py-2 flex items-center gap-4 text-xs text-muted-foreground border-y border-border">
-      {likeCount > 0 && (
+      {likes > 0 && (
         <span className="flex items-center gap-1">
           <Heart className="size-3.5 fill-primary text-primary" />
-          {likeCount} lượt thích
+          {likes} lượt thích
         </span>
       )}
       {comments > 0 && <span>{comments} bình luận</span>}
@@ -141,20 +145,24 @@ export function PostDetailDialog({
 
   const actionBar = (
     <div className="shrink-0 px-2 py-1 flex items-center border-b border-border">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleLike}
-        className={cn(
-          "flex-1 gap-1.5",
-          isLiked
-            ? "text-primary"
-            : "text-muted-foreground hover:text-primary"
-        )}
-      >
-        <Heart className={cn("size-5", isLiked && "fill-primary")} />
-        Thích
-      </Button>
+      {canLike ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onLike}
+          className={cn(
+            "flex-1 gap-1.5",
+            isLiked
+              ? "text-destructive"
+              : "text-muted-foreground hover:text-destructive"
+          )}
+        >
+          <Heart className={cn("size-5", isLiked && "fill-destructive")} />
+          Thích
+        </Button>
+      ) : (
+        <div className="flex-1" />
+      )}
       <Button
         variant="ghost"
         size="sm"
