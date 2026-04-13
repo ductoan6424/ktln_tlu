@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma/client"
 import { postSchema } from "@/utils/validators"
+import { formatRelativeTime } from "@/utils/formatters"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 
@@ -63,6 +64,64 @@ export async function createPost(
   } catch (error) {
     console.error("createPost error:", error)
     return errorResult("Không thể tạo bài viết. Vui lòng thử lại.")
+  }
+}
+
+// ─── Load More Posts (infinite scroll) ────────────────────────────────────
+
+interface PostWithAuthorFlat {
+  id: string
+  content: string
+  imageUrl: string | null
+  createdAt: string
+  createdAtRelative: string
+  visibility: string
+  authorId: string
+  authorDisplayName: string
+  authorAvatarUrl: string | null
+}
+
+export async function loadMorePosts(
+  page: number,
+  pageSize: number = 20
+): Promise<ActionResult<PostWithAuthorFlat[]>> {
+  try {
+    const skip = page * pageSize
+
+    const posts = await prisma.post.findMany({
+      where: {
+        visibility: "PUBLIC",
+        deletedAt: null,
+      },
+      include: {
+        author: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: pageSize,
+      skip,
+    })
+
+    const formatted: PostWithAuthorFlat[] = posts.map((post) => ({
+      id: post.id,
+      content: post.content,
+      imageUrl: post.imageUrl,
+      createdAt: post.createdAt.toISOString(),
+      createdAtRelative: formatRelativeTime(post.createdAt),
+      visibility: post.visibility,
+      authorId: post.authorId,
+      authorDisplayName: post.author.displayName,
+      authorAvatarUrl: post.author.avatarUrl,
+    }))
+
+    return successResult(formatted)
+  } catch (error) {
+    console.error("loadMorePosts error:", error)
+    return errorResult("Không thể tải thêm bài viết.")
   }
 }
 

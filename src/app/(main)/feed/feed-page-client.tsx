@@ -1,14 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item"
 import { SectionHeader } from "@/components/shared/section-header"
 import { DividerLabel } from "@/components/shared/divider-label"
 import { PostCard } from "@/components/feed/post-card"
+import { PostCardSkeleton } from "@/components/feed/post-card"
+import { FeedEmptyState } from "@/components/feed/feed-empty-state"
 import { PostComposer } from "@/components/feed/post-composer"
-import { PollCard } from "@/components/feed/poll-card"
 import { TrendingItem } from "@/components/dashboard/trending-item"
 import { EventItem } from "@/components/dashboard/event-item"
 import { PageContainer } from "@/components/layout/page-container"
@@ -17,6 +18,7 @@ import { ActiveFriends } from "@/components/layout/active-friends"
 import { ChatPopup } from "@/components/layout/chat-popup"
 import { mockGroups } from "@/components/layout/mock-data"
 import type { ActiveFriend } from "@/components/layout/mock-data"
+import { loadMorePosts } from "@/actions/posts"
 import { LayoutGrid, BookOpen, Users, Bookmark } from "lucide-react"
 import Link from "next/link"
 
@@ -38,11 +40,18 @@ const EVENTS_DATA = [
   { month: "Th3", day: "18", title: "Ngày hội việc làm", location: "Sảnh chính", time: "09:00" },
 ]
 
-const POLL_OPTIONS = [
-  { id: "1", label: "Chế độ sáng" },
-  { id: "2", label: "Chế độ tối" },
-  { id: "3", label: "Theo hệ thống" },
-]
+interface FeedPost {
+  id: string
+  content: string
+  imageUrl: string | null
+  createdAt: string
+  visibility: string
+  authorId: string
+  author: {
+    displayName: string
+    avatarUrl: string | null
+  }
+}
 
 interface FeedPageClientProps {
   currentUser: {
@@ -50,9 +59,71 @@ interface FeedPageClientProps {
     displayName: string
     avatarUrl: string | null
   } | null
+  initialPosts: FeedPost[]
 }
 
-export function FeedPageClient({ currentUser }: FeedPageClientProps) {
+export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProps) {
+  const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [currentPage, setCurrentPage] = useState(0)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return
+
+    setIsLoadingMore(true)
+    const nextPage = currentPage + 1
+
+    const result = await loadMorePosts(nextPage)
+
+    if (result.success && result.data) {
+      const newPosts = result.data.map((post) => ({
+        id: post.id,
+        content: post.content,
+        imageUrl: post.imageUrl,
+        createdAt: post.createdAtRelative,
+        visibility: post.visibility,
+        authorId: post.authorId,
+        author: {
+          displayName: post.authorDisplayName,
+          avatarUrl: post.authorAvatarUrl,
+        },
+      }))
+
+      setPosts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id))
+        const filtered = newPosts.filter((p) => !existingIds.has(p.id))
+        return [...prev, ...filtered]
+      })
+      setCurrentPage(nextPage)
+      if (result.data.length < 20) {
+        setHasMore(false)
+      }
+    } else {
+      setHasMore(false)
+    }
+
+    setIsLoadingMore(false)
+  }, [isLoadingMore, hasMore, currentPage])
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore()
+        }
+      },
+      { rootMargin: "200px" }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadMore])
+
   const [openPopups, setOpenPopups] = useState<ActiveFriend[]>([])
 
   const openChat = (friend: ActiveFriend) => {
@@ -148,38 +219,35 @@ export function FeedPageClient({ currentUser }: FeedPageClientProps) {
                 variant="full"
               />
               <DividerLabel label="Cập nhật gần đây" />
-              <PostCard
-                authorName="Ban Quản trị Nhà trường"
-                createdAt="2 giờ trước"
-                content="Đăng ký học phần Học kỳ 2 năm 2025-2026 đã chính thức mở cho toàn bộ sinh viên. Vui lòng hoàn tất buổi gặp mặt cố vấn học tập trước thứ Sáu."
-                imageUrl="https://images.unsplash.com/photo-1562774053-701939374585?w=800&h=400&fit=crop"
-                tag="Tin tức"
-                tagVariant="primary"
-                isVerified
-                isPinned
-                likes={245}
-                comments={18}
-                shares={42}
-                showSave
-              />
-              <article className="space-y-0">
-                <PostCard
-                  authorName="Trần Minh Thư"
-                  createdAt="4 giờ trước"
-                  subtitle="CLB Thiết kế"
-                  content="Mình đang tìm người tham gia khảo sát nhanh về UI design cho đồ án tốt nghiệp. Chỉ mất 2 phút thôi. Trà sữa cho 10 bạn đầu tiên hoàn thành! 🧋✨"
-                  likes={12}
-                  comments={4}
-                />
-                <div className="-mt-2 px-4 pb-4 md:px-6 md:pb-6">
-                  <PollCard
-                    title="Khảo sát nhanh"
-                    options={POLL_OPTIONS}
-                    totalVotes={89}
-                    timeRemaining="2 giờ"
-                  />
-                </div>
-              </article>
+
+              {posts.length === 0 && !isLoadingMore ? (
+                <FeedEmptyState />
+              ) : (
+                <>
+                  {posts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      authorName={post.author.displayName}
+                      authorAvatar={post.author.avatarUrl ?? undefined}
+                      createdAt={post.createdAt}
+                      content={post.content}
+                      imageUrl={post.imageUrl ?? undefined}
+                      likes={undefined}
+                      comments={undefined}
+                    />
+                  ))}
+
+                  {/* Sentinel for IntersectionObserver */}
+                  <div ref={sentinelRef} className="h-px w-full" />
+
+                  {/* Loading skeletons when fetching more */}
+                  {isLoadingMore && (
+                    <div className="flex flex-col gap-3">
+                      <PostCardSkeleton />
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </section>
 
