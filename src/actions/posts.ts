@@ -321,6 +321,14 @@ export async function createComment(
 
   const { content } = validated.data
 
+  const post = await prisma.post.findUnique({
+    where: { id: postId, deletedAt: null },
+    select: { id: true },
+  })
+  if (!post) {
+    return errorResult("Bài viết không tồn tại hoặc đã bị xóa.", "NOT_FOUND")
+  }
+
   try {
     const comment = await prisma.comment.create({
       data: {
