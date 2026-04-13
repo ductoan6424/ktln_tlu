@@ -18,7 +18,8 @@ import { ActiveFriends } from "@/components/layout/active-friends"
 import { ChatPopup } from "@/components/layout/chat-popup"
 import { mockGroups } from "@/components/layout/mock-data"
 import type { ActiveFriend } from "@/components/layout/mock-data"
-import { loadMorePosts } from "@/actions/posts"
+import { loadMorePosts, togglePostLike } from "@/actions/posts"
+import { useToast } from "@/components/ui/use-toast"
 import { LayoutGrid, BookOpen, Users, Bookmark } from "lucide-react"
 import Link from "next/link"
 
@@ -51,6 +52,8 @@ interface FeedPost {
     displayName: string
     avatarUrl: string | null
   }
+  isLiked: boolean
+  likes: number
 }
 
 interface FeedPageClientProps {
@@ -68,6 +71,45 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
   const [hasMore, setHasMore] = useState(true)
   const [currentPage, setCurrentPage] = useState(0)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const rollbackRef = useRef<FeedPost[] | null>(null)
+  const { toast } = useToast()
+
+  const handleLike = useCallback(
+    async (postId: string) => {
+      const post = posts.find((p) => p.id === postId)
+      if (!post) return
+
+      if (currentUser && post.authorId === currentUser.userId) return
+
+      rollbackRef.current = posts
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                isLiked: !p.isLiked,
+                likes: p.isLiked ? p.likes - 1 : p.likes + 1,
+              }
+            : p
+        )
+      )
+
+      const result = await togglePostLike(postId)
+
+      if (!result.success) {
+        setPosts(rollbackRef.current ?? posts)
+        if (result.code !== "CANNOT_LIKE_OWN") {
+          toast({
+            title: "Lỗi",
+            description: result.error ?? "Không thể thực hiện thao tác. Vui lòng thử lại.",
+            variant: "destructive",
+          })
+        }
+      }
+    },
+    [posts, currentUser, toast]
+  )
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return
@@ -89,6 +131,8 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
           displayName: post.authorDisplayName,
           avatarUrl: post.authorAvatarUrl,
         },
+        isLiked: post.isLiked,
+        likes: post.likes,
       }))
 
       setPosts((prev) => {
@@ -232,8 +276,12 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
                       createdAt={post.createdAt}
                       content={post.content}
                       imageUrl={post.imageUrl ?? undefined}
-                      likes={undefined}
+                      likes={post.likes}
                       comments={undefined}
+                      isLiked={post.isLiked}
+                      currentUserId={currentUser?.userId ?? null}
+                      authorId={post.authorId}
+                      onLike={() => handleLike(post.id)}
                     />
                   ))}
 
