@@ -34,7 +34,7 @@ describe("Prisma Client — Phase 1 Verification", () => {
       "passwordReset",
     ]
     for (const model of models) {
-      expect((prisma as Record<string, unknown>)[model]).toBeDefined()
+      expect((prisma as unknown as Record<string, unknown>)[model]).toBeDefined()
     }
   })
 
