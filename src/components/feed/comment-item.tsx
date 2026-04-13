@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/shared/user-avatar"
-import { cn } from "@/lib/utils"
 
 export interface CommentWithAuthorFlat {
   id: string
@@ -11,7 +10,7 @@ export interface CommentWithAuthorFlat {
   createdAtRelative: string
   authorId: string
   authorDisplayName: string
-  authorAvatarUrl: string | null
+  authorAvatarUrl: string | null | undefined
   likes: number
 }
 
@@ -29,7 +28,7 @@ export function CommentItem({
   return (
     <div className="flex gap-2">
       <UserAvatar
-        src={comment.authorAvatarUrl}
+        src={comment.authorAvatarUrl ?? undefined}
         name={comment.authorDisplayName}
         size="sm"
         className="mt-0.5 shrink-0"

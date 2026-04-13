@@ -22,7 +22,6 @@ import { PostHeader } from "@/components/feed/post-header"
 import { CommentList } from "@/components/feed/comment-list"
 import { CommentInput } from "@/components/feed/comment-input"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
-import { CommentItemSkeleton } from "@/components/feed/comment-item-skeleton"
 import { loadComments, createComment, deleteComment } from "@/actions/posts"
 import type { CommentWithAuthorFlat } from "@/components/feed/comment-item"
 import { Heart, MessageCircle, ArrowLeft } from "lucide-react"
@@ -46,7 +45,9 @@ interface PostDetailDialogProps {
   comments?: number
   shares?: number
   isLiked?: boolean
-  currentUser?: { id: string; displayName: string; avatarUrl?: string | null } | null
+  currentUser?: { id: string; displayName?: string; avatarUrl?: string | null } | null
+  /** @deprecated Truyền currentUser thay vì currentUserId */
+  currentUserId?: string | null
   authorId?: string
   onLike?: () => void
 }
@@ -54,6 +55,7 @@ interface PostDetailDialogProps {
 export function PostDetailDialog({
   open,
   onOpenChange,
+  postId,
   authorName,
   authorAvatar,
   createdAt,
@@ -68,28 +70,33 @@ export function PostDetailDialog({
   shares = 0,
   isLiked = false,
   currentUser,
+  currentUserId,
   authorId,
   onLike,
 }: PostDetailDialogProps) {
   const { toast } = useToast()
-  const [comments2, setComments] = useState<CommentWithAuthorFlat[]>([])
+  const [commentsData, setCommentsData] = useState<CommentWithAuthorFlat[]>([])
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [focusComment, setFocusComment] = useState(false)
 
+  // Hỗ trợ cả currentUser mới và currentUserId cũ (backward compat)
+  const resolvedCurrentUser = currentUser ?? (currentUserId != null ? { id: currentUserId } : null)
+
   useEffect(() => {
     if (!open || !postId) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- thiết lập loading state dựa trên điều kiện mở dialog
     setIsLoadingComments(true)
     loadComments(postId).then((result) => {
       if (result.success && result.data) {
-        setComments(result.data)
+        setCommentsData(result.data)
       }
       setIsLoadingComments(false)
     })
   }, [open, postId])
 
   const handleCommentSubmit = async (text: string) => {
-    if (!currentUser?.id || !postId) {
+    if (!resolvedCurrentUser || resolvedCurrentUser.displayName == null || !postId) {
       toast({ description: "Bạn cần đăng nhập để bình luận" })
       return
     }
@@ -100,30 +107,30 @@ export function PostDetailDialog({
       content: text,
       createdAt: new Date().toISOString(),
       createdAtRelative: "Vừa xong",
-      authorId: currentUser.id,
-      authorDisplayName: currentUser.displayName,
-      authorAvatarUrl: currentUser.avatarUrl ?? null,
+      authorId: resolvedCurrentUser.id,
+      authorDisplayName: resolvedCurrentUser.displayName,
+      authorAvatarUrl: resolvedCurrentUser.avatarUrl ?? null,
       likes: 0,
     }
-    setComments(prev => [...prev, optimisticComment])
+    setCommentsData(prev => [...prev, optimisticComment])
 
     const result = await createComment(postId, text)
     if (!result.success) {
-      setComments(prev => prev.filter(c => c.id !== tempId))
+      setCommentsData(prev => prev.filter(c => c.id !== tempId))
       toast({ description: "Không thể gửi bình luận. Vui lòng thử lại." })
     } else if (result.data) {
-      setComments(prev => prev.map(c => c.id === tempId ? result.data! : c))
+      setCommentsData(prev => prev.map(c => c.id === tempId ? result.data! : c))
     }
   }
 
   const handleConfirmDelete = async (commentId: string) => {
-    setComments(prev => prev.filter(c => c.id !== commentId))
+    setCommentsData(prev => prev.filter(c => c.id !== commentId))
     const result = await deleteComment(commentId)
     if (!result.success) {
       if (postId) {
         const reload = await loadComments(postId)
         if (reload.success && reload.data) {
-          setComments(reload.data)
+          setCommentsData(reload.data)
         }
       }
       toast({ description: "Không thể xóa bình luận. Vui lòng thử lại." })
@@ -135,7 +142,7 @@ export function PostDetailDialog({
     setTimeout(() => setFocusComment(false), 100)
   }
 
-  const canLike = Boolean(currentUser?.id && authorId && currentUser.id !== authorId)
+  const canLike = Boolean(resolvedCurrentUser?.id && authorId && resolvedCurrentUser.id !== authorId)
   const hasImage = Boolean(imageUrl)
 
   /* Phần stats + actions dùng chung cho cả mobile và desktop */
@@ -200,8 +207,8 @@ export function PostDetailDialog({
           "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 w-full h-full max-w-none max-h-none rounded-none",
           /* Desktop: modal thông thường */
           hasImage
-            ? "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!!-translate-x-1/2 md:!!-translate-y-1/2 md:w-auto md:h-auto md:max-w-4xl md:max-h-[90vh] md:rounded-lg"
-            : "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!!-translate-x-1/2 md:!!-translate-y-1/2 md:w-auto md:h-auto md:max-w-lg md:max-h-[85vh] md:rounded-lg"
+            ? "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:w-auto md:h-auto md:max-w-4xl md:max-h-[90vh] md:rounded-lg"
+            : "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:w-auto md:h-auto md:max-w-lg md:max-h-[85vh] md:rounded-lg"
         )}
       >
         <DialogTitle className="sr-only">
@@ -259,8 +266,8 @@ export function PostDetailDialog({
             {/* Comments — cuộn chung với post */}
             <div className="p-4">
               <CommentList
-                comments={comments2}
-                currentUser={currentUser}
+                comments={commentsData}
+                currentUser={resolvedCurrentUser ?? undefined}
                 autoFocusInput={focusComment}
                 hideInput
                 isLoading={isLoadingComments}
@@ -273,8 +280,8 @@ export function PostDetailDialog({
           {/* Comment input — cố định ở đáy */}
           <div className="shrink-0 border-t border-border p-3 bg-card">
             <CommentInput
-              userName={currentUser?.displayName}
-              userAvatar={currentUser?.avatarUrl}
+              userName={resolvedCurrentUser?.displayName}
+              userAvatar={resolvedCurrentUser?.avatarUrl ?? undefined}
               autoFocus={focusComment}
               onSubmit={handleCommentSubmit}
             />
@@ -331,8 +338,8 @@ export function PostDetailDialog({
             {/* Phần bình luận — chiếm toàn bộ không gian còn lại */}
             <div className="p-4 flex-1 min-h-0 overflow-hidden flex flex-col">
               <CommentList
-                comments={comments2}
-                currentUser={currentUser}
+                comments={commentsData}
+                currentUser={resolvedCurrentUser ?? undefined}
                 autoFocusInput={focusComment}
                 isLoading={isLoadingComments}
                 onSubmit={handleCommentSubmit}
