@@ -20,6 +20,7 @@ export const registerSchema = z.object({
 // Validation schema cho bài viết
 export const postSchema = z.object({
   content: z.string().min(1, "Nội dung không được để trống").max(5000, "Nội dung tối đa 5000 ký tự"),
+  imageUrl: z.string().url("URL ảnh không hợp lệ").optional().or(z.literal("")),
 });
 
 // Export inferred types
