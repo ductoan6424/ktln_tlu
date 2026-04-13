@@ -16,9 +16,15 @@ interface PostWithAuthor {
     displayName: string
     avatarUrl: string | null
   }
+  isLiked: boolean
+  likes: number
 }
 
 export async function getInitialPosts(): Promise<PostWithAuthor[]> {
+  const supabase = await createClient()
+  const { data: authData } = await supabase.auth.getUser()
+  const currentUserId = authData.user?.id ?? null
+
   return prisma.post.findMany({
     where: {
       visibility: "PUBLIC",
@@ -31,11 +37,17 @@ export async function getInitialPosts(): Promise<PostWithAuthor[]> {
           avatarUrl: true,
         },
       },
+      likes: currentUserId
+        ? { where: { userId: currentUserId }, select: { id: true } }
+        : false,
+      _count: {
+        select: { likes: true },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: PAGE_SIZE,
     skip: 0,
-  })
+  }) as unknown as Promise<PostWithAuthor[]>
 }
 
 export default async function FeedPage() {
@@ -57,6 +69,10 @@ export default async function FeedPage() {
   const postsWithFormattedTime = initialPosts.map((post) => ({
     ...post,
     createdAt: formatRelativeTime(post.createdAt),
+    isLiked: Array.isArray((post as unknown as { likes?: unknown[] }).likes)
+      ? ((post as unknown as { likes: unknown[] }).likes.length ?? 0) > 0
+      : false,
+    likes: (post as unknown as { _count?: { likes: number } })._count?.likes ?? 0,
   }))
 
   return <FeedPageClient currentUser={currentUser} initialPosts={postsWithFormattedTime} />
