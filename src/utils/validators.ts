@@ -26,7 +26,7 @@ export const postSchema = z.object({
 // Validation schema cho bình luận
 export const commentSchema = z.object({
   content: z.string().min(1, "Nội dung bình luận không được để trống").max(2000, "Bình luận tối đa 2000 ký tự"),
-})
+});
 
 // Export inferred types
 export type LoginInput = z.infer<typeof loginSchema>;

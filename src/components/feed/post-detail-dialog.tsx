@@ -118,12 +118,14 @@ export function PostDetailDialog({
     if (!result.success) {
       setCommentsData(prev => prev.filter(c => c.id !== tempId))
       toast({ description: "Không thể gửi bình luận. Vui lòng thử lại." })
-    } else if (result.data) {
+    } else {
       setCommentsData(prev => prev.map(c => c.id === tempId ? result.data! : c))
     }
   }
 
   const handleConfirmDelete = async (commentId: string) => {
+    const comment = commentsData.find(c => c.id === commentId)
+    if (!comment || comment.authorId !== resolvedCurrentUser?.id) return
     setCommentsData(prev => prev.filter(c => c.id !== commentId))
     const result = await deleteComment(commentId)
     if (!result.success) {
