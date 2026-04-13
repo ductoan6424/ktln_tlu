@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { resetPassword } from "@/actions/auth"
 import { Lock, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from "lucide-react"
@@ -134,16 +133,20 @@ function ResetPasswordForm({ token }: { token: string }) {
             </p>
           )}
 
-          <Button type="submit" disabled={loading} className="w-full h-11 font-semibold">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
             {loading ? (
               <>
-                <Loader2 className="size-4 animate-spin mr-2" />
+                <Loader2 className="size-4 animate-spin" />
                 Đang xử lý...
               </>
             ) : (
               "Đặt lại mật khẩu"
             )}
-          </Button>
+          </button>
         </form>
 
         <div className="text-center">
