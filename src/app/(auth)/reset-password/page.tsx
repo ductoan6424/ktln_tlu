@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { resetPassword } from "@/actions/auth"
 import { Lock, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from "lucide-react"
