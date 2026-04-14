@@ -8,7 +8,7 @@ export type {
   ConversationType,
   FriendshipStatus,
   NotificationType,
-} from "@/generated/prisma"
+} from "@prisma/client"
 
 export type {
   UserProfile,
@@ -26,7 +26,7 @@ export type {
   Friendship,
   EmailVerification,
   PasswordReset,
-} from "@/generated/prisma"
+} from "@prisma/client"
 
 // Import types locally để dùng trong aliases
 import type {
@@ -39,7 +39,7 @@ import type {
   Conversation as PrismaConversation,
   ConversationParticipant as PrismaConversationParticipant,
   Notification as PrismaNotification,
-} from "@/generated/prisma"
+} from "@prisma/client"
 
 // Convenient aliases
 export type User = PrismaUserProfile
