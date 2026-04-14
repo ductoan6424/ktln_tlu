@@ -305,15 +305,20 @@ export async function createComment(
   postId: string,
   rawContent: unknown
 ): Promise<ActionResult<CommentWithAuthorFlat>> {
+  console.log("[createComment] START postId=", postId, "rawContent=", rawContent)
   const supabase = await createClient()
   const { data: userData, error: authError } = await supabase.auth.getUser()
+  console.log("[createComment] auth userData=", userData?.user?.id, "authError=", authError)
 
   if (authError || !userData.user) {
+    console.log("[createComment] FAIL: not authenticated")
     return errorResult("Bạn cần đăng nhập để bình luận", "UNAUTHORIZED")
   }
 
   const validated = commentSchema.safeParse({ content: rawContent })
+  console.log("[createComment] validated=", validated.success, validated.error)
   if (!validated.success) {
+    console.log("[createComment] FAIL: validation error")
     return errorResult(
       validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
       "VALIDATION_ERROR"
@@ -321,16 +326,20 @@ export async function createComment(
   }
 
   const { content } = validated.data
+  console.log("[createComment] content=", content)
 
   const post = await prisma.post.findUnique({
     where: { id: postId, deletedAt: null },
     select: { id: true },
   })
+  console.log("[createComment] post=", post)
   if (!post) {
+    console.log("[createComment] FAIL: post not found")
     return errorResult("Bài viết không tồn tại hoặc đã bị xóa.", "NOT_FOUND")
   }
 
   try {
+    console.log("[createComment] creating comment with authorId=", userData.user.id)
     const comment = await prisma.comment.create({
       data: {
         content,
@@ -361,9 +370,10 @@ export async function createComment(
       likes: comment._count.likes,
     }
 
+    console.log("[createComment] SUCCESS")
     return successResult(result)
   } catch (error) {
-    console.error("createComment error:", error)
+    console.error("[createComment] DB error:", error)
     return errorResult("Không thể gửi bình luận. Vui lòng thử lại.")
   }
 }

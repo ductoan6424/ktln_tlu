@@ -271,6 +271,7 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
                   {posts.map((post) => (
                     <PostCard
                       key={post.id}
+                      postId={post.id}
                       authorName={post.author.displayName}
                       authorAvatar={post.author.avatarUrl ?? undefined}
                       createdAt={post.createdAt}
@@ -279,6 +280,7 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
                       likes={post.likes}
                       comments={undefined}
                       isLiked={post.isLiked}
+                      currentUser={currentUser}
                       currentUserId={currentUser?.userId ?? null}
                       authorId={post.authorId}
                       onLike={() => handleLike(post.id)}

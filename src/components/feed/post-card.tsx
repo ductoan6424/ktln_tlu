@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface PostCardProps {
+  postId?: string
   authorName: string
   authorAvatar?: string
   createdAt: string
@@ -28,12 +29,14 @@ interface PostCardProps {
   onUnsave?: () => void
   className?: string
   isLiked?: boolean
+  currentUser?: { userId?: string; id?: string; displayName?: string; avatarUrl?: string | null } | null
   currentUserId?: string | null
   authorId?: string
   onLike?: () => void
 }
 
 export function PostCard({
+  postId,
   authorName,
   authorAvatar,
   createdAt,
@@ -52,6 +55,7 @@ export function PostCard({
   onUnsave,
   className,
   isLiked,
+  currentUser,
   currentUserId,
   authorId,
   onLike,
@@ -59,6 +63,15 @@ export function PostCard({
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const handleOpenDetail = () => setIsDetailOpen(true)
+
+  // Normalize userId vs id field
+  const resolvedCurrentUser = currentUser
+    ? {
+        id: currentUser.id ?? currentUser.userId ?? "",
+        displayName: currentUser.displayName,
+        avatarUrl: currentUser.avatarUrl,
+      }
+    : null
 
   return (
     <>
@@ -134,6 +147,7 @@ export function PostCard({
       <PostDetailDialog
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
+        postId={postId}
         authorName={authorName}
         authorAvatar={authorAvatar}
         createdAt={createdAt}
@@ -147,6 +161,7 @@ export function PostCard({
         comments={comments}
         shares={shares}
         isLiked={isLiked}
+        currentUser={resolvedCurrentUser}
         currentUserId={currentUserId}
         authorId={authorId}
         onLike={onLike}
