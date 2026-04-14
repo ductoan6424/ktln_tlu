@@ -96,6 +96,7 @@ export function PostDetailDialog({
   }, [open, postId])
 
   const handleCommentSubmit = async (text: string) => {
+    console.log("[CommentSubmit] resolvedCurrentUser=", resolvedCurrentUser?.id, "postId=", postId, "text=", text)
     if (!resolvedCurrentUser?.id || !postId) {
       toast({ description: "Bạn cần đăng nhập để bình luận" })
       return
