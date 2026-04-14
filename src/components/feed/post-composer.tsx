@@ -1,11 +1,14 @@
 "use client"
 
+import { useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { IconButton } from "@/components/shared/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { createPost } from "@/actions/posts"
 import { ImageIcon, BarChart3, Video } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -14,6 +17,7 @@ interface PostComposerProps {
   userName?: string
   variant?: "full" | "compact"
   className?: string
+  onPostCreated?: (post: unknown) => void
 }
 
 export function PostComposer({
@@ -21,7 +25,45 @@ export function PostComposer({
   userName = "",
   variant = "full",
   className,
+  onPostCreated,
 }: PostComposerProps) {
+  const [content, setContent] = useState("")
+  const [imageUrl, setImageUrl] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const router = useRouter()
+
+  const handleSubmit = async () => {
+    if (!content.trim()) {
+      setError("Nội dung không được để trống")
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    const result = await createPost({
+      content: content.trim(),
+      imageUrl: imageUrl.trim() || undefined,
+    })
+
+    if (!result.success) {
+      setError(result.error ?? "Đã xảy ra lỗi")
+      setIsSubmitting(false)
+      return
+    }
+
+    setContent("")
+    setImageUrl("")
+    setIsSubmitting(false)
+
+    if (onPostCreated && result.data) {
+      onPostCreated(result.data)
+    }
+    router.refresh()
+  }
+
   if (variant === "compact") {
     return (
       <Card className={cn("shadow-sm", className)}>
@@ -48,9 +90,29 @@ export function PostComposer({
           />
           <div className="flex-1">
             <Textarea
+              ref={textareaRef}
               placeholder="Chia sẻ điều gì đó với cộng đồng..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
               className="bg-muted border-border min-h-[80px] resize-none text-[13px] focus-visible:ring-1 focus-visible:ring-primary"
             />
+
+            {content && (
+              <div className="mt-2">
+                <input
+                  type="url"
+                  placeholder="Dán URL ảnh (ví dụ: https://... )"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="w-full text-[12px] px-3 py-2 bg-muted border border-border rounded-md focus-visible:ring-1 focus-visible:ring-primary"
+                />
+              </div>
+            )}
+
+            {error && (
+              <p className="text-[12px] text-destructive mt-1">{error}</p>
+            )}
+
             <div className="flex items-center justify-between mt-2">
               <div className="flex gap-1 md:gap-2">
                 <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
@@ -66,8 +128,13 @@ export function PostComposer({
                   <span className="hidden md:inline">Video</span>
                 </Button>
               </div>
-              <Button size="sm" className="font-medium">
-                Đăng bài
+              <Button
+                size="sm"
+                className="font-medium"
+                disabled={isSubmitting || !content.trim()}
+                onClick={handleSubmit}
+              >
+                {isSubmitting ? "Đang đăng..." : "Đăng bài"}
               </Button>
             </div>
           </div>

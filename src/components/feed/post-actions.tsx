@@ -20,6 +20,9 @@ interface PostActionsProps {
   onUnsave?: () => void
   onRegister?: () => void
   className?: string
+  isLiked?: boolean
+  currentUserId?: string | null
+  authorId?: string
 }
 
 export function PostActions({
@@ -36,8 +39,13 @@ export function PostActions({
   onUnsave,
   onRegister,
   className,
+  isLiked = false,
+  currentUserId,
+  authorId,
 }: PostActionsProps) {
   const [isSaved, setIsSaved] = useState(false)
+
+  const canLike = Boolean(currentUserId && authorId && currentUserId !== authorId)
 
   const handleSave = () => {
     if (isSaved) {
@@ -61,15 +69,32 @@ export function PostActions({
       )}
     >
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onLike}
-          className="gap-1.5 text-muted-foreground hover:text-primary"
-        >
-          <Heart className="size-5" />
-          {likes > 0 && <span>{likes}</span>}
-        </Button>
+        {likes > 0 && (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {likes}
+          </span>
+        )}
+
+        {canLike ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLike}
+            className={cn(
+              "gap-1.5",
+              isLiked
+                ? "text-destructive hover:opacity-80"
+                : "text-muted-foreground hover:text-destructive"
+            )}
+          >
+            <Heart
+              className={cn(
+                "size-5 transition-transform duration-150",
+                isLiked && "fill-destructive text-destructive active:scale-110"
+              )}
+            />
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="sm"
