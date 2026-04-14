@@ -1,38 +1,65 @@
-"use client"
-
-import { ProfileHeader, ProfileHeaderSkeleton } from "@/components/profile/profile-header"
-import { AcademicProgressCard, AcademicProgressCardSkeleton } from "@/components/profile/academic-progress-card"
-import { ConnectionsGrid, ConnectionsGridSkeleton } from "@/components/profile/connections-grid"
-import { PostCard, PostCardSkeleton } from "@/components/feed/post-card"
-import { PostComposer, PostComposerSkeleton } from "@/components/feed/post-composer"
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
+import { prisma } from "@/lib/prisma/client"
+import { ProfileHeader } from "@/components/profile/profile-header"
+import { AcademicProgressCard } from "@/components/profile/academic-progress-card"
+import { ConnectionsGrid } from "@/components/profile/connections-grid"
+import { PostComposer } from "@/components/feed/post-composer"
 import { PageContainer } from "@/components/layout/page-container"
 
-const PROFILE = {
-  name: "Nguyễn Đức Toàn",
-  major: "Công nghệ thông tin",
-  classYear: "K35",
-  clubs: ["CLB Tin học", "CLB Đi bộ", "Nhóm NCKH AI"],
-  coverImage: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1200&h=400&fit=crop",
+async function getConnections(userId: string) {
+  const friendships = await prisma.friendship.findMany({
+    where: {
+      OR: [
+        { requesterId: userId },
+        { addresseeId: userId },
+      ],
+      status: "APPROVED" as const,
+    },
+    include: {
+      requester: { select: { displayName: true, avatarUrl: true } },
+      addressee: { select: { displayName: true, avatarUrl: true } },
+    },
+    take: 5,
+  })
+
+  return friendships.map((f) => ({
+    name: f.requesterId === userId
+      ? f.addressee.displayName
+      : f.requester.displayName,
+    avatarUrl: f.requesterId === userId
+      ? f.addressee.avatarUrl
+      : f.requester.avatarUrl,
+  }))
 }
 
-const CONNECTIONS = [
-  { name: "Lê Văn Luyện" },
-  { name: "Lương Hải Đăng" },
-  { name: "Phạm Quốc Anh" },
-  { name: "Nguyễn Thu Hà" },
-  { name: "Hoàng Minh Tuấn" },
-]
+export default async function ProfilePage() {
+  const supabase = await createClient()
+  const { data: authData } = await supabase.auth.getUser()
+  if (!authData.user) redirect("/login")
 
-export default function ProfilePage() {
+  const user = await prisma.userProfile.findUnique({
+    where: { userId: authData.user.id },
+    select: {
+      displayName: true,
+      avatarUrl: true,
+      major: true,
+      year: true,
+      bio: true,
+    },
+  })
+  if (!user) redirect("/login")
+
+  const connections = await getConnections(authData.user.id)
+
   return (
     <PageContainer variant="centered" className="space-y-6">
       {/* Profile Header */}
       <ProfileHeader
-        name={PROFILE.name}
-        major={PROFILE.major}
-        classYear={PROFILE.classYear}
-        clubs={PROFILE.clubs}
-        coverImage={PROFILE.coverImage}
+        name={user.displayName}
+        major={user.major ?? undefined}
+        classYear={user.year ? `K${user.year}` : undefined}
+        avatar={user.avatarUrl ?? undefined}
         isOwnProfile
       />
 
@@ -48,54 +75,17 @@ export default function ProfilePage() {
             year="Năm 4"
           />
           <ConnectionsGrid
-            connections={CONNECTIONS}
-            totalCount={147}
+            connections={connections}
+            totalCount={connections.length}
           />
         </aside>
 
         {/* Feed chính */}
         <section className="lg:col-span-8 space-y-6">
           <PostComposer
-            userName={PROFILE.name}
+            userName={user.displayName}
+            userAvatar={user.avatarUrl ?? undefined}
           />
-
-          <PostCard
-            authorName="Nguyễn Đức Toàn"
-            createdAt="2 giờ trước"
-            subtitle="CLB Tin học"
-            content="Vừa train xong model cộng tác đầu tiên trên siêu máy tính của trường! Kết quả cho cuộc thi NLP rất khả quan. Mời các bạn đến Lab 402 thứ Sáu để xem showcase nhé. 🚀"
-            imageUrl="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop"
-            likes={24}
-            comments={8}
-            shares={3}
-          />
-
-          <PostCard
-            authorName="Nguyễn Đức Toàn"
-            createdAt="1 ngày trước"
-            content="Tìm bạn học nhóm môn Hệ phân tán CS402. Thi giữa kỳ sắp tới mà thuật toán đồng thuận khó quá. Ai quan tâm liên hệ mình nhé! 📚"
-            likes={12}
-            comments={5}
-          />
-        </section>
-      </div>
-    </PageContainer>
-  )
-}
-
-export function ProfilePageSkeleton() {
-  return (
-    <PageContainer variant="centered" className="space-y-6">
-      <ProfileHeaderSkeleton />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <aside className="lg:col-span-4 space-y-6">
-          <AcademicProgressCardSkeleton />
-          <ConnectionsGridSkeleton />
-        </aside>
-        <section className="lg:col-span-8 space-y-6">
-          <PostComposerSkeleton />
-          <PostCardSkeleton />
-          <PostCardSkeleton />
         </section>
       </div>
     </PageContainer>
