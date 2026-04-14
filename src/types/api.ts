@@ -12,7 +12,7 @@ export function successResult<T>(data: T): ActionResult<T> {
   return { success: true, data }
 }
 
-export function errorResult(error: string, code?: string): ActionResult {
+export function errorResult<T>(error: string, code?: string): ActionResult<T> {
   return { success: false, error, code }
 }
 

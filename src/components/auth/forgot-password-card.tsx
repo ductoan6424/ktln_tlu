@@ -173,7 +173,7 @@ export function ForgotPasswordCard() {
                   setEmail(e.target.value)
                   if (error) setError("")
                 }}
-                placeholder="student@e.tlu.edu.vn"
+                placeholder="email@example.com"
                 autoComplete="email"
                 className="pl-9"
                 aria-invalid={!!error}
