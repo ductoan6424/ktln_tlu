@@ -41,23 +41,24 @@ export async function createPost(
     )
   }
 
-  const { content, imageUrl } = validated.data
+  const { content } = validated.data
 
   // 3. Create post in database
   try {
     const post = await prisma.post.create({
       data: {
         content,
-        imageUrl: imageUrl || null,
         authorId: userId,
         visibility: "PUBLIC",
+        // TODO: Bật lại khi migration imageUrl đã apply lên database
+        // imageUrl: imageUrl || null,
       },
     })
 
     return successResult({
       id: post.id,
       content: post.content,
-      imageUrl: post.imageUrl,
+      imageUrl: null,
       createdAt: post.createdAt,
       authorId: post.authorId,
     })
@@ -175,7 +176,7 @@ export async function loadMorePosts(
     const formatted: PostWithAuthorFlat[] = posts.map((post) => ({
       id: post.id,
       content: post.content,
-      imageUrl: post.imageUrl,
+      imageUrl: null, // TODO: Bật lại khi migration imageUrl đã apply lên database
       createdAt: post.createdAt.toISOString(),
       createdAtRelative: formatRelativeTime(post.createdAt),
       visibility: post.visibility,
