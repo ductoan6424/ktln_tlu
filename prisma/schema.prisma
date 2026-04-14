@@ -62,7 +62,7 @@ model UserProfile {
   username     String?   @unique @map("username")
   avatarUrl    String?   @map("avatar_url")
   bio          String?   @map("bio")
-  studentId    String?   @map("student_id")
+  studentId    String?   @unique @map("student_id")
   role         UserRole  @default(STUDENT) @map("role")
   major        String?   @map("major")
   year         Int?      @map("year")
