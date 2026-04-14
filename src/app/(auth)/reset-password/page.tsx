@@ -138,21 +138,17 @@ function ResetPasswordForm({ token }: { token: string }) {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-11 font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Đang xử lý...
-              </>
-            ) : (
-              "Đặt lại mật khẩu"
-            )}
-          </button>
-        </form>
+            <Button type="submit" disabled={loading} className="w-full h-11 font-semibold">
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                  Đang xử lý...
+                </>
+              ) : (
+                "Đặt lại mật khẩu"
+              )}
+            </Button>
+          </form>
 
         <div className="text-center">
           <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
