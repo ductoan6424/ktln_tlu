@@ -75,6 +75,14 @@ export async function register(
       return errorResult("Email đã được đăng ký.", "EMAIL_EXISTS")
     }
 
+    // Kiểm tra mã sinh viên đã tồn tại chưa
+    if (studentId) {
+      const existingStudentId = await prisma.userProfile.findUnique({ where: { studentId } })
+      if (existingStudentId) {
+        return errorResult("Mã sinh viên đã được đăng ký bởi tài khoản khác.", "STUDENT_ID_EXISTS")
+      }
+    }
+
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
