@@ -264,7 +264,7 @@ export function PostDetailDialog({
                 isVerified={isVerified}
                 subtitle={subtitle}
               />
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {content}
               </p>
             </div>
@@ -339,7 +339,7 @@ export function PostDetailDialog({
                 isVerified={isVerified}
                 subtitle={subtitle}
               />
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {content}
               </p>
             </div>

@@ -94,7 +94,7 @@ export function PostComposer({
               placeholder="Chia sẻ điều gì đó với cộng đồng..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="bg-muted border-border min-h-[80px] resize-none text-[13px] focus-visible:ring-1 focus-visible:ring-primary"
+              className="bg-muted border-border min-h-[80px] text-[13px] focus-visible:ring-1 focus-visible:ring-primary resize-none break-words"
             />
 
             {content && (
