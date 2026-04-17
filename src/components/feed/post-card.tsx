@@ -108,7 +108,7 @@ export function PostCard({
             className="w-full text-left cursor-pointer"
           >
             {/* Nội dung */}
-            <p className="text-[13px] leading-snug mt-2.5">{content}</p>
+            <p className="text-[13px] leading-snug mt-2.5 whitespace-pre-wrap break-words">{content}</p>
 
             {/* Hình ảnh */}
             {imageUrl && (
