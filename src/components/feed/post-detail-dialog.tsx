@@ -216,8 +216,8 @@ export function PostDetailDialog({
           "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 w-full h-full max-w-none max-h-none rounded-none",
           /* Desktop: modal thông thường */
           hasImage
-            ? "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:w-auto md:h-auto md:max-w-4xl md:max-h-[90vh] md:rounded-lg"
-            : "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:w-auto md:h-auto md:max-w-lg md:max-h-[85vh] md:rounded-lg"
+            ? "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:!w-[min(94vw,1080px)] md:!h-[min(88vh,760px)] md:!max-w-none md:!max-h-none md:rounded-lg"
+            : "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:!w-[min(92vw,680px)] md:!h-[min(84vh,720px)] md:!max-w-none md:!max-h-none md:rounded-lg"
         )}
       >
         <DialogTitle className="sr-only">
@@ -306,8 +306,8 @@ export function PostDetailDialog({
         >
           {/* Phần ảnh — chỉ hiện khi có ảnh */}
           {hasImage && (
-            <div className="relative md:w-1/2 shrink-0 bg-black flex items-center justify-center">
-              <div className="relative w-full aspect-video md:aspect-auto md:h-full min-h-[200px]">
+            <div className="relative flex min-w-0 flex-1 shrink-0 items-center justify-center bg-black">
+              <div className="relative h-full w-full min-h-[200px]">
                 <Image
                   src={imageUrl!}
                   alt="Ảnh bài viết"
@@ -321,14 +321,14 @@ export function PostDetailDialog({
           {/* Phần nội dung + comment */}
           <div
             className={cn(
-              "flex flex-col flex-1 min-h-0 overflow-hidden",
-              hasImage ? "md:w-1/2" : "w-full"
+              "flex flex-col min-h-0 overflow-hidden bg-card",
+              hasImage ? "w-full border-l border-border md:w-[420px]" : "w-full"
             )}
           >
             {/* Header + Nội dung — cố định chiều cao, scroll nếu nội dung dài */}
             <div className={cn(
               "shrink-0 overflow-y-auto p-4 space-y-3",
-              hasImage ? "max-h-[160px]" : "max-h-[200px]"
+              hasImage ? "max-h-[220px]" : "max-h-[240px]"
             )}>
               <PostHeader
                 authorName={authorName}
