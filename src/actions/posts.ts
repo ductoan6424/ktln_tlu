@@ -1,6 +1,8 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { UploadValidationError, uploadPostImage } from "@/lib/cloudinary/upload"
 import { prisma } from "@/lib/prisma/client"
 import { postSchema, commentSchema } from "@/utils/validators"
 import { formatRelativeTime } from "@/utils/formatters"
@@ -15,6 +17,39 @@ interface CreatePostData {
   imageUrl: string | null
   createdAt: Date
   authorId: string
+}
+
+function extractCreatePostInput(rawInput: unknown) {
+  if (rawInput instanceof FormData) {
+    const contentValue = rawInput.get("content")
+    const imageValue = rawInput.get("image")
+
+    return {
+      content: typeof contentValue === "string" ? contentValue : "",
+      imageUrl: undefined,
+      imageFile: imageValue instanceof File && imageValue.size > 0 ? imageValue : null,
+    }
+  }
+
+  if (rawInput && typeof rawInput === "object") {
+    const input = rawInput as {
+      content?: unknown
+      imageUrl?: unknown
+      imageFile?: unknown
+    }
+
+    return {
+      content: typeof input.content === "string" ? input.content : "",
+      imageUrl: typeof input.imageUrl === "string" ? input.imageUrl : undefined,
+      imageFile: input.imageFile instanceof File && input.imageFile.size > 0 ? input.imageFile : null,
+    }
+  }
+
+  return {
+    content: "",
+    imageUrl: undefined,
+    imageFile: null,
+  }
 }
 
 // ─── Create Post ────────────────────────────────────────────────────────────
@@ -33,7 +68,13 @@ export async function createPost(
   const userId = userData.user.id
 
   // 2. Validate input
-  const validated = postSchema.safeParse(rawInput)
+  const { content, imageUrl, imageFile } = extractCreatePostInput(rawInput)
+
+  const validated = postSchema.safeParse({
+    content,
+    imageUrl,
+  })
+
   if (!validated.success) {
     return errorResult(
       validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
@@ -41,24 +82,38 @@ export async function createPost(
     )
   }
 
-  const { content } = validated.data
+  let finalImageUrl = validated.data.imageUrl?.trim() || null
+
+  if (imageFile) {
+    try {
+      finalImageUrl = await uploadPostImage(imageFile)
+    } catch (error) {
+      if (error instanceof UploadValidationError) {
+        return errorResult(error.message, "UPLOAD_VALIDATION_ERROR")
+      }
+
+      console.error("uploadPostImage error:", error)
+      return errorResult("Không thể tải ảnh lên. Vui lòng thử lại.", "UPLOAD_ERROR")
+    }
+  }
 
   // 3. Create post in database
   try {
     const post = await prisma.post.create({
       data: {
-        content,
+        content: validated.data.content,
         authorId: userId,
         visibility: "PUBLIC",
-        // TODO: Bật lại khi migration imageUrl đã apply lên database
-        // imageUrl: imageUrl || null,
+        imageUrl: finalImageUrl,
       },
     })
+
+    revalidatePath("/feed")
 
     return successResult({
       id: post.id,
       content: post.content,
-      imageUrl: null,
+      imageUrl: post.imageUrl,
       createdAt: post.createdAt,
       authorId: post.authorId,
     })
@@ -176,7 +231,7 @@ export async function loadMorePosts(
     const formatted: PostWithAuthorFlat[] = posts.map((post) => ({
       id: post.id,
       content: post.content,
-      imageUrl: null, // TODO: Bật lại khi migration imageUrl đã apply lên database
+      imageUrl: post.imageUrl,
       createdAt: post.createdAt.toISOString(),
       createdAtRelative: formatRelativeTime(post.createdAt),
       visibility: post.visibility,
