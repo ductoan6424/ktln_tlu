@@ -66,8 +66,8 @@ export async function updateUserAvatar(
 
     if (updateError) {
       try {
-        await prisma.userProfile.update({
-          where: { userId },
+        await prisma.userProfile.updateMany({
+          where: { userId, avatarUrl },
           data: { avatarUrl: previousAvatarUrl },
         })
       } catch (rollbackError) {

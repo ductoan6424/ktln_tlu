@@ -8,6 +8,7 @@ const prisma = vi.hoisted(() => ({
   userProfile: {
     findUnique: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
   },
 }))
 
@@ -150,25 +151,41 @@ describe("updateUserAvatar", () => {
     const { updateUser } = mockWithSession("user-self")
     mockAvatarRecord("https://cdn.example/old.png")
     uploadAvatarImage.mockResolvedValue("https://cdn.example/avatar-self.png")
-    prisma.userProfile.update
-      .mockResolvedValueOnce({
-        userId: "user-self",
-        avatarUrl: "https://cdn.example/avatar-self.png",
-      })
-      .mockResolvedValueOnce({
-        userId: "user-self",
-        avatarUrl: "https://cdn.example/old.png",
-      })
+    prisma.userProfile.update.mockResolvedValue({
+      userId: "user-self",
+      avatarUrl: "https://cdn.example/avatar-self.png",
+    })
+    prisma.userProfile.updateMany.mockResolvedValue({ count: 1 })
     updateUser.mockResolvedValue({ data: null, error: { message: "sync failed" } })
 
     const result = await updateUserAvatar(createAvatarFormData(createValidFile()))
 
-    expect(prisma.userProfile.update).toHaveBeenNthCalledWith(1, {
-      where: { userId: "user-self" },
-      data: { avatarUrl: "https://cdn.example/avatar-self.png" },
+    expect(prisma.userProfile.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-self", avatarUrl: "https://cdn.example/avatar-self.png" },
+      data: { avatarUrl: "https://cdn.example/old.png" },
     })
-    expect(prisma.userProfile.update).toHaveBeenNthCalledWith(2, {
-      where: { userId: "user-self" },
+    expect(result).toEqual({
+      success: false,
+      error: "Không thể cập nhật ảnh đại diện. Vui lòng thử lại.",
+      code: "PROFILE_UPDATE_ERROR",
+    })
+  })
+
+  it("uses CAS semantics for rollback so stale requests only revert the avatar they wrote", async () => {
+    const { updateUser } = mockWithSession("user-self")
+    mockAvatarRecord("https://cdn.example/old.png")
+    uploadAvatarImage.mockResolvedValue("https://cdn.example/avatar-self-v2.png")
+    prisma.userProfile.update.mockResolvedValue({
+      userId: "user-self",
+      avatarUrl: "https://cdn.example/avatar-self-v2.png",
+    })
+    prisma.userProfile.updateMany.mockResolvedValue({ count: 0 })
+    updateUser.mockResolvedValue({ data: null, error: { message: "sync failed" } })
+
+    const result = await updateUserAvatar(createAvatarFormData(createValidFile()))
+
+    expect(prisma.userProfile.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-self", avatarUrl: "https://cdn.example/avatar-self-v2.png" },
       data: { avatarUrl: "https://cdn.example/old.png" },
     })
     expect(result).toEqual({
