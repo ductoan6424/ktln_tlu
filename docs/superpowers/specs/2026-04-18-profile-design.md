@@ -1,4 +1,4 @@
-# SPEC: Hoan thien User Profile bang du lieu thuc
+# SPEC: Hoan thien User Profile va cap nhat avatar bang du lieu thuc
 
 **Date:** 2026-04-18
 **Status:** Draft
@@ -15,30 +15,34 @@ Trang profile hien tai moi hoan thanh mot phan:
 - Chi co route profile cho chinh chu o `src/app/(main)/profile/page.tsx`
 - Chua co route xem ho so nguoi khac
 - Chua co loading state chuyen biet cho profile
+- Trang `settings` da co nut camera cho avatar nhung chua co hanh vi upload/cap nhat that
+- Trang `/profile` cua chinh chu chua co luong doi avatar tai cho
 
 Project can nang cap profile theo huong social network quen thuoc, uu tien bo cuc de quet thong tin nhanh, nhat quan voi feed page va co the tham chieu pattern cua Facebook profile: cover/header lon, thong tin tom tat ben trai, bai viet o cot chinh, tabs don gian, uu tien thong tin ca nhan + hoat dong.
 
-**Muc tieu:** Xay dung profile cua chinh chu va profile nguoi khac bang du lieu thuc hien co trong schema Prisma, giu duoc privacy rule, bo cuc dong nhat, skeleton loading day du, va khong dung du lieu academic gia.
+**Muc tieu:** Xay dung profile cua chinh chu va profile nguoi khac bang du lieu thuc hien co trong schema Prisma, giu duoc privacy rule, bo cuc dong nhat, skeleton loading day du, khong dung du lieu academic gia, va cho phep cap nhat avatar nguoi dung tai ca `settings` va `/profile` bang cung mot flow backend/frontend.
 
 ---
 
 ## Scope
 
 **Trong pham vi:**
-1. Giữ ` /profile ` cho chinh chu
-2. Them ` /profile/[userId] ` cho profile nguoi khac
+1. Giu `/profile` cho chinh chu
+2. Them `/profile/[userId]` cho profile nguoi khac
 3. Thay block academic hardcode bang thong tin thuc trong truong
 4. Hien thong tin co ban, thong ke xa hoi, CLB/nhom, bai viet
 5. Skeleton loading cho ca 2 route
 6. Privacy filtering cho profile nguoi khac
 7. Tai su dung component hien co toi da
+8. Them/chinh sua avatar nguoi dung o `settings` va `/profile` cua chinh chu bang mot flow dung chung
 
 **Ngoai pham vi:**
 - Them schema hoc tap moi cho GPA, tin chi, academic transcript
-- Chinh sua luong settings/profile edit
+- Chinh sua cac field khac trong settings/profile ngoai avatar
 - Tao vanity route theo `username`
 - Them hanh dong ket ban / nhan tin moi tren profile
 - Thay doi logic visibility phuc tap hon ngoai `PUBLIC`/`own posts`
+- Rollback/xoa asset Cloudinary neu buoc cap nhat DB that bai
 
 ---
 
@@ -56,6 +60,11 @@ Project can nang cap profile theo huong social network quen thuoc, uu tien bo cu
 - `major`
 - `year`
 - `createdAt`
+
+### Tu Supabase Auth metadata
+
+- `user_metadata.avatar_url` chi duoc dung lam du lieu dong bo de layout/session hien avatar moi ngay sau khi cap nhat
+- Nguon su that van la `prisma.userProfile.avatarUrl`
 
 ### Tu quan he khac
 
@@ -127,6 +136,7 @@ Duoc hien:
 - bai viet cua minh chua bi xoa
 - composer dang bai
 - nut sua ho so
+- control doi avatar
 
 ### Nguoi khac (`isOwnProfile = false`)
 
@@ -149,10 +159,33 @@ Khong duoc hien:
 
 - `email`
 - so dien thoai
-- token, session, metadata auth
+- token, session, metadata auth nhay cam
+- bat ky control upload/chinh sua avatar nao
 - thong tin nhay cam khac khong nam trong DTO cong khai
 
 Nguyen tac: page khong truyen raw Prisma object xuong component. Tat ca du lieu cho profile nguoi khac phai di qua privacy filter truoc khi render.
+
+---
+
+## Avatar update scope va permission
+
+### Pham vi hien thi control
+
+- `settings?section=profile`: hien control them/chinh sua avatar cho user dang dang nhap
+- `/profile`: chi hien control doi avatar khi `isOwnProfile = true`
+- `/profile/[userId]`: khong hien bat ky control upload hay chinh sua avatar nao
+
+### Nguon du lieu va dong bo
+
+- Avatar luu chinh trong `user_profiles.avatar_url`
+- Sau khi update thanh cong, can dong bo them `supabase.auth.updateUser({ data: { avatar_url } })`
+- Muc tieu cua buoc dong bo la tranh lech giua cac page dang doc Prisma va `src/app/(main)/layout.tsx` dang doc `session.user.user_metadata.avatar_url`
+
+### Nguyen tac thiet ke
+
+- Hai diem vao `settings` va `/profile` phai dung cung mot server action
+- Khong tao hai flow upload rieng biet
+- Khong auto-upload ngay khi user vua chon file; user phai bam `Luu anh`
 
 ---
 
@@ -160,11 +193,9 @@ Nguyen tac: page khong truyen raw Prisma object xuong component. Tat ca du lieu 
 
 ### Muc tieu kien truc
 
-Khong de `page.tsx` tu query manh mun theo tung block UI. Thay vao do, gom tat ca business rule vao mot loader dung chung cho ca 2 route.
+Khong de `page.tsx` tu query manh mun theo tung block UI. Thay vao do, gom tat ca business rule vao mot loader dung chung cho ca 2 route. Phan doi avatar duoc tach rieng thanh action de khong tron voi loader doc profile.
 
-### De xuat
-
-Tao mot module loader dung chung:
+### Loader profile dung chung
 
 `src/app/(main)/profile/profile-page-data.ts`
 
@@ -225,7 +256,7 @@ interface ProfilePageData {
 }
 ```
 
-### Luong xu ly
+### Luong xu ly loader
 
 1. Route lay session Supabase
 2. Xac dinh `viewerId`
@@ -233,6 +264,76 @@ interface ProfilePageData {
 4. Goi `getProfilePageData({ viewerId, profileUserId })`
 5. Loader query Prisma, filter privacy, map DTO
 6. Page render UI theo `isOwnProfile`
+
+---
+
+## Kien truc cap nhat avatar
+
+### Muc tieu kien truc
+
+Khong lap lai logic upload, validate, dong bo metadata, va revalidate giua `settings` va `/profile`.
+
+### Backend de xuat
+
+Tao server action dung chung:
+
+`src/actions/profile.ts`
+
+Action du kien:
+
+```ts
+async function updateUserAvatar(formData: FormData): Promise<ActionResult<{ avatarUrl: string }>>
+```
+
+Flow xu ly:
+
+1. Lay session Supabase va xac thuc user
+2. Doc file `avatar` tu `FormData`
+3. Validate file o server
+4. Upload len Cloudinary bang helper rieng cho avatar
+5. Cap nhat `prisma.userProfile.avatarUrl`
+6. Dong bo `supabase.auth.updateUser({ data: { avatar_url: uploadedUrl } })`
+7. `revalidatePath("/settings")`
+8. `revalidatePath("/profile")`
+9. `revalidatePath("/feed")`
+10. `revalidatePath(`/profile/${userId}`)`
+11. Tra ve `ActionResult` chuan cua project
+
+### Cloudinary helper
+
+Tai su dung `src/lib/cloudinary/upload.ts` thay vi mo them he thong upload moi.
+
+Bo sung helper rieng:
+
+```ts
+async function uploadAvatarImage(file: File): Promise<string>
+```
+
+Rule:
+
+- Dung chung validate file anh
+- Folder rieng, vi du `uniconnect/avatars`
+- Van dung `resource_type: "image"`
+
+### Frontend de xuat
+
+Tao mot client component dung chung:
+
+`src/components/shared/avatar-uploader.tsx`
+
+Trach nhiem:
+
+- mo file picker
+- preview avatar moi
+- goi `updateUserAvatar`
+- hien loading
+- hien loi/thanh cong
+- `router.refresh()` sau khi thanh cong
+
+Hai noi su dung:
+
+- `src/app/(main)/settings/page.tsx`
+- `src/components/profile/profile-header.tsx`
 
 ---
 
@@ -355,6 +456,33 @@ Khong copy nguyen xi visual language cua Facebook. Chi muon lay logic bo cuc va 
 
 Khong de sidebar desktop bi sap xep vo nghia tren mobile. Uu tien bai viet som hon o mobile.
 
+### Avatar interaction trong UI
+
+#### Settings
+
+- Giu bo cuc avatar hien tai trong `settings`
+- Nut camera tro thanh trigger mo file picker
+- Sau khi user chon file:
+  - hien preview tai cho
+  - hien nut `Luu anh`
+  - hien nut `Huy`
+- Khi dang upload:
+  - khoa trigger
+  - khoa nut submit
+  - hien spinner tren nut hanh dong
+
+#### Own profile
+
+- Tren `ProfileHeader`, them nut camera nho overlay len avatar khi `isOwnProfile = true`
+- Sau khi chon file, hien preview avatar moi ngay tai header
+- Su dung cung mot microcopy va cung luong trang thai nhu o `settings`
+
+#### Public profile
+
+- Avatar van hien binh thuong
+- Khong hien trigger doi avatar
+- Khong hien nut `Luu anh`/`Huy`
+
 ---
 
 ## Component strategy
@@ -374,7 +502,31 @@ Mo rong de nhan them:
 Actions:
 
 - Chinh chu: `Sua ho so`, `Sua anh bia` neu co scope
+- Chinh chu: co them control doi avatar overlay truc tiep len avatar
 - Nguoi khac: `Chia se`
+
+#### `SettingsPage` / `ProfileSection`
+
+- Thay nut camera trang tri hien tai bang `AvatarUploader`
+- Giu bo cuc va text huong dan dang co, chi thay phan tuong tac
+
+#### `AvatarUploader`
+
+Component moi dung chung cho ca `settings` va `profile`.
+
+Props du kien:
+
+- `currentAvatarUrl`
+- `displayName`
+- `trigger`
+- `context` hoac `size` de tuy bien hien thi
+
+State:
+
+- `idle`
+- `preview`
+- `uploading`
+- `error`
 
 #### `ConnectionsGrid`
 
@@ -413,6 +565,7 @@ Tai su dung de render bai viet profile.
 
 #### Component moi
 
+- `avatar-uploader.tsx`
 - `profile-tabs.tsx`
 - `profile-club-group-card.tsx`
 - `profile-posts-section.tsx`
@@ -457,8 +610,8 @@ Tabs se duoc implement that su trong scope nay de dong nhat giua profile cua chi
 
 ### Yeu cau bat buoc
 
-- Co skeleton loading cho ` /profile `
-- Co skeleton loading cho ` /profile/[userId] `
+- Co skeleton loading cho `/profile`
+- Co skeleton loading cho `/profile/[userId]`
 - Skeleton phai giong bo cuc that, tranh layout shift
 
 ### De xuat
@@ -527,6 +680,22 @@ Nguoi khac:
 
 - Hien fallback text nhe, khong qua on ao
 
+### 6. Avatar update loi
+
+- Sai dinh dang: `Chi ho tro anh JPG, PNG, WEBP hoac GIF.`
+- Qua dung luong: `Anh vuot qua dung luong toi da 5MB.`
+- Chua dang nhap: `Ban can dang nhap de thuc hien`
+- Upload that bai: `Khong the tai anh len. Vui long thu lai.`
+- Luu that bai: `Khong the cap nhat anh dai dien. Vui long thu lai.`
+- Thanh cong: `Cap nhat anh dai dien thanh cong.`
+
+### Nguyen tac xu ly loi avatar
+
+- Server la nguon su that cuoi cung, khong tin validate chi o client
+- Neu upload Cloudinary thanh cong nhung cap nhat DB hoac sync Supabase that bai, action phai tra loi
+- Trong scope nay chap nhan co the phat sinh orphan asset nho tren Cloudinary, khong can rollback o lan dau tien
+- UI giu preview tam khi loi de user co the thu lai hoac huy
+
 ---
 
 ## File changes du kien
@@ -534,17 +703,23 @@ Nguoi khac:
 | File | Action |
 |---|---|
 | `src/app/(main)/profile/page.tsx` | Refactor route chinh chu sang loader chung |
+| `src/app/(main)/settings/page.tsx` | Thay nut camera tinh bang avatar uploader dung chung |
 | `src/app/(main)/profile/loading.tsx` | Tao loading route |
 | `src/app/(main)/profile/[userId]/page.tsx` | Tao route profile nguoi khac |
 | `src/app/(main)/profile/[userId]/loading.tsx` | Tao loading route cho nguoi khac |
 | `src/app/(main)/profile/profile-page-data.ts` | Tao loader/query mapper dung chung |
-| `src/components/profile/profile-header.tsx` | Mo rong props va render mode |
+| `src/actions/profile.ts` | Tao server action cap nhat avatar nguoi dung |
+| `src/components/profile/profile-header.tsx` | Mo rong props va render mode, chen control doi avatar |
+| `src/components/shared/avatar-uploader.tsx` | Tao client component dung chung cho upload avatar |
 | `src/components/profile/academic-progress-card.tsx` | Replace bang card thong tin that hoac doi ten/trach nhiem |
 | `src/components/profile/connections-grid.tsx` | Sua de nhan total count that |
 | `src/components/profile/profile-overview-card.tsx` | Tao moi neu khong tai dung file cu |
 | `src/components/profile/profile-club-group-card.tsx` | Tao moi |
 | `src/components/profile/profile-tabs.tsx` | Tao moi de render tabs that su |
 | `src/components/profile/profile-posts-section.tsx` | Tao moi |
+| `src/lib/cloudinary/upload.ts` | Bo sung helper upload avatar va tai su dung validate file |
+| `tests/profile/*` | Mo rong test cho own/public profile va avatar flow |
+| `tests/actions/*` | Them test cho server action cap nhat avatar neu can tach rieng |
 
 ---
 
@@ -571,12 +746,23 @@ Nguoi khac:
 5. Invalid user
    - route goi `notFound`
 
+6. Avatar action
+   - tra `UNAUTHORIZED` khi chua dang nhap
+   - reject file sai type
+   - reject file vuot size
+   - cap nhat `userProfile.avatarUrl` khi hop le
+   - goi sync Supabase metadata
+   - goi `revalidatePath` cho cac route chinh
+
 ### UI tests
 
 1. Skeleton render dung tren profile page
 2. Empty state bai viet render dung theo tung mode
 3. Composer chi hien voi chinh chu
 4. Nguoi khac thay duoc `studentId`, `major`, `year`, khong thay `email`
+5. `settings` chi hien `Luu anh` va `Huy` sau khi da chon file
+6. `ProfileHeader` chi hien control doi avatar khi `isOwnProfile = true`
+7. Hien loi dung khi user chon file avatar khong hop le
 
 ---
 
@@ -584,19 +770,24 @@ Nguoi khac:
 
 1. `npm run lint`
 2. `npm run build`
-3. Chay test lien quan den profile loader va UI
+3. Chay test lien quan den profile loader, UI, va avatar action
 4. Verify thu cong:
    - `/profile` render dung profile chinh chu
    - `/profile/[userId]` render dung profile nguoi khac
    - skeleton hien thi truoc khi data len
    - posts, CLB, nhom, stats khop du lieu DB
+   - doi avatar trong `settings` cap nhat ngay tren layout/feed/profile
+   - doi avatar trong `/profile` cap nhat ngay tren layout/feed/profile
+   - profile nguoi khac khong co control sua avatar
 
 ---
 
-## Quyết định chốt
+## Quyet dinh chot
 
-1. Dung ` /profile ` cho chinh chu, ` /profile/[userId] ` cho nguoi khac
+1. Dung `/profile` cho chinh chu, `/profile/[userId]` cho nguoi khac
 2. Chi dung du lieu thuc tu schema hien tai
 3. Bo card academic hardcode, thay bang card thong tin that trong truong
 4. Profile nguoi khac la cong khai an toan, duoc hien `studentId`
-5. Phai co skeleton loading va bo cuc dong nhat theo pattern social profile quen thuoc
+5. Avatar duoc cap nhat o ca `settings` va `/profile` cua chinh chu bang cung mot flow upload/action
+6. `prisma.userProfile.avatarUrl` la nguon su that, `Supabase user_metadata.avatar_url` duoc dong bo de tranh lech UI
+7. Phai co skeleton loading va bo cuc dong nhat theo pattern social profile quen thuoc
