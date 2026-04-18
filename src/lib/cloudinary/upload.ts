@@ -9,15 +9,15 @@ export class UploadValidationError extends Error {}
 
 function assertValidImageFile(file: File) {
   if (file.size <= 0) {
-    throw new UploadValidationError("áº¢nh táº£i lÃªn khÃ´ng há»£p lá»‡.")
+    throw new UploadValidationError("Ảnh tải lên không hợp lệ.")
   }
 
   if (file.size > MAX_IMAGE_SIZE) {
-    throw new UploadValidationError("áº¢nh vÆ°á»£t quÃ¡ dung lÆ°á»£ng tá»‘i Ä‘a 5MB.")
+    throw new UploadValidationError("Ảnh vượt quá dung lượng tối đa 5MB.")
   }
 
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    throw new UploadValidationError("Chá»‰ há»— trá»£ áº£nh JPG, PNG, WEBP hoáº·c GIF.")
+    throw new UploadValidationError("Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.")
   }
 }
 
