@@ -3,31 +3,36 @@ import { cloudinary } from "@/lib/cloudinary/client"
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/utils/constants"
 
 const DEFAULT_POST_IMAGE_FOLDER = "uniconnect/posts"
+const DEFAULT_AVATAR_IMAGE_FOLDER = "uniconnect/avatars"
 
 export class UploadValidationError extends Error {}
 
 function assertValidImageFile(file: File) {
   if (file.size <= 0) {
-    throw new UploadValidationError("Ảnh tải lên không hợp lệ.")
+    throw new UploadValidationError("áº¢nh táº£i lÃªn khÃ´ng há»£p lá»‡.")
   }
 
   if (file.size > MAX_IMAGE_SIZE) {
-    throw new UploadValidationError("Ảnh vượt quá dung lượng tối đa 5MB.")
+    throw new UploadValidationError("áº¢nh vÆ°á»£t quÃ¡ dung lÆ°á»£ng tá»‘i Ä‘a 5MB.")
   }
 
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    throw new UploadValidationError("Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.")
+    throw new UploadValidationError("Chá»‰ há»— trá»£ áº£nh JPG, PNG, WEBP hoáº·c GIF.")
   }
 }
 
-export async function uploadPostImage(file: File) {
+async function uploadImage(file: File, folder: string) {
   assertValidImageFile(file)
 
   const cloudName =
     process.env.CLOUDINARY_CLOUD_NAME ??
     process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 
-  if (!cloudName || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  if (
+    !cloudName ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
+  ) {
     throw new Error("Cloudinary environment variables are missing.")
   }
 
@@ -36,9 +41,23 @@ export async function uploadPostImage(file: File) {
   const dataUri = `data:${file.type};base64,${base64}`
 
   const result = await cloudinary.uploader.upload(dataUri, {
-    folder: process.env.CLOUDINARY_POSTS_FOLDER ?? DEFAULT_POST_IMAGE_FOLDER,
+    folder,
     resource_type: "image",
   })
 
   return result.secure_url
+}
+
+export async function uploadPostImage(file: File) {
+  return uploadImage(
+    file,
+    process.env.CLOUDINARY_POSTS_FOLDER ?? DEFAULT_POST_IMAGE_FOLDER,
+  )
+}
+
+export async function uploadAvatarImage(file: File) {
+  return uploadImage(
+    file,
+    process.env.CLOUDINARY_AVATARS_FOLDER ?? DEFAULT_AVATAR_IMAGE_FOLDER,
+  )
 }
