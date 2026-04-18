@@ -6,13 +6,17 @@ const uploadAvatarImage = vi.hoisted(() => vi.fn())
 const revalidatePath = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
   userProfile: {
+    findUnique: vi.fn(),
     update: vi.fn(),
   },
 }))
 
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
 vi.mock("next/cache", () => ({ revalidatePath }))
-vi.mock("@/lib/cloudinary/upload", () => ({ uploadAvatarImage }))
+vi.mock("@/lib/cloudinary/upload", () => ({
+  UploadValidationError: class UploadValidationError extends Error {},
+  uploadAvatarImage,
+}))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 
 import { updateUserAvatar } from "@/actions/profile"
@@ -60,6 +64,12 @@ function mockWithSession(userId = "user-self") {
   return { updateUser }
 }
 
+function mockAvatarRecord(avatarUrl: string | null) {
+  prisma.userProfile.findUnique.mockResolvedValue({
+    avatarUrl,
+  })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
 })
@@ -89,8 +99,88 @@ describe("updateUserAvatar", () => {
     })
   })
 
+  it("returns UPLOAD_VALIDATION_ERROR when the avatar file is rejected by validation", async () => {
+    mockWithSession()
+
+    const { UploadValidationError } = await import("@/lib/cloudinary/upload")
+    uploadAvatarImage.mockRejectedValue(new UploadValidationError("Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF."))
+
+    const result = await updateUserAvatar(createAvatarFormData(createValidFile()))
+
+    expect(result).toEqual({
+      success: false,
+      error: "Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.",
+      code: "UPLOAD_VALIDATION_ERROR",
+    })
+  })
+
+  it("returns UPLOAD_ERROR when avatar upload throws a generic exception", async () => {
+    mockWithSession()
+    uploadAvatarImage.mockRejectedValue(new Error("network down"))
+
+    const result = await updateUserAvatar(createAvatarFormData(createValidFile()))
+
+    expect(result).toEqual({
+      success: false,
+      error: "Không thể tải ảnh lên. Vui lòng thử lại.",
+      code: "UPLOAD_ERROR",
+    })
+  })
+
+  it("returns PROFILE_UPDATE_ERROR when Prisma update fails", async () => {
+    mockWithSession()
+    mockAvatarRecord("https://cdn.example/old.png")
+    uploadAvatarImage.mockResolvedValue("https://cdn.example/avatar-self.png")
+    prisma.userProfile.update.mockRejectedValue(new Error("db failed"))
+
+    const result = await updateUserAvatar(createAvatarFormData(createValidFile()))
+
+    expect(prisma.userProfile.findUnique).toHaveBeenCalledWith({
+      where: { userId: "user-self" },
+      select: { avatarUrl: true },
+    })
+    expect(result).toEqual({
+      success: false,
+      error: "Không thể cập nhật ảnh đại diện. Vui lòng thử lại.",
+      code: "PROFILE_UPDATE_ERROR",
+    })
+  })
+
+  it("returns PROFILE_UPDATE_ERROR and rolls Prisma back when Supabase metadata sync fails", async () => {
+    const { updateUser } = mockWithSession("user-self")
+    mockAvatarRecord("https://cdn.example/old.png")
+    uploadAvatarImage.mockResolvedValue("https://cdn.example/avatar-self.png")
+    prisma.userProfile.update
+      .mockResolvedValueOnce({
+        userId: "user-self",
+        avatarUrl: "https://cdn.example/avatar-self.png",
+      })
+      .mockResolvedValueOnce({
+        userId: "user-self",
+        avatarUrl: "https://cdn.example/old.png",
+      })
+    updateUser.mockResolvedValue({ data: null, error: { message: "sync failed" } })
+
+    const result = await updateUserAvatar(createAvatarFormData(createValidFile()))
+
+    expect(prisma.userProfile.update).toHaveBeenNthCalledWith(1, {
+      where: { userId: "user-self" },
+      data: { avatarUrl: "https://cdn.example/avatar-self.png" },
+    })
+    expect(prisma.userProfile.update).toHaveBeenNthCalledWith(2, {
+      where: { userId: "user-self" },
+      data: { avatarUrl: "https://cdn.example/old.png" },
+    })
+    expect(result).toEqual({
+      success: false,
+      error: "Không thể cập nhật ảnh đại diện. Vui lòng thử lại.",
+      code: "PROFILE_UPDATE_ERROR",
+    })
+  })
+
   it("updates Prisma, syncs Supabase metadata, and revalidates the main surfaces when upload succeeds", async () => {
     const { updateUser } = mockWithSession("user-self")
+    mockAvatarRecord("https://cdn.example/old.png")
     uploadAvatarImage.mockResolvedValue("https://cdn.example/avatar-self.png")
     prisma.userProfile.update.mockResolvedValue({
       userId: "user-self",
@@ -101,6 +191,10 @@ describe("updateUserAvatar", () => {
     const result = await updateUserAvatar(createAvatarFormData(createValidFile()))
 
     expect(uploadAvatarImage).toHaveBeenCalledTimes(1)
+    expect(prisma.userProfile.findUnique).toHaveBeenCalledWith({
+      where: { userId: "user-self" },
+      select: { avatarUrl: true },
+    })
     expect(prisma.userProfile.update).toHaveBeenCalledWith({
       where: { userId: "user-self" },
       data: { avatarUrl: "https://cdn.example/avatar-self.png" },
@@ -108,10 +202,11 @@ describe("updateUserAvatar", () => {
     expect(updateUser).toHaveBeenCalledWith({
       data: { avatar_url: "https://cdn.example/avatar-self.png" },
     })
-    expect(revalidatePath).toHaveBeenCalledWith("/settings")
-    expect(revalidatePath).toHaveBeenCalledWith("/profile")
-    expect(revalidatePath).toHaveBeenCalledWith("/feed")
-    expect(revalidatePath).toHaveBeenCalledWith("/profile/user-self")
+    expect(revalidatePath).toHaveBeenCalledTimes(4)
+    expect(revalidatePath).toHaveBeenNthCalledWith(1, "/settings")
+    expect(revalidatePath).toHaveBeenNthCalledWith(2, "/profile")
+    expect(revalidatePath).toHaveBeenNthCalledWith(3, "/feed")
+    expect(revalidatePath).toHaveBeenNthCalledWith(4, "/profile/user-self")
     expect(result).toEqual({
       success: true,
       data: { avatarUrl: "https://cdn.example/avatar-self.png" },

@@ -42,16 +42,38 @@ export async function updateUserAvatar(
   }
 
   try {
+    const previousProfile = await prisma.userProfile.findUnique({
+      where: { userId },
+      select: { avatarUrl: true },
+    })
+    const previousAvatarUrl = previousProfile?.avatarUrl ?? null
+
     await prisma.userProfile.update({
       where: { userId },
       data: { avatarUrl },
     })
 
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: { avatar_url: avatarUrl },
-    })
+    let updateError: Error | null = null
+
+    try {
+      const result = await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl },
+      })
+      updateError = result.error ?? null
+    } catch (error) {
+      updateError = error as Error
+    }
 
     if (updateError) {
+      try {
+        await prisma.userProfile.update({
+          where: { userId },
+          data: { avatarUrl: previousAvatarUrl },
+        })
+      } catch (rollbackError) {
+        console.error("updateUserAvatar rollback error:", rollbackError)
+      }
+
       return errorResult(
         "Không thể cập nhật ảnh đại diện. Vui lòng thử lại.",
         "PROFILE_UPDATE_ERROR"
