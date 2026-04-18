@@ -48,6 +48,7 @@ next-env.d.ts
 /superpowers
 /.playwright-mcp
 /vercel
+/.worktrees
 
 CLAUDE.md
 /docs/superpowers
