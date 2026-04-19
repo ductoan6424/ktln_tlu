@@ -61,6 +61,18 @@ const USERS_RECORDS: AdminRecord<UserCells>[] = [
   },
 ]
 
+const USER_ROLE_OPTIONS = [
+  { label: "Student", value: "student" },
+  { label: "Lecturer", value: "lecturer" },
+  { label: "Admin", value: "admin" },
+] as const
+
+const USER_STATUS_OPTIONS = [
+  { label: "Active", value: "active" },
+  { label: "Pending", value: "pending" },
+  { label: "Blocked", value: "blocked" },
+] as const
+
 const createSections: AdminFormSection[] = [
   {
     title: "Profile information",
@@ -68,14 +80,14 @@ const createSections: AdminFormSection[] = [
     fields: [
       { name: "fullName", label: "Full name", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
-      { name: "role", label: "Role", type: "select", required: true },
+      { name: "role", label: "Role", type: "select", options: USER_ROLE_OPTIONS, required: true },
     ],
   },
   {
     title: "Account access",
     description: "Security and status controls for the account.",
     fields: [
-      { name: "status", label: "Status", type: "select", required: true },
+      { name: "status", label: "Status", type: "select", options: USER_STATUS_OPTIONS, required: true },
       { name: "temporaryPassword", label: "Temporary password", type: "password" },
       { name: "sendInvite", label: "Send invite", type: "toggle" },
     ],
@@ -96,8 +108,8 @@ const editSections: AdminFormSection[] = [
     title: "Permissions",
     description: "Control access level and operational status.",
     fields: [
-      { name: "role", label: "Role", type: "select", required: true },
-      { name: "status", label: "Status", type: "select", required: true },
+      { name: "role", label: "Role", type: "select", options: USER_ROLE_OPTIONS, required: true },
+      { name: "status", label: "Status", type: "select", options: USER_STATUS_OPTIONS, required: true },
       { name: "isVerified", label: "Verified", type: "toggle" },
     ],
   },
@@ -109,7 +121,13 @@ const settingsSections: AdminSettingsSection[] = [
     description: "Controls the default user onboarding flow.",
     items: [
       { name: "autoApprove", label: "Auto approve new users", value: "off", type: "toggle" },
-      { name: "defaultRole", label: "Default role", value: "student", type: "select" },
+      {
+        name: "defaultRole",
+        label: "Default role",
+        value: "student",
+        type: "select",
+        options: USER_ROLE_OPTIONS,
+      },
     ],
   },
   {

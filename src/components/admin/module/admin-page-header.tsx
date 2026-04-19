@@ -1,6 +1,7 @@
 import Link from "next/link"
 
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 interface AdminHeaderAction {
   label: string
@@ -31,14 +32,21 @@ export function AdminPageHeader({
       {(primaryAction || secondaryActions.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {secondaryActions.map((action) => (
-            <Button key={action.href} variant={action.variant ?? "outline"} asChild>
-              <Link href={action.href}>{action.label}</Link>
-            </Button>
+            <Link
+              key={action.href}
+              href={action.href}
+              className={cn(buttonVariants({ variant: action.variant ?? "outline" }))}
+            >
+              {action.label}
+            </Link>
           ))}
           {primaryAction && (
-            <Button variant={primaryAction.variant ?? "default"} asChild>
-              <Link href={primaryAction.href}>{primaryAction.label}</Link>
-            </Button>
+            <Link
+              href={primaryAction.href}
+              className={cn(buttonVariants({ variant: primaryAction.variant ?? "default" }))}
+            >
+              {primaryAction.label}
+            </Link>
           )}
         </div>
       )}

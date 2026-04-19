@@ -2,8 +2,9 @@ import Link from "next/link"
 import { Inbox } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 interface AdminEmptyStateProps {
   title: string
@@ -24,9 +25,9 @@ export function AdminEmptyState({
         <EmptyState icon={Inbox} title={title} description={description} />
         {actionLabel && actionHref && (
           <div className="flex justify-center">
-            <Button variant="outline" asChild>
-              <Link href={actionHref}>{actionLabel}</Link>
-            </Button>
+            <Link href={actionHref} className={cn(buttonVariants({ variant: "outline" }))}>
+              {actionLabel}
+            </Link>
           </div>
         )}
       </CardContent>

@@ -44,6 +44,12 @@ const SUBJECT_RECORDS: AdminRecord<SubjectCells>[] = [
   },
 ]
 
+const SUBJECT_STATUS_OPTIONS = [
+  { label: "Draft", value: "draft" },
+  { label: "Open", value: "open" },
+  { label: "Paused", value: "paused" },
+] as const
+
 const formSections: AdminFormSection[] = [
   {
     title: "Subject metadata",
@@ -58,7 +64,7 @@ const formSections: AdminFormSection[] = [
     title: "Visibility",
     description: "Define how the subject is exposed to users.",
     fields: [
-      { name: "status", label: "Status", type: "select", required: true },
+      { name: "status", label: "Status", type: "select", options: SUBJECT_STATUS_OPTIONS, required: true },
       { name: "isPublic", label: "Public listing", type: "toggle" },
     ],
   },
@@ -77,7 +83,13 @@ const settingsSections: AdminSettingsSection[] = [
     title: "Visibility defaults",
     description: "Default visibility behavior for new entries.",
     items: [
-      { name: "defaultStatus", label: "Default status", value: "draft", type: "select" },
+      {
+        name: "defaultStatus",
+        label: "Default status",
+        value: "draft",
+        type: "select",
+        options: SUBJECT_STATUS_OPTIONS,
+      },
       { name: "showInCatalog", label: "Show in catalog", value: "on", type: "toggle" },
     ],
   },
