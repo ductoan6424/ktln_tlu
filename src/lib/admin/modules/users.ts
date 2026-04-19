@@ -7,15 +7,28 @@ import type {
   AdminSettingsSection,
 } from "@/lib/admin/admin-types"
 
-const USERS_RECORDS: AdminRecord[] = [
+interface UserCells {
+  title: string
+  email: string
+  role: string
+  faculty: string
+  status: string
+  joinedAt: string
+}
+
+const USERS_RECORDS: AdminRecord<UserCells>[] = [
   {
     id: "user-001",
     title: "Nguyen Duc Toan",
     subtitle: "Student",
     status: "active",
-    metadata: {
+    cells: {
+      title: "Nguyen Duc Toan",
       email: "nguyenductoan@example.edu",
+      role: "Student",
       faculty: "Computer Science",
+      status: "Active",
+      joinedAt: "2025-09-01",
     },
   },
   {
@@ -23,9 +36,13 @@ const USERS_RECORDS: AdminRecord[] = [
     title: "Le Minh Anh",
     subtitle: "Lecturer",
     status: "pending",
-    metadata: {
+    cells: {
+      title: "Le Minh Anh",
       email: "leminhanh@example.edu",
+      role: "Lecturer",
       faculty: "Information Systems",
+      status: "Pending",
+      joinedAt: "2025-09-18",
     },
   },
   {
@@ -33,9 +50,13 @@ const USERS_RECORDS: AdminRecord[] = [
     title: "Pham Gia Huy",
     subtitle: "Admin",
     status: "blocked",
-    metadata: {
+    cells: {
+      title: "Pham Gia Huy",
       email: "phamgiahuy@example.edu",
+      role: "Admin",
       faculty: "Administration",
+      status: "Blocked",
+      joinedAt: "2025-07-07",
     },
   },
 ]
@@ -109,49 +130,64 @@ const settingsSections: AdminSettingsSection[] = [
   },
 ]
 
-const detailSections: AdminDetailSection[] = [
-  {
-    title: "Basic information",
-    items: [
-      { label: "Name", value: "Nguyen Duc Toan" },
-      { label: "Role", value: "Student" },
-      { label: "Status", value: "Active" },
-    ],
-  },
-  {
-    title: "Academic context",
-    items: [
-      { label: "Faculty", value: "Computer Science" },
-      { label: "Email", value: "nguyenductoan@example.edu" },
-      { label: "Joined", value: "2025-09-01" },
-    ],
-  },
-]
+const detailSectionsById: Record<string, AdminDetailSection[]> = {
+  "user-001": [
+    {
+      title: "Basic information",
+      items: [
+        { label: "Name", value: "Nguyen Duc Toan" },
+        { label: "Role", value: "Student" },
+        { label: "Status", value: "Active" },
+      ],
+    },
+    {
+      title: "Academic context",
+      items: [
+        { label: "Faculty", value: "Computer Science" },
+        { label: "Email", value: "nguyenductoan@example.edu" },
+        { label: "Joined", value: "2025-09-01" },
+      ],
+    },
+  ],
+  "user-002": [
+    {
+      title: "Basic information",
+      items: [
+        { label: "Name", value: "Le Minh Anh" },
+        { label: "Role", value: "Lecturer" },
+        { label: "Status", value: "Pending" },
+      ],
+    },
+    {
+      title: "Teaching context",
+      items: [
+        { label: "Faculty", value: "Information Systems" },
+        { label: "Email", value: "leminhanh@example.edu" },
+        { label: "Joined", value: "2025-09-18" },
+      ],
+    },
+  ],
+  "user-003": [
+    {
+      title: "Basic information",
+      items: [
+        { label: "Name", value: "Pham Gia Huy" },
+        { label: "Role", value: "Admin" },
+        { label: "Status", value: "Blocked" },
+      ],
+    },
+    {
+      title: "Administration context",
+      items: [
+        { label: "Faculty", value: "Administration" },
+        { label: "Email", value: "phamgiahuy@example.edu" },
+        { label: "Joined", value: "2025-07-07" },
+      ],
+    },
+  ],
+}
 
-const stats = [
-  { label: "Total users", value: "128" },
-  { label: "Active", value: "94" },
-  { label: "Pending verification", value: "18" },
-  { label: "Blocked", value: "6" },
-]
-
-const tabs = [
-  { label: "All", value: "all", active: true },
-  { label: "Students", value: "students" },
-  { label: "Lecturers", value: "lecturers" },
-  { label: "Admins", value: "admins" },
-]
-
-const columns = [
-  { key: "title", header: "Name" },
-  { key: "email", header: "Email" },
-  { key: "role", header: "Role" },
-  { key: "faculty", header: "Faculty" },
-  { key: "status", header: "Status" },
-  { key: "joinedAt", header: "Joined" },
-]
-
-export const USERS_ADMIN_MODULE: AdminModuleDefinition<string> = {
+export const USERS_ADMIN_MODULE: AdminModuleDefinition<UserCells> = {
   key: "users",
   label: "Users",
   description: "Manage user accounts, roles, and moderation settings.",
@@ -166,9 +202,26 @@ export const USERS_ADMIN_MODULE: AdminModuleDefinition<string> = {
     icon: "Users",
     description: "Manage accounts and access",
   },
-  stats,
-  tabs,
-  columns,
+  stats: [
+    { label: "Total users", value: "128" },
+    { label: "Active", value: "94" },
+    { label: "Pending verification", value: "18" },
+    { label: "Blocked", value: "6" },
+  ],
+  tabs: [
+    { label: "All", value: "all", active: true },
+    { label: "Students", value: "students" },
+    { label: "Lecturers", value: "lecturers" },
+    { label: "Admins", value: "admins" },
+  ],
+  columns: [
+    { key: "title", header: "Name" },
+    { key: "email", header: "Email" },
+    { key: "role", header: "Role" },
+    { key: "faculty", header: "Faculty" },
+    { key: "status", header: "Status" },
+    { key: "joinedAt", header: "Joined" },
+  ],
   records: USERS_RECORDS,
   quickActions: [
     {
@@ -184,7 +237,7 @@ export const USERS_ADMIN_MODULE: AdminModuleDefinition<string> = {
       description: "Review registration defaults",
     },
   ],
-  detailSections,
+  getDetailSections: (id) => detailSectionsById[id],
   createSections,
   editSections,
   settingsSections,
