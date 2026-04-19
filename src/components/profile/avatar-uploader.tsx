@@ -23,6 +23,7 @@ export interface AvatarUploaderProps {
   currentAvatarUrl?: string | null
   displayName: string
   variant?: "settings" | "profile"
+  embedded?: boolean
   className?: string
 }
 
@@ -52,6 +53,7 @@ export function AvatarUploader({
   currentAvatarUrl,
   displayName,
   variant = "settings",
+  embedded = false,
   className,
 }: AvatarUploaderProps) {
   const router = useRouter()
@@ -162,6 +164,80 @@ export function AvatarUploader({
 
   const avatarSrc = previewUrl ?? currentAvatarUrl ?? undefined
   const hasSelectedFile = selectedFile !== null
+  const isEmbeddedProfile = variant === "profile" && embedded
+
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept={ALLOWED_IMAGE_TYPES.join(",")}
+      className="hidden"
+      onChange={handleFileChange}
+      disabled={isUploading}
+    />
+  )
+
+  const profileTrigger = (
+    <div className="relative inline-flex">
+      <UserAvatar
+        src={avatarSrc}
+        name={displayName}
+        size="xl"
+        className={cn(isEmbeddedProfile && "size-28 border-4 border-card shadow-lg")}
+      />
+      <Button
+        type="button"
+        variant="secondary"
+        size="icon-sm"
+        data-avatar-trigger="profile"
+        className="absolute -bottom-1 -right-1 rounded-full border border-border"
+        onClick={openFileDialog}
+        disabled={isUploading}
+        aria-label="Chọn ảnh đại diện mới"
+      >
+        <Camera className="size-4" />
+      </Button>
+    </div>
+  )
+
+  const uploadActions = hasSelectedFile ? (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button type="button" size="sm" onClick={handleUpload} disabled={isUploading}>
+        {isUploading ? <Loader2 className="size-4 animate-spin" /> : null}
+        Lưu ảnh
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleCancel}
+        disabled={isUploading}
+      >
+        <X className="size-4" />
+        Hủy
+      </Button>
+    </div>
+  ) : null
+
+  const selectionFeedback = (
+    <>
+      {selectedFile && (
+        <p className="text-xs text-muted-foreground">Đã chọn: {selectedFile.name}</p>
+      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </>
+  )
+
+  if (isEmbeddedProfile) {
+    return (
+      <section className={cn("space-y-3", className)}>
+        {fileInput}
+        {profileTrigger}
+        {uploadActions}
+        {selectionFeedback}
+      </section>
+    )
+  }
 
   return (
     <section
@@ -171,38 +247,20 @@ export function AvatarUploader({
         className
       )}
     >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={ALLOWED_IMAGE_TYPES.join(",")}
-        className="hidden"
-        onChange={handleFileChange}
-        disabled={isUploading}
-      />
+      {fileInput}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <div className="flex shrink-0 flex-col items-center gap-3 text-center sm:items-start sm:text-left">
-          <div className={cn("relative", variant === "profile" && "inline-flex")}>
+          {variant === "profile" ? (
+            profileTrigger
+          ) : (
             <UserAvatar
               src={avatarSrc}
               name={displayName}
-              size={variant === "profile" ? "xl" : "lg"}
+              size="lg"
             />
-            {variant === "profile" && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                data-avatar-trigger="profile"
-                className="absolute -bottom-1 -right-1 rounded-full border border-border"
-                onClick={openFileDialog}
-                disabled={isUploading}
-                aria-label="Chọn ảnh đại diện mới"
-              >
-                <Camera className="size-4" />
-              </Button>
-            )}
-          </div>
+          )}
+
           <div className="space-y-1">
             <p className="max-w-[12rem] truncate text-sm font-medium text-foreground">
               {displayName}
@@ -244,35 +302,8 @@ export function AvatarUploader({
             </div>
           )}
 
-          {hasSelectedFile && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleUpload}
-                disabled={isUploading}
-              >
-                {isUploading ? <Loader2 className="size-4 animate-spin" /> : null}
-                Lưu ảnh
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleCancel}
-                disabled={isUploading}
-              >
-                <X className="size-4" />
-                Hủy
-              </Button>
-            </div>
-          )}
-
-          {selectedFile && (
-            <p className="text-xs text-muted-foreground">Đã chọn: {selectedFile.name}</p>
-          )}
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {uploadActions}
+          {selectionFeedback}
         </div>
       </div>
     </section>
