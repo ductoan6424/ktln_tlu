@@ -26,6 +26,18 @@ function formatBreadcrumbLabel(segment: string) {
     .join(" ")
 }
 
+function getBreadcrumbLabel(segment: string) {
+  if (segment === "new") {
+    return "Tao moi"
+  }
+
+  if (segment === "edit") {
+    return EDIT_BREADCRUMB_LABEL
+  }
+
+  return formatBreadcrumbLabel(segment)
+}
+
 function getModuleBreadcrumbItems(pathname: string): AdminBreadcrumbItem[] | null {
   const segments = pathname.split("/").filter(Boolean)
 
@@ -33,7 +45,7 @@ function getModuleBreadcrumbItems(pathname: string): AdminBreadcrumbItem[] | nul
     return null
   }
 
-  const moduleKey = segments[1] as keyof typeof MODULE_BREADCRUMB_LABELS
+  const moduleKey = segments[1] as keyof typeof ADMIN_MODULE_ROUTE_LABELS
   const adminModule = MODULE_BY_KEY.get(moduleKey)
 
   if (!adminModule) {
@@ -42,7 +54,6 @@ function getModuleBreadcrumbItems(pathname: string): AdminBreadcrumbItem[] | nul
 
   const labels = ADMIN_MODULE_ROUTE_LABELS[adminModule.key]
   const baseHref = adminModule.basePath
-  const detailHref = `${baseHref}/${segments[2]}`
 
   if (segments.length === 2) {
     return [ADMIN_ROOT, { label: labels.list }]
@@ -65,35 +76,41 @@ function getModuleBreadcrumbItems(pathname: string): AdminBreadcrumbItem[] | nul
   }
 
   const recordId = segments[2]
-  const nestedSegment = segments[3]
 
   if (!recordId) {
     return [ADMIN_ROOT, { label: labels.list }]
   }
 
-  if (segments[3] === "edit") {
-    return [
-      ADMIN_ROOT,
-      { label: labels.list, href: baseHref },
-      { label: labels.detail, href: detailHref },
-      { label: EDIT_BREADCRUMB_LABEL },
-    ]
-  }
-
-  if (nestedSegment) {
-    return [
-      ADMIN_ROOT,
-      { label: labels.list, href: baseHref },
-      { label: labels.detail, href: detailHref },
-      { label: formatBreadcrumbLabel(nestedSegment) },
-    ]
-  }
-
-  return [
+  const breadcrumbs: AdminBreadcrumbItem[] = [
     ADMIN_ROOT,
     { label: labels.list, href: baseHref },
-    { label: labels.detail },
   ]
+  const detailHref = `${baseHref}/${recordId}`
+  breadcrumbs.push({ label: labels.detail, href: detailHref })
+
+  const nestedSegments = segments.slice(3)
+
+  if (nestedSegments.length === 0) {
+    return breadcrumbs
+  }
+
+  let nestedHref = detailHref
+
+  for (let index = 0; index < nestedSegments.length; index += 1) {
+    const segment = nestedSegments[index]!
+    const isLastSegment = index === nestedSegments.length - 1
+
+    nestedHref = `${nestedHref}/${segment}`
+
+    const shouldLink = !isLastSegment && segment !== "new" && segment !== "edit"
+
+    breadcrumbs.push({
+      label: getBreadcrumbLabel(segment),
+      ...(shouldLink ? { href: nestedHref } : {}),
+    })
+  }
+
+  return breadcrumbs
 }
 
 export function getAdminBreadcrumbItems(pathname: string): AdminBreadcrumbItem[] {
