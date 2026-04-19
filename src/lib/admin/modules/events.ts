@@ -9,6 +9,9 @@ import type {
 
 interface EventCells {
   title: string
+  type: string
+  location: string
+  registration: string
   schedule: string
   organizer: string
   participants: string
@@ -23,6 +26,9 @@ const EVENT_RECORDS: AdminRecord<EventCells>[] = [
     status: "upcoming",
     cells: {
       title: "Orientation Day",
+      type: "Internal",
+      location: "Main Hall",
+      registration: "Open",
       schedule: "2026-08-20 09:00",
       organizer: "Student Affairs",
       participants: "240",
@@ -36,6 +42,9 @@ const EVENT_RECORDS: AdminRecord<EventCells>[] = [
     status: "open",
     cells: {
       title: "Research Showcase",
+      type: "Academic",
+      location: "Innovation Hub",
+      registration: "Approval required",
       schedule: "2026-09-02 13:30",
       organizer: "Faculty Board",
       participants: "180",
