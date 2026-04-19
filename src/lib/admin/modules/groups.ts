@@ -12,6 +12,8 @@ interface GroupCells {
   type: string
   members: string
   owner: string
+  privacy: string
+  moderated: string
   status: string
 }
 
@@ -26,6 +28,8 @@ const GROUP_RECORDS: AdminRecord<GroupCells>[] = [
       type: "Study group",
       members: "24",
       owner: "Nguyen Duc Toan",
+      privacy: "Private",
+      moderated: "on",
       status: "Active",
     },
   },
@@ -39,6 +43,8 @@ const GROUP_RECORDS: AdminRecord<GroupCells>[] = [
       type: "Project group",
       members: "13",
       owner: "Le Minh Anh",
+      privacy: "Public",
+      moderated: "off",
       status: "Under review",
     },
   },

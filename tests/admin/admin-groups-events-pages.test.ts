@@ -1,6 +1,9 @@
-import { createElement } from "react"
+import { Children, createElement, isValidElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+
+import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
+import { getAdminModule } from "@/lib/admin/admin-modules"
 
 const notFound = vi.hoisted(() =>
   vi.fn(() => {
@@ -23,6 +26,23 @@ vi.mock("next/navigation", () => ({ notFound }))
 beforeEach(() => {
   vi.clearAllMocks()
 })
+
+function findElementByName(node: unknown, name: string): Record<string, unknown> | undefined {
+  if (!isValidElement(node)) {
+    return undefined
+  }
+
+  const elementProps = node.props as Record<string, unknown>
+
+  if (elementProps.name === name) {
+    return elementProps
+  }
+
+  return Children.toArray(elementProps.children).reduce<Record<string, unknown> | undefined>(
+    (match, child) => match ?? findElementByName(child, name),
+    undefined,
+  )
+}
 
 describe("admin groups and events pages", () => {
   it("renders the groups route family with the shared shells and module data", async () => {
@@ -120,9 +140,11 @@ describe("admin groups and events pages", () => {
     expect(editMarkup).toContain("Event basics")
     expect(editMarkup).toContain("Registration")
     expect(editMarkup).toContain('value="Orientation Day"')
+    expect(editMarkup).toContain('value="Main Hall"')
     expect(secondEditMarkup).toContain("Cap nhat Research Showcase")
     expect(secondEditMarkup).toContain("Academic event")
     expect(secondEditMarkup).toContain('value="Research Showcase"')
+    expect(secondEditMarkup).toContain('value="Innovation Hub"')
 
     await expect(
       detailPage.default({ params: Promise.resolve({ eventId: "missing-event" }) }),
@@ -130,5 +152,27 @@ describe("admin groups and events pages", () => {
     await expect(
       editPage.default({ params: Promise.resolve({ eventId: "missing-event" }) }),
     ).rejects.toThrow("NOT_FOUND")
+  })
+
+  it("hydrates group and event edit controls with record-backed defaults", () => {
+    const groupsModule = getAdminModule("groups")
+    const eventsModule = getAdminModule("events")
+    const groupTree = AdminFormPageShell({
+      module: groupsModule,
+      mode: "edit",
+      record: groupsModule.getRecord("group-001"),
+    })
+    const eventTree = AdminFormPageShell({
+      module: eventsModule,
+      mode: "edit",
+      record: eventsModule.getRecord("event-001"),
+    })
+
+    expect(findElementByName(groupTree, "type")?.defaultValue).toBe("study-group")
+    expect(findElementByName(groupTree, "privacy")?.defaultValue).toBe("private")
+
+    expect(findElementByName(eventTree, "type")?.defaultValue).toBe("internal")
+    expect(findElementByName(eventTree, "location")?.defaultValue).toBe("Main Hall")
+    expect(findElementByName(eventTree, "registration")?.defaultValue).toBe("open")
   })
 })

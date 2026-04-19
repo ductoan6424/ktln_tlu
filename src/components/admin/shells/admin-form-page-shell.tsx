@@ -39,11 +39,7 @@ function getRecordFieldValue<Cells extends AdminCellValues>(
     return record.status ?? cells.status
   }
 
-  if (field.name === "type" || field.name === "role") {
-    return cells[field.name] ?? record.subtitle
-  }
-
-  return record.subtitle
+  return undefined
 }
 
 function getSelectDefaultValue<Cells extends AdminCellValues>(
