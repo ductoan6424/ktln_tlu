@@ -35,20 +35,22 @@ export interface AdminTabItem {
   active?: boolean
 }
 
-export interface AdminColumnDefinition {
-  key: string
+export type AdminCellMap = Record<string, string>
+
+export interface AdminColumnDefinition<Cells extends AdminCellMap = AdminCellMap> {
+  key: keyof Cells & string
   header: string
   width?: string
   align?: "left" | "center" | "right"
 }
 
-export interface AdminRecord {
+export interface AdminRecord<Cells extends AdminCellMap = AdminCellMap> {
   id: string
   title: string
   subtitle?: string
   href?: string
   status?: string
-  metadata?: Record<string, string>
+  cells: Cells
 }
 
 export interface AdminDetailItem {
@@ -96,7 +98,10 @@ export interface AdminSettingsSection {
   items: AdminSettingsItem[]
 }
 
-export interface AdminModuleDefinition<RecordId extends string = string> {
+export interface AdminModuleDefinition<
+  Cells extends AdminCellMap = AdminCellMap,
+  RecordId extends string = string,
+> {
   key: AdminModuleKey
   label: string
   description: string
@@ -108,10 +113,10 @@ export interface AdminModuleDefinition<RecordId extends string = string> {
   navItem: AdminNavItem
   stats: AdminStatItem[]
   tabs: AdminTabItem[]
-  columns: AdminColumnDefinition[]
-  records: readonly AdminRecord[]
+  columns: AdminColumnDefinition<Cells>[]
+  records: readonly AdminRecord<Cells>[]
   quickActions: AdminQuickAction[]
-  detailSections: AdminDetailSection[]
+  getDetailSections: (id: RecordId) => AdminDetailSection[] | undefined
   createSections: AdminFormSection[]
   editSections: AdminFormSection[]
   settingsSections: AdminSettingsSection[]
@@ -119,5 +124,5 @@ export interface AdminModuleDefinition<RecordId extends string = string> {
   buildEditPath: (id: RecordId) => string
   buildNewPath: () => string
   buildSettingsPath: () => string
-  getRecord: (id: RecordId) => AdminRecord | undefined
+  getRecord: (id: RecordId) => AdminRecord<Cells> | undefined
 }

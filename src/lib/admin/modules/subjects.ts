@@ -7,15 +7,26 @@ import type {
   AdminSettingsSection,
 } from "@/lib/admin/admin-types"
 
-const SUBJECT_RECORDS: AdminRecord[] = [
+interface SubjectCells {
+  code: string
+  title: string
+  faculty: string
+  credits: string
+  status: string
+}
+
+const SUBJECT_RECORDS: AdminRecord<SubjectCells>[] = [
   {
     id: "subject-001",
     title: "Database Systems",
     subtitle: "CS204",
     status: "open",
-    metadata: {
+    cells: {
+      code: "CS204",
+      title: "Database Systems",
       faculty: "Computer Science",
       credits: "3",
+      status: "Open",
     },
   },
   {
@@ -23,9 +34,12 @@ const SUBJECT_RECORDS: AdminRecord[] = [
     title: "Software Engineering",
     subtitle: "CS301",
     status: "review",
-    metadata: {
+    cells: {
+      code: "CS301",
+      title: "Software Engineering",
       faculty: "Computer Science",
       credits: "4",
+      status: "Under review",
     },
   },
 ]
@@ -69,26 +83,46 @@ const settingsSections: AdminSettingsSection[] = [
   },
 ]
 
-const detailSections: AdminDetailSection[] = [
-  {
-    title: "Subject information",
-    items: [
-      { label: "Code", value: "CS204" },
-      { label: "Name", value: "Database Systems" },
-      { label: "Credits", value: "3" },
-    ],
-  },
-  {
-    title: "Related admin context",
-    items: [
-      { label: "Lecturer group", value: "Database Team" },
-      { label: "Linked groups", value: "2" },
-      { label: "Linked events", value: "1" },
-    ],
-  },
-]
+const detailSectionsById: Record<string, AdminDetailSection[]> = {
+  "subject-001": [
+    {
+      title: "Subject information",
+      items: [
+        { label: "Code", value: "CS204" },
+        { label: "Name", value: "Database Systems" },
+        { label: "Credits", value: "3" },
+      ],
+    },
+    {
+      title: "Related admin context",
+      items: [
+        { label: "Lecturer group", value: "Database Team" },
+        { label: "Linked groups", value: "2" },
+        { label: "Linked events", value: "1" },
+      ],
+    },
+  ],
+  "subject-002": [
+    {
+      title: "Subject information",
+      items: [
+        { label: "Code", value: "CS301" },
+        { label: "Name", value: "Software Engineering" },
+        { label: "Credits", value: "4" },
+      ],
+    },
+    {
+      title: "Related admin context",
+      items: [
+        { label: "Lecturer group", value: "Software Team" },
+        { label: "Linked groups", value: "3" },
+        { label: "Linked events", value: "2" },
+      ],
+    },
+  ],
+}
 
-export const SUBJECTS_ADMIN_MODULE: AdminModuleDefinition<string> = {
+export const SUBJECTS_ADMIN_MODULE: AdminModuleDefinition<SubjectCells> = {
   key: "subjects",
   label: "Subjects",
   description: "Manage academic subjects and subject-level defaults.",
@@ -137,7 +171,7 @@ export const SUBJECTS_ADMIN_MODULE: AdminModuleDefinition<string> = {
       description: "Edit subject defaults",
     },
   ],
-  detailSections,
+  getDetailSections: (id) => detailSectionsById[id],
   createSections: formSections,
   editSections: formSections,
   settingsSections,

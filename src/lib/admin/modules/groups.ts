@@ -7,15 +7,26 @@ import type {
   AdminSettingsSection,
 } from "@/lib/admin/admin-types"
 
-const GROUP_RECORDS: AdminRecord[] = [
+interface GroupCells {
+  title: string
+  type: string
+  members: string
+  owner: string
+  status: string
+}
+
+const GROUP_RECORDS: AdminRecord<GroupCells>[] = [
   {
     id: "group-001",
     title: "AI Study Circle",
     subtitle: "Study group",
     status: "active",
-    metadata: {
+    cells: {
+      title: "AI Study Circle",
+      type: "Study group",
       members: "24",
-      privacy: "private",
+      owner: "Nguyen Duc Toan",
+      status: "Active",
     },
   },
   {
@@ -23,9 +34,12 @@ const GROUP_RECORDS: AdminRecord[] = [
     title: "Capstone Builders",
     subtitle: "Project group",
     status: "review",
-    metadata: {
+    cells: {
+      title: "Capstone Builders",
+      type: "Project group",
       members: "13",
-      privacy: "public",
+      owner: "Le Minh Anh",
+      status: "Under review",
     },
   },
 ]
@@ -69,26 +83,46 @@ const settingsSections: AdminSettingsSection[] = [
   },
 ]
 
-const detailSections: AdminDetailSection[] = [
-  {
-    title: "Group summary",
-    items: [
-      { label: "Name", value: "AI Study Circle" },
-      { label: "Type", value: "Study group" },
-      { label: "Members", value: "24" },
-    ],
-  },
-  {
-    title: "Related context",
-    items: [
-      { label: "Linked subject", value: "Database Systems" },
-      { label: "Linked event", value: "Research workshop" },
-      { label: "Privacy", value: "Private" },
-    ],
-  },
-]
+const detailSectionsById: Record<string, AdminDetailSection[]> = {
+  "group-001": [
+    {
+      title: "Group summary",
+      items: [
+        { label: "Name", value: "AI Study Circle" },
+        { label: "Type", value: "Study group" },
+        { label: "Members", value: "24" },
+      ],
+    },
+    {
+      title: "Related context",
+      items: [
+        { label: "Linked subject", value: "Database Systems" },
+        { label: "Linked event", value: "Research workshop" },
+        { label: "Privacy", value: "Private" },
+      ],
+    },
+  ],
+  "group-002": [
+    {
+      title: "Group summary",
+      items: [
+        { label: "Name", value: "Capstone Builders" },
+        { label: "Type", value: "Project group" },
+        { label: "Members", value: "13" },
+      ],
+    },
+    {
+      title: "Related context",
+      items: [
+        { label: "Linked subject", value: "Software Engineering" },
+        { label: "Linked event", value: "Capstone review" },
+        { label: "Privacy", value: "Public" },
+      ],
+    },
+  ],
+}
 
-export const GROUPS_ADMIN_MODULE: AdminModuleDefinition<string> = {
+export const GROUPS_ADMIN_MODULE: AdminModuleDefinition<GroupCells> = {
   key: "groups",
   label: "Groups",
   description: "Manage collaboration groups and moderation settings.",
@@ -137,7 +171,7 @@ export const GROUPS_ADMIN_MODULE: AdminModuleDefinition<string> = {
       description: "Review moderation defaults",
     },
   ],
-  detailSections,
+  getDetailSections: (id) => detailSectionsById[id],
   createSections: formSections,
   editSections: formSections,
   settingsSections,

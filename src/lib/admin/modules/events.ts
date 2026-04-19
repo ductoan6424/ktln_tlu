@@ -7,15 +7,26 @@ import type {
   AdminSettingsSection,
 } from "@/lib/admin/admin-types"
 
-const EVENT_RECORDS: AdminRecord[] = [
+interface EventCells {
+  title: string
+  schedule: string
+  organizer: string
+  participants: string
+  status: string
+}
+
+const EVENT_RECORDS: AdminRecord<EventCells>[] = [
   {
     id: "event-001",
     title: "Orientation Day",
     subtitle: "Campus event",
     status: "upcoming",
-    metadata: {
+    cells: {
+      title: "Orientation Day",
+      schedule: "2026-08-20 09:00",
       organizer: "Student Affairs",
       participants: "240",
+      status: "Upcoming",
     },
   },
   {
@@ -23,9 +34,12 @@ const EVENT_RECORDS: AdminRecord[] = [
     title: "Research Showcase",
     subtitle: "Academic event",
     status: "open",
-    metadata: {
+    cells: {
+      title: "Research Showcase",
+      schedule: "2026-09-02 13:30",
       organizer: "Faculty Board",
       participants: "180",
+      status: "Open",
     },
   },
 ]
@@ -77,26 +91,46 @@ const settingsSections: AdminSettingsSection[] = [
   },
 ]
 
-const detailSections: AdminDetailSection[] = [
-  {
-    title: "Event overview",
-    items: [
-      { label: "Name", value: "Orientation Day" },
-      { label: "Type", value: "Campus event" },
-      { label: "Status", value: "Upcoming" },
-    ],
-  },
-  {
-    title: "Event context",
-    items: [
-      { label: "Organizer", value: "Student Affairs" },
-      { label: "Linked group", value: "Student Leaders" },
-      { label: "Linked subject", value: "Freshman Seminar" },
-    ],
-  },
-]
+const detailSectionsById: Record<string, AdminDetailSection[]> = {
+  "event-001": [
+    {
+      title: "Event overview",
+      items: [
+        { label: "Name", value: "Orientation Day" },
+        { label: "Type", value: "Campus event" },
+        { label: "Status", value: "Upcoming" },
+      ],
+    },
+    {
+      title: "Event context",
+      items: [
+        { label: "Organizer", value: "Student Affairs" },
+        { label: "Linked group", value: "Student Leaders" },
+        { label: "Linked subject", value: "Freshman Seminar" },
+      ],
+    },
+  ],
+  "event-002": [
+    {
+      title: "Event overview",
+      items: [
+        { label: "Name", value: "Research Showcase" },
+        { label: "Type", value: "Academic event" },
+        { label: "Status", value: "Open" },
+      ],
+    },
+    {
+      title: "Event context",
+      items: [
+        { label: "Organizer", value: "Faculty Board" },
+        { label: "Linked group", value: "Research Lab" },
+        { label: "Linked subject", value: "Research Methods" },
+      ],
+    },
+  ],
+}
 
-export const EVENTS_ADMIN_MODULE: AdminModuleDefinition<string> = {
+export const EVENTS_ADMIN_MODULE: AdminModuleDefinition<EventCells> = {
   key: "events",
   label: "Events",
   description: "Manage event announcements, registration, and visibility rules.",
@@ -146,7 +180,7 @@ export const EVENTS_ADMIN_MODULE: AdminModuleDefinition<string> = {
       description: "Review registration defaults",
     },
   ],
-  detailSections,
+  getDetailSections: (id) => detailSectionsById[id],
   createSections: formSections,
   editSections: formSections,
   settingsSections,
