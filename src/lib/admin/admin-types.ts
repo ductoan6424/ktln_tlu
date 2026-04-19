@@ -35,16 +35,18 @@ export interface AdminTabItem {
   active?: boolean
 }
 
-export type AdminCellMap = Record<string, string>
+export interface AdminCellValues {
+  title: string
+}
 
-export interface AdminColumnDefinition<Cells extends AdminCellMap = AdminCellMap> {
+export interface AdminColumnDefinition<Cells extends AdminCellValues = AdminCellValues> {
   key: keyof Cells & string
   header: string
   width?: string
   align?: "left" | "center" | "right"
 }
 
-export interface AdminRecord<Cells extends AdminCellMap = AdminCellMap> {
+export interface AdminRecord<Cells extends AdminCellValues = AdminCellValues> {
   id: string
   title: string
   subtitle?: string
@@ -99,7 +101,7 @@ export interface AdminSettingsSection {
 }
 
 export interface AdminModuleDefinition<
-  Cells extends AdminCellMap = AdminCellMap,
+  Cells extends AdminCellValues = AdminCellValues,
   RecordId extends string = string,
 > {
   key: AdminModuleKey

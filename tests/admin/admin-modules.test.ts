@@ -10,6 +10,27 @@ const REQUIRED_RECORD_IDS = {
   events: "event-001",
 } as const
 
+function expectRowToCoverColumns<Cells extends { title: string }>(
+  module: {
+    columns: readonly { key: keyof Cells & string }[]
+    getRecord: (id: string) => { cells: Cells } | undefined
+  },
+  recordId: string,
+) {
+  const record = module.getRecord(recordId)
+
+  expect(record).toBeDefined()
+  expect(record).toEqual(
+    expect.objectContaining({
+      cells: expect.any(Object),
+    }),
+  )
+
+  for (const column of module.columns) {
+    expect(record?.cells[column.key]).toEqual(expect.any(String))
+  }
+}
+
 describe("admin module registry", () => {
   it("builds admin module paths from a base path", () => {
     expect(createAdminModulePaths("/admin/users")).toEqual({
@@ -41,21 +62,10 @@ describe("admin module registry", () => {
   })
 
   it("backs every configured column with row data", () => {
-    for (const key of ADMIN_MODULES.map((module) => module.key)) {
-      const module = getAdminModule(key)
-      const record = module.getRecord(REQUIRED_RECORD_IDS[key])
-
-      expect(record).toBeDefined()
-      expect(record).toEqual(
-        expect.objectContaining({
-          cells: expect.any(Object),
-        }),
-      )
-
-      for (const column of module.columns) {
-        expect(record?.cells[column.key]).toEqual(expect.any(String))
-      }
-    }
+    expectRowToCoverColumns(getAdminModule("users"), REQUIRED_RECORD_IDS.users)
+    expectRowToCoverColumns(getAdminModule("subjects"), REQUIRED_RECORD_IDS.subjects)
+    expectRowToCoverColumns(getAdminModule("groups"), REQUIRED_RECORD_IDS.groups)
+    expectRowToCoverColumns(getAdminModule("events"), REQUIRED_RECORD_IDS.events)
   })
 
   it("resolves detail sections by record id", () => {
