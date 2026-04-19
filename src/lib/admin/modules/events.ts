@@ -1,0 +1,158 @@
+import { createAdminModulePaths } from "@/lib/admin/admin-route-builders"
+import type {
+  AdminDetailSection,
+  AdminFormSection,
+  AdminModuleDefinition,
+  AdminRecord,
+  AdminSettingsSection,
+} from "@/lib/admin/admin-types"
+
+const EVENT_RECORDS: AdminRecord[] = [
+  {
+    id: "event-001",
+    title: "Orientation Day",
+    subtitle: "Campus event",
+    status: "upcoming",
+    metadata: {
+      organizer: "Student Affairs",
+      participants: "240",
+    },
+  },
+  {
+    id: "event-002",
+    title: "Research Showcase",
+    subtitle: "Academic event",
+    status: "open",
+    metadata: {
+      organizer: "Faculty Board",
+      participants: "180",
+    },
+  },
+]
+
+const formSections: AdminFormSection[] = [
+  {
+    title: "Event basics",
+    description: "Core identity and scheduling information.",
+    fields: [
+      { name: "title", label: "Event title", type: "text", required: true },
+      { name: "type", label: "Event type", type: "select", required: true },
+      { name: "location", label: "Location", type: "text", required: true },
+    ],
+  },
+  {
+    title: "Registration",
+    description: "Define the registration workflow and visibility.",
+    fields: [
+      { name: "registration", label: "Registration", type: "select", required: true },
+      { name: "featured", label: "Featured", type: "toggle" },
+    ],
+  },
+]
+
+const settingsSections: AdminSettingsSection[] = [
+  {
+    title: "Registration defaults",
+    description: "Shared settings for new event drafts.",
+    items: [
+      { name: "requireApproval", label: "Require approval", value: "on", type: "toggle" },
+      { name: "allowGuest", label: "Allow guests", value: "on", type: "toggle" },
+    ],
+  },
+  {
+    title: "Reminder rules",
+    description: "Automated reminders for upcoming events.",
+    items: [
+      { name: "firstReminder", label: "First reminder", value: "3 days", type: "text" },
+      { name: "secondReminder", label: "Second reminder", value: "1 day", type: "text" },
+    ],
+  },
+  {
+    title: "Visibility rules",
+    description: "How events appear to the community.",
+    items: [
+      { name: "showInFeed", label: "Show in feed", value: "on", type: "toggle" },
+      { name: "showOrganizer", label: "Show organizer", value: "on", type: "toggle" },
+    ],
+  },
+]
+
+const detailSections: AdminDetailSection[] = [
+  {
+    title: "Event overview",
+    items: [
+      { label: "Name", value: "Orientation Day" },
+      { label: "Type", value: "Campus event" },
+      { label: "Status", value: "Upcoming" },
+    ],
+  },
+  {
+    title: "Event context",
+    items: [
+      { label: "Organizer", value: "Student Affairs" },
+      { label: "Linked group", value: "Student Leaders" },
+      { label: "Linked subject", value: "Freshman Seminar" },
+    ],
+  },
+]
+
+export const EVENTS_ADMIN_MODULE: AdminModuleDefinition<string> = {
+  key: "events",
+  label: "Events",
+  description: "Manage event announcements, registration, and visibility rules.",
+  basePath: "/admin/events",
+  icon: "CalendarDays",
+  entityNameSingular: "event",
+  entityNamePlural: "events",
+  paths: createAdminModulePaths("/admin/events"),
+  navItem: {
+    label: "Events",
+    href: "/admin/events",
+    icon: "CalendarDays",
+    description: "Manage events and reminders",
+  },
+  stats: [
+    { label: "Total events", value: "36" },
+    { label: "Upcoming", value: "14" },
+    { label: "Open registration", value: "9" },
+    { label: "Completed", value: "13" },
+  ],
+  tabs: [
+    { label: "All", value: "all", active: true },
+    { label: "Academic", value: "academic" },
+    { label: "Club", value: "club" },
+    { label: "Workshop", value: "workshop" },
+    { label: "Internal", value: "internal" },
+  ],
+  columns: [
+    { key: "title", header: "Event name" },
+    { key: "schedule", header: "Time" },
+    { key: "organizer", header: "Organizer" },
+    { key: "participants", header: "Participants" },
+    { key: "status", header: "Status" },
+  ],
+  records: EVENT_RECORDS,
+  quickActions: [
+    {
+      label: "Create event",
+      href: "/admin/events/new",
+      icon: "CalendarDays",
+      description: "Open the event builder",
+    },
+    {
+      label: "Open settings",
+      href: "/admin/events/settings",
+      icon: "CalendarDays",
+      description: "Review registration defaults",
+    },
+  ],
+  detailSections,
+  createSections: formSections,
+  editSections: formSections,
+  settingsSections,
+  buildDetailPath: (id) => `/admin/events/${id}`,
+  buildEditPath: (id) => `/admin/events/${id}/edit`,
+  buildNewPath: () => "/admin/events/new",
+  buildSettingsPath: () => "/admin/events/settings",
+  getRecord: (id) => EVENT_RECORDS.find((record) => record.id === id),
+}
