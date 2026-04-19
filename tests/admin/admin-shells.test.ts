@@ -21,6 +21,23 @@ describe("admin shells", () => {
     expect(markup).toContain(usersModule.records[0].title)
   })
 
+  it("does not infer an active route tab when href tabs are not controlled by the page", () => {
+    const usersModule = getAdminModule("users")
+    const markup = renderToStaticMarkup(
+      createElement(AdminListPageShell, {
+        module: {
+          ...usersModule,
+          tabs: usersModule.tabs.map((tab) => ({
+            ...tab,
+            href: `/admin/users?tab=${tab.value}`,
+          })),
+        },
+      }),
+    )
+
+    expect(markup).not.toContain('aria-current="page"')
+  })
+
   it("renders configured select options on the form shell", () => {
     const usersModule = getAdminModule("users")
     const markup = renderToStaticMarkup(

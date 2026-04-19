@@ -34,12 +34,13 @@ export function AdminListPageShell<Cells extends AdminCellValues>({
   onQueryChange,
   query: queryProp,
 }: AdminListPageShellProps<Cells>) {
+  const hasHrefTabs = module.tabs.some((tab) => tab.href)
   const defaultTab = module.tabs.find((tab) => tab.active)?.value ?? module.tabs[0]?.value ?? ""
   const [localActiveTab, setLocalActiveTab] = useState(defaultTab)
   const [localQuery, setLocalQuery] = useState("")
-  const activeTab = activeTabProp ?? localActiveTab
+  const activeTab = activeTabProp ?? (hasHrefTabs ? "" : localActiveTab)
   const query = queryProp ?? localQuery
-  const handleActiveTabChange = onActiveTabChange ?? setLocalActiveTab
+  const handleActiveTabChange = hasHrefTabs ? (onActiveTabChange ?? (() => {})) : (onActiveTabChange ?? setLocalActiveTab)
   const handleQueryChange = onQueryChange ?? setLocalQuery
 
   return (

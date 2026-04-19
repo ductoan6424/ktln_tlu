@@ -56,7 +56,6 @@ export function AdminFilterBar({
                   href={tab.href}
                   aria-current={isActive ? "page" : undefined}
                   className={className}
-                  onClick={() => onActiveTabChange(tab.value)}
                 >
                   {tab.label}
                 </Link>
