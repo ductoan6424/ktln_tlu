@@ -27,4 +27,25 @@ describe("admin route meta", () => {
       { label: "Members" },
     ])
   })
+
+  it("keeps nested create routes under a record", () => {
+    expect(getAdminBreadcrumbItems("/admin/groups/group-01/members/new")).toEqual([
+      { label: "Admin", href: "/admin/dashboard" },
+      { label: "Quan ly group", href: "/admin/groups" },
+      { label: "Chi tiet group", href: "/admin/groups/group-01" },
+      { label: "Members", href: "/admin/groups/group-01/members" },
+      { label: "Tao moi" },
+    ])
+  })
+
+  it("keeps nested edit routes under a record", () => {
+    expect(getAdminBreadcrumbItems("/admin/groups/group-01/members/member-02/edit")).toEqual([
+      { label: "Admin", href: "/admin/dashboard" },
+      { label: "Quan ly group", href: "/admin/groups" },
+      { label: "Chi tiet group", href: "/admin/groups/group-01" },
+      { label: "Members", href: "/admin/groups/group-01/members" },
+      { label: "Member 02", href: "/admin/groups/group-01/members/member-02" },
+      { label: "Chinh sua" },
+    ])
+  })
 })
