@@ -43,6 +43,34 @@ export function validateAvatarFile(file: File | null | undefined): string | null
   return null
 }
 
+export type AvatarSelectionState = {
+  selectedFile: File | null
+  previewUrl: string | null
+  error: string | null
+}
+
+export function deriveAvatarSelectionState(
+  _previousState: Pick<AvatarSelectionState, "selectedFile" | "previewUrl">,
+  file: File | null | undefined,
+  createPreviewUrl: (file: File) => string
+): AvatarSelectionState {
+  const validationError = validateAvatarFile(file)
+
+  if (validationError) {
+    return {
+      selectedFile: null,
+      previewUrl: null,
+      error: validationError,
+    }
+  }
+
+  return {
+    selectedFile: file,
+    previewUrl: createPreviewUrl(file),
+    error: null,
+  }
+}
+
 function revokePreviewUrl(previewUrl: string | null) {
   if (previewUrl) {
     URL.revokeObjectURL(previewUrl)
@@ -91,13 +119,22 @@ export function AvatarUploader({
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    const validationError = validateAvatarFile(file)
+    const nextSelection = deriveAvatarSelectionState(
+      { selectedFile, previewUrl },
+      file,
+      URL.createObjectURL
+    )
 
-    if (validationError) {
-      setError(validationError)
+    if (nextSelection.error) {
+      setSelectedFile(null)
+      setPreviewUrl((previousPreviewUrl) => {
+        revokePreviewUrl(previousPreviewUrl)
+        return null
+      })
+      setError(nextSelection.error)
       toast({
         title: "Ảnh không hợp lệ",
-        description: validationError,
+        description: nextSelection.error,
         variant: "destructive",
       })
       event.target.value = ""
@@ -105,10 +142,10 @@ export function AvatarUploader({
     }
 
     setError(null)
-    setSelectedFile(file)
+    setSelectedFile(nextSelection.selectedFile)
     setPreviewUrl((previousPreviewUrl) => {
       revokePreviewUrl(previousPreviewUrl)
-      return URL.createObjectURL(file)
+      return nextSelection.previewUrl
     })
   }
 
