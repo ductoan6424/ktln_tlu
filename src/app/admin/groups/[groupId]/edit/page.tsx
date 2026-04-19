@@ -11,10 +11,11 @@ export default async function AdminEditGroupPage({
   params: Promise<{ groupId: string }>
 }) {
   const { groupId } = await params
+  const record = groupsModule.getRecord(groupId)
 
-  if (!groupsModule.getRecord(groupId)) {
+  if (!record) {
     notFound()
   }
 
-  return <AdminFormPageShell module={groupsModule} mode="edit" />
+  return <AdminFormPageShell module={groupsModule} mode="edit" record={record} />
 }
