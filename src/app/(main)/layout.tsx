@@ -1,86 +1,38 @@
-"use client"
-
-import { TopNavbar } from "@/components/layout/top-navbar"
+import { MAIN_NAV_ITEMS } from "@/app/(main)/main-nav-items"
+import { buildSessionUser } from "@/app/(main)/session-user"
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
-import { Home, Users, CalendarDays, UsersRound } from "lucide-react"
-import { createClient as createSupabaseClient } from "@/lib/supabase/client"
-import { useEffect, useState } from "react"
+import { TopNavbar } from "@/components/layout/top-navbar"
+import { prisma } from "@/lib/prisma/client"
+import { createClient } from "@/lib/supabase/server"
 
-const NAV_ITEMS = [
-  { icon: Home, label: "Trang chủ", href: "/feed" },
-  { icon: Users, label: "Mạng lưới", href: "/clubs" },
-  { icon: CalendarDays, label: "Sự kiện", href: "/events" },
-  { icon: UsersRound, label: "Nhóm", href: "/groups" },
-]
-
-interface SessionUser {
-  name: string
-  subtitle?: string
-  avatarSrc?: string
-}
-
-function useSessionUser() {
-  const [user, setUser] = useState<SessionUser | undefined>(undefined)
-
-  useEffect(() => {
-    const supabase = createSupabaseClient()
-
-    // Lấy session hiện tại
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        setUser({
-          name: session.user.user_metadata?.display_name
-            || session.user.email
-            || "Người dùng",
-          subtitle: session.user.user_metadata?.department
-            || session.user.email
-            || undefined,
-          avatarSrc: session.user.user_metadata?.avatar_url || undefined,
-        })
-      } else {
-        setUser(undefined)
-      }
-    }
-
-    getSession()
-
-    // Lắng nghe thay đổi session (khi đổi tài khoản)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({
-          name: session.user.user_metadata?.display_name
-            || session.user.email
-            || "Người dùng",
-          subtitle: session.user.user_metadata?.department
-            || session.user.email
-            || undefined,
-          avatarSrc: session.user.user_metadata?.avatar_url || undefined,
-        })
-      } else {
-        setUser(undefined)
-      }
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  return user
-}
-
-export default function MainLayout({
+export default async function MainLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const sessionUser = useSessionUser()
+  const supabase = await createClient()
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser()
+
+  const profile = authUser
+    ? await prisma.userProfile.findUnique({
+      where: { userId: authUser.id },
+      select: {
+        displayName: true,
+        major: true,
+        email: true,
+        avatarUrl: true,
+      },
+    })
+    : null
+
+  const sessionUser = buildSessionUser(authUser, profile)
 
   return (
     <div className="h-screen overflow-hidden bg-muted/30">
       <TopNavbar
-        navItems={NAV_ITEMS}
+        navItems={MAIN_NAV_ITEMS}
         user={sessionUser}
         notificationCount={3}
         messageCount={5}
