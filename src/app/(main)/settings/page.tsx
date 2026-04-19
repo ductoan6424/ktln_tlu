@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { UserAvatar } from "@/components/shared/user-avatar"
+import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { SectionHeader } from "@/components/shared/section-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -18,7 +18,6 @@ import {
   Shield,
   Palette,
   Globe,
-  Camera,
 } from "lucide-react"
 import type { Metadata } from "next"
 
@@ -129,31 +128,18 @@ export default async function SettingsPage({
 /* ------------------------------------------------------------------ */
 /* Hồ sơ cá nhân                                                       */
 /* ------------------------------------------------------------------ */
-function ProfileSection({ profile }: { profile: UserProfile }) {
+export function ProfileSection({ profile }: { profile: UserProfile }) {
   return (
     <Card>
       <CardContent className="p-6 space-y-6">
         <SectionHeader title="Hồ sơ cá nhân" />
 
         {/* Ảnh đại diện */}
-        <div className="flex items-center gap-6">
-          <div className="relative">
-            <UserAvatar
-              name={profile.displayName}
-              src={profile.avatarUrl ?? undefined}
-              size="lg"
-            />
-            <button className="absolute -bottom-1 -right-1 size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-sm">
-              <Camera className="size-3.5" />
-            </button>
-          </div>
-          <div>
-            <p className="text-sm font-semibold">Ảnh đại diện</p>
-            <p className="text-xs text-muted-foreground">
-              JPG, PNG hoặc GIF. Tối đa 2MB.
-            </p>
-          </div>
-        </div>
+        <AvatarUploader
+          variant="settings"
+          currentAvatarUrl={profile.avatarUrl}
+          displayName={profile.displayName}
+        />
 
         <Separator />
 

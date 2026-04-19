@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pencil, Share2, Camera } from "lucide-react"
@@ -65,12 +66,21 @@ export function ProfileHeader({
       <CardContent className="relative p-6 pt-0">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
           <div className="-mt-16 z-10">
-            <UserAvatar
-              src={avatar}
-              name={name}
-              size="xl"
-              className="size-28 border-4 border-card shadow-lg"
-            />
+            {isOwnProfile ? (
+              <AvatarUploader
+                variant="profile"
+                embedded
+                currentAvatarUrl={avatar}
+                displayName={name}
+              />
+            ) : (
+              <UserAvatar
+                src={avatar}
+                name={name}
+                size="xl"
+                className="size-28 border-4 border-card shadow-lg"
+              />
+            )}
           </div>
 
           <div className="flex-1">
