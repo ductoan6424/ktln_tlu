@@ -1,23 +1,32 @@
-import type { AdminModuleDefinition, AdminModuleKey } from "@/lib/admin/admin-types"
+import type { AdminModuleKey } from "@/lib/admin/admin-types"
 
 import { EVENTS_ADMIN_MODULE } from "@/lib/admin/modules/events"
 import { GROUPS_ADMIN_MODULE } from "@/lib/admin/modules/groups"
 import { SUBJECTS_ADMIN_MODULE } from "@/lib/admin/modules/subjects"
 import { USERS_ADMIN_MODULE } from "@/lib/admin/modules/users"
 
-export const ADMIN_MODULES: readonly AdminModuleDefinition[] = [
-  USERS_ADMIN_MODULE,
-  SUBJECTS_ADMIN_MODULE,
-  GROUPS_ADMIN_MODULE,
-  EVENTS_ADMIN_MODULE,
-]
+export type AdminModule =
+  | typeof USERS_ADMIN_MODULE
+  | typeof SUBJECTS_ADMIN_MODULE
+  | typeof GROUPS_ADMIN_MODULE
+  | typeof EVENTS_ADMIN_MODULE
 
-export function getAdminModule(key: AdminModuleKey): AdminModuleDefinition {
-  const module = ADMIN_MODULES.find((candidate) => candidate.key === key)
+export const ADMIN_MODULE_MAP = {
+  users: USERS_ADMIN_MODULE,
+  subjects: SUBJECTS_ADMIN_MODULE,
+  groups: GROUPS_ADMIN_MODULE,
+  events: EVENTS_ADMIN_MODULE,
+} as const satisfies Record<AdminModuleKey, AdminModule>
 
-  if (!module) {
-    throw new Error(`Unknown admin module: ${key}`)
-  }
+export const ADMIN_MODULES = [
+  ADMIN_MODULE_MAP.users,
+  ADMIN_MODULE_MAP.subjects,
+  ADMIN_MODULE_MAP.groups,
+  ADMIN_MODULE_MAP.events,
+] as const
 
-  return module
+export function getAdminModule<Key extends AdminModuleKey>(
+  key: Key,
+): (typeof ADMIN_MODULE_MAP)[Key] {
+  return ADMIN_MODULE_MAP[key]
 }
