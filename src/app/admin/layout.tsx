@@ -31,6 +31,10 @@ export default function AdminLayout({
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <div className="hidden lg:block">
+        <AdminSidebar activeHref={pathname} user={ADMIN_USER} />
+      </div>
+
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div
@@ -57,7 +61,7 @@ export default function AdminLayout({
             <Button
               variant="ghost"
               size="icon"
-              className="size-9 rounded-full shrink-0"
+              className="size-9 rounded-full shrink-0 lg:hidden"
               onClick={() => setSidebarOpen(true)}
               aria-label="Mo menu"
             >

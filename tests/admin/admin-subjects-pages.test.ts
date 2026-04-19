@@ -69,8 +69,11 @@ describe("admin subjects pages", () => {
     expect(editMarkup).toContain("CS204")
     expect(editMarkup).toContain("Subject metadata")
     expect(editMarkup).toContain("Visibility")
+    expect(editMarkup).toContain('value="Database Systems"')
+    expect(editMarkup).toContain('value="3"')
     expect(secondEditMarkup).toContain("Cap nhat Software Engineering")
     expect(secondEditMarkup).toContain("CS301")
+    expect(secondEditMarkup).toContain('value="Software Engineering"')
 
     await expect(
       detailPage.default({ params: Promise.resolve({ subjectId: "missing-subject" }) }),

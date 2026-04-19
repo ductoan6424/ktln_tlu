@@ -69,8 +69,11 @@ describe("admin users pages", () => {
     expect(editMarkup).toContain("Student")
     expect(editMarkup).toContain("Identity")
     expect(editMarkup).toContain("Permissions")
+    expect(editMarkup).toContain('value="Nguyen Duc Toan"')
+    expect(editMarkup).toContain('value="nguyenductoan@example.edu"')
     expect(secondEditMarkup).toContain("Cap nhat Le Minh Anh")
     expect(secondEditMarkup).toContain("Lecturer")
+    expect(secondEditMarkup).toContain('value="Le Minh Anh"')
 
     await expect(
       detailPage.default({ params: Promise.resolve({ userId: "missing-user" }) }),
