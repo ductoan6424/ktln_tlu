@@ -57,14 +57,20 @@ describe("admin subjects pages", () => {
     const editMarkup = renderToStaticMarkup(
       await editPage.default({ params: Promise.resolve({ subjectId: "subject-001" }) }),
     )
+    const secondEditMarkup = renderToStaticMarkup(
+      await editPage.default({ params: Promise.resolve({ subjectId: "subject-002" }) }),
+    )
 
     expect(detailMarkup).toContain("Database Systems")
     expect(detailMarkup).toContain("Subject information")
     expect(detailMarkup).toContain("/admin/subjects/subject-001/edit")
 
-    expect(editMarkup).toContain("Cap nhat subject")
+    expect(editMarkup).toContain("Cap nhat Database Systems")
+    expect(editMarkup).toContain("CS204")
     expect(editMarkup).toContain("Subject metadata")
     expect(editMarkup).toContain("Visibility")
+    expect(secondEditMarkup).toContain("Cap nhat Software Engineering")
+    expect(secondEditMarkup).toContain("CS301")
 
     await expect(
       detailPage.default({ params: Promise.resolve({ subjectId: "missing-subject" }) }),

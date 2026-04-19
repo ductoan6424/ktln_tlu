@@ -1,0 +1,20 @@
+import { notFound } from "next/navigation"
+
+import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
+import { getAdminModule } from "@/lib/admin/admin-modules"
+
+const eventsModule = getAdminModule("events")
+
+export default async function AdminEditEventPage({
+  params,
+}: {
+  params: Promise<{ eventId: string }>
+}) {
+  const { eventId } = await params
+
+  if (!eventsModule.getRecord(eventId)) {
+    notFound()
+  }
+
+  return <AdminFormPageShell module={eventsModule} mode="edit" />
+}

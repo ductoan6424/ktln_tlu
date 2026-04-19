@@ -57,14 +57,20 @@ describe("admin users pages", () => {
     const editMarkup = renderToStaticMarkup(
       await editPage.default({ params: Promise.resolve({ userId: "user-001" }) }),
     )
+    const secondEditMarkup = renderToStaticMarkup(
+      await editPage.default({ params: Promise.resolve({ userId: "user-002" }) }),
+    )
 
     expect(detailMarkup).toContain("Nguyen Duc Toan")
     expect(detailMarkup).toContain("Basic information")
     expect(detailMarkup).toContain("/admin/users/user-001/edit")
 
-    expect(editMarkup).toContain("Cap nhat user")
+    expect(editMarkup).toContain("Cap nhat Nguyen Duc Toan")
+    expect(editMarkup).toContain("Student")
     expect(editMarkup).toContain("Identity")
     expect(editMarkup).toContain("Permissions")
+    expect(secondEditMarkup).toContain("Cap nhat Le Minh Anh")
+    expect(secondEditMarkup).toContain("Lecturer")
 
     await expect(
       detailPage.default({ params: Promise.resolve({ userId: "missing-user" }) }),

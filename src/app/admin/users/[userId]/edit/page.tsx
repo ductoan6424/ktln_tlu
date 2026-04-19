@@ -11,10 +11,11 @@ export default async function AdminEditUserPage({
   params: Promise<{ userId: string }>
 }) {
   const { userId } = await params
+  const record = usersModule.getRecord(userId)
 
-  if (!usersModule.getRecord(userId)) {
+  if (!record) {
     notFound()
   }
 
-  return <AdminFormPageShell module={usersModule} mode="edit" />
+  return <AdminFormPageShell module={usersModule} mode="edit" record={record} />
 }
