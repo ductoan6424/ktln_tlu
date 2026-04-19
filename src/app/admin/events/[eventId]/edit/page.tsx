@@ -11,10 +11,11 @@ export default async function AdminEditEventPage({
   params: Promise<{ eventId: string }>
 }) {
   const { eventId } = await params
+  const record = eventsModule.getRecord(eventId)
 
-  if (!eventsModule.getRecord(eventId)) {
+  if (!record) {
     notFound()
   }
 
-  return <AdminFormPageShell module={eventsModule} mode="edit" />
+  return <AdminFormPageShell module={eventsModule} mode="edit" record={record} />
 }
