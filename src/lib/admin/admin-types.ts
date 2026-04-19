@@ -35,6 +35,11 @@ export interface AdminTabItem {
   active?: boolean
 }
 
+export interface AdminSelectOption {
+  label: string
+  value: string
+}
+
 export interface AdminCellValues {
   title: string
 }
@@ -73,13 +78,30 @@ export interface AdminQuickAction {
   description?: string
 }
 
-export interface AdminFieldDefinition {
+interface AdminBaseFieldDefinition {
   name: string
   label: string
-  type: "text" | "email" | "password" | "textarea" | "select" | "toggle" | "number"
   placeholder?: string
   required?: boolean
 }
+
+interface AdminInputFieldDefinition extends AdminBaseFieldDefinition {
+  type: "text" | "email" | "password" | "textarea" | "number"
+}
+
+interface AdminToggleFieldDefinition extends AdminBaseFieldDefinition {
+  type: "toggle"
+}
+
+interface AdminSelectFieldDefinition extends AdminBaseFieldDefinition {
+  type: "select"
+  options: readonly AdminSelectOption[]
+}
+
+export type AdminFieldDefinition =
+  | AdminInputFieldDefinition
+  | AdminToggleFieldDefinition
+  | AdminSelectFieldDefinition
 
 export interface AdminFormSection {
   title: string
@@ -87,12 +109,30 @@ export interface AdminFormSection {
   fields: AdminFieldDefinition[]
 }
 
-export interface AdminSettingsItem {
+interface AdminBaseSettingsItem {
   name: string
   label: string
   value: string
-  type: "text" | "toggle" | "select" | "number"
 }
+
+interface AdminInputSettingsItem extends AdminBaseSettingsItem {
+  type: "text" | "number"
+}
+
+interface AdminToggleSettingsItem extends AdminBaseSettingsItem {
+  type: "toggle"
+  value: "on" | "off"
+}
+
+interface AdminSelectSettingsItem extends AdminBaseSettingsItem {
+  type: "select"
+  options: readonly AdminSelectOption[]
+}
+
+export type AdminSettingsItem =
+  | AdminInputSettingsItem
+  | AdminToggleSettingsItem
+  | AdminSelectSettingsItem
 
 export interface AdminSettingsSection {
   title: string

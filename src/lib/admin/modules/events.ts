@@ -44,13 +44,26 @@ const EVENT_RECORDS: AdminRecord<EventCells>[] = [
   },
 ]
 
+const EVENT_TYPE_OPTIONS = [
+  { label: "Academic", value: "academic" },
+  { label: "Club", value: "club" },
+  { label: "Workshop", value: "workshop" },
+  { label: "Internal", value: "internal" },
+] as const
+
+const EVENT_REGISTRATION_OPTIONS = [
+  { label: "Open", value: "open" },
+  { label: "Approval required", value: "approval-required" },
+  { label: "Closed", value: "closed" },
+] as const
+
 const formSections: AdminFormSection[] = [
   {
     title: "Event basics",
     description: "Core identity and scheduling information.",
     fields: [
       { name: "title", label: "Event title", type: "text", required: true },
-      { name: "type", label: "Event type", type: "select", required: true },
+      { name: "type", label: "Event type", type: "select", options: EVENT_TYPE_OPTIONS, required: true },
       { name: "location", label: "Location", type: "text", required: true },
     ],
   },
@@ -58,7 +71,13 @@ const formSections: AdminFormSection[] = [
     title: "Registration",
     description: "Define the registration workflow and visibility.",
     fields: [
-      { name: "registration", label: "Registration", type: "select", required: true },
+      {
+        name: "registration",
+        label: "Registration",
+        type: "select",
+        options: EVENT_REGISTRATION_OPTIONS,
+        required: true,
+      },
       { name: "featured", label: "Featured", type: "toggle" },
     ],
   },

@@ -44,13 +44,31 @@ const GROUP_RECORDS: AdminRecord<GroupCells>[] = [
   },
 ]
 
+const GROUP_TYPE_OPTIONS = [
+  { label: "Study group", value: "study-group" },
+  { label: "Project group", value: "project-group" },
+  { label: "Community", value: "community" },
+] as const
+
+const GROUP_PRIVACY_OPTIONS = [
+  { label: "Public", value: "public" },
+  { label: "Private", value: "private" },
+  { label: "Invite only", value: "invite-only" },
+] as const
+
+const GROUP_REVIEWER_ROLE_OPTIONS = [
+  { label: "Admin", value: "admin" },
+  { label: "Lecturer", value: "lecturer" },
+  { label: "Moderator", value: "moderator" },
+] as const
+
 const formSections: AdminFormSection[] = [
   {
     title: "Group information",
     description: "Basic identity and ownership for the group.",
     fields: [
       { name: "name", label: "Group name", type: "text", required: true },
-      { name: "type", label: "Group type", type: "select", required: true },
+      { name: "type", label: "Group type", type: "select", options: GROUP_TYPE_OPTIONS, required: true },
       { name: "owner", label: "Owner", type: "text", required: true },
     ],
   },
@@ -58,7 +76,7 @@ const formSections: AdminFormSection[] = [
     title: "Access",
     description: "Privacy and moderation controls.",
     fields: [
-      { name: "privacy", label: "Privacy", type: "select", required: true },
+      { name: "privacy", label: "Privacy", type: "select", options: GROUP_PRIVACY_OPTIONS, required: true },
       { name: "moderated", label: "Moderated", type: "toggle" },
     ],
   },
@@ -70,7 +88,13 @@ const settingsSections: AdminSettingsSection[] = [
     description: "Control how new groups are reviewed.",
     items: [
       { name: "requireApproval", label: "Require approval", value: "on", type: "toggle" },
-      { name: "reviewerRole", label: "Reviewer role", value: "admin", type: "select" },
+      {
+        name: "reviewerRole",
+        label: "Reviewer role",
+        value: "admin",
+        type: "select",
+        options: GROUP_REVIEWER_ROLE_OPTIONS,
+      },
     ],
   },
   {

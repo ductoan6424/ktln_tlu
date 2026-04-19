@@ -1,3 +1,7 @@
+"use client"
+
+import { useState } from "react"
+
 import {
   AdminDataTable,
 } from "@/components/admin/module/admin-data-table"
@@ -9,6 +13,10 @@ import type { AdminModuleDefinition, AdminCellValues } from "@/lib/admin/admin-t
 
 interface AdminListPageShellProps<Cells extends AdminCellValues> {
   module: AdminModuleDefinition<Cells>
+  activeTab?: string
+  onActiveTabChange?: (value: string) => void
+  onQueryChange?: (value: string) => void
+  query?: string
 }
 
 function buildListTitle(entityName: string) {
@@ -19,16 +27,20 @@ function buildCreateLabel(entityName: string) {
   return `Them ${entityName}`
 }
 
-function buildTotalLabel(entityName: string) {
-  return `Tong ${entityName}`
-}
-
 export function AdminListPageShell<Cells extends AdminCellValues>({
   module,
+  activeTab: activeTabProp,
+  onActiveTabChange,
+  onQueryChange,
+  query: queryProp,
 }: AdminListPageShellProps<Cells>) {
-  const stats = module.stats.map((stat, index) =>
-    index === 0 ? { ...stat, label: buildTotalLabel(module.entityNameSingular) } : stat,
-  )
+  const defaultTab = module.tabs.find((tab) => tab.active)?.value ?? module.tabs[0]?.value ?? ""
+  const [localActiveTab, setLocalActiveTab] = useState(defaultTab)
+  const [localQuery, setLocalQuery] = useState("")
+  const activeTab = activeTabProp ?? localActiveTab
+  const query = queryProp ?? localQuery
+  const handleActiveTabChange = onActiveTabChange ?? setLocalActiveTab
+  const handleQueryChange = onQueryChange ?? setLocalQuery
 
   return (
     <div className="space-y-6">
@@ -40,8 +52,12 @@ export function AdminListPageShell<Cells extends AdminCellValues>({
           href: module.buildNewPath(),
         }}
       />
-      <AdminStatsGrid stats={stats} />
+      <AdminStatsGrid stats={module.stats} />
       <AdminFilterBar
+        activeTab={activeTab}
+        onActiveTabChange={handleActiveTabChange}
+        onQueryChange={handleQueryChange}
+        query={query}
         tabs={module.tabs}
         searchPlaceholder={`Tim kiem ${module.entityNamePlural}...`}
       />

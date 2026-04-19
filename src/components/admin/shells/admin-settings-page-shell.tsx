@@ -10,9 +10,21 @@ interface AdminSettingsPageShellProps<Cells extends AdminCellValues> {
   module: AdminModuleDefinition<Cells>
 }
 
+function getSettingSummary(item: AdminSettingsItem) {
+  if (item.type === "toggle") {
+    return item.value === "on" ? "Enabled" : "Disabled"
+  }
+
+  if (item.type === "select") {
+    return item.options.find((option) => option.value === item.value)?.label ?? item.value
+  }
+
+  return item.value
+}
+
 function renderSettingControl(item: AdminSettingsItem) {
   if (item.type === "toggle") {
-    return <Switch aria-label={item.label} checked={item.value === "on"} />
+    return <Switch aria-label={item.label} defaultChecked={item.value === "on"} />
   }
 
   if (item.type === "select") {
@@ -23,7 +35,11 @@ function renderSettingControl(item: AdminSettingsItem) {
         defaultValue={item.value}
         className="flex h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <option value={item.value}>{item.value}</option>
+        {item.options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
       </select>
     )
   }
@@ -66,7 +82,7 @@ export function AdminSettingsPageShell<Cells extends AdminCellValues>({
                 >
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    <p className="text-sm text-muted-foreground">{item.value}</p>
+                    <p className="text-sm text-muted-foreground">{getSettingSummary(item)}</p>
                   </div>
                   <div className="w-full md:w-56">{renderSettingControl(item)}</div>
                 </div>

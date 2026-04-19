@@ -17,6 +17,7 @@ function renderField(field: AdminFieldDefinition) {
     id: field.name,
     name: field.name,
     placeholder: field.placeholder ?? field.label,
+    required: field.required,
   }
 
   if (field.type === "textarea") {
@@ -24,7 +25,7 @@ function renderField(field: AdminFieldDefinition) {
   }
 
   if (field.type === "toggle") {
-    return <Switch aria-label={field.label} />
+    return <Switch aria-label={field.label} defaultChecked={false} />
   }
 
   if (field.type === "select") {
@@ -33,11 +34,17 @@ function renderField(field: AdminFieldDefinition) {
         id={field.name}
         name={field.name}
         defaultValue=""
+        required={field.required}
         className="flex h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <option value="" disabled>
           {field.placeholder ?? `Chon ${field.label.toLowerCase()}`}
         </option>
+        {field.options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
       </select>
     )
   }
