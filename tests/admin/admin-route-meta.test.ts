@@ -18,4 +18,13 @@ describe("admin route meta", () => {
       { label: "Chinh sua" },
     ])
   })
+
+  it("keeps nested record routes distinct from detail routes", () => {
+    expect(getAdminBreadcrumbItems("/admin/groups/group-01/members")).toEqual([
+      { label: "Admin", href: "/admin/dashboard" },
+      { label: "Quan ly group", href: "/admin/groups" },
+      { label: "Chi tiet group", href: "/admin/groups/group-01" },
+      { label: "Members" },
+    ])
+  })
 })

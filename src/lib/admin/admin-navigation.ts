@@ -23,12 +23,49 @@ export interface AdminNavSection {
   items: AdminNavItem[]
 }
 
+export interface AdminModuleRouteLabels {
+  list: string
+  create: string
+  settings: string
+  detail: string
+}
+
 const ADMIN_MODULE_ICONS = {
   users: Users,
   subjects: BookOpen,
   groups: UsersRound,
   events: CalendarDays,
 } satisfies Record<(typeof ADMIN_MODULES)[number]["key"], LucideIcon>
+
+export const ADMIN_MODULE_ROUTE_LABELS = {
+  users: {
+    list: "Quan ly nguoi dung",
+    create: "Tao moi",
+    settings: "Cai dat module",
+    detail: "Chi tiet nguoi dung",
+  },
+  subjects: {
+    list: "Quan ly mon hoc",
+    create: "Tao moi",
+    settings: "Cai dat module",
+    detail: "Chi tiet mon hoc",
+  },
+  groups: {
+    list: "Quan ly group",
+    create: "Tao moi",
+    settings: "Cai dat module",
+    detail: "Chi tiet group",
+  },
+  events: {
+    list: "Quan ly su kien",
+    create: "Tao moi",
+    settings: "Cai dat module",
+    detail: "Chi tiet su kien",
+  },
+} satisfies Record<
+  (typeof ADMIN_MODULES)[number]["key"],
+  AdminModuleRouteLabels
+>
 
 export const ADMIN_MANAGEMENT_NAV_ITEMS = ADMIN_MODULES.map((module) => ({
   icon: ADMIN_MODULE_ICONS[module.key],
