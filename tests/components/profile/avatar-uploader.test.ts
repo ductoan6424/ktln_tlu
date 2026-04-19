@@ -27,6 +27,7 @@ vi.mock("@/components/ui/use-toast", () => ({
 
 import {
   AvatarUploader,
+  deriveAvatarSelectionState,
   validateAvatarFile,
 } from "@/components/profile/avatar-uploader"
 
@@ -60,6 +61,31 @@ describe("validateAvatarFile", () => {
     const file = new File(["avatar"], "avatar.png", { type: ALLOWED_IMAGE_TYPES[1] })
 
     expect(validateAvatarFile(file)).toBeNull()
+  })
+})
+
+describe("deriveAvatarSelectionState", () => {
+  it("clears stale queued selection when an invalid replacement is chosen", () => {
+    const previousFile = new File(["avatar"], "avatar.png", {
+      type: ALLOWED_IMAGE_TYPES[0],
+    })
+    const invalidReplacement = new File(["avatar"], "avatar.svg", {
+      type: "image/svg+xml",
+    })
+
+    const nextState = deriveAvatarSelectionState(
+      {
+        selectedFile: previousFile,
+        previewUrl: "blob:previous-preview",
+        error: null,
+      },
+      invalidReplacement,
+      () => "blob:new-preview"
+    )
+
+    expect(nextState.selectedFile).toBeNull()
+    expect(nextState.previewUrl).toBeNull()
+    expect(nextState.error).toBe("Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.")
   })
 })
 
