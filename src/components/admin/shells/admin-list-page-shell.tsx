@@ -34,7 +34,7 @@ export function AdminListPageShell<Cells extends AdminCellValues>({
   onQueryChange,
   query: queryProp,
 }: AdminListPageShellProps<Cells>) {
-  const hasHrefTabs = module.tabs.some((tab) => tab.href)
+  const hasHrefTabs = Boolean(module.tabs[0]?.href)
   const defaultTab = module.tabs.find((tab) => tab.active)?.value ?? module.tabs[0]?.value ?? ""
   const [localActiveTab, setLocalActiveTab] = useState(defaultTab)
   const [localQuery, setLocalQuery] = useState("")

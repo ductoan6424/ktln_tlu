@@ -28,12 +28,23 @@ export interface AdminStatItem {
   hint?: string
 }
 
-export interface AdminTabItem {
+interface AdminBaseTabItem {
   label: string
   value: string
-  href?: string
-  active?: boolean
 }
+
+export interface AdminButtonTabItem extends AdminBaseTabItem {
+  active?: boolean
+  href?: never
+}
+
+export interface AdminLinkTabItem extends AdminBaseTabItem {
+  href: string
+  active?: never
+}
+
+export type AdminTabItem = AdminButtonTabItem | AdminLinkTabItem
+export type AdminTabItems = readonly AdminButtonTabItem[] | readonly AdminLinkTabItem[]
 
 export interface AdminSelectOption {
   label: string
@@ -154,7 +165,7 @@ export interface AdminModuleDefinition<
   paths: AdminModulePaths
   navItem: AdminNavItem
   stats: AdminStatItem[]
-  tabs: AdminTabItem[]
+  tabs: AdminTabItems
   columns: AdminColumnDefinition<Cells>[]
   records: readonly AdminRecord<Cells>[]
   quickActions: AdminQuickAction[]

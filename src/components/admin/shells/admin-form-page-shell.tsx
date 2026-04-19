@@ -5,11 +5,12 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 
 import { AdminPageHeader } from "@/components/admin/module/admin-page-header"
-import type { AdminCellValues, AdminFieldDefinition, AdminFormSection, AdminModuleDefinition } from "@/lib/admin/admin-types"
+import type { AdminCellValues, AdminFieldDefinition, AdminFormSection, AdminModuleDefinition, AdminRecord } from "@/lib/admin/admin-types"
 
 interface AdminFormPageShellProps<Cells extends AdminCellValues> {
   module: AdminModuleDefinition<Cells>
   mode: "create" | "edit"
+  record?: AdminRecord<Cells>
 }
 
 function renderField(field: AdminFieldDefinition) {
@@ -88,15 +89,18 @@ function getSections(sections: readonly AdminFormSection[]) {
 export function AdminFormPageShell<Cells extends AdminCellValues>({
   module,
   mode,
+  record,
 }: AdminFormPageShellProps<Cells>) {
   const isCreate = mode === "create"
   const sections = isCreate ? module.createSections : module.editSections
+  const title = isCreate ? `Them ${module.entityNameSingular}` : `Cap nhat ${record?.title ?? module.entityNameSingular}`
+  const description = isCreate ? module.description : (record?.subtitle ?? module.description)
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title={`${isCreate ? "Them" : "Cap nhat"} ${module.entityNameSingular}`}
-        description={module.description}
+        title={title}
+        description={description}
         secondaryActions={[
           { label: "Quay lai danh sach", href: module.paths.list, variant: "outline" },
         ]}

@@ -4,7 +4,7 @@ import Link from "next/link"
 
 import { SearchInput } from "@/components/shared/search-input"
 import { TabNavigation } from "@/components/shared/tab-navigation"
-import type { AdminTabItem } from "@/lib/admin/admin-types"
+import type { AdminTabItems } from "@/lib/admin/admin-types"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -13,7 +13,7 @@ interface AdminFilterBarProps {
   onActiveTabChange: (value: string) => void
   onQueryChange: (value: string) => void
   query: string
-  tabs?: readonly AdminTabItem[]
+  tabs?: AdminTabItems
   searchPlaceholder?: string
 }
 
@@ -35,7 +35,7 @@ export function AdminFilterBar({
     )
   }
 
-  const hasHrefTabs = tabs.some((tab) => tab.href)
+  const hasHrefTabs = Boolean(tabs[0]?.href)
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">

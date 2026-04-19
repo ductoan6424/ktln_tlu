@@ -11,10 +11,11 @@ export default async function AdminEditSubjectPage({
   params: Promise<{ subjectId: string }>
 }) {
   const { subjectId } = await params
+  const record = subjectsModule.getRecord(subjectId)
 
-  if (!subjectsModule.getRecord(subjectId)) {
+  if (!record) {
     notFound()
   }
 
-  return <AdminFormPageShell module={subjectsModule} mode="edit" />
+  return <AdminFormPageShell module={subjectsModule} mode="edit" record={record} />
 }
