@@ -31,6 +31,10 @@ type MainSidebarProps =
   | (MainSidebarBaseProps & { navItems: NavItem[]; sections?: never })
   | (MainSidebarBaseProps & { sections: NavSection[]; navItems?: never })
 
+export function isSidebarItemActive(activeHref: string, itemHref: string) {
+  return activeHref === itemHref || activeHref.startsWith(`${itemHref}/`)
+}
+
 export function MainSidebar({
   navItems,
   sections,
@@ -66,7 +70,7 @@ export function MainSidebar({
                     icon={item.icon}
                     label={item.label}
                     href={item.href}
-                    isActive={activeHref === item.href}
+                    isActive={isSidebarItemActive(activeHref, item.href)}
                     badge={item.badge}
                   />
                 ))}
@@ -80,7 +84,7 @@ export function MainSidebar({
               icon={item.icon}
               label={item.label}
               href={item.href}
-              isActive={activeHref === item.href}
+              isActive={isSidebarItemActive(activeHref, item.href)}
               badge={item.badge}
             />
           ))

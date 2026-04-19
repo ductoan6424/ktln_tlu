@@ -13,7 +13,73 @@ interface AdminFormPageShellProps<Cells extends AdminCellValues> {
   record?: AdminRecord<Cells>
 }
 
-function renderField(field: AdminFieldDefinition) {
+function getRecordFieldValue<Cells extends AdminCellValues>(
+  field: AdminFieldDefinition,
+  record?: AdminRecord<Cells>,
+) {
+  if (!record) {
+    return undefined
+  }
+
+  const cells = record.cells as Record<string, string>
+
+  if (field.name in cells) {
+    return cells[field.name]
+  }
+
+  if (field.name === "fullName" || field.name === "name" || field.name === "title") {
+    return record.title
+  }
+
+  if (field.name === "email") {
+    return cells.email ?? (record.subtitle?.includes("@") ? record.subtitle : undefined)
+  }
+
+  if (field.name === "status") {
+    return record.status ?? cells.status
+  }
+
+  if (field.name === "type" || field.name === "role") {
+    return cells[field.name] ?? record.subtitle
+  }
+
+  return record.subtitle
+}
+
+function getSelectDefaultValue<Cells extends AdminCellValues>(
+  field: Extract<AdminFieldDefinition, { type: "select" }>,
+  record?: AdminRecord<Cells>,
+) {
+  const rawValue = getRecordFieldValue(field, record)
+
+  if (!rawValue) {
+    return ""
+  }
+
+  const normalizedValue = rawValue.toLowerCase()
+  return field.options.find((option) => {
+    return option.value.toLowerCase() === normalizedValue || option.label.toLowerCase() === normalizedValue
+  })?.value ?? ""
+}
+
+function getToggleDefaultValue<Cells extends AdminCellValues>(
+  field: Extract<AdminFieldDefinition, { type: "toggle" }>,
+  record?: AdminRecord<Cells>,
+) {
+  const rawValue = getRecordFieldValue(field, record)
+
+  if (!rawValue) {
+    return false
+  }
+
+  const normalizedValue = rawValue.toLowerCase()
+  return normalizedValue === "on" || normalizedValue === "true" || normalizedValue === "active" || normalizedValue === "verified"
+}
+
+function renderField<Cells extends AdminCellValues>(
+  field: AdminFieldDefinition,
+  record?: AdminRecord<Cells>,
+) {
   const commonProps = {
     id: field.name,
     name: field.name,
@@ -22,11 +88,11 @@ function renderField(field: AdminFieldDefinition) {
   }
 
   if (field.type === "textarea") {
-    return <Textarea {...commonProps} />
+    return <Textarea {...commonProps} defaultValue={getRecordFieldValue(field, record)} />
   }
 
   if (field.type === "toggle") {
-    return <Switch aria-label={field.label} defaultChecked={false} />
+    return <Switch aria-label={field.label} defaultChecked={getToggleDefaultValue(field, record)} />
   }
 
   if (field.type === "select") {
@@ -34,7 +100,7 @@ function renderField(field: AdminFieldDefinition) {
       <select
         id={field.name}
         name={field.name}
-        defaultValue=""
+        defaultValue={getSelectDefaultValue(field, record)}
         required={field.required}
         className="flex h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       >
@@ -53,12 +119,16 @@ function renderField(field: AdminFieldDefinition) {
   return (
     <Input
       {...commonProps}
+      defaultValue={getRecordFieldValue(field, record)}
       type={field.type === "number" ? "number" : field.type === "password" ? "password" : field.type === "email" ? "email" : "text"}
     />
   )
 }
 
-function getSections(sections: readonly AdminFormSection[]) {
+function getSections<Cells extends AdminCellValues>(
+  sections: readonly AdminFormSection[],
+  record?: AdminRecord<Cells>,
+) {
   return sections.map((section) => (
     <Card key={section.title}>
       <CardContent className="space-y-4">
@@ -77,7 +147,7 @@ function getSections(sections: readonly AdminFormSection[]) {
                 {field.label}
                 {field.required ? " *" : ""}
               </span>
-              {renderField(field)}
+              {renderField(field, record)}
             </label>
           ))}
         </div>
@@ -105,7 +175,7 @@ export function AdminFormPageShell<Cells extends AdminCellValues>({
           { label: "Quay lai danh sach", href: module.paths.list, variant: "outline" },
         ]}
       />
-      {getSections(sections)}
+      {getSections(sections, record)}
       <div className="flex justify-end gap-2">
         <Button variant="outline">Huy</Button>
         <Button>{isCreate ? `Luu ${module.entityNameSingular}` : "Luu thay doi"}</Button>

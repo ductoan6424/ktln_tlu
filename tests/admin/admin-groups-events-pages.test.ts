@@ -65,8 +65,11 @@ describe("admin groups and events pages", () => {
     expect(editMarkup).toContain("Study group")
     expect(editMarkup).toContain("Group information")
     expect(editMarkup).toContain("Access")
+    expect(editMarkup).toContain('value="AI Study Circle"')
+    expect(editMarkup).toContain('value="Nguyen Duc Toan"')
     expect(secondEditMarkup).toContain("Cap nhat Capstone Builders")
     expect(secondEditMarkup).toContain("Project group")
+    expect(secondEditMarkup).toContain('value="Capstone Builders"')
 
     await expect(
       detailPage.default({ params: Promise.resolve({ groupId: "missing-group" }) }),
@@ -116,8 +119,10 @@ describe("admin groups and events pages", () => {
     expect(editMarkup).toContain("Campus event")
     expect(editMarkup).toContain("Event basics")
     expect(editMarkup).toContain("Registration")
+    expect(editMarkup).toContain('value="Orientation Day"')
     expect(secondEditMarkup).toContain("Cap nhat Research Showcase")
     expect(secondEditMarkup).toContain("Academic event")
+    expect(secondEditMarkup).toContain('value="Research Showcase"')
 
     await expect(
       detailPage.default({ params: Promise.resolve({ eventId: "missing-event" }) }),
