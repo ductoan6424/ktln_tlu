@@ -17,9 +17,7 @@ interface NavSection {
   items: NavItem[]
 }
 
-interface MainSidebarProps {
-  navItems?: NavItem[]
-  sections?: NavSection[]
+interface MainSidebarBaseProps {
   activeHref: string
   user?: {
     name: string
@@ -29,6 +27,10 @@ interface MainSidebarProps {
   className?: string
 }
 
+type MainSidebarProps =
+  | (MainSidebarBaseProps & { navItems: NavItem[]; sections?: never })
+  | (MainSidebarBaseProps & { sections: NavSection[]; navItems?: never })
+
 export function MainSidebar({
   navItems,
   sections,
@@ -37,6 +39,7 @@ export function MainSidebar({
   className,
 }: MainSidebarProps) {
   const hasSections = Boolean(sections?.length)
+  const navSpacingClassName = hasSections ? "space-y-4" : "space-y-1"
 
   return (
     <aside
@@ -49,7 +52,7 @@ export function MainSidebar({
         <AppLogo size="md" />
       </div>
 
-      <nav className="flex-1 overflow-y-auto min-h-0 px-4 space-y-4">
+      <nav className={cn("flex-1 overflow-y-auto min-h-0 px-4", navSpacingClassName)}>
         {hasSections ? (
           sections?.map((section) => (
             <div key={section.label} className="space-y-2">
