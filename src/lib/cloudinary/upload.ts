@@ -3,6 +3,7 @@ import { cloudinary } from "@/lib/cloudinary/client"
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/utils/constants"
 
 const DEFAULT_POST_IMAGE_FOLDER = "uniconnect/posts"
+const DEFAULT_AVATAR_IMAGE_FOLDER = "uniconnect/avatars"
 
 export class UploadValidationError extends Error {}
 
@@ -20,14 +21,18 @@ function assertValidImageFile(file: File) {
   }
 }
 
-export async function uploadPostImage(file: File) {
+async function uploadImage(file: File, folder: string) {
   assertValidImageFile(file)
 
   const cloudName =
     process.env.CLOUDINARY_CLOUD_NAME ??
     process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 
-  if (!cloudName || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  if (
+    !cloudName ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
+  ) {
     throw new Error("Cloudinary environment variables are missing.")
   }
 
@@ -36,9 +41,23 @@ export async function uploadPostImage(file: File) {
   const dataUri = `data:${file.type};base64,${base64}`
 
   const result = await cloudinary.uploader.upload(dataUri, {
-    folder: process.env.CLOUDINARY_POSTS_FOLDER ?? DEFAULT_POST_IMAGE_FOLDER,
+    folder,
     resource_type: "image",
   })
 
   return result.secure_url
+}
+
+export async function uploadPostImage(file: File) {
+  return uploadImage(
+    file,
+    process.env.CLOUDINARY_POSTS_FOLDER ?? DEFAULT_POST_IMAGE_FOLDER,
+  )
+}
+
+export async function uploadAvatarImage(file: File) {
+  return uploadImage(
+    file,
+    process.env.CLOUDINARY_AVATARS_FOLDER ?? DEFAULT_AVATAR_IMAGE_FOLDER,
+  )
 }

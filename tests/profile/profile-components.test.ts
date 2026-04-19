@@ -3,6 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ProfilePageData } from "@/app/(main)/profile/profile-page-data"
 
+const refresh = vi.hoisted(() => vi.fn())
+const toast = vi.hoisted(() => vi.fn())
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh,
+  }),
+}))
+
 vi.mock("next/image", () => ({
   default: ({
     alt,
@@ -40,6 +49,17 @@ vi.mock("@/components/feed/post-card", () => ({
   }) => createElement("article", { "data-testid": "post-card" }, `${authorName}:${content}`),
   PostCardSkeleton: () =>
     createElement("div", { "data-testid": "post-card-skeleton" }, "post-skeleton"),
+}))
+
+vi.mock("@/actions/profile", () => ({
+  updateUserAvatar: vi.fn(),
+}))
+
+vi.mock("@/components/ui/use-toast", () => ({
+  useToast: () => ({
+    toast,
+    toasts: [],
+  }),
 }))
 
 const baseProfileData: ProfilePageData = {
@@ -158,6 +178,7 @@ describe("profile components", () => {
     expect(ownMarkup).toContain("A46287")
     expect(ownMarkup).toContain("Sinh vien nam cuoi")
     expect(ownMarkup).toContain("data-profile-action=\"edit\"")
+    expect(ownMarkup).toContain("data-avatar-trigger=\"profile\"")
 
     const publicMarkup = renderToStaticMarkup(
       createElement(ProfileHeader, {
@@ -170,6 +191,7 @@ describe("profile components", () => {
 
     expect(publicMarkup).toContain("@thib")
     expect(publicMarkup).not.toContain("data-profile-action=\"edit\"")
+    expect(publicMarkup).not.toContain("data-avatar-trigger=\"profile\"")
   })
 
   it("uses totalCount instead of the preview length in connections grid", async () => {
