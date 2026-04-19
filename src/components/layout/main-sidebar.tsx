@@ -12,8 +12,14 @@ interface NavItem {
   badge?: number
 }
 
+interface NavSection {
+  label: string
+  items: NavItem[]
+}
+
 interface MainSidebarProps {
-  navItems: NavItem[]
+  navItems?: NavItem[]
+  sections?: NavSection[]
   activeHref: string
   user?: {
     name: string
@@ -25,10 +31,13 @@ interface MainSidebarProps {
 
 export function MainSidebar({
   navItems,
+  sections,
   activeHref,
   user,
   className,
 }: MainSidebarProps) {
+  const hasSections = Boolean(sections?.length)
+
   return (
     <aside
       className={cn(
@@ -36,26 +45,45 @@ export function MainSidebar({
         className
       )}
     >
-      {/* Logo */}
       <div className="p-6 shrink-0">
         <AppLogo size="md" />
       </div>
 
-      {/* Điều hướng — chỉ phần này scroll khi danh sách dài */}
-      <nav className="flex-1 overflow-y-auto min-h-0 px-4 space-y-1">
-        {navItems.map((item) => (
-          <SidebarNavItem
-            key={item.href}
-            icon={item.icon}
-            label={item.label}
-            href={item.href}
-            isActive={activeHref === item.href}
-            badge={item.badge}
-          />
-        ))}
+      <nav className="flex-1 overflow-y-auto min-h-0 px-4 space-y-4">
+        {hasSections ? (
+          sections?.map((section) => (
+            <div key={section.label} className="space-y-2">
+              <div className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {section.label}
+              </div>
+              <div className="space-y-1">
+                {section.items.map((item) => (
+                  <SidebarNavItem
+                    key={item.href}
+                    icon={item.icon}
+                    label={item.label}
+                    href={item.href}
+                    isActive={activeHref === item.href}
+                    badge={item.badge}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          navItems?.map((item) => (
+            <SidebarNavItem
+              key={item.href}
+              icon={item.icon}
+              label={item.label}
+              href={item.href}
+              isActive={activeHref === item.href}
+              badge={item.badge}
+            />
+          ))
+        )}
       </nav>
 
-      {/* Thông tin người dùng */}
       {user && (
         <>
           <Separator />
