@@ -3,32 +3,36 @@ import { ADMIN_MODULE_ROUTE_LABELS } from "@/lib/admin/admin-navigation"
 import type { AdminBreadcrumbItem } from "@/lib/admin/admin-types"
 
 const ADMIN_ROOT: AdminBreadcrumbItem = {
-  label: "Admin",
+  label: "Quản trị",
   href: "/admin/dashboard",
 }
 
-const EDIT_BREADCRUMB_LABEL = "Chinh sua"
+const EDIT_BREADCRUMB_LABEL = "Chỉnh sửa"
 
 const STATIC_BREADCRUMBS: Record<string, AdminBreadcrumbItem[]> = {
-  "/admin/dashboard": [ADMIN_ROOT, { label: "Dashboard" }],
-  "/admin/announcements": [ADMIN_ROOT, { label: "Thong bao" }],
-  "/admin/analytics": [ADMIN_ROOT, { label: "Phan tich" }],
-  "/admin/settings": [ADMIN_ROOT, { label: "Cai dat he thong" }],
+  "/admin/dashboard": [ADMIN_ROOT, { label: "Bảng điều khiển" }],
+  "/admin/announcements": [ADMIN_ROOT, { label: "Thông báo" }],
+  "/admin/analytics": [ADMIN_ROOT, { label: "Phân tích" }],
+  "/admin/settings": [ADMIN_ROOT, { label: "Cài đặt hệ thống" }],
 }
 
 const MODULE_BY_KEY = new Map(ADMIN_MODULES.map((module) => [module.key, module]))
+const DYNAMIC_SEGMENT_LABELS: Record<string, string> = {
+  members: "Thành viên",
+  member: "Thành viên",
+}
 
 function formatBreadcrumbLabel(segment: string) {
   return segment
     .split(/[-_]/)
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => DYNAMIC_SEGMENT_LABELS[part] ?? part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
 }
 
 function getBreadcrumbLabel(segment: string) {
   if (segment === "new") {
-    return "Tao moi"
+    return "Tạo mới"
   }
 
   if (segment === "edit") {

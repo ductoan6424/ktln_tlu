@@ -18,79 +18,79 @@ interface SubjectCells {
 const SUBJECT_RECORDS: AdminRecord<SubjectCells>[] = [
   {
     id: "subject-001",
-    title: "Database Systems",
+    title: "Cơ sở dữ liệu",
     subtitle: "CS204",
     status: "open",
     cells: {
       code: "CS204",
-      title: "Database Systems",
-      faculty: "Computer Science",
+      title: "Cơ sở dữ liệu",
+      faculty: "Công nghệ thông tin",
       credits: "3",
-      status: "Open",
+      status: "Đang mở",
     },
   },
   {
     id: "subject-002",
-    title: "Software Engineering",
+    title: "Kỹ thuật phần mềm",
     subtitle: "CS301",
     status: "review",
     cells: {
       code: "CS301",
-      title: "Software Engineering",
-      faculty: "Computer Science",
+      title: "Kỹ thuật phần mềm",
+      faculty: "Công nghệ thông tin",
       credits: "4",
-      status: "Under review",
+      status: "Chờ rà soát",
     },
   },
 ]
 
 const SUBJECT_STATUS_OPTIONS = [
-  { label: "Draft", value: "draft" },
-  { label: "Open", value: "open" },
-  { label: "Paused", value: "paused" },
+  { label: "Bản nháp", value: "draft" },
+  { label: "Đang mở", value: "open" },
+  { label: "Tạm dừng", value: "paused" },
 ] as const
 
 const formSections: AdminFormSection[] = [
   {
-    title: "Subject metadata",
-    description: "Core information shown across the admin area.",
+    title: "Thông tin môn học",
+    description: "Các thông tin cốt lõi xuất hiện xuyên suốt khu vực quản trị.",
     fields: [
-      { name: "code", label: "Subject code", type: "text", required: true },
-      { name: "name", label: "Subject name", type: "text", required: true },
-      { name: "credits", label: "Credits", type: "number", required: true },
+      { name: "code", label: "Mã môn học", type: "text", required: true },
+      { name: "name", label: "Tên môn học", type: "text", required: true },
+      { name: "credits", label: "Số tín chỉ", type: "number", required: true },
     ],
   },
   {
-    title: "Visibility",
-    description: "Define how the subject is exposed to users.",
+    title: "Hiển thị",
+    description: "Xác định cách môn học được hiển thị tới người dùng.",
     fields: [
-      { name: "status", label: "Status", type: "select", options: SUBJECT_STATUS_OPTIONS, required: true },
-      { name: "isPublic", label: "Public listing", type: "toggle" },
+      { name: "status", label: "Trạng thái", type: "select", options: SUBJECT_STATUS_OPTIONS, required: true },
+      { name: "isPublic", label: "Hiển thị công khai", type: "toggle" },
     ],
   },
 ]
 
 const settingsSections: AdminSettingsSection[] = [
   {
-    title: "Code conventions",
-    description: "Shared naming defaults for new subjects.",
+    title: "Quy ước mã môn",
+    description: "Thiết lập dùng chung cho việc đặt mã của môn học mới.",
     items: [
-      { name: "prefix", label: "Code prefix", value: "CS", type: "text" },
-      { name: "autoNumber", label: "Auto number subjects", value: "on", type: "toggle" },
+      { name: "prefix", label: "Tiền tố mã môn", value: "CS", type: "text" },
+      { name: "autoNumber", label: "Tự động đánh số môn học", value: "on", type: "toggle" },
     ],
   },
   {
-    title: "Visibility defaults",
-    description: "Default visibility behavior for new entries.",
+    title: "Hiển thị mặc định",
+    description: "Hành vi hiển thị mặc định cho môn học mới.",
     items: [
       {
         name: "defaultStatus",
-        label: "Default status",
+        label: "Trạng thái mặc định",
         value: "draft",
         type: "select",
         options: SUBJECT_STATUS_OPTIONS,
       },
-      { name: "showInCatalog", label: "Show in catalog", value: "on", type: "toggle" },
+      { name: "showInCatalog", label: "Hiển thị trong danh mục", value: "on", type: "toggle" },
     ],
   },
 ]
@@ -98,37 +98,37 @@ const settingsSections: AdminSettingsSection[] = [
 const detailSectionsById: Record<string, AdminDetailSection[]> = {
   "subject-001": [
     {
-      title: "Subject information",
+      title: "Thông tin môn học",
       items: [
-        { label: "Code", value: "CS204" },
-        { label: "Name", value: "Database Systems" },
-        { label: "Credits", value: "3" },
+        { label: "Mã môn", value: "CS204" },
+        { label: "Tên môn", value: "Cơ sở dữ liệu" },
+        { label: "Số tín chỉ", value: "3" },
       ],
     },
     {
-      title: "Related admin context",
+      title: "Bối cảnh quản trị",
       items: [
-        { label: "Lecturer group", value: "Database Team" },
-        { label: "Linked groups", value: "2" },
-        { label: "Linked events", value: "1" },
+        { label: "Tổ giảng viên", value: "Tổ Cơ sở dữ liệu" },
+        { label: "Nhóm liên kết", value: "2" },
+        { label: "Sự kiện liên kết", value: "1" },
       ],
     },
   ],
   "subject-002": [
     {
-      title: "Subject information",
+      title: "Thông tin môn học",
       items: [
-        { label: "Code", value: "CS301" },
-        { label: "Name", value: "Software Engineering" },
-        { label: "Credits", value: "4" },
+        { label: "Mã môn", value: "CS301" },
+        { label: "Tên môn", value: "Kỹ thuật phần mềm" },
+        { label: "Số tín chỉ", value: "4" },
       ],
     },
     {
-      title: "Related admin context",
+      title: "Bối cảnh quản trị",
       items: [
-        { label: "Lecturer group", value: "Software Team" },
-        { label: "Linked groups", value: "3" },
-        { label: "Linked events", value: "2" },
+        { label: "Tổ giảng viên", value: "Tổ Kỹ thuật phần mềm" },
+        { label: "Nhóm liên kết", value: "3" },
+        { label: "Sự kiện liên kết", value: "2" },
       ],
     },
   ],
@@ -136,51 +136,51 @@ const detailSectionsById: Record<string, AdminDetailSection[]> = {
 
 export const SUBJECTS_ADMIN_MODULE: AdminModuleDefinition<SubjectCells> = {
   key: "subjects",
-  label: "Subjects",
-  description: "Manage academic subjects and subject-level defaults.",
+  label: "Môn học",
+  description: "Quản lý dữ liệu môn học và các thiết lập mặc định theo môn.",
   basePath: "/admin/subjects",
   icon: "BookOpen",
-  entityNameSingular: "subject",
-  entityNamePlural: "subjects",
+  entityNameSingular: "môn học",
+  entityNamePlural: "môn học",
   paths: createAdminModulePaths("/admin/subjects"),
   navItem: {
-    label: "Subjects",
+    label: "Môn học",
     href: "/admin/subjects",
     icon: "BookOpen",
-    description: "Manage subject metadata",
+    description: "Quản lý dữ liệu môn học",
   },
   stats: [
-    { label: "Total subjects", value: "42" },
-    { label: "Open", value: "31" },
-    { label: "Paused", value: "8" },
-    { label: "Needs update", value: "3" },
+    { label: "Tổng môn học", value: "42" },
+    { label: "Đang mở", value: "31" },
+    { label: "Tạm dừng", value: "8" },
+    { label: "Cần cập nhật", value: "3" },
   ],
   tabs: [
-    { label: "All", value: "all", active: true },
-    { label: "Core", value: "core" },
-    { label: "Major", value: "major" },
-    { label: "Practice", value: "practice" },
+    { label: "Tất cả", value: "all", active: true },
+    { label: "Cơ sở", value: "core" },
+    { label: "Chuyên ngành", value: "major" },
+    { label: "Thực hành", value: "practice" },
   ],
   columns: [
-    { key: "code", header: "Code" },
-    { key: "title", header: "Name" },
-    { key: "faculty", header: "Faculty" },
-    { key: "credits", header: "Credits" },
-    { key: "status", header: "Status" },
+    { key: "code", header: "Mã môn" },
+    { key: "title", header: "Tên môn" },
+    { key: "faculty", header: "Khoa" },
+    { key: "credits", header: "Tín chỉ" },
+    { key: "status", header: "Trạng thái" },
   ],
   records: SUBJECT_RECORDS,
   quickActions: [
     {
-      label: "Create subject",
+      label: "Tạo môn học",
       href: "/admin/subjects/new",
       icon: "BookOpen",
-      description: "Add a new subject record",
+      description: "Thêm bản ghi môn học mới",
     },
     {
-      label: "Open settings",
+      label: "Mở cài đặt",
       href: "/admin/subjects/settings",
       icon: "BookOpen",
-      description: "Edit subject defaults",
+      description: "Chỉnh sửa cấu hình mặc định của môn học",
     },
   ],
   getDetailSections: (id) => detailSectionsById[id],

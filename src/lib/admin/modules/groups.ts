@@ -20,83 +20,83 @@ interface GroupCells {
 const GROUP_RECORDS: AdminRecord<GroupCells>[] = [
   {
     id: "group-001",
-    title: "AI Study Circle",
-    subtitle: "Study group",
+    title: "Câu lạc bộ học tập AI",
+    subtitle: "Nhóm học tập",
     status: "active",
     cells: {
-      title: "AI Study Circle",
-      type: "Study group",
+      title: "Câu lạc bộ học tập AI",
+      type: "Nhóm học tập",
       members: "24",
-      owner: "Nguyen Duc Toan",
-      privacy: "Private",
+      owner: "Nguyễn Đức Toàn",
+      privacy: "Riêng tư",
       moderated: "on",
-      status: "Active",
+      status: "Đang hoạt động",
     },
   },
   {
     id: "group-002",
-    title: "Capstone Builders",
-    subtitle: "Project group",
+    title: "Đội ngũ đồ án tốt nghiệp",
+    subtitle: "Nhóm dự án",
     status: "review",
     cells: {
-      title: "Capstone Builders",
-      type: "Project group",
+      title: "Đội ngũ đồ án tốt nghiệp",
+      type: "Nhóm dự án",
       members: "13",
-      owner: "Le Minh Anh",
-      privacy: "Public",
+      owner: "Lê Minh Anh",
+      privacy: "Công khai",
       moderated: "off",
-      status: "Under review",
+      status: "Chờ rà soát",
     },
   },
 ]
 
 const GROUP_TYPE_OPTIONS = [
-  { label: "Study group", value: "study-group" },
-  { label: "Project group", value: "project-group" },
-  { label: "Community", value: "community" },
+  { label: "Nhóm học tập", value: "study-group" },
+  { label: "Nhóm dự án", value: "project-group" },
+  { label: "Cộng đồng", value: "community" },
 ] as const
 
 const GROUP_PRIVACY_OPTIONS = [
-  { label: "Public", value: "public" },
-  { label: "Private", value: "private" },
-  { label: "Invite only", value: "invite-only" },
+  { label: "Công khai", value: "public" },
+  { label: "Riêng tư", value: "private" },
+  { label: "Chỉ theo lời mời", value: "invite-only" },
 ] as const
 
 const GROUP_REVIEWER_ROLE_OPTIONS = [
-  { label: "Admin", value: "admin" },
-  { label: "Lecturer", value: "lecturer" },
-  { label: "Moderator", value: "moderator" },
+  { label: "Quản trị viên", value: "admin" },
+  { label: "Giảng viên", value: "lecturer" },
+  { label: "Điều phối viên", value: "moderator" },
 ] as const
 
 const formSections: AdminFormSection[] = [
   {
-    title: "Group information",
-    description: "Basic identity and ownership for the group.",
+    title: "Thông tin nhóm",
+    description: "Các thông tin nhận diện cơ bản và người phụ trách của nhóm.",
     fields: [
-      { name: "name", label: "Group name", type: "text", required: true },
-      { name: "type", label: "Group type", type: "select", options: GROUP_TYPE_OPTIONS, required: true },
-      { name: "owner", label: "Owner", type: "text", required: true },
+      { name: "name", label: "Tên nhóm", type: "text", required: true },
+      { name: "type", label: "Loại nhóm", type: "select", options: GROUP_TYPE_OPTIONS, required: true },
+      { name: "owner", label: "Người phụ trách", type: "text", required: true },
     ],
   },
   {
-    title: "Access",
-    description: "Privacy and moderation controls.",
+    title: "Quyền truy cập",
+    description: "Thiết lập quyền riêng tư và kiểm duyệt.",
     fields: [
-      { name: "privacy", label: "Privacy", type: "select", options: GROUP_PRIVACY_OPTIONS, required: true },
-      { name: "moderated", label: "Moderated", type: "toggle" },
+      { name: "privacy", label: "Quyền riêng tư", type: "select", options: GROUP_PRIVACY_OPTIONS, required: true },
+      { name: "moderated", label: "Bật kiểm duyệt", type: "toggle" },
     ],
   },
 ]
 
 const settingsSections: AdminSettingsSection[] = [
   {
-    title: "Approval workflow",
-    description: "Control how new groups are reviewed.",
+    title: "Quy trình phê duyệt",
+    description: "Kiểm soát cách nhóm mới được rà soát trước khi hiển thị.",
     items: [
-      { name: "requireApproval", label: "Require approval", value: "on", type: "toggle" },
+      { name: "requireApproval", label: "Yêu cầu phê duyệt", value: "on", type: "toggle" },
       {
         name: "reviewerRole",
-        label: "Reviewer role",
+        label: "Vai trò người duyệt",
         value: "admin",
         type: "select",
         options: GROUP_REVIEWER_ROLE_OPTIONS,
@@ -104,11 +104,11 @@ const settingsSections: AdminSettingsSection[] = [
     ],
   },
   {
-    title: "Member limits",
-    description: "Set safe defaults for group growth.",
+    title: "Giới hạn thành viên",
+    description: "Thiết lập giới hạn an toàn cho quá trình mở rộng nhóm.",
     items: [
-      { name: "maxMembers", label: "Max members", value: "100", type: "number" },
-      { name: "allowWaitlist", label: "Allow waitlist", value: "on", type: "toggle" },
+      { name: "maxMembers", label: "Số thành viên tối đa", value: "100", type: "number" },
+      { name: "allowWaitlist", label: "Cho phép danh sách chờ", value: "on", type: "toggle" },
     ],
   },
 ]
@@ -116,37 +116,37 @@ const settingsSections: AdminSettingsSection[] = [
 const detailSectionsById: Record<string, AdminDetailSection[]> = {
   "group-001": [
     {
-      title: "Group summary",
+      title: "Tổng quan nhóm",
       items: [
-        { label: "Name", value: "AI Study Circle" },
-        { label: "Type", value: "Study group" },
-        { label: "Members", value: "24" },
+        { label: "Tên nhóm", value: "Câu lạc bộ học tập AI" },
+        { label: "Loại nhóm", value: "Nhóm học tập" },
+        { label: "Thành viên", value: "24" },
       ],
     },
     {
-      title: "Related context",
+      title: "Bối cảnh liên quan",
       items: [
-        { label: "Linked subject", value: "Database Systems" },
-        { label: "Linked event", value: "Research workshop" },
-        { label: "Privacy", value: "Private" },
+        { label: "Môn học liên kết", value: "Cơ sở dữ liệu" },
+        { label: "Sự kiện liên kết", value: "Hội thảo nghiên cứu" },
+        { label: "Quyền riêng tư", value: "Riêng tư" },
       ],
     },
   ],
   "group-002": [
     {
-      title: "Group summary",
+      title: "Tổng quan nhóm",
       items: [
-        { label: "Name", value: "Capstone Builders" },
-        { label: "Type", value: "Project group" },
-        { label: "Members", value: "13" },
+        { label: "Tên nhóm", value: "Đội ngũ đồ án tốt nghiệp" },
+        { label: "Loại nhóm", value: "Nhóm dự án" },
+        { label: "Thành viên", value: "13" },
       ],
     },
     {
-      title: "Related context",
+      title: "Bối cảnh liên quan",
       items: [
-        { label: "Linked subject", value: "Software Engineering" },
-        { label: "Linked event", value: "Capstone review" },
-        { label: "Privacy", value: "Public" },
+        { label: "Môn học liên kết", value: "Kỹ thuật phần mềm" },
+        { label: "Sự kiện liên kết", value: "Buổi phản biện đồ án" },
+        { label: "Quyền riêng tư", value: "Công khai" },
       ],
     },
   ],
@@ -154,51 +154,51 @@ const detailSectionsById: Record<string, AdminDetailSection[]> = {
 
 export const GROUPS_ADMIN_MODULE: AdminModuleDefinition<GroupCells> = {
   key: "groups",
-  label: "Groups",
-  description: "Manage collaboration groups and moderation settings.",
+  label: "Nhóm",
+  description: "Quản lý các nhóm cộng tác và thiết lập kiểm duyệt đi kèm.",
   basePath: "/admin/groups",
   icon: "UsersRound",
-  entityNameSingular: "group",
-  entityNamePlural: "groups",
+  entityNameSingular: "nhóm",
+  entityNamePlural: "nhóm",
   paths: createAdminModulePaths("/admin/groups"),
   navItem: {
-    label: "Groups",
+    label: "Nhóm",
     href: "/admin/groups",
     icon: "UsersRound",
-    description: "Manage groups and membership",
+    description: "Quản lý nhóm và thành viên",
   },
   stats: [
-    { label: "Total groups", value: "28" },
-    { label: "Active", value: "19" },
-    { label: "Private", value: "12" },
-    { label: "Needs review", value: "4" },
+    { label: "Tổng nhóm", value: "28" },
+    { label: "Đang hoạt động", value: "19" },
+    { label: "Riêng tư", value: "12" },
+    { label: "Cần rà soát", value: "4" },
   ],
   tabs: [
-    { label: "All", value: "all", active: true },
-    { label: "Study", value: "study" },
-    { label: "Project", value: "project" },
-    { label: "Community", value: "community" },
+    { label: "Tất cả", value: "all", active: true },
+    { label: "Học tập", value: "study" },
+    { label: "Dự án", value: "project" },
+    { label: "Cộng đồng", value: "community" },
   ],
   columns: [
-    { key: "title", header: "Group name" },
-    { key: "type", header: "Type" },
-    { key: "members", header: "Members" },
-    { key: "owner", header: "Owner" },
-    { key: "status", header: "Status" },
+    { key: "title", header: "Tên nhóm" },
+    { key: "type", header: "Loại" },
+    { key: "members", header: "Thành viên" },
+    { key: "owner", header: "Người phụ trách" },
+    { key: "status", header: "Trạng thái" },
   ],
   records: GROUP_RECORDS,
   quickActions: [
     {
-      label: "Create group",
+      label: "Tạo nhóm",
       href: "/admin/groups/new",
       icon: "UsersRound",
-      description: "Open a new group form",
+      description: "Mở biểu mẫu tạo nhóm mới",
     },
     {
-      label: "Open settings",
+      label: "Mở cài đặt",
       href: "/admin/groups/settings",
       icon: "UsersRound",
-      description: "Review moderation defaults",
+      description: "Rà soát thiết lập kiểm duyệt mặc định",
     },
   ],
   getDetailSections: (id) => detailSectionsById[id],

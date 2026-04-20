@@ -19,10 +19,10 @@ export function AdminDetailPageShell<Cells extends AdminCellValues>({
     return (
       <div className="space-y-6">
         <AdminPageHeader
-          title={`Chi tiet ${module.entityNameSingular}`}
+          title={`Chi tiết ${module.entityNameSingular}`}
           description={module.description}
           secondaryActions={[
-            { label: "Quay lai danh sach", href: module.paths.list, variant: "outline" },
+            { label: "Quay lại danh sách", href: module.paths.list, variant: "outline" },
           ]}
         />
       </div>
@@ -34,9 +34,9 @@ export function AdminDetailPageShell<Cells extends AdminCellValues>({
       <AdminPageHeader
         title={record.title}
         description={record.subtitle ?? module.description}
-        primaryAction={{ label: `Sua ${module.entityNameSingular}`, href: module.buildEditPath(record.id) }}
+        primaryAction={{ label: `Chỉnh sửa ${module.entityNameSingular}`, href: module.buildEditPath(record.id) }}
         secondaryActions={[
-          { label: "Cai dat", href: module.buildSettingsPath(), variant: "outline" },
+          { label: "Cài đặt", href: module.buildSettingsPath(), variant: "outline" },
         ]}
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">

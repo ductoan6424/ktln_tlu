@@ -53,7 +53,7 @@ describe("admin module registry", () => {
 
   it("resolves user records from the registry", () => {
     expect(getAdminModule("users").getRecord("user-001")).toMatchObject({
-      title: "Nguyen Duc Toan",
+      title: "Nguyễn Đức Toàn",
     })
   })
 

@@ -34,17 +34,17 @@ describe("admin users pages", () => {
     const newMarkup = renderToStaticMarkup(createElement(newPage.default))
     const settingsMarkup = renderToStaticMarkup(createElement(settingsPage.default))
 
-    expect(listMarkup).toContain("Quan ly user")
-    expect(listMarkup).toContain("Invite user")
-    expect(listMarkup).toContain("Nguyen Duc Toan")
+    expect(listMarkup).toContain("Quản lý người dùng")
+    expect(listMarkup).toContain("Mời người dùng")
+    expect(listMarkup).toContain("Nguyễn Đức Toàn")
 
-    expect(newMarkup).toContain("Them user")
-    expect(newMarkup).toContain("Profile information")
-    expect(newMarkup).toContain("Temporary password")
+    expect(newMarkup).toContain("Thêm người dùng")
+    expect(newMarkup).toContain("Thông tin hồ sơ")
+    expect(newMarkup).toContain("Mật khẩu tạm thời")
 
-    expect(settingsMarkup).toContain("Cai dat user")
-    expect(settingsMarkup).toContain("Registration defaults")
-    expect(settingsMarkup).toContain("Default role")
+    expect(settingsMarkup).toContain("Cài đặt người dùng")
+    expect(settingsMarkup).toContain("Mặc định đăng ký")
+    expect(settingsMarkup).toContain("Vai trò mặc định")
   })
 
   it("renders detail and edit routes for an existing user and calls notFound for missing ids", async () => {
@@ -61,19 +61,19 @@ describe("admin users pages", () => {
       await editPage.default({ params: Promise.resolve({ userId: "user-002" }) }),
     )
 
-    expect(detailMarkup).toContain("Nguyen Duc Toan")
-    expect(detailMarkup).toContain("Basic information")
+    expect(detailMarkup).toContain("Nguyễn Đức Toàn")
+    expect(detailMarkup).toContain("Thông tin cơ bản")
     expect(detailMarkup).toContain("/admin/users/user-001/edit")
 
-    expect(editMarkup).toContain("Cap nhat Nguyen Duc Toan")
-    expect(editMarkup).toContain("Student")
-    expect(editMarkup).toContain("Identity")
-    expect(editMarkup).toContain("Permissions")
-    expect(editMarkup).toContain('value="Nguyen Duc Toan"')
+    expect(editMarkup).toContain("Cập nhật Nguyễn Đức Toàn")
+    expect(editMarkup).toContain("Sinh viên")
+    expect(editMarkup).toContain("Danh tính")
+    expect(editMarkup).toContain("Phân quyền")
+    expect(editMarkup).toContain('value="Nguyễn Đức Toàn"')
     expect(editMarkup).toContain('value="nguyenductoan@example.edu"')
-    expect(secondEditMarkup).toContain("Cap nhat Le Minh Anh")
-    expect(secondEditMarkup).toContain("Lecturer")
-    expect(secondEditMarkup).toContain('value="Le Minh Anh"')
+    expect(secondEditMarkup).toContain("Cập nhật Lê Minh Anh")
+    expect(secondEditMarkup).toContain("Giảng viên")
+    expect(secondEditMarkup).toContain('value="Lê Minh Anh"')
 
     await expect(
       detailPage.default({ params: Promise.resolve({ userId: "missing-user" }) }),

@@ -19,111 +19,111 @@ interface UserCells {
 const USERS_RECORDS: AdminRecord<UserCells>[] = [
   {
     id: "user-001",
-    title: "Nguyen Duc Toan",
-    subtitle: "Student",
+    title: "Nguyễn Đức Toàn",
+    subtitle: "Sinh viên",
     status: "active",
     cells: {
-      title: "Nguyen Duc Toan",
+      title: "Nguyễn Đức Toàn",
       email: "nguyenductoan@example.edu",
-      role: "Student",
-      faculty: "Computer Science",
-      status: "Active",
+      role: "Sinh viên",
+      faculty: "Công nghệ thông tin",
+      status: "Đang hoạt động",
       joinedAt: "2025-09-01",
     },
   },
   {
     id: "user-002",
-    title: "Le Minh Anh",
-    subtitle: "Lecturer",
+    title: "Lê Minh Anh",
+    subtitle: "Giảng viên",
     status: "pending",
     cells: {
-      title: "Le Minh Anh",
+      title: "Lê Minh Anh",
       email: "leminhanh@example.edu",
-      role: "Lecturer",
-      faculty: "Information Systems",
-      status: "Pending",
+      role: "Giảng viên",
+      faculty: "Hệ thống thông tin",
+      status: "Chờ xác minh",
       joinedAt: "2025-09-18",
     },
   },
   {
     id: "user-003",
-    title: "Pham Gia Huy",
-    subtitle: "Admin",
+    title: "Phạm Gia Huy",
+    subtitle: "Quản trị viên",
     status: "blocked",
     cells: {
-      title: "Pham Gia Huy",
+      title: "Phạm Gia Huy",
       email: "phamgiahuy@example.edu",
-      role: "Admin",
-      faculty: "Administration",
-      status: "Blocked",
+      role: "Quản trị viên",
+      faculty: "Khối quản trị",
+      status: "Đã chặn",
       joinedAt: "2025-07-07",
     },
   },
 ]
 
 const USER_ROLE_OPTIONS = [
-  { label: "Student", value: "student" },
-  { label: "Lecturer", value: "lecturer" },
-  { label: "Admin", value: "admin" },
+  { label: "Sinh viên", value: "student" },
+  { label: "Giảng viên", value: "lecturer" },
+  { label: "Quản trị viên", value: "admin" },
 ] as const
 
 const USER_STATUS_OPTIONS = [
-  { label: "Active", value: "active" },
-  { label: "Pending", value: "pending" },
-  { label: "Blocked", value: "blocked" },
+  { label: "Đang hoạt động", value: "active" },
+  { label: "Chờ xác minh", value: "pending" },
+  { label: "Đã chặn", value: "blocked" },
 ] as const
 
 const createSections: AdminFormSection[] = [
   {
-    title: "Profile information",
-    description: "Core identity and contact fields for a user account.",
+    title: "Thông tin hồ sơ",
+    description: "Các trường nhận diện và liên hệ cốt lõi của tài khoản người dùng.",
     fields: [
-      { name: "fullName", label: "Full name", type: "text", required: true },
+      { name: "fullName", label: "Họ và tên", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
-      { name: "role", label: "Role", type: "select", options: USER_ROLE_OPTIONS, required: true },
+      { name: "role", label: "Vai trò", type: "select", options: USER_ROLE_OPTIONS, required: true },
     ],
   },
   {
-    title: "Account access",
-    description: "Security and status controls for the account.",
+    title: "Quyền truy cập tài khoản",
+    description: "Thiết lập bảo mật và trạng thái dành cho tài khoản.",
     fields: [
-      { name: "status", label: "Status", type: "select", options: USER_STATUS_OPTIONS, required: true },
-      { name: "temporaryPassword", label: "Temporary password", type: "password" },
-      { name: "sendInvite", label: "Send invite", type: "toggle" },
+      { name: "status", label: "Trạng thái", type: "select", options: USER_STATUS_OPTIONS, required: true },
+      { name: "temporaryPassword", label: "Mật khẩu tạm thời", type: "password" },
+      { name: "sendInvite", label: "Gửi lời mời", type: "toggle" },
     ],
   },
 ]
 
 const editSections: AdminFormSection[] = [
   {
-    title: "Identity",
-    description: "Update the user profile and contact details.",
+    title: "Danh tính",
+    description: "Cập nhật hồ sơ người dùng và thông tin liên hệ.",
     fields: [
-      { name: "fullName", label: "Full name", type: "text", required: true },
+      { name: "fullName", label: "Họ và tên", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
-      { name: "faculty", label: "Faculty", type: "text" },
+      { name: "faculty", label: "Khoa", type: "text" },
     ],
   },
   {
-    title: "Permissions",
-    description: "Control access level and operational status.",
+    title: "Phân quyền",
+    description: "Kiểm soát cấp truy cập và trạng thái vận hành.",
     fields: [
-      { name: "role", label: "Role", type: "select", options: USER_ROLE_OPTIONS, required: true },
-      { name: "status", label: "Status", type: "select", options: USER_STATUS_OPTIONS, required: true },
-      { name: "isVerified", label: "Verified", type: "toggle" },
+      { name: "role", label: "Vai trò", type: "select", options: USER_ROLE_OPTIONS, required: true },
+      { name: "status", label: "Trạng thái", type: "select", options: USER_STATUS_OPTIONS, required: true },
+      { name: "isVerified", label: "Đã xác minh", type: "toggle" },
     ],
   },
 ]
 
 const settingsSections: AdminSettingsSection[] = [
   {
-    title: "Registration defaults",
-    description: "Controls the default user onboarding flow.",
+    title: "Mặc định đăng ký",
+    description: "Kiểm soát luồng tiếp nhận người dùng mới theo mặc định.",
     items: [
-      { name: "autoApprove", label: "Auto approve new users", value: "off", type: "toggle" },
+      { name: "autoApprove", label: "Tự động phê duyệt người dùng mới", value: "off", type: "toggle" },
       {
         name: "defaultRole",
-        label: "Default role",
+        label: "Vai trò mặc định",
         value: "student",
         type: "select",
         options: USER_ROLE_OPTIONS,
@@ -131,19 +131,19 @@ const settingsSections: AdminSettingsSection[] = [
     ],
   },
   {
-    title: "Moderation rules",
-    description: "Keep account quality and safety under control.",
+    title: "Quy tắc kiểm duyệt",
+    description: "Giữ chất lượng và độ an toàn của tài khoản trong tầm kiểm soát.",
     items: [
-      { name: "requireEmail", label: "Require verified email", value: "on", type: "toggle" },
-      { name: "blockNewAdmins", label: "Block direct admin creation", value: "on", type: "toggle" },
+      { name: "requireEmail", label: "Yêu cầu email đã xác minh", value: "on", type: "toggle" },
+      { name: "blockNewAdmins", label: "Chặn tạo trực tiếp quản trị viên", value: "on", type: "toggle" },
     ],
   },
   {
-    title: "Invite workflow",
-    description: "Fine-tune invitation handling.",
+    title: "Quy trình lời mời",
+    description: "Tinh chỉnh cách hệ thống xử lý lời mời.",
     items: [
-      { name: "inviteExpires", label: "Invite expiry", value: "7 days", type: "text" },
-      { name: "sendReminder", label: "Send reminder", value: "on", type: "toggle" },
+      { name: "inviteExpires", label: "Thời hạn lời mời", value: "7 ngày", type: "text" },
+      { name: "sendReminder", label: "Gửi nhắc nhở", value: "on", type: "toggle" },
     ],
   },
 ]
@@ -151,55 +151,55 @@ const settingsSections: AdminSettingsSection[] = [
 const detailSectionsById: Record<string, AdminDetailSection[]> = {
   "user-001": [
     {
-      title: "Basic information",
+      title: "Thông tin cơ bản",
       items: [
-        { label: "Name", value: "Nguyen Duc Toan" },
-        { label: "Role", value: "Student" },
-        { label: "Status", value: "Active" },
+        { label: "Họ và tên", value: "Nguyễn Đức Toàn" },
+        { label: "Vai trò", value: "Sinh viên" },
+        { label: "Trạng thái", value: "Đang hoạt động" },
       ],
     },
     {
-      title: "Academic context",
+      title: "Bối cảnh học tập",
       items: [
-        { label: "Faculty", value: "Computer Science" },
+        { label: "Khoa", value: "Công nghệ thông tin" },
         { label: "Email", value: "nguyenductoan@example.edu" },
-        { label: "Joined", value: "2025-09-01" },
+        { label: "Ngày tham gia", value: "2025-09-01" },
       ],
     },
   ],
   "user-002": [
     {
-      title: "Basic information",
+      title: "Thông tin cơ bản",
       items: [
-        { label: "Name", value: "Le Minh Anh" },
-        { label: "Role", value: "Lecturer" },
-        { label: "Status", value: "Pending" },
+        { label: "Họ và tên", value: "Lê Minh Anh" },
+        { label: "Vai trò", value: "Giảng viên" },
+        { label: "Trạng thái", value: "Chờ xác minh" },
       ],
     },
     {
-      title: "Teaching context",
+      title: "Bối cảnh giảng dạy",
       items: [
-        { label: "Faculty", value: "Information Systems" },
+        { label: "Khoa", value: "Hệ thống thông tin" },
         { label: "Email", value: "leminhanh@example.edu" },
-        { label: "Joined", value: "2025-09-18" },
+        { label: "Ngày tham gia", value: "2025-09-18" },
       ],
     },
   ],
   "user-003": [
     {
-      title: "Basic information",
+      title: "Thông tin cơ bản",
       items: [
-        { label: "Name", value: "Pham Gia Huy" },
-        { label: "Role", value: "Admin" },
-        { label: "Status", value: "Blocked" },
+        { label: "Họ và tên", value: "Phạm Gia Huy" },
+        { label: "Vai trò", value: "Quản trị viên" },
+        { label: "Trạng thái", value: "Đã chặn" },
       ],
     },
     {
-      title: "Administration context",
+      title: "Bối cảnh quản trị",
       items: [
-        { label: "Faculty", value: "Administration" },
+        { label: "Đơn vị", value: "Khối quản trị" },
         { label: "Email", value: "phamgiahuy@example.edu" },
-        { label: "Joined", value: "2025-07-07" },
+        { label: "Ngày tham gia", value: "2025-07-07" },
       ],
     },
   ],
@@ -207,52 +207,52 @@ const detailSectionsById: Record<string, AdminDetailSection[]> = {
 
 export const USERS_ADMIN_MODULE: AdminModuleDefinition<UserCells> = {
   key: "users",
-  label: "Users",
-  description: "Manage user accounts, roles, and moderation settings.",
+  label: "Người dùng",
+  description: "Quản lý tài khoản, vai trò và quy tắc kiểm duyệt người dùng.",
   basePath: "/admin/users",
   icon: "Users",
-  entityNameSingular: "user",
-  entityNamePlural: "users",
+  entityNameSingular: "người dùng",
+  entityNamePlural: "người dùng",
   paths: createAdminModulePaths("/admin/users"),
   navItem: {
-    label: "Users",
+    label: "Người dùng",
     href: "/admin/users",
     icon: "Users",
-    description: "Manage accounts and access",
+    description: "Quản lý tài khoản và quyền truy cập",
   },
   stats: [
-    { label: "Total users", value: "128" },
-    { label: "Active", value: "94" },
-    { label: "Pending verification", value: "18" },
-    { label: "Blocked", value: "6" },
+    { label: "Tổng người dùng", value: "128" },
+    { label: "Đang hoạt động", value: "94" },
+    { label: "Chờ xác minh", value: "18" },
+    { label: "Đã chặn", value: "6" },
   ],
   tabs: [
-    { label: "All", value: "all", active: true },
-    { label: "Students", value: "students" },
-    { label: "Lecturers", value: "lecturers" },
-    { label: "Admins", value: "admins" },
+    { label: "Tất cả", value: "all", active: true },
+    { label: "Sinh viên", value: "students" },
+    { label: "Giảng viên", value: "lecturers" },
+    { label: "Quản trị viên", value: "admins" },
   ],
   columns: [
-    { key: "title", header: "Name" },
+    { key: "title", header: "Họ và tên" },
     { key: "email", header: "Email" },
-    { key: "role", header: "Role" },
-    { key: "faculty", header: "Faculty" },
-    { key: "status", header: "Status" },
-    { key: "joinedAt", header: "Joined" },
+    { key: "role", header: "Vai trò" },
+    { key: "faculty", header: "Khoa" },
+    { key: "status", header: "Trạng thái" },
+    { key: "joinedAt", header: "Ngày tham gia" },
   ],
   records: USERS_RECORDS,
   quickActions: [
     {
-      label: "Invite user",
+      label: "Mời người dùng",
       href: "/admin/users/new",
       icon: "Users",
-      description: "Start a new account invite",
+      description: "Khởi tạo lời mời tài khoản mới",
     },
     {
-      label: "Open settings",
+      label: "Mở cài đặt",
       href: "/admin/users/settings",
       icon: "Users",
-      description: "Review registration defaults",
+      description: "Rà soát thiết lập đăng ký",
     },
   ],
   getDetailSections: (id) => detailSectionsById[id],

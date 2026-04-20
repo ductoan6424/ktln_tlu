@@ -18,8 +18,8 @@ interface AdminActionListProps {
 }
 
 export function AdminActionList({
-  title = "Tac vu nhanh",
-  description = "Cac thao tac pho bien cho module nay.",
+  title = "Tác vụ nhanh",
+  description = "Các thao tác phổ biến cho phân hệ này.",
   actions,
 }: AdminActionListProps) {
   return (
