@@ -17,5 +17,5 @@ export default async function AdminEditGroupPage({
     notFound()
   }
 
-  return <AdminFormPageShell module={groupsModule} mode="edit" record={record} />
+  return <AdminFormPageShell<typeof record.cells> module={groupsModule} mode="edit" record={record} />
 }

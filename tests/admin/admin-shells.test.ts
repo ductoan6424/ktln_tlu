@@ -95,6 +95,23 @@ describe("admin shells", () => {
     expect(findElementByHref(tree, "/admin/users?tab=blocked")?.onClick).toBeUndefined()
   })
 
+  it("renders href tabs without client callbacks", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AdminFilterBar, {
+        activeTab: "blocked",
+        query: "",
+        searchPlaceholder: "Tim kiem user...",
+        tabs: [
+          { label: "All", value: "all", href: "/admin/users?tab=all" },
+          { label: "Blocked", value: "blocked", href: "/admin/users?tab=blocked" },
+        ],
+      }),
+    )
+
+    expect(markup).toContain("/admin/users?tab=all")
+    expect(markup).toContain('aria-current="page"')
+  })
+
   it("renders a controlled filter bar with parent-provided query and href tabs", () => {
     const markup = renderToStaticMarkup(
       createElement(AdminFilterBar, {

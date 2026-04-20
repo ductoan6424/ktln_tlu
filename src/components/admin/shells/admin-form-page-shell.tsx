@@ -21,7 +21,7 @@ function getRecordFieldValue<Cells extends AdminCellValues>(
     return undefined
   }
 
-  const cells = record.cells as Record<string, string>
+  const cells = record.cells as unknown as Record<string, string>
 
   if (field.name in cells) {
     return cells[field.name]
