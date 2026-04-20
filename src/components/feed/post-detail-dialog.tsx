@@ -1,84 +1,37 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
 import { PostHeader } from "@/components/feed/post-header"
 import { CommentList } from "@/components/feed/comment-list"
 import { CommentInput } from "@/components/feed/comment-input"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
+import { loadComments, createComment, deleteComment } from "@/actions/posts"
+import type { CommentWithAuthorFlat } from "@/components/feed/comment-item"
 import { Heart, MessageCircle, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
-import type { CommentData } from "@/components/feed/comment-item"
-
-/* Dữ liệu mẫu — comments cho demo */
-const MOCK_COMMENTS: CommentData[] = [
-  {
-    id: "c1",
-    author: { name: "Lê Hoàng Nam" },
-    content: "Bài viết rất hữu ích! Cảm ơn ban quản trị đã thông báo kịp thời.",
-    createdAt: "1 giờ trước",
-    likes: 5,
-    replies: [
-      {
-        id: "c1-r1",
-        author: { name: "Phạm Thị Hoa" },
-        content: "Mình cũng thấy vậy, đăng ký sớm để chọn được lớp tốt nhé!",
-        createdAt: "45 phút trước",
-        likes: 2,
-        replies: [],
-      },
-    ],
-  },
-  {
-    id: "c2",
-    author: { name: "Trần Văn Minh" },
-    content: "Cho mình hỏi deadline đăng ký là bao giờ vậy ạ?",
-    createdAt: "30 phút trước",
-    likes: 1,
-    replies: [
-      {
-        id: "c2-r1",
-        author: { name: "Ban Quản trị Nhà trường" },
-        content: "Hạn đăng ký đến hết ngày 20/03 nhé bạn.",
-        createdAt: "25 phút trước",
-        likes: 8,
-        replies: [
-          {
-            id: "c2-r1-r1",
-            author: { name: "Trần Văn Minh" },
-            content: "Cảm ơn ban quản trị ạ!",
-            createdAt: "20 phút trước",
-            likes: 0,
-            replies: [],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "c3",
-    author: { name: "Nguyễn Thu Hằng" },
-    content: "Tòa nhà Khoa học mở cửa mấy giờ vậy ạ? Mình hay tự học buổi tối.",
-    createdAt: "15 phút trước",
-    likes: 3,
-    replies: [],
-  },
-]
-
-const MOCK_CURRENT_USER = {
-  name: "Nguyễn Đức Toàn",
-  avatar: undefined,
-}
 
 interface PostDetailDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  postId?: string
   authorName: string
   authorAvatar?: string
   createdAt: string
@@ -91,11 +44,18 @@ interface PostDetailDialogProps {
   likes?: number
   comments?: number
   shares?: number
+  isLiked?: boolean
+  currentUser?: { id: string; displayName?: string; avatarUrl?: string | null } | null
+  /** @deprecated Truyền currentUser thay vì currentUserId */
+  currentUserId?: string | null
+  authorId?: string
+  onLike?: () => void
 }
 
 export function PostDetailDialog({
   open,
   onOpenChange,
+  postId,
   authorName,
   authorAvatar,
   createdAt,
@@ -108,14 +68,76 @@ export function PostDetailDialog({
   likes = 0,
   comments = 0,
   shares = 0,
+  isLiked = false,
+  currentUser,
+  currentUserId,
+  authorId,
+  onLike,
 }: PostDetailDialogProps) {
-  const [isLiked, setIsLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(likes)
+  const { toast } = useToast()
+  const [commentsData, setCommentsData] = useState<CommentWithAuthorFlat[]>([])
+  const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [focusComment, setFocusComment] = useState(false)
 
-  const handleLike = () => {
-    setIsLiked((prev) => !prev)
-    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1))
+  // Hỗ trợ cả currentUser mới và currentUserId cũ (backward compat)
+  const resolvedCurrentUser = currentUser ?? (currentUserId != null ? { id: currentUserId } : null)
+
+  useEffect(() => {
+    if (!open || !postId) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- thiết lập loading state dựa trên điều kiện mở dialog
+    setIsLoadingComments(true)
+    loadComments(postId).then((result) => {
+      if (result.success && result.data) {
+        setCommentsData(result.data)
+      }
+      setIsLoadingComments(false)
+    })
+  }, [open, postId])
+
+  const handleCommentSubmit = async (text: string) => {
+    console.log("[CommentSubmit] resolvedCurrentUser=", resolvedCurrentUser?.id, "postId=", postId, "text=", text)
+    if (!resolvedCurrentUser?.id || !postId) {
+      toast({ description: "Bạn cần đăng nhập để bình luận" })
+      return
+    }
+
+    const tempId = `optimistic-${Date.now()}`
+    const optimisticComment: CommentWithAuthorFlat = {
+      id: tempId,
+      content: text,
+      createdAt: new Date().toISOString(),
+      createdAtRelative: "Vừa xong",
+      authorId: resolvedCurrentUser.id,
+      authorDisplayName: resolvedCurrentUser.displayName ?? "Người dùng",
+      authorAvatarUrl: resolvedCurrentUser.avatarUrl ?? null,
+      likes: 0,
+    }
+    setCommentsData(prev => [...prev, optimisticComment])
+
+    const result = await createComment(postId, text)
+    if (!result.success) {
+      setCommentsData(prev => prev.filter(c => c.id !== tempId))
+      toast({ description: "Không thể gửi bình luận. Vui lòng thử lại." })
+    } else {
+      setCommentsData(prev => prev.map(c => c.id === tempId ? result.data! : c))
+    }
+  }
+
+  const handleConfirmDelete = async (commentId: string) => {
+    const comment = commentsData.find(c => c.id === commentId)
+    if (!comment || comment.authorId !== resolvedCurrentUser?.id) return
+    setCommentsData(prev => prev.filter(c => c.id !== commentId))
+    const result = await deleteComment(commentId)
+    if (!result.success) {
+      if (postId) {
+        const reload = await loadComments(postId)
+        if (reload.success && reload.data) {
+          setCommentsData(reload.data)
+        }
+      }
+      toast({ description: "Không thể xóa bình luận. Vui lòng thử lại." })
+    }
   }
 
   const handleCommentClick = () => {
@@ -123,17 +145,16 @@ export function PostDetailDialog({
     setTimeout(() => setFocusComment(false), 100)
   }
 
+  const canLike = Boolean(resolvedCurrentUser?.id && authorId && resolvedCurrentUser.id !== authorId)
   const hasImage = Boolean(imageUrl)
 
   /* Phần stats + actions dùng chung cho cả mobile và desktop */
   const statsBar = (
     <div className="shrink-0 px-4 py-2 flex items-center gap-4 text-xs text-muted-foreground border-y border-border">
-      {likeCount > 0 && (
-        <span className="flex items-center gap-1">
-          <Heart className="size-3.5 fill-primary text-primary" />
-          {likeCount} lượt thích
-        </span>
-      )}
+      <span className="flex items-center gap-1">
+        <Heart className={cn("size-3.5", likes > 0 ? "fill-primary text-primary" : "text-muted-foreground")} />
+        {likes > 0 && `${likes} lượt thích`}
+      </span>
       {comments > 0 && <span>{comments} bình luận</span>}
       {shares > 0 && <span>{shares} lượt chia sẻ</span>}
     </div>
@@ -141,20 +162,32 @@ export function PostDetailDialog({
 
   const actionBar = (
     <div className="shrink-0 px-2 py-1 flex items-center border-b border-border">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleLike}
-        className={cn(
-          "flex-1 gap-1.5",
-          isLiked
-            ? "text-primary"
-            : "text-muted-foreground hover:text-primary"
-        )}
-      >
-        <Heart className={cn("size-5", isLiked && "fill-primary")} />
-        Thích
-      </Button>
+      {canLike ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onLike}
+          className={cn(
+            "flex-1 gap-1.5",
+            isLiked
+              ? "text-destructive hover:opacity-80"
+              : "text-muted-foreground hover:text-destructive"
+          )}
+        >
+          <Heart className={cn("size-5", isLiked && "fill-destructive")} />
+          Thích
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled
+          className="flex-1 gap-1.5 text-muted-foreground/50 cursor-not-allowed"
+        >
+          <Heart className="size-5" />
+          Thích
+        </Button>
+      )}
       <Button
         variant="ghost"
         size="sm"
@@ -183,8 +216,8 @@ export function PostDetailDialog({
           "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 w-full h-full max-w-none max-h-none rounded-none",
           /* Desktop: modal thông thường */
           hasImage
-            ? "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:w-auto md:h-auto md:max-w-4xl md:max-h-[90vh] md:rounded-lg"
-            : "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:w-auto md:h-auto md:max-w-lg md:max-h-[85vh] md:rounded-lg"
+            ? "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:!w-[min(94vw,1080px)] md:!h-[min(88vh,760px)] md:!max-w-none md:!max-h-none md:rounded-lg"
+            : "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:!w-[min(92vw,680px)] md:!h-[min(84vh,720px)] md:!max-w-none md:!max-h-none md:rounded-lg"
         )}
       >
         <DialogTitle className="sr-only">
@@ -210,7 +243,7 @@ export function PostDetailDialog({
           <div className="flex-1 overflow-y-auto">
             {/* Ảnh bài viết */}
             {hasImage && (
-              <div className="relative w-full aspect-video bg-black">
+              <div className="relative w-full aspect-video min-h-[240px] bg-black">
                 <Image
                   src={imageUrl!}
                   alt="Ảnh bài viết"
@@ -220,8 +253,8 @@ export function PostDetailDialog({
               </div>
             )}
 
-            {/* Header + nội dung */}
-            <div className="p-4 space-y-3">
+            {/* Header + nội dung — cố định chiều cao */}
+            <div className="p-4 space-y-3 min-h-[120px]">
               <PostHeader
                 authorName={authorName}
                 authorAvatar={authorAvatar}
@@ -231,7 +264,7 @@ export function PostDetailDialog({
                 isVerified={isVerified}
                 subtitle={subtitle}
               />
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {content}
               </p>
             </div>
@@ -242,10 +275,12 @@ export function PostDetailDialog({
             {/* Comments — cuộn chung với post */}
             <div className="p-4">
               <CommentList
-                comments={MOCK_COMMENTS}
-                currentUser={MOCK_CURRENT_USER}
+                comments={commentsData}
+                currentUser={resolvedCurrentUser ?? undefined}
                 autoFocusInput={focusComment}
                 hideInput
+                isLoading={isLoadingComments}
+                onDelete={(id) => setDeleteTargetId(id)}
                 className="min-h-0 flex-none"
               />
             </div>
@@ -254,9 +289,10 @@ export function PostDetailDialog({
           {/* Comment input — cố định ở đáy */}
           <div className="shrink-0 border-t border-border p-3 bg-card">
             <CommentInput
-              userName={MOCK_CURRENT_USER.name}
-              userAvatar={MOCK_CURRENT_USER.avatar}
+              userName={resolvedCurrentUser?.displayName}
+              userAvatar={resolvedCurrentUser?.avatarUrl ?? undefined}
               autoFocus={focusComment}
+              onSubmit={handleCommentSubmit}
             />
           </div>
         </div>
@@ -270,8 +306,8 @@ export function PostDetailDialog({
         >
           {/* Phần ảnh — chỉ hiện khi có ảnh */}
           {hasImage && (
-            <div className="relative md:w-1/2 shrink-0 bg-black flex items-center justify-center">
-              <div className="relative w-full aspect-video md:aspect-auto md:h-full min-h-[200px]">
+            <div className="relative flex min-w-0 flex-1 shrink-0 items-center justify-center bg-black">
+              <div className="relative h-full w-full min-h-[200px]">
                 <Image
                   src={imageUrl!}
                   alt="Ảnh bài viết"
@@ -285,12 +321,15 @@ export function PostDetailDialog({
           {/* Phần nội dung + comment */}
           <div
             className={cn(
-              "flex flex-col flex-1 min-h-0 overflow-hidden",
-              hasImage ? "md:w-1/2" : "w-full"
+              "flex flex-col min-h-0 overflow-hidden bg-card",
+              hasImage ? "w-full border-l border-border md:w-[420px]" : "w-full"
             )}
           >
-            {/* Header + Nội dung — cuộn nếu nội dung quá dài */}
-            <div className="shrink-0 overflow-y-auto max-h-[40%] p-4 space-y-3">
+            {/* Header + Nội dung — cố định chiều cao, scroll nếu nội dung dài */}
+            <div className={cn(
+              "shrink-0 overflow-y-auto p-4 space-y-3",
+              hasImage ? "max-h-[220px]" : "max-h-[240px]"
+            )}>
               <PostHeader
                 authorName={authorName}
                 authorAvatar={authorAvatar}
@@ -300,7 +339,7 @@ export function PostDetailDialog({
                 isVerified={isVerified}
                 subtitle={subtitle}
               />
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {content}
               </p>
             </div>
@@ -311,15 +350,46 @@ export function PostDetailDialog({
             {/* Phần bình luận — chiếm toàn bộ không gian còn lại */}
             <div className="p-4 flex-1 min-h-0 overflow-hidden flex flex-col">
               <CommentList
-                comments={MOCK_COMMENTS}
-                currentUser={MOCK_CURRENT_USER}
+                comments={commentsData}
+                currentUser={resolvedCurrentUser ?? undefined}
                 autoFocusInput={focusComment}
+                isLoading={isLoadingComments}
+                onSubmit={handleCommentSubmit}
+                onDelete={(id) => setDeleteTargetId(id)}
               />
             </div>
           </div>
         </div>
       </DialogContent>
+
+      {/* Alert Dialog cho xác nhận xóa bình luận */}
+      <AlertDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(open) => !open && setDeleteTargetId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa bình luận này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTargetId) {
+                  handleConfirmDelete(deleteTargetId)
+                }
+                setDeleteTargetId(null)
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }
-

@@ -2,6 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useState } from "react"
+import { logout } from "@/actions/auth"
 import {
   Home,
   Users,
@@ -26,7 +28,6 @@ import {
   User,
   Shield,
 } from "lucide-react"
-import { useState } from "react"
 
 interface MobileBottomNavProps {
   user?: {
@@ -52,10 +53,17 @@ export function MobileBottomNav({
 }: MobileBottomNavProps) {
   const pathname = usePathname()
   const [darkMode, setDarkMode] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const handleDarkModeToggle = (checked: boolean) => {
     setDarkMode(checked)
     document.documentElement.classList.toggle("dark", checked)
+  }
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    await logout()
+    window.location.href = "/login"
   }
 
   const getBadgeCount = (href: string) => {
@@ -165,9 +173,9 @@ export function MobileBottomNav({
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem variant="destructive" className="cursor-pointer">
+            <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={handleLogout} disabled={loggingOut}>
               <LogOut className="size-4" />
-              Đăng xuất
+              {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

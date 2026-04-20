@@ -3,40 +3,47 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { logout } from "@/actions/auth"
+import type { MainNavIcon, MainNavItem } from "@/app/(main)/main-nav-items"
 import { AppLogo } from "@/components/layout/app-logo"
+import { MessagePopup } from "@/components/layout/message-popup"
 import { NavbarLink } from "@/components/layout/navbar-link"
+import { NotificationPopup } from "@/components/layout/notification-popup"
 import { SearchInput } from "@/components/shared/search-input"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Button } from "@/components/ui/button"
-import { NotificationPopup } from "@/components/layout/notification-popup"
-import { MessagePopup } from "@/components/layout/message-popup"
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
 import {
-  Settings,
+  CalendarDays,
+  ChevronDown,
+  Home,
   LogOut,
   Moon,
-  ChevronDown,
   Search,
+  Settings,
+  Users,
+  UsersRound,
   X,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
 
-interface NavItem {
-  icon?: LucideIcon
-  label: string
-  href: string
+const NAV_ICONS: Record<MainNavIcon, LucideIcon> = {
+  home: Home,
+  users: Users,
+  "calendar-days": CalendarDays,
+  "users-round": UsersRound,
 }
 
 interface TopNavbarProps {
-  navItems?: NavItem[]
+  navItems?: MainNavItem[]
   user?: {
     name: string
     subtitle?: string
@@ -51,18 +58,28 @@ interface TopNavbarProps {
 export function TopNavbar({
   navItems = [],
   user,
-  notificationCount: _notificationCount, // TODO: Kết nối API sẽ sử dụng
-  messageCount: _messageCount, // TODO: Kết nối API sẽ sử dụng
+  notificationCount,
+  messageCount,
   searchPlaceholder = "Tìm kiếm...",
   className,
 }: TopNavbarProps) {
   const pathname = usePathname()
   const [darkMode, setDarkMode] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  void notificationCount
+  void messageCount
 
   const handleDarkModeToggle = (checked: boolean) => {
     setDarkMode(checked)
     document.documentElement.classList.toggle("dark", checked)
+  }
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    await logout()
+    window.location.href = "/login"
   }
 
   return (
@@ -72,7 +89,6 @@ export function TopNavbar({
         className
       )}
     >
-      {/* Mobile search overlay */}
       {mobileSearchOpen && (
         <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 lg:hidden">
           <SearchInput
@@ -93,25 +109,22 @@ export function TopNavbar({
       )}
 
       <div className="w-full px-3 lg:px-8 h-full flex items-center justify-between gap-4 relative">
-        {/* Logo + Search */}
         <div className="flex items-center gap-4 lg:gap-6">
           <Link href="/feed">
             <AppLogo size="md" />
           </Link>
-          {/* Desktop search */}
           <SearchInput
             placeholder={searchPlaceholder}
             className="hidden lg:block w-64"
           />
         </div>
 
-        {/* Desktop nav — ẩn trên mobile */}
         {navItems.length > 0 && (
           <nav className="hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item) => (
               <NavbarLink
                 key={item.href}
-                icon={item.icon}
+                icon={NAV_ICONS[item.icon]}
                 label={item.label}
                 href={item.href}
                 isActive={pathname === item.href}
@@ -120,9 +133,7 @@ export function TopNavbar({
           </nav>
         )}
 
-        {/* Actions */}
         <div className="flex items-center gap-1">
-          {/* Mobile: search button */}
           <Button
             variant="ghost"
             size="icon"
@@ -133,7 +144,6 @@ export function TopNavbar({
             <Search className="size-5" />
           </Button>
 
-          {/* Desktop: notification + message icons with popup */}
           <div className="hidden lg:block">
             <NotificationPopup />
           </div>
@@ -141,7 +151,6 @@ export function TopNavbar({
             <MessagePopup />
           </div>
 
-          {/* Desktop: Avatar Dropdown — ẩn trên mobile (đã có trong bottom nav) */}
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -156,7 +165,6 @@ export function TopNavbar({
               </DropdownMenuTrigger>
 
               <DropdownMenuContent align="end" sideOffset={8} className="w-72">
-                {/* Profile header */}
                 <div className="p-0">
                   <Link
                     href="/profile"
@@ -194,7 +202,6 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                {/* Dark mode toggle */}
                 <div className="flex items-center justify-between px-2 py-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Moon className="size-4" />
@@ -208,9 +215,9 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem variant="destructive" className="cursor-pointer">
+                <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={handleLogout} disabled={loggingOut}>
                   <LogOut className="size-4" />
-                  Đăng xuất
+                  {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -220,4 +227,3 @@ export function TopNavbar({
     </header>
   )
 }
-

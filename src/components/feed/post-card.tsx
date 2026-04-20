@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface PostCardProps {
+  postId?: string
   authorName: string
   authorAvatar?: string
   createdAt: string
@@ -25,10 +26,17 @@ interface PostCardProps {
   shares?: number
   showSave?: boolean
   showRegister?: boolean
+  onUnsave?: () => void
   className?: string
+  isLiked?: boolean
+  currentUser?: { userId?: string; id?: string; displayName?: string; avatarUrl?: string | null } | null
+  currentUserId?: string | null
+  authorId?: string
+  onLike?: () => void
 }
 
 export function PostCard({
+  postId,
   authorName,
   authorAvatar,
   createdAt,
@@ -44,11 +52,26 @@ export function PostCard({
   shares,
   showSave,
   showRegister,
+  onUnsave,
   className,
+  isLiked,
+  currentUser,
+  currentUserId,
+  authorId,
+  onLike,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const handleOpenDetail = () => setIsDetailOpen(true)
+
+  // Normalize userId vs id field
+  const resolvedCurrentUser = currentUser
+    ? {
+        id: currentUser.id ?? currentUser.userId ?? "",
+        displayName: currentUser.displayName,
+        avatarUrl: currentUser.avatarUrl,
+      }
+    : null
 
   return (
     <>
@@ -85,7 +108,7 @@ export function PostCard({
             className="w-full text-left cursor-pointer"
           >
             {/* Nội dung */}
-            <p className="text-[13px] leading-snug mt-2.5">{content}</p>
+            <p className="text-[13px] leading-snug mt-2.5 whitespace-pre-wrap break-words">{content}</p>
 
             {/* Hình ảnh */}
             {imageUrl && (
@@ -109,7 +132,12 @@ export function PostCard({
             shares={shares}
             showSave={showSave}
             showRegister={showRegister}
+            onUnsave={onUnsave}
             onCommentClick={handleOpenDetail}
+            isLiked={isLiked}
+            currentUserId={currentUserId}
+            authorId={authorId}
+            onLike={onLike}
             className="mt-2.5"
           />
         </CardContent>
@@ -119,6 +147,7 @@ export function PostCard({
       <PostDetailDialog
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
+        postId={postId}
         authorName={authorName}
         authorAvatar={authorAvatar}
         createdAt={createdAt}
@@ -131,6 +160,11 @@ export function PostCard({
         likes={likes}
         comments={comments}
         shares={shares}
+        isLiked={isLiked}
+        currentUser={resolvedCurrentUser}
+        currentUserId={currentUserId}
+        authorId={authorId}
+        onLike={onLike}
       />
     </>
   )
