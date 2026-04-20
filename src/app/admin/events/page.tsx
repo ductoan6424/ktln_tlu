@@ -1,8 +1,8 @@
 import { AdminListPageShell } from "@/components/admin/shells/admin-list-page-shell"
 import { getAdminModule } from "@/lib/admin/admin-modules"
 
-const usersModule = getAdminModule("users")
+const eventsModule = getAdminModule("events")
 
-export default function AdminUsersPage() {
-  return <AdminListPageShell module={usersModule} />
+export default function AdminEventsPage() {
+  return <AdminListPageShell module={eventsModule} />
 }
