@@ -1,7 +1,3 @@
-"use client"
-
-import { useState } from "react"
-
 import {
   AdminDataTable,
 } from "@/components/admin/module/admin-data-table"
@@ -14,8 +10,6 @@ import type { AdminModuleDefinition, AdminCellValues } from "@/lib/admin/admin-t
 interface AdminListPageShellProps<Cells extends AdminCellValues> {
   module: AdminModuleDefinition<Cells>
   activeTab?: string
-  onActiveTabChange?: (value: string) => void
-  onQueryChange?: (value: string) => void
   query?: string
 }
 
@@ -30,18 +24,12 @@ function buildCreateLabel(entityName: string) {
 export function AdminListPageShell<Cells extends AdminCellValues>({
   module,
   activeTab: activeTabProp,
-  onActiveTabChange,
-  onQueryChange,
   query: queryProp,
 }: AdminListPageShellProps<Cells>) {
   const hasHrefTabs = Boolean(module.tabs[0]?.href)
   const defaultTab = module.tabs.find((tab) => tab.active)?.value ?? module.tabs[0]?.value ?? ""
-  const [localActiveTab, setLocalActiveTab] = useState(defaultTab)
-  const [localQuery, setLocalQuery] = useState("")
-  const activeTab = activeTabProp ?? (hasHrefTabs ? "" : localActiveTab)
-  const query = queryProp ?? localQuery
-  const handleActiveTabChange = hasHrefTabs ? (onActiveTabChange ?? (() => {})) : (onActiveTabChange ?? setLocalActiveTab)
-  const handleQueryChange = onQueryChange ?? setLocalQuery
+  const activeTab = activeTabProp ?? (hasHrefTabs ? "" : defaultTab)
+  const query = queryProp
 
   return (
     <div className="space-y-6">
@@ -56,8 +44,6 @@ export function AdminListPageShell<Cells extends AdminCellValues>({
       <AdminStatsGrid stats={module.stats} />
       <AdminFilterBar
         activeTab={activeTab}
-        onActiveTabChange={handleActiveTabChange}
-        onQueryChange={handleQueryChange}
         query={query}
         tabs={module.tabs}
         searchPlaceholder={`Tim kiem ${module.entityNamePlural}...`}

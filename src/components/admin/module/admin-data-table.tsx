@@ -57,7 +57,7 @@ export function AdminDataTable<Cells extends AdminCellValues>({
             {records.map((record) => (
               <tr key={record.id} className="border-b border-border last:border-b-0">
                 {columns.map((column) => {
-                  const value = record.cells[column.key]
+                  const value = String(record.cells[column.key] ?? "")
                   const content =
                     column.key === "title" && record.href ? (
                       <Link href={record.href} className="font-medium text-foreground hover:underline">

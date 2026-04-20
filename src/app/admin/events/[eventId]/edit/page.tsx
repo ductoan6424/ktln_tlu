@@ -17,5 +17,5 @@ export default async function AdminEditEventPage({
     notFound()
   }
 
-  return <AdminFormPageShell module={eventsModule} mode="edit" record={record} />
+  return <AdminFormPageShell<typeof record.cells> module={eventsModule} mode="edit" record={record} />
 }

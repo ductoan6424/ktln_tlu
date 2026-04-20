@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Inbox } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
-import { buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 

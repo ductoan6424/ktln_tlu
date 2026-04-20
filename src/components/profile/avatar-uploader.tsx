@@ -65,8 +65,8 @@ export function deriveAvatarSelectionState(
   }
 
   return {
-    selectedFile: file,
-    previewUrl: createPreviewUrl(file),
+    selectedFile: file ?? null,
+    previewUrl: file ? createPreviewUrl(file) : null,
     error: null,
   }
 }
