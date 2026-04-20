@@ -23,4 +23,20 @@ describe("admin navigation", () => {
       "/admin/settings",
     ])
   })
+
+  it("exports translated labels for core and management nav items", () => {
+    expect(ADMIN_MANAGEMENT_NAV_ITEMS.map((item) => item.label)).toEqual([
+      "Người dùng",
+      "Môn học",
+      "Nhóm",
+      "Sự kiện",
+    ])
+
+    expect(ADMIN_CORE_NAV_ITEMS.map((item) => item.label)).toEqual([
+      "Bảng điều khiển",
+      "Thông báo",
+      "Phân tích",
+      "Cài đặt hệ thống",
+    ])
+  })
 })

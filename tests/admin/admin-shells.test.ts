@@ -32,7 +32,7 @@ describe("admin shells", () => {
       createElement(AdminListPageShell, { module: usersModule }),
     )
 
-    expect(markup).toContain(`Quan ly ${usersModule.entityNameSingular}`)
+    expect(markup).toContain(`Quản lý ${usersModule.entityNameSingular}`)
     expect(markup).toContain(usersModule.stats[0].label)
     expect(markup).toContain(usersModule.quickActions[0].label)
     expect(markup).toContain(usersModule.records[0].title)
@@ -62,9 +62,9 @@ describe("admin shells", () => {
       createElement(AdminFormPageShell, { module: usersModule, mode: "create" }),
     )
 
-    expect(markup).toContain("Role")
-    expect(markup).toContain("Student")
-    expect(markup).toContain("Blocked")
+    expect(markup).toContain("Vai trò")
+    expect(markup).toContain("Sinh viên")
+    expect(markup).toContain("Đã chặn")
     expect(markup).not.toContain("Selection controls are not supported in this shell")
   })
 
@@ -74,9 +74,9 @@ describe("admin shells", () => {
       createElement(AdminSettingsPageShell, { module: usersModule }),
     )
 
-    expect(markup).toContain("Default role")
-    expect(markup).toContain(">Student<")
-    expect(markup).toContain("Auto approve new users")
+    expect(markup).toContain("Vai trò mặc định")
+    expect(markup).toContain(">Sinh viên<")
+    expect(markup).toContain("Tự động phê duyệt người dùng mới")
   })
 
   it("does not attach click state handlers to href tabs", () => {
@@ -84,11 +84,11 @@ describe("admin shells", () => {
       activeTab: "blocked",
       onActiveTabChange: () => {},
       onQueryChange: () => {},
-      query: "Nguyen",
-      searchPlaceholder: "Tim kiem user...",
+      query: "Nguyễn",
+      searchPlaceholder: "Tìm kiếm người dùng...",
       tabs: [
-        { label: "All", value: "all", href: "/admin/users?tab=all" },
-        { label: "Blocked", value: "blocked", href: "/admin/users?tab=blocked" },
+        { label: "Tất cả", value: "all", href: "/admin/users?tab=all" },
+        { label: "Đã chặn", value: "blocked", href: "/admin/users?tab=blocked" },
       ],
     })
 
@@ -100,10 +100,10 @@ describe("admin shells", () => {
       createElement(AdminFilterBar, {
         activeTab: "blocked",
         query: "",
-        searchPlaceholder: "Tim kiem user...",
+        searchPlaceholder: "Tìm kiếm người dùng...",
         tabs: [
-          { label: "All", value: "all", href: "/admin/users?tab=all" },
-          { label: "Blocked", value: "blocked", href: "/admin/users?tab=blocked" },
+          { label: "Tất cả", value: "all", href: "/admin/users?tab=all" },
+          { label: "Đã chặn", value: "blocked", href: "/admin/users?tab=blocked" },
         ],
       }),
     )
@@ -118,16 +118,16 @@ describe("admin shells", () => {
         activeTab: "blocked",
         onActiveTabChange: () => {},
         onQueryChange: () => {},
-        query: "Nguyen",
-        searchPlaceholder: "Tim kiem user...",
+        query: "Nguyễn",
+        searchPlaceholder: "Tìm kiếm người dùng...",
         tabs: [
-          { label: "All", value: "all", href: "/admin/users?tab=all" },
-          { label: "Blocked", value: "blocked", href: "/admin/users?tab=blocked" },
+          { label: "Tất cả", value: "all", href: "/admin/users?tab=all" },
+          { label: "Đã chặn", value: "blocked", href: "/admin/users?tab=blocked" },
         ],
       }),
     )
 
-    expect(markup).toContain('value="Nguyen"')
+    expect(markup).toContain('value="Nguyễn"')
     expect(markup).toContain("/admin/users?tab=blocked")
     expect(markup).toContain('aria-current="page"')
   })

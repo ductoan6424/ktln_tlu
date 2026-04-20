@@ -35,9 +35,9 @@ describe("admin layout", () => {
       createElement(AdminLayout, null, createElement("div", null, "Admin body")),
     )
 
-    expect(markup).toContain("Users")
-    expect(markup).toContain("Dashboard")
+    expect(markup).toContain("Người dùng")
+    expect(markup).toContain("Bảng điều khiển")
     expect(markup).toContain("Admin body")
-    expect(markup).toContain("Nguyen Quan tri")
+    expect(markup).toContain("Nguyễn Quản trị")
   })
 })

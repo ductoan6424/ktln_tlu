@@ -14,14 +14,14 @@ import { Save } from "lucide-react"
 
 const SETTINGS_TABS = [
   { label: "Chung", value: "general" },
-  { label: "Module", value: "modules" },
+  { label: "Mô-đun", value: "modules" },
   { label: "Email", value: "email" },
   { label: "Bảo mật", value: "security" },
 ]
 
 const MODULES = [
   {
-    name: "Bảng tin (Feed)",
+    name: "Bảng tin",
     description: "Cho phép sinh viên và giảng viên đăng bài, chia sẻ thông tin",
     enabled: true,
   },
@@ -51,7 +51,7 @@ const MODULES = [
     enabled: false,
   },
   {
-    name: "Marketplace",
+    name: "Chợ sinh viên",
     description: "Mua bán, trao đổi sách vở, đồ dùng giữa sinh viên",
     enabled: false,
   },
@@ -186,8 +186,8 @@ function EmailSettings() {
         <CardContent className="p-6 space-y-5">
           <SectionHeader title="Cấu hình SMTP" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <AdminField label="SMTP Host" defaultValue="smtp.tlu.edu.vn" />
-            <AdminField label="SMTP Port" defaultValue="587" />
+            <AdminField label="Máy chủ SMTP" defaultValue="smtp.tlu.edu.vn" />
+            <AdminField label="Cổng SMTP" defaultValue="587" />
             <AdminField label="Tên đăng nhập" defaultValue="noreply@tlu.edu.vn" />
             <AdminField label="Mật khẩu" type="password" defaultValue="••••••••" />
           </div>
@@ -204,7 +204,7 @@ function EmailSettings() {
           <SectionHeader title="Mẫu email" />
           <AdminField label="Email gửi từ" defaultValue="TLU Community <noreply@tlu.edu.vn>" />
           <AdminField
-            label="Footer email"
+            label="Chân trang email"
             defaultValue="Đây là email tự động từ TLU Community. Vui lòng không trả lời email này."
             isTextarea
           />

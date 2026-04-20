@@ -28,8 +28,8 @@ export function AdminDataTable<Cells extends AdminCellValues>({
   if (records.length === 0) {
     return (
       <AdminEmptyState
-        title={emptyState?.title ?? "Chua co du lieu"}
-        description={emptyState?.description ?? "Khong co ban ghi nao de hien thi."}
+        title={emptyState?.title ?? "Chưa có dữ liệu"}
+        description={emptyState?.description ?? "Không có bản ghi nào để hiển thị."}
         actionLabel={emptyState?.actionLabel}
         actionHref={emptyState?.actionHref}
       />

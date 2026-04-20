@@ -11,8 +11,8 @@ import { getAdminBreadcrumbItems } from "@/lib/admin/admin-route-meta"
 import { Bell, Menu, X } from "lucide-react"
 
 const ADMIN_USER = {
-  name: "Nguyen Quan tri",
-  role: "Quan tri vien",
+  name: "Nguyễn Quản trị",
+  role: "Quản trị viên",
 }
 
 export default function AdminLayout({
@@ -63,7 +63,7 @@ export default function AdminLayout({
               size="icon"
               className="size-9 rounded-full shrink-0 lg:hidden"
               onClick={() => setSidebarOpen(true)}
-              aria-label="Mo menu"
+              aria-label="Mở menu"
             >
               <Menu className="size-5" />
             </Button>
@@ -71,11 +71,11 @@ export default function AdminLayout({
           </div>
           <div className="flex items-center gap-3">
             <SearchInput
-              placeholder="Tim kiem trong admin..."
+              placeholder="Tìm kiếm trong quản trị..."
               className="hidden md:block w-64"
             />
             <div className="relative">
-              <IconButton icon={Bell} ariaLabel="Thong bao" />
+              <IconButton icon={Bell} ariaLabel="Thông báo" />
               <span className="absolute top-1 right-1 size-2 bg-destructive rounded-full border-2 border-card" />
             </div>
           </div>

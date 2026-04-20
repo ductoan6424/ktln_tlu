@@ -12,7 +12,7 @@ interface AdminSettingsPageShellProps<Cells extends AdminCellValues> {
 
 function getSettingSummary(item: AdminSettingsItem) {
   if (item.type === "toggle") {
-    return item.value === "on" ? "Enabled" : "Disabled"
+    return item.value === "on" ? "Đã bật" : "Đã tắt"
   }
 
   if (item.type === "select") {
@@ -60,10 +60,10 @@ export function AdminSettingsPageShell<Cells extends AdminCellValues>({
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title={`Cai dat ${module.entityNameSingular}`}
+        title={`Cài đặt ${module.entityNameSingular}`}
         description={module.description}
         secondaryActions={[
-          { label: "Quay lai danh sach", href: module.paths.list, variant: "outline" },
+          { label: "Quay lại danh sách", href: module.paths.list, variant: "outline" },
         ]}
       />
 
@@ -93,7 +93,7 @@ export function AdminSettingsPageShell<Cells extends AdminCellValues>({
       ))}
 
       <div className="flex justify-end">
-        <Button>Luu cai dat</Button>
+        <Button>Lưu cài đặt</Button>
       </div>
     </div>
   )

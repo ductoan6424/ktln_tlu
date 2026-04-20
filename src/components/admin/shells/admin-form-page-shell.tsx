@@ -101,7 +101,7 @@ function renderField<Cells extends AdminCellValues>(
         className="flex h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <option value="" disabled>
-          {field.placeholder ?? `Chon ${field.label.toLowerCase()}`}
+          {field.placeholder ?? `Chọn ${field.label.toLowerCase()}`}
         </option>
         {field.options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -159,7 +159,7 @@ export function AdminFormPageShell<Cells extends AdminCellValues>({
 }: AdminFormPageShellProps<Cells>) {
   const isCreate = mode === "create"
   const sections = isCreate ? module.createSections : module.editSections
-  const title = isCreate ? `Them ${module.entityNameSingular}` : `Cap nhat ${record?.title ?? module.entityNameSingular}`
+  const title = isCreate ? `Thêm ${module.entityNameSingular}` : `Cập nhật ${record?.title ?? module.entityNameSingular}`
   const description = isCreate ? module.description : (record?.subtitle ?? module.description)
 
   return (
@@ -168,13 +168,13 @@ export function AdminFormPageShell<Cells extends AdminCellValues>({
         title={title}
         description={description}
         secondaryActions={[
-          { label: "Quay lai danh sach", href: module.paths.list, variant: "outline" },
+          { label: "Quay lại danh sách", href: module.paths.list, variant: "outline" },
         ]}
       />
       {getSections(sections, record)}
       <div className="flex justify-end gap-2">
-        <Button variant="outline">Huy</Button>
-        <Button>{isCreate ? `Luu ${module.entityNameSingular}` : "Luu thay doi"}</Button>
+        <Button variant="outline">Hủy</Button>
+        <Button>{isCreate ? `Tạo ${module.entityNameSingular}` : "Lưu thay đổi"}</Button>
       </div>
     </div>
   )

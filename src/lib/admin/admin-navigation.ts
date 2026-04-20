@@ -39,28 +39,28 @@ const ADMIN_MODULE_ICONS = {
 
 export const ADMIN_MODULE_ROUTE_LABELS = {
   users: {
-    list: "Quan ly nguoi dung",
-    create: "Tao moi",
-    settings: "Cai dat module",
-    detail: "Chi tiet nguoi dung",
+    list: "Quản lý người dùng",
+    create: "Tạo mới",
+    settings: "Cài đặt phân hệ",
+    detail: "Chi tiết người dùng",
   },
   subjects: {
-    list: "Quan ly mon hoc",
-    create: "Tao moi",
-    settings: "Cai dat module",
-    detail: "Chi tiet mon hoc",
+    list: "Quản lý môn học",
+    create: "Tạo mới",
+    settings: "Cài đặt phân hệ",
+    detail: "Chi tiết môn học",
   },
   groups: {
-    list: "Quan ly group",
-    create: "Tao moi",
-    settings: "Cai dat module",
-    detail: "Chi tiet group",
+    list: "Quản lý nhóm",
+    create: "Tạo mới",
+    settings: "Cài đặt phân hệ",
+    detail: "Chi tiết nhóm",
   },
   events: {
-    list: "Quan ly su kien",
-    create: "Tao moi",
-    settings: "Cai dat module",
-    detail: "Chi tiet su kien",
+    list: "Quản lý sự kiện",
+    create: "Tạo mới",
+    settings: "Cài đặt phân hệ",
+    detail: "Chi tiết sự kiện",
   },
 } satisfies Record<
   (typeof ADMIN_MODULES)[number]["key"],
@@ -76,33 +76,33 @@ export const ADMIN_MANAGEMENT_NAV_ITEMS = ADMIN_MODULES.map((module) => ({
 export const ADMIN_CORE_NAV_ITEMS = [
   {
     icon: LayoutDashboard,
-    label: "Dashboard",
+    label: "Bảng điều khiển",
     href: "/admin/dashboard",
   },
   {
     icon: Megaphone,
-    label: "Thong bao",
+    label: "Thông báo",
     href: "/admin/announcements",
   },
   {
     icon: BarChart3,
-    label: "Phan tich",
+    label: "Phân tích",
     href: "/admin/analytics",
   },
   {
     icon: Settings,
-    label: "Cai dat he thong",
+    label: "Cài đặt hệ thống",
     href: "/admin/settings",
   },
 ] satisfies AdminNavItem[]
 
 export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
   {
-    label: "Tong quan",
+    label: "Tổng quan",
     items: ADMIN_CORE_NAV_ITEMS,
   },
   {
-    label: "Quan ly",
+    label: "Quản lý",
     items: ADMIN_MANAGEMENT_NAV_ITEMS,
   },
 ]

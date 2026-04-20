@@ -14,11 +14,11 @@ interface AdminListPageShellProps<Cells extends AdminCellValues> {
 }
 
 function buildListTitle(entityName: string) {
-  return `Quan ly ${entityName}`
+  return `Quản lý ${entityName}`
 }
 
 function buildCreateLabel(entityName: string) {
-  return `Them ${entityName}`
+  return `Thêm ${entityName}`
 }
 
 export function AdminListPageShell<Cells extends AdminCellValues>({
@@ -46,7 +46,7 @@ export function AdminListPageShell<Cells extends AdminCellValues>({
         activeTab={activeTab}
         query={query}
         tabs={module.tabs}
-        searchPlaceholder={`Tim kiem ${module.entityNamePlural}...`}
+        searchPlaceholder={`Tìm kiếm ${module.entityNamePlural}...`}
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <AdminDataTable
@@ -56,8 +56,8 @@ export function AdminListPageShell<Cells extends AdminCellValues>({
             href: record.href ?? module.buildDetailPath(record.id),
           }))}
           emptyState={{
-            title: `Chua co ${module.entityNamePlural}`,
-            description: `Bat dau bang cach tao ${module.entityNameSingular} dau tien.`,
+            title: `Chưa có ${module.entityNamePlural}`,
+            description: `Bắt đầu bằng cách tạo ${module.entityNameSingular} đầu tiên.`,
             actionLabel: buildCreateLabel(module.entityNameSingular),
             actionHref: module.buildNewPath(),
           }}

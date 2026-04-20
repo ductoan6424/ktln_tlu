@@ -23,7 +23,7 @@ export function AdminFilterBar({
   onQueryChange,
   query,
   tabs = [],
-  searchPlaceholder = "Tim kiem...",
+  searchPlaceholder = "Tìm kiếm...",
 }: AdminFilterBarProps) {
   const resolvedActiveTab = activeTab ?? ""
   const resolvedQuery = query
