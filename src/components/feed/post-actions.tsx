@@ -1,9 +1,10 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Heart, MessageCircle, Bookmark } from "lucide-react"
+import { Heart, MessageCircle, Bookmark, BookmarkCheck } from "lucide-react"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
 import { cn } from "@/lib/utils"
+import { useState } from "react"
 
 interface PostActionsProps {
   likes?: number
@@ -16,8 +17,12 @@ interface PostActionsProps {
   onComment?: () => void
   onCommentClick?: () => void
   onSave?: () => void
+  onUnsave?: () => void
   onRegister?: () => void
   className?: string
+  isLiked?: boolean
+  currentUserId?: string | null
+  authorId?: string
 }
 
 export function PostActions({
@@ -31,9 +36,26 @@ export function PostActions({
   onComment,
   onCommentClick,
   onSave,
+  onUnsave,
   onRegister,
   className,
+  isLiked = false,
+  currentUserId,
+  authorId,
 }: PostActionsProps) {
+  const [isSaved, setIsSaved] = useState(false)
+
+  const canLike = Boolean(currentUserId && authorId && currentUserId !== authorId)
+
+  const handleSave = () => {
+    if (isSaved) {
+      onUnsave?.()
+    } else {
+      onSave?.()
+    }
+    setIsSaved((prev) => !prev)
+  }
+
   const handleCommentClick = () => {
     onComment?.()
     onCommentClick?.()
@@ -47,15 +69,32 @@ export function PostActions({
       )}
     >
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onLike}
-          className="gap-1.5 text-muted-foreground hover:text-primary"
-        >
-          <Heart className="size-5" />
-          {likes > 0 && <span>{likes}</span>}
-        </Button>
+        {likes > 0 && (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {likes}
+          </span>
+        )}
+
+        {canLike ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLike}
+            className={cn(
+              "gap-1.5",
+              isLiked
+                ? "text-destructive hover:opacity-80"
+                : "text-muted-foreground hover:text-destructive"
+            )}
+          >
+            <Heart
+              className={cn(
+                "size-5 transition-transform duration-150",
+                isLiked && "fill-destructive text-destructive active:scale-110"
+              )}
+            />
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="sm"
@@ -74,11 +113,18 @@ export function PostActions({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onSave}
-            className="gap-1 text-muted-foreground"
+            onClick={handleSave}
+            className={cn(
+              "gap-1 text-muted-foreground",
+              isSaved && "text-primary"
+            )}
           >
-            <Bookmark className="size-4" />
-            Lưu lại
+            {isSaved ? (
+              <BookmarkCheck className="size-4" />
+            ) : (
+              <Bookmark className="size-4" />
+            )}
+            {isSaved ? "Đã lưu" : "Lưu lại"}
           </Button>
         )}
         {showRegister && (

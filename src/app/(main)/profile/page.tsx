@@ -1,103 +1,24 @@
-"use client"
+import { notFound, redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
+import { ProfilePageContent } from "@/components/profile/profile-page-content"
+import { getProfilePageData } from "@/app/(main)/profile/profile-page-data"
 
-import { ProfileHeader, ProfileHeaderSkeleton } from "@/components/profile/profile-header"
-import { AcademicProgressCard, AcademicProgressCardSkeleton } from "@/components/profile/academic-progress-card"
-import { ConnectionsGrid, ConnectionsGridSkeleton } from "@/components/profile/connections-grid"
-import { PostCard, PostCardSkeleton } from "@/components/feed/post-card"
-import { PostComposer, PostComposerSkeleton } from "@/components/feed/post-composer"
-import { PageContainer } from "@/components/layout/page-container"
+export default async function ProfilePage() {
+  const supabase = await createClient()
+  const { data: authData } = await supabase.auth.getUser()
 
-const PROFILE = {
-  name: "Nguyễn Đức Toàn",
-  major: "Công nghệ thông tin",
-  classYear: "K35",
-  clubs: ["CLB Tin học", "CLB Đi bộ", "Nhóm NCKH AI"],
-  coverImage: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1200&h=400&fit=crop",
-}
+  if (!authData.user) {
+    redirect("/login")
+  }
 
-const CONNECTIONS = [
-  { name: "Lê Văn Luyện" },
-  { name: "Lương Hải Đăng" },
-  { name: "Phạm Quốc Anh" },
-  { name: "Nguyễn Thu Hà" },
-  { name: "Hoàng Minh Tuấn" },
-]
+  const profileData = await getProfilePageData({
+    viewerId: authData.user.id,
+    profileUserId: authData.user.id,
+  })
 
-export default function ProfilePage() {
-  return (
-    <PageContainer variant="centered" className="space-y-6">
-      {/* Profile Header */}
-      <ProfileHeader
-        name={PROFILE.name}
-        major={PROFILE.major}
-        classYear={PROFILE.classYear}
-        clubs={PROFILE.clubs}
-        coverImage={PROFILE.coverImage}
-        isOwnProfile
-      />
+  if (!profileData) {
+    notFound()
+  }
 
-      {/* Grid nội dung */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Sidebar trái */}
-        <aside className="lg:col-span-4 space-y-6">
-          <AcademicProgressCard
-            credits={94}
-            totalCredits={120}
-            gpa={3.82}
-            deansListCount={3}
-            year="Năm 4"
-          />
-          <ConnectionsGrid
-            connections={CONNECTIONS}
-            totalCount={147}
-          />
-        </aside>
-
-        {/* Feed chính */}
-        <section className="lg:col-span-8 space-y-6">
-          <PostComposer
-            userName={PROFILE.name}
-          />
-
-          <PostCard
-            authorName="Nguyễn Đức Toàn"
-            createdAt="2 giờ trước"
-            subtitle="CLB Tin học"
-            content="Vừa train xong model cộng tác đầu tiên trên siêu máy tính của trường! Kết quả cho cuộc thi NLP rất khả quan. Mời các bạn đến Lab 402 thứ Sáu để xem showcase nhé. 🚀"
-            imageUrl="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop"
-            likes={24}
-            comments={8}
-            shares={3}
-          />
-
-          <PostCard
-            authorName="Nguyễn Đức Toàn"
-            createdAt="1 ngày trước"
-            content="Tìm bạn học nhóm môn Hệ phân tán CS402. Thi giữa kỳ sắp tới mà thuật toán đồng thuận khó quá. Ai quan tâm liên hệ mình nhé! 📚"
-            likes={12}
-            comments={5}
-          />
-        </section>
-      </div>
-    </PageContainer>
-  )
-}
-
-export function ProfilePageSkeleton() {
-  return (
-    <PageContainer variant="centered" className="space-y-6">
-      <ProfileHeaderSkeleton />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <aside className="lg:col-span-4 space-y-6">
-          <AcademicProgressCardSkeleton />
-          <ConnectionsGridSkeleton />
-        </aside>
-        <section className="lg:col-span-8 space-y-6">
-          <PostComposerSkeleton />
-          <PostCardSkeleton />
-          <PostCardSkeleton />
-        </section>
-      </div>
-    </PageContainer>
-  )
+  return <ProfilePageContent data={profileData} />
 }
