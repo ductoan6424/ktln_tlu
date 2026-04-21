@@ -1,22 +1,27 @@
 // src/actions/auth.ts
 "use server"
 
-import { z } from "zod"
 import { randomBytes } from "crypto"
-import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
-import { prisma } from "@/lib/prisma/client"
-import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email/sender"
-import { successResult, errorResult } from "@/types/api"
-import type { ActionResult } from "@/types/api"
 
-// ─── Schemas ──────────────────────────────────────────────────────────────────
+import { cookies } from "next/headers"
+import { z } from "zod"
+
+import { BASE_ROLE_VALUES } from "@/lib/auth/base-role"
+import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email/sender"
+import { prisma } from "@/lib/prisma/client"
+import { createAdminClient, createClient } from "@/lib/supabase/server"
+import { errorResult, successResult } from "@/types/api"
+import type { ActionResult } from "@/types/api"
 
 const registerSchema = z.object({
   email: z.string().email().min(1, "Email không được trống"),
   password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
   displayName: z.string().min(2).max(100),
-  studentId: z.string().regex(/^[A-Za-z]\d{5,10}$/, "Mã sinh viên phải có định dạng A + số (ví dụ: A46287)").optional(),
+  role: z.enum(BASE_ROLE_VALUES).default("STUDENT"),
+  studentId: z
+    .string()
+    .regex(/^[A-Za-z]\d{5,10}$/, "Mã sinh viên phải có định dạng A + số (ví dụ: A46287)")
+    .optional(),
   faculty: z.string().optional(),
 })
 
@@ -30,11 +35,7 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8),
 })
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-async function sendEmailSafe(
-  fn: () => Promise<void>,
-): Promise<void> {
+async function sendEmailSafe(fn: () => Promise<void>): Promise<void> {
   try {
     await fn()
   } catch (error) {
@@ -42,44 +43,41 @@ async function sendEmailSafe(
   }
 }
 
-// ─── Actions ─────────────────────────────────────────────────────────────────
-
-export async function register(
-  rawInput: unknown
-): Promise<ActionResult> {
+export async function register(rawInput: unknown): Promise<ActionResult> {
   try {
     const validated = registerSchema.safeParse(rawInput)
     if (!validated.success) {
-      return errorResult(validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+      return errorResult(
+        validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
+        "VALIDATION_ERROR",
+      )
     }
 
-    const { email, password, displayName, studentId, faculty } = validated.data
-
+    const { email, password, displayName, role, studentId, faculty } = validated.data
     const supabaseAdmin = createAdminClient()
 
-    // Kiểm tra Supabase — user có thể tồn tại nhưng chưa xác minh
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-    const existingSupabaseUser = existingUsers?.users.find((u) => u.email === email)
+    const existingSupabaseUser = existingUsers?.users.find((user) => user.email === email)
 
     if (existingSupabaseUser && !existingSupabaseUser.email_confirmed_at) {
-      // User đã tồn tại trong Supabase, chưa xác minh → xoá và tạo lại
       await supabaseAdmin.auth.admin.deleteUser(existingSupabaseUser.id)
       await prisma.userProfile.deleteMany({ where: { userId: existingSupabaseUser.id } }).catch(() => {})
     } else if (existingSupabaseUser && existingSupabaseUser.email_confirmed_at) {
       return errorResult("Email đã được đăng ký.", "EMAIL_EXISTS")
     }
 
-    // Kiểm tra Prisma profile (trường hợp Supabase đã xoá nhưng Prisma còn)
     const existingProfile = await prisma.userProfile.findUnique({ where: { email } })
     if (existingProfile) {
       return errorResult("Email đã được đăng ký.", "EMAIL_EXISTS")
     }
 
-    // Kiểm tra mã sinh viên đã tồn tại chưa
     if (studentId) {
       const existingStudentId = await prisma.userProfile.findUnique({ where: { studentId } })
       if (existingStudentId) {
-        return errorResult("Mã sinh viên đã được đăng ký bởi tài khoản khác.", "STUDENT_ID_EXISTS")
+        return errorResult(
+          "Mã sinh viên đã được đăng ký bởi tài khoản khác.",
+          "STUDENT_ID_EXISTS",
+        )
       }
     }
 
@@ -89,7 +87,7 @@ export async function register(
       email_confirm: false,
       user_metadata: {
         display_name: displayName,
-        role: "STUDENT",
+        role,
       },
     })
 
@@ -105,7 +103,7 @@ export async function register(
         displayName,
         studentId: studentId ?? null,
         major: faculty ?? null,
-        role: "STUDENT",
+        role,
       },
     })
 
@@ -118,9 +116,7 @@ export async function register(
       },
     })
 
-    await sendEmailSafe(() =>
-      sendVerificationEmail(email, displayName, token)
-    )
+    await sendEmailSafe(() => sendVerificationEmail(email, displayName, token))
 
     return successResult({
       message: "Đăng ký thành công. Vui lòng kiểm tra email để xác minh tài khoản.",
@@ -131,9 +127,7 @@ export async function register(
   }
 }
 
-export async function verifyEmail(
-  token: string
-): Promise<ActionResult> {
+export async function verifyEmail(token: string): Promise<ActionResult> {
   try {
     const verification = await prisma.emailVerification.findUnique({
       where: { token },
@@ -148,10 +142,9 @@ export async function verifyEmail(
     }
 
     const supabaseAdmin = createAdminClient()
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      verification.userId,
-      { email_confirm: true }
-    )
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(verification.userId, {
+      email_confirm: true,
+    })
 
     if (error) {
       console.error("Update user metadata error:", error)
@@ -167,9 +160,7 @@ export async function verifyEmail(
   }
 }
 
-export async function resendVerification(
-  email: string
-): Promise<ActionResult> {
+export async function resendVerification(email: string): Promise<ActionResult> {
   try {
     const profile = await prisma.userProfile.findUnique({ where: { email } })
     if (!profile) {
@@ -191,9 +182,7 @@ export async function resendVerification(
       },
     })
 
-    await sendEmailSafe(() =>
-      sendVerificationEmail(email, profile.displayName, token)
-    )
+    await sendEmailSafe(() => sendVerificationEmail(email, profile.displayName, token))
 
     return successResult({
       message: "Nếu email tồn tại, chúng tôi đã gửi email xác minh.",
@@ -204,14 +193,14 @@ export async function resendVerification(
   }
 }
 
-export async function login(
-  email: string,
-  password: string
-): Promise<ActionResult> {
+export async function login(email: string, password: string): Promise<ActionResult> {
   try {
     const validated = loginSchema.safeParse({ email, password })
     if (!validated.success) {
-      return errorResult(validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+      return errorResult(
+        validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
+        "VALIDATION_ERROR",
+      )
     }
 
     const supabase = await createClient()
@@ -253,9 +242,7 @@ export async function logout(): Promise<void> {
   })
 }
 
-export async function forgotPassword(
-  email: string
-): Promise<ActionResult> {
+export async function forgotPassword(email: string): Promise<ActionResult> {
   try {
     const profile = await prisma.userProfile.findUnique({ where: { email } })
 
@@ -276,9 +263,7 @@ export async function forgotPassword(
       },
     })
 
-    await sendEmailSafe(() =>
-      sendPasswordResetEmail(email, profile.displayName, token)
-    )
+    await sendEmailSafe(() => sendPasswordResetEmail(email, profile.displayName, token))
 
     return successResult({
       message: "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.",
@@ -289,13 +274,14 @@ export async function forgotPassword(
   }
 }
 
-export async function resetPassword(
-  rawInput: unknown
-): Promise<ActionResult> {
+export async function resetPassword(rawInput: unknown): Promise<ActionResult> {
   try {
     const validated = resetPasswordSchema.safeParse(rawInput)
     if (!validated.success) {
-      return errorResult(validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+      return errorResult(
+        validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
+        "VALIDATION_ERROR",
+      )
     }
 
     const { token, password } = validated.data
@@ -306,7 +292,10 @@ export async function resetPassword(
     }
 
     if (reset.expiresAt < new Date()) {
-      return errorResult("Liên kết đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới.", "TOKEN_EXPIRED")
+      return errorResult(
+        "Liên kết đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới.",
+        "TOKEN_EXPIRED",
+      )
     }
 
     const supabaseAdmin = createAdminClient()
