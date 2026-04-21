@@ -76,7 +76,9 @@ model UserProfile {
   clubMemberships       ClubMember[]
   groupMemberships      GroupMember[]
   courseMemberships     CourseMember[]
+  ownedCourses          Course[]     @relation("CourseLecturer")
   userAdminRoles        UserAdminRole[]
+  grantedAdminRoles     UserAdminRole[] @relation("AdminRoleGrantor")
 
   initiatedFriendships  Friendship[] @relation("FriendshipRequester")
   receivedFriendships   Friendship[] @relation("FriendshipAddressee")
@@ -165,12 +167,15 @@ model Course {
   slug        String       @unique @map("slug")
   description String?      @map("description")
   coverUrl    String?      @map("cover_url")
+  lecturerId  String       @map("lecturer_id")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
   deletedAt   DateTime?    @map("deleted_at")
 
-  members CourseMember[]
+  lecturer UserProfile   @relation("CourseLecturer", fields: [lecturerId], references: [userId], onDelete: Restrict)
+  members  CourseMember[]
 
+  @@index([lecturerId])
   @@index([createdAt(sort: Desc)])
   @@map("courses")
 }
@@ -372,6 +377,7 @@ model PasswordReset {
 model AdminPermission {
   id          String                @id @default(cuid()) @map("admin_permission_id")
   code        String                @unique @map("code")
+  module      String                @map("module")
   name        String                @map("name")
   description String?               @map("description")
   createdAt   DateTime              @default(now()) @map("created_at")
@@ -413,12 +419,15 @@ model AdminRolePermission {
 model UserAdminRole {
   userId      String   @map("user_id")
   adminRoleId String   @map("admin_role_id")
-  assignedAt  DateTime @default(now()) @map("assigned_at")
+  grantedAt   DateTime @default(now()) @map("granted_at")
+  grantedBy   String?  @map("granted_by")
 
-  user      UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  adminRole AdminRole   @relation(fields: [adminRoleId], references: [id], onDelete: Cascade)
+  user          UserProfile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  adminRole     AdminRole    @relation(fields: [adminRoleId], references: [id], onDelete: Cascade)
+  grantedByUser UserProfile? @relation("AdminRoleGrantor", fields: [grantedBy], references: [userId], onDelete: SetNull)
 
   @@id([userId, adminRoleId])
   @@index([adminRoleId])
+  @@index([grantedBy])
   @@map("user_admin_roles")
 }
