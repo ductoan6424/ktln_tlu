@@ -2,7 +2,15 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 
+import { ForbiddenError } from "@/lib/errors"
 import { isSidebarItemActive } from "@/components/layout/main-sidebar"
+
+const requireAdminAccess = vi.hoisted(() => vi.fn())
+const redirect = vi.hoisted(() =>
+  vi.fn((href: string) => {
+    throw new Error(`REDIRECT:${href}`)
+  }),
+)
 
 vi.mock("next/link", () => ({
   default: ({
@@ -20,6 +28,11 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/admin/users/user-001/edit",
+  redirect,
+}))
+
+vi.mock("@/lib/auth/authorization", () => ({
+  requireAdminAccess,
 }))
 
 describe("admin layout", () => {
@@ -29,15 +42,35 @@ describe("admin layout", () => {
     expect(isSidebarItemActive("/admin/events/event-001", "/admin/users")).toBe(false)
   })
 
-  it("renders the desktop sidebar even when the mobile drawer is closed", async () => {
+  it("renders the guarded admin shell with the authenticated admin identity", async () => {
+    requireAdminAccess.mockResolvedValue({
+      baseRole: "ADMIN",
+      profile: {
+        displayName: "Phạm Gia Huy",
+        avatarUrl: null,
+      },
+    })
+
     const { default: AdminLayout } = await import("@/app/admin/layout")
     const markup = renderToStaticMarkup(
-      createElement(AdminLayout, null, createElement("div", null, "Admin body")),
+      await AdminLayout({ children: createElement("div", null, "Admin body") }),
     )
 
     expect(markup).toContain("Người dùng")
     expect(markup).toContain("Bảng điều khiển")
     expect(markup).toContain("Admin body")
-    expect(markup).toContain("Nguyễn Quản trị")
+    expect(markup).toContain("Phạm Gia Huy")
+    expect(markup).toContain("Quản trị viên")
+  })
+
+  it("redirects back to /feed when admin access is denied", async () => {
+    requireAdminAccess.mockRejectedValue(new ForbiddenError())
+
+    const { default: AdminLayout } = await import("@/app/admin/layout")
+
+    await expect(
+      AdminLayout({ children: createElement("div", null, "Admin body") }),
+    ).rejects.toThrow("REDIRECT:/feed")
+    expect(redirect).toHaveBeenCalledWith("/feed")
   })
 })
