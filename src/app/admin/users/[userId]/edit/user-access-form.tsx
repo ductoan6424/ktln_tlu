@@ -37,7 +37,12 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <form action={updateUserAccess} className="space-y-6">
+        <form
+          action={async (formData) => {
+            await updateUserAccess(formData)
+          }}
+          className="space-y-6"
+        >
           <input type="hidden" name="userId" value={user.userId} />
 
           <Card>
