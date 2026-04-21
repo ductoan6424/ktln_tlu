@@ -1,21 +1,23 @@
 import { notFound } from "next/navigation"
 
-import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { requireSystemAdmin } from "@/lib/auth/authorization"
+import { getUserAccessEditorData } from "@/lib/admin/users/users-admin-data"
 
-const usersModule = getAdminModule("users")
+import { UserAccessForm } from "./user-access-form"
 
 export default async function AdminEditUserPage({
   params,
 }: {
   params: Promise<{ userId: string }>
 }) {
-  const { userId } = await params
-  const record = usersModule.getRecord(userId)
+  await requireSystemAdmin()
 
-  if (!record) {
+  const { userId } = await params
+  const editorData = await getUserAccessEditorData(userId)
+
+  if (!editorData) {
     notFound()
   }
 
-  return <AdminFormPageShell<typeof record.cells> module={usersModule} mode="edit" record={record} />
+  return <UserAccessForm user={editorData.user} adminRoles={editorData.adminRoles} />
 }
