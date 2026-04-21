@@ -6,18 +6,18 @@ import { randomBytes } from "crypto"
 import { cookies } from "next/headers"
 import { z } from "zod"
 
-import { BASE_ROLE_VALUES } from "@/lib/auth/base-role"
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email/sender"
 import { prisma } from "@/lib/prisma/client"
 import { createAdminClient, createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 
+const SELF_REGISTER_ROLE = "STUDENT" as const
+
 const registerSchema = z.object({
   email: z.string().email().min(1, "Email không được trống"),
   password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
   displayName: z.string().min(2).max(100),
-  role: z.enum(BASE_ROLE_VALUES).default("STUDENT"),
   studentId: z
     .string()
     .regex(/^[A-Za-z]\d{5,10}$/, "Mã sinh viên phải có định dạng A + số (ví dụ: A46287)")
@@ -53,7 +53,7 @@ export async function register(rawInput: unknown): Promise<ActionResult> {
       )
     }
 
-    const { email, password, displayName, role, studentId, faculty } = validated.data
+    const { email, password, displayName, studentId, faculty } = validated.data
     const supabaseAdmin = createAdminClient()
 
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
@@ -87,7 +87,7 @@ export async function register(rawInput: unknown): Promise<ActionResult> {
       email_confirm: false,
       user_metadata: {
         display_name: displayName,
-        role,
+        role: SELF_REGISTER_ROLE,
       },
     })
 
@@ -103,7 +103,7 @@ export async function register(rawInput: unknown): Promise<ActionResult> {
         displayName,
         studentId: studentId ?? null,
         major: faculty ?? null,
-        role,
+        role: SELF_REGISTER_ROLE,
       },
     })
 

@@ -26,6 +26,7 @@ CREATE TABLE "courses" (
     "slug" TEXT NOT NULL,
     "description" TEXT,
     "cover_url" TEXT,
+    "lecturer_id" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "deleted_at" TIMESTAMP(3),
@@ -44,6 +45,7 @@ CREATE TABLE "course_members" (
 CREATE TABLE "admin_permissions" (
     "admin_permission_id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
+    "module" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -75,13 +77,15 @@ CREATE TABLE "admin_role_permissions" (
 CREATE TABLE "user_admin_roles" (
     "user_id" TEXT NOT NULL,
     "admin_role_id" TEXT NOT NULL,
-    "assigned_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "granted_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "granted_by" TEXT,
 
     CONSTRAINT "user_admin_roles_pkey" PRIMARY KEY ("user_id","admin_role_id")
 );
 
 CREATE UNIQUE INDEX "courses_code_key" ON "courses"("code");
 CREATE UNIQUE INDEX "courses_slug_key" ON "courses"("slug");
+CREATE INDEX "courses_lecturer_id_idx" ON "courses"("lecturer_id");
 CREATE INDEX "courses_created_at_idx" ON "courses"("created_at" DESC);
 CREATE INDEX "course_members_course_id_idx" ON "course_members"("course_id");
 
@@ -89,6 +93,12 @@ CREATE UNIQUE INDEX "admin_permissions_code_key" ON "admin_permissions"("code");
 CREATE UNIQUE INDEX "admin_roles_code_key" ON "admin_roles"("code");
 CREATE INDEX "admin_role_permissions_admin_permission_id_idx" ON "admin_role_permissions"("admin_permission_id");
 CREATE INDEX "user_admin_roles_admin_role_id_idx" ON "user_admin_roles"("admin_role_id");
+CREATE INDEX "user_admin_roles_granted_by_idx" ON "user_admin_roles"("granted_by");
+
+ALTER TABLE "courses"
+ADD CONSTRAINT "courses_lecturer_id_fkey"
+FOREIGN KEY ("lecturer_id") REFERENCES "user_profiles"("user_id")
+ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "course_members"
 ADD CONSTRAINT "course_members_user_id_fkey"
@@ -120,13 +130,18 @@ ADD CONSTRAINT "user_admin_roles_admin_role_id_fkey"
 FOREIGN KEY ("admin_role_id") REFERENCES "admin_roles"("admin_role_id")
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-INSERT INTO "admin_permissions" ("admin_permission_id", "code", "name", "description", "created_at", "updated_at") VALUES
-  ('perm_admin_access', 'admin.access', 'Admin access', 'Allows access to the admin area.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('perm_admin_users_read', 'admin.users.read', 'Read users', 'Allows viewing user administration data.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('perm_admin_users_manage', 'admin.users.manage', 'Manage users', 'Allows managing user accounts.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('perm_admin_posts_moderate', 'admin.posts.moderate', 'Moderate posts', 'Allows moderating posts and reports.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('perm_admin_courses_manage', 'admin.courses.manage', 'Manage courses', 'Allows managing courses and memberships.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('perm_admin_roles_manage', 'admin.roles.manage', 'Manage admin roles', 'Allows assigning admin roles and permissions.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+ALTER TABLE "user_admin_roles"
+ADD CONSTRAINT "user_admin_roles_granted_by_fkey"
+FOREIGN KEY ("granted_by") REFERENCES "user_profiles"("user_id")
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+INSERT INTO "admin_permissions" ("admin_permission_id", "code", "module", "name", "description", "created_at", "updated_at") VALUES
+  ('perm_admin_access', 'admin.access', 'admin', 'Admin access', 'Allows access to the admin area.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('perm_admin_users_read', 'admin.users.read', 'users', 'Read users', 'Allows viewing user administration data.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('perm_admin_users_manage', 'admin.users.manage', 'users', 'Manage users', 'Allows managing user accounts.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('perm_admin_posts_moderate', 'admin.posts.moderate', 'posts', 'Moderate posts', 'Allows moderating posts and reports.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('perm_admin_courses_manage', 'admin.courses.manage', 'courses', 'Manage courses', 'Allows managing courses and memberships.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('perm_admin_roles_manage', 'admin.roles.manage', 'roles', 'Manage admin roles', 'Allows assigning admin roles and permissions.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 INSERT INTO "admin_roles" ("admin_role_id", "code", "name", "description", "is_system", "created_at", "updated_at") VALUES
   ('role_user_admin', 'USER_ADMIN', 'User Admin', 'Built-in role for managing users.', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
