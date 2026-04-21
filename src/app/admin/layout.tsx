@@ -6,25 +6,17 @@ import { AppError } from "@/lib/errors"
 
 import { AdminLayoutClient } from "./admin-layout-client"
 
+export const dynamic = "force-dynamic"
+
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  try {
-    const context = await requireAdminAccess()
+  let context
 
-    return (
-      <AdminLayoutClient
-        user={{
-          name: context.profile.displayName,
-          role: getBaseRoleLabel(context.baseRole),
-          avatarSrc: context.profile.avatarUrl ?? undefined,
-        }}
-      >
-        {children}
-      </AdminLayoutClient>
-    )
+  try {
+    context = await requireAdminAccess()
   } catch (error) {
     if (error instanceof AppError) {
       redirect("/feed")
@@ -32,4 +24,16 @@ export default async function AdminLayout({
 
     throw error
   }
+
+  return (
+    <AdminLayoutClient
+      user={{
+        name: context.profile.displayName,
+        role: getBaseRoleLabel(context.baseRole),
+        avatarSrc: context.profile.avatarUrl ?? undefined,
+      }}
+    >
+      {children}
+    </AdminLayoutClient>
+  )
 }
