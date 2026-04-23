@@ -1,15 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { ConversationList, ConversationListSkeleton } from "@/components/messages/conversation-list"
+import { ConversationList } from "@/components/messages/conversation-list"
 import { ConversationItem } from "@/components/messages/conversation-item"
-import { ChatHeader, ChatHeaderSkeleton } from "@/components/messages/chat-header"
-import { ChatBubble, ChatBubbleSkeleton } from "@/components/messages/chat-bubble"
+import { ChatHeader } from "@/components/messages/chat-header"
+import { ChatBubble } from "@/components/messages/chat-bubble"
 import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { ChatAttachment } from "@/components/messages/chat-attachment"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 
@@ -144,21 +143,3 @@ export default function MessagesPage() {
     </div>
   )
 }
-
-export function MessagesPageSkeleton() {
-  return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      <ConversationListSkeleton />
-      <section className="flex-1 flex flex-col bg-card">
-        <ChatHeaderSkeleton />
-        <div className="flex-1 p-6 space-y-6 flex flex-col">
-          <Skeleton className="h-4 w-20 mx-auto" />
-          <ChatBubbleSkeleton />
-          <ChatBubbleSkeleton isOwn />
-          <ChatBubbleSkeleton />
-        </div>
-      </section>
-    </div>
-  )
-}
-

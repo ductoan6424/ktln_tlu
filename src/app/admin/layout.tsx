@@ -1,87 +1,39 @@
-"use client"
+import { redirect } from "next/navigation"
 
-import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
-import { AdminSidebar } from "@/components/admin/admin-sidebar"
-import { BreadcrumbNav } from "@/components/admin/breadcrumb-nav"
-import { IconButton } from "@/components/shared/icon-button"
-import { SearchInput } from "@/components/shared/search-input"
-import { Button } from "@/components/ui/button"
-import { getAdminBreadcrumbItems } from "@/lib/admin/admin-route-meta"
-import { Bell, Menu, X } from "lucide-react"
+import { getBaseRoleLabel } from "@/lib/auth/base-role"
+import { requireAdminAccess } from "@/lib/auth/authorization"
+import { AppError } from "@/lib/errors"
 
-const ADMIN_USER = {
-  name: "Nguyễn Quản trị",
-  role: "Quản trị viên",
-}
+import { AdminLayoutClient } from "./admin-layout-client"
 
-export default function AdminLayout({
+export const dynamic = "force-dynamic"
+
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const pathname = usePathname()
-  const breadcrumbs = getAdminBreadcrumbItems(pathname)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  let context
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSidebarOpen(false)
-  }, [pathname])
+  try {
+    context = await requireAdminAccess()
+  } catch (error) {
+    if (error instanceof AppError) {
+      redirect("/feed")
+    }
+
+    throw error
+  }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <div className="hidden lg:block">
-        <AdminSidebar activeHref={pathname} user={ADMIN_USER} />
-      </div>
-
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div
-            className="absolute inset-0 bg-black/40 transition-opacity"
-            onClick={() => setSidebarOpen(false)}
-          />
-          <div className="absolute inset-y-0 left-0 w-64 shadow-xl animate-in slide-in-from-left duration-200">
-            <AdminSidebar activeHref={pathname} user={ADMIN_USER} />
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-3 left-[17rem] size-8 rounded-full bg-card/80 text-foreground"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
-      )}
-
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 lg:h-16 border-b border-border bg-card flex items-center justify-between px-4 lg:px-8 shrink-0 gap-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-9 rounded-full shrink-0 lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Mở menu"
-            >
-              <Menu className="size-5" />
-            </Button>
-            <BreadcrumbNav items={breadcrumbs} />
-          </div>
-          <div className="flex items-center gap-3">
-            <SearchInput
-              placeholder="Tìm kiếm trong quản trị..."
-              className="hidden md:block w-64"
-            />
-            <div className="relative">
-              <IconButton icon={Bell} ariaLabel="Thông báo" />
-              <span className="absolute top-1 right-1 size-2 bg-destructive rounded-full border-2 border-card" />
-            </div>
-          </div>
-        </header>
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">{children}</div>
-      </main>
-    </div>
+    <AdminLayoutClient
+      user={{
+        name: context.profile.displayName,
+        role: getBaseRoleLabel(context.baseRole),
+        avatarSrc: context.profile.avatarUrl ?? undefined,
+      }}
+    >
+      {children}
+    </AdminLayoutClient>
   )
 }

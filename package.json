@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prisma:generate": "prisma generate",
+    "predev": "npm run prisma:generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "prebuild": "prisma generate",
-    "postinstall": "prisma generate"
+    "prebuild": "npm run prisma:generate",
+    "postinstall": "npm run prisma:generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

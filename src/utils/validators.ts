@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { POST_DELETE_REASON_MAX } from "@/lib/config/posts";
 
 // Validation schema cho đăng nhập
 export const loginSchema = z.object({
@@ -28,8 +29,14 @@ export const commentSchema = z.object({
   content: z.string().min(1, "Nội dung bình luận không được để trống").max(2000, "Bình luận tối đa 2000 ký tự"),
 });
 
+// Validation schema cho lý do xoá bài (admin/club admin/group admin)
+export const postDeleteReasonSchema = z.object({
+  reason: z.string().trim().max(POST_DELETE_REASON_MAX, `Lý do tối đa ${POST_DELETE_REASON_MAX} ký tự`).optional(),
+});
+
 // Export inferred types
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type PostInput = z.infer<typeof postSchema>;
 export type CommentInput = z.infer<typeof commentSchema>;
+export type PostDeleteReasonInput = z.infer<typeof postDeleteReasonSchema>;

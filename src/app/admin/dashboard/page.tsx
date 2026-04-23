@@ -3,7 +3,6 @@ import { UserAvatar } from "@/components/shared/user-avatar"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { ProgressBar } from "@/components/shared/progress-bar"
 import { SectionHeader } from "@/components/shared/section-header"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   Users,
   FileText,
@@ -225,30 +224,6 @@ export default function AdminDashboardPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
-  )
-}
-
-export function AdminDashboardSkeleton() {
-  return (
-    <div className="space-y-8">
-      <Skeleton className="h-8 w-40" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-5 space-y-3">
-              <Skeleton className="size-10 rounded-lg" />
-              <Skeleton className="h-8 w-20" />
-              <Skeleton className="h-3 w-28" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Skeleton className="h-60 rounded-lg" />
-        <Skeleton className="h-60 rounded-lg" />
-      </div>
-      <Skeleton className="h-72 rounded-lg" />
     </div>
   )
 }

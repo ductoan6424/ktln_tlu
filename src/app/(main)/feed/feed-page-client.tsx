@@ -54,6 +54,11 @@ interface FeedPost {
   }
   isLiked: boolean
   likes: number
+  permissions?: {
+    canDelete: boolean
+    canHide: boolean
+    deleteRole: "AUTHOR" | "MODERATOR" | null
+  }
 }
 
 interface FeedPageClientProps {
@@ -133,6 +138,7 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
         },
         isLiked: post.isLiked,
         likes: post.likes,
+        permissions: post.permissions,
       }))
 
       setPosts((prev) => {
@@ -284,6 +290,13 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
                       currentUserId={currentUser?.userId ?? null}
                       authorId={post.authorId}
                       onLike={() => handleLike(post.id)}
+                      permissions={post.permissions}
+                      onDeleted={() =>
+                        setPosts((prev) => prev.filter((p) => p.id !== post.id))
+                      }
+                      onHidden={() =>
+                        setPosts((prev) => prev.filter((p) => p.id !== post.id))
+                      }
                     />
                   ))}
 

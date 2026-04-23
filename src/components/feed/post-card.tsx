@@ -5,9 +5,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { PostHeader, PostHeaderSkeleton } from "@/components/feed/post-header"
 import { PostActions } from "@/components/feed/post-actions"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
+import { PostMenu } from "@/components/feed/post-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
+
+interface PostPermissions {
+  canDelete: boolean
+  canHide: boolean
+  deleteRole: "AUTHOR" | "MODERATOR" | null
+}
 
 interface PostCardProps {
   postId?: string
@@ -33,6 +40,9 @@ interface PostCardProps {
   currentUserId?: string | null
   authorId?: string
   onLike?: () => void
+  permissions?: PostPermissions
+  onDeleted?: () => void
+  onHidden?: () => void
 }
 
 export function PostCard({
@@ -59,6 +69,9 @@ export function PostCard({
   currentUserId,
   authorId,
   onLike,
+  permissions,
+  onDeleted,
+  onHidden,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
@@ -97,6 +110,18 @@ export function PostCard({
             tagVariant={tagVariant}
             isVerified={isVerified}
             subtitle={subtitle}
+            menu={
+              permissions && postId ? (
+                <PostMenu
+                  postId={postId}
+                  canDelete={permissions.canDelete}
+                  canHide={permissions.canHide}
+                  deleteRole={permissions.deleteRole}
+                  onDeleted={onDeleted}
+                  onHidden={onHidden}
+                />
+              ) : undefined
+            }
           />
 
           {/* Vùng clickable — Nội dung + Ảnh */}
@@ -165,6 +190,9 @@ export function PostCard({
         currentUserId={currentUserId}
         authorId={authorId}
         onLike={onLike}
+        permissions={permissions}
+        onDeleted={onDeleted}
+        onHidden={onHidden}
       />
     </>
   )
