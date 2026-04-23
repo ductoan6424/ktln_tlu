@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { SectionHeader } from "@/components/shared/section-header"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Save } from "lucide-react"
 
 const SETTINGS_TABS = [
@@ -342,29 +341,6 @@ function AdminToggle({
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <Switch defaultChecked={defaultChecked} />
-    </div>
-  )
-}
-
-export function AdminSettingsSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-9 w-32" />
-      </div>
-      <Skeleton className="h-10 w-full" />
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <Skeleton className="h-5 w-36" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   )
 }

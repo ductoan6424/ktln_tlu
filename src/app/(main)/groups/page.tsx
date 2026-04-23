@@ -8,7 +8,6 @@ import { SearchInput } from "@/components/shared/search-input"
 import { SectionHeader } from "@/components/shared/section-header"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { PageContainer } from "@/components/layout/page-container"
 import {
   Plus,
@@ -318,60 +317,5 @@ function GroupCard({ group }: { group: GroupData }) {
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-/* Skeleton */
-function GroupCardSkeleton() {
-  return (
-    <Card className="overflow-hidden">
-      <Skeleton className="h-32 w-full" />
-      <CardContent className="p-5 space-y-3">
-        <Skeleton className="h-5 w-2/3" />
-        <Skeleton className="h-4 w-full" />
-        <div className="flex gap-4">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-4 w-24" />
-        </div>
-        <div className="flex items-center justify-between pt-2 border-t">
-          <div className="flex -space-x-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="size-7 rounded-full" />
-            ))}
-          </div>
-          <Skeleton className="h-8 w-24" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-export function GroupsPageSkeleton() {
-  return (
-    <PageContainer variant="centered" className="space-y-6">
-      <div className="flex justify-between">
-        <Skeleton className="h-7 w-24" />
-        <Skeleton className="h-9 w-28" />
-      </div>
-      <div className="flex gap-4">
-        <Skeleton className="h-9 w-48" />
-        <div className="flex gap-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-28 rounded-full" />
-          ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <GroupCardSkeleton key={i} />
-          ))}
-        </div>
-        <div className="space-y-6">
-          <Skeleton className="h-52 w-full rounded-lg" />
-          <Skeleton className="h-36 w-full rounded-lg" />
-        </div>
-      </div>
-    </PageContainer>
   )
 }
