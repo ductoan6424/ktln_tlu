@@ -8,7 +8,7 @@ import { postSchema, commentSchema, postDeleteReasonSchema } from "@/utils/valid
 import { formatRelativeTime } from "@/utils/formatters"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
-import { resolveDeleteRole } from "@/lib/auth/post-permissions"
+import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
 import type { PostModerationAction } from "@prisma/client"
 
 const ROLE_TO_ACTION: Record<"ADMIN" | "CLUB_ADMIN" | "GROUP_ADMIN", PostModerationAction> = {
@@ -186,6 +186,12 @@ export async function togglePostLike(
 
 // ─── Load More Posts (infinite scroll) ────────────────────────────────────
 
+interface PostPermissions {
+  canDelete: boolean
+  canHide: boolean
+  deleteRole: "AUTHOR" | "MODERATOR" | null
+}
+
 interface PostWithAuthorFlat {
   id: string
   content: string
@@ -199,6 +205,7 @@ interface PostWithAuthorFlat {
   isLiked: boolean
   likes: number
   comments: number
+  permissions: PostPermissions
 }
 
 export async function loadMorePosts(
@@ -246,20 +253,45 @@ export async function loadMorePosts(
       skip,
     })
 
-    const formatted: PostWithAuthorFlat[] = posts.map((post) => ({
-      id: post.id,
-      content: post.content,
-      imageUrl: post.imageUrl,
-      createdAt: post.createdAt.toISOString(),
-      createdAtRelative: formatRelativeTime(post.createdAt),
-      visibility: post.visibility,
-      authorId: post.authorId,
-      authorDisplayName: post.author.displayName,
-      authorAvatarUrl: post.author.avatarUrl,
-      isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
-      likes: post._count.likes,
-      comments: post._count.comments,
-    }))
+    const formatted: PostWithAuthorFlat[] = await Promise.all(
+      posts.map(async (post) => {
+        let permissions: PostPermissions = {
+          canDelete: false,
+          canHide: false,
+          deleteRole: null,
+        }
+        if (currentUserId) {
+          const ctx = {
+            postId: post.id,
+            authorId: post.authorId,
+            clubId: post.clubId,
+            groupId: post.groupId,
+          }
+          const role = await resolveDeleteRole(currentUserId, ctx)
+          permissions = {
+            canDelete: role !== null,
+            canHide: canHidePost(currentUserId, ctx),
+            deleteRole:
+              role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
+          }
+        }
+        return {
+          id: post.id,
+          content: post.content,
+          imageUrl: post.imageUrl,
+          createdAt: post.createdAt.toISOString(),
+          createdAtRelative: formatRelativeTime(post.createdAt),
+          visibility: post.visibility,
+          authorId: post.authorId,
+          authorDisplayName: post.author.displayName,
+          authorAvatarUrl: post.author.avatarUrl,
+          isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
+          likes: post._count.likes,
+          comments: post._count.comments,
+          permissions,
+        }
+      }),
+    )
 
     return successResult(formatted)
   } catch (error) {
