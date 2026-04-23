@@ -18,6 +18,7 @@ import {
   Shield,
   Palette,
   Globe,
+  EyeOff,
 } from "lucide-react"
 import type { Metadata } from "next"
 
@@ -29,6 +30,10 @@ const SETTINGS_NAV = [
   { icon: Shield, label: "Bảo mật", value: "security" },
   { icon: Palette, label: "Giao diện", value: "appearance" },
   { icon: Globe, label: "Ngôn ngữ", value: "language" },
+]
+
+const SETTINGS_LINKS = [
+  { icon: EyeOff, label: "Bài viết đã ẩn", href: "/settings/hidden-posts" },
 ]
 
 interface UserProfile {
@@ -99,6 +104,20 @@ export default async function SettingsPage({
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                         }
                       `}
+                    >
+                      <Icon className="size-4" />
+                      {item.label}
+                    </Link>
+                  )
+                })}
+                <Separator className="my-1" />
+                {SETTINGS_LINKS.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                     >
                       <Icon className="size-4" />
                       {item.label}
