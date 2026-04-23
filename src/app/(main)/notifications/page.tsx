@@ -3,10 +3,9 @@
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { PriorityAlert, PriorityAlertSkeleton } from "@/components/notifications/priority-alert"
-import { NotificationItem, NotificationItemSkeleton } from "@/components/notifications/notification-item"
+import { PriorityAlert } from "@/components/notifications/priority-alert"
+import { NotificationItem } from "@/components/notifications/notification-item"
 import { TabNavigation } from "@/components/shared/tab-navigation"
-import { Skeleton } from "@/components/ui/skeleton"
 import { PageContainer } from "@/components/layout/page-container"
 import { GraduationCap, Users, Server, BookOpen } from "lucide-react"
 
@@ -124,26 +123,6 @@ export default function NotificationsPage() {
               </div>
             </section>
           </div>
-        </CardContent>
-      </Card>
-    </PageContainer>
-  )
-}
-
-export function NotificationsPageSkeleton() {
-  return (
-    <PageContainer variant="centered" className="space-y-6">
-      <div className="flex justify-between">
-        <Skeleton className="h-7 w-32" />
-        <Skeleton className="h-9 w-36" />
-      </div>
-      <Card>
-        <CardContent className="p-6 space-y-6">
-          <Skeleton className="h-10 w-full" />
-          <PriorityAlertSkeleton />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <NotificationItemSkeleton key={i} />
-          ))}
         </CardContent>
       </Card>
     </PageContainer>

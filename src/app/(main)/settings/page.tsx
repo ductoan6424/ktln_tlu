@@ -11,13 +11,13 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { SectionHeader } from "@/components/shared/section-header"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   User,
   Bell,
   Shield,
   Palette,
   Globe,
+  EyeOff,
 } from "lucide-react"
 import type { Metadata } from "next"
 
@@ -29,6 +29,10 @@ const SETTINGS_NAV = [
   { icon: Shield, label: "Bảo mật", value: "security" },
   { icon: Palette, label: "Giao diện", value: "appearance" },
   { icon: Globe, label: "Ngôn ngữ", value: "language" },
+]
+
+const SETTINGS_LINKS = [
+  { icon: EyeOff, label: "Bài viết đã ẩn", href: "/settings/hidden-posts" },
 ]
 
 interface UserProfile {
@@ -105,6 +109,20 @@ export default async function SettingsPage({
                     </Link>
                   )
                 })}
+                <Separator className="my-1" />
+                {SETTINGS_LINKS.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    >
+                      <Icon className="size-4" />
+                      {item.label}
+                    </Link>
+                  )
+                })}
               </nav>
             </CardContent>
           </Card>
@@ -128,7 +146,7 @@ export default async function SettingsPage({
 /* ------------------------------------------------------------------ */
 /* Hồ sơ cá nhân                                                       */
 /* ------------------------------------------------------------------ */
-export function ProfileSection({ profile }: { profile: UserProfile }) {
+function ProfileSection({ profile }: { profile: UserProfile }) {
   return (
     <Card>
       <CardContent className="p-6 space-y-6">
@@ -488,48 +506,5 @@ function LanguageOption({
       <span>{label}</span>
       <span className="text-xs text-muted-foreground uppercase">{code}</span>
     </div>
-  )
-}
-
-/* Skeleton */
-export function SettingsPageSkeleton() {
-  return (
-    <PageContainer variant="centered" className="space-y-6">
-      <Skeleton className="h-7 w-28" />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <aside className="lg:col-span-3">
-          <Card>
-            <CardContent className="p-2 space-y-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full rounded-md" />
-              ))}
-            </CardContent>
-          </Card>
-        </aside>
-        <section className="lg:col-span-9">
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <Skeleton className="h-5 w-32" />
-              <div className="flex items-center gap-6">
-                <Skeleton className="size-14 rounded-full" />
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-40" />
-                </div>
-              </div>
-              <Skeleton className="h-px w-full" />
-              <div className="grid grid-cols-2 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-9 w-full" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      </div>
-    </PageContainer>
   )
 }

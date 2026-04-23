@@ -1,8 +1,7 @@
 "use client"
-import { Skeleton } from "@/components/ui/skeleton";
 
 import { useState } from "react"
-import { PostCard, PostCardSkeleton } from "@/components/feed/post-card"
+import { PostCard } from "@/components/feed/post-card"
 import { PageContainer } from "@/components/layout/page-container"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Bookmark } from "lucide-react"
@@ -90,22 +89,6 @@ export default function SavedPage() {
           description="Bài viết bạn lưu sẽ hiển thị ở đây"
         />
       )}
-    </PageContainer>
-  )
-}
-
-export function SavedPageSkeleton() {
-  return (
-    <PageContainer variant="centered" className="space-y-4">
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-24" />
-      </div>
-      <div className="max-w-[640px] mx-auto flex flex-col gap-3">
-        <PostCardSkeleton />
-        <PostCardSkeleton />
-        <PostCardSkeleton />
-      </div>
     </PageContainer>
   )
 }

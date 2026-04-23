@@ -15,7 +15,6 @@ datasource db {
 enum UserRole {
   STUDENT
   LECTURER
-  CLUB_ADMIN
   ADMIN
 }
 
@@ -53,55 +52,69 @@ enum NotificationType {
   ANNOUNCEMENT
 }
 
+enum PostModerationAction {
+  DELETE_BY_ADMIN
+  DELETE_BY_CLUB_ADMIN
+  DELETE_BY_GROUP_ADMIN
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model UserProfile {
-  userId       String    @id @map("user_id")
-  email        String    @unique @map("email")
-  displayName  String    @map("display_name")
-  username     String?   @unique @map("username")
-  avatarUrl    String?   @map("avatar_url")
-  bio          String?   @map("bio")
-  studentId    String?   @unique @map("student_id")
-  role         UserRole  @default(STUDENT) @map("role")
-  major        String?   @map("major")
-  year         Int?      @map("year")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
+  userId      String    @id @map("user_id")
+  email       String    @unique @map("email")
+  displayName String    @map("display_name")
+  username    String?   @unique @map("username")
+  avatarUrl   String?   @map("avatar_url")
+  bio         String?   @map("bio")
+  studentId   String?   @unique @map("student_id")
+  role        UserRole  @default(STUDENT) @map("role")
+  major       String?   @map("major")
+  year        Int?      @map("year")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-  posts                 Post[]
-  comments              Comment[]
-  likes                 Like[]
-  notifications         Notification[]
-  clubMemberships       ClubMember[]
-  groupMemberships      GroupMember[]
+  posts             Post[]
+  comments          Comment[]
+  likes             Like[]
+  notifications     Notification[]
+  clubMemberships   ClubMember[]
+  groupMemberships  GroupMember[]
+  courseMemberships CourseMember[]
+  ownedCourses      Course[]        @relation("CourseLecturer")
+  userAdminRoles    UserAdminRole[]
+  grantedAdminRoles UserAdminRole[] @relation("AdminRoleGrantor")
 
-  initiatedFriendships  Friendship[] @relation("FriendshipRequester")
-  receivedFriendships   Friendship[] @relation("FriendshipAddressee")
+  hiddenPosts       HiddenPost[]
+  deletedPosts      Post[]              @relation("PostDeletedBy")
+  moderationActions PostModerationLog[] @relation("ModerationActor")
 
-  sentMessages          Message[]                @relation("MessageSender")
+  initiatedFriendships Friendship[] @relation("FriendshipRequester")
+  receivedFriendships  Friendship[] @relation("FriendshipAddressee")
+
+  sentMessages               Message[]                 @relation("MessageSender")
   conversationParticipations ConversationParticipant[]
 
-  emailVerifications    EmailVerification[]
-  passwordResets        PasswordReset[]
+  emailVerifications EmailVerification[]
+  passwordResets     PasswordReset[]
 
   @@map("user_profiles")
 }
 
 model Club {
-  id          String        @id @default(cuid()) @map("club_id")
-  name        String        @map("name")
-  slug        String        @unique @map("slug")
-  description String?       @map("description")
-  coverUrl    String?       @map("cover_url")
-  logoUrl     String?       @map("logo_url")
-  category    String?       @map("category")
+  id          String         @id @default(cuid()) @map("club_id")
+  name        String         @map("name")
+  slug        String         @unique @map("slug")
+  description String?        @map("description")
+  coverUrl    String?        @map("cover_url")
+  logoUrl     String?        @map("logo_url")
+  category    String?        @map("category")
   visibility  PostVisibility @default(PUBLIC) @map("visibility")
-  foundedAt   DateTime?     @map("founded_at")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  deletedAt   DateTime?     @map("deleted_at")
+  foundedAt   DateTime?      @map("founded_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  deletedAt   DateTime?      @map("deleted_at")
 
   members ClubMember[]
   posts   Post[]
@@ -111,15 +124,15 @@ model Club {
 }
 
 model Group {
-  id          String        @id @default(cuid()) @map("group_id")
-  name        String        @map("name")
-  slug        String        @unique @map("slug")
-  description String?       @map("description")
-  coverUrl    String?       @map("cover_url")
+  id          String         @id @default(cuid()) @map("group_id")
+  name        String         @map("name")
+  slug        String         @unique @map("slug")
+  description String?        @map("description")
+  coverUrl    String?        @map("cover_url")
   visibility  PostVisibility @default(PUBLIC) @map("visibility")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  deletedAt   DateTime?     @map("deleted_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  deletedAt   DateTime?      @map("deleted_at")
 
   members       GroupMember[]
   posts         Post[]
@@ -145,38 +158,78 @@ model ClubMember {
 
 model GroupMember {
   userId   String     @map("user_id")
-  groupId String     @map("group_id")
-  role    MemberRole @default(MEMBER) @map("role")
-  joinedAt DateTime  @default(now()) @map("joined_at")
+  groupId  String     @map("group_id")
+  role     MemberRole @default(MEMBER) @map("role")
+  joinedAt DateTime   @default(now()) @map("joined_at")
 
   user  UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  group Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([userId, groupId])
   @@index([groupId])
   @@map("group_members")
 }
 
-model Post {
-  id         String        @id @default(cuid()) @map("post_id")
-  content    String        @map("content")
-  imageUrl   String?      @map("image_url")
-  visibility PostVisibility @default(PUBLIC) @map("visibility")
-  createdAt  DateTime      @default(now()) @map("created_at")
-  updatedAt  DateTime      @updatedAt @map("updated_at")
-  deletedAt  DateTime?     @map("deleted_at")
+model Course {
+  id          String    @id @default(cuid()) @map("course_id")
+  code        String    @unique @map("code")
+  name        String    @map("name")
+  slug        String    @unique @map("slug")
+  description String?   @map("description")
+  coverUrl    String?   @map("cover_url")
+  lecturerId  String    @map("lecturer_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-  authorId String       @map("author_id")
-  author   UserProfile  @relation(fields: [authorId], references: [userId], onDelete: Cascade)
+  lecturer UserProfile    @relation("CourseLecturer", fields: [lecturerId], references: [userId], onDelete: Restrict)
+  members  CourseMember[]
+
+  @@index([lecturerId])
+  @@index([createdAt(sort: Desc)])
+  @@map("courses")
+}
+
+model CourseMember {
+  userId   String   @map("user_id")
+  courseId String   @map("course_id")
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  user   UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  course Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([userId, courseId])
+  @@index([courseId])
+  @@map("course_members")
+}
+
+model Post {
+  id            String         @id @default(cuid()) @map("post_id")
+  content       String         @map("content")
+  imageUrl      String?        @map("image_url")
+  mediaUrls     Json?          @map("media_urls")
+  visibility    PostVisibility @default(PUBLIC) @map("visibility")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+  deletedBy     String?        @map("deleted_by")
+  deletedReason String?        @map("deleted_reason")
+
+  authorId String      @map("author_id")
+  author   UserProfile @relation(fields: [authorId], references: [userId], onDelete: Cascade)
+
+  deletedByUser UserProfile? @relation("PostDeletedBy", fields: [deletedBy], references: [userId], onDelete: SetNull)
 
   clubId String? @map("club_id")
-  club   Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  club   Club?   @relation(fields: [clubId], references: [id], onDelete: SetNull)
 
   groupId String? @map("group_id")
-  group   Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
-  comments Comment[]
-  likes    Like[]
+  comments       Comment[]
+  likes          Like[]
+  hiddenBy       HiddenPost[]
+  moderationLogs PostModerationLog[]
 
   @@index([authorId])
   @@index([visibility])
@@ -197,10 +250,10 @@ model Comment {
   author   UserProfile @relation(fields: [authorId], references: [userId], onDelete: Cascade)
 
   postId String @map("post_id")
-  post   Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  parentId String?  @map("parent_id")
-  parent   Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId String?   @map("parent_id")
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies  Comment[] @relation("CommentReplies")
 
   likes Like[]
@@ -220,7 +273,7 @@ model Like {
   user   UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   postId String? @map("post_id")
-  post   Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   commentId String?  @map("comment_id")
   comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
@@ -247,11 +300,11 @@ model Conversation {
 }
 
 model ConversationParticipant {
-  conversationId String       @map("conversation_id")
-  userId        String       @map("user_id")
-  joinedAt      DateTime     @default(now()) @map("joined_at")
-  lastReadAt    DateTime?    @map("last_read_at")
-  isAdmin       Boolean      @default(false) @map("is_admin")
+  conversationId String    @map("conversation_id")
+  userId         String    @map("user_id")
+  joinedAt       DateTime  @default(now()) @map("joined_at")
+  lastReadAt     DateTime? @map("last_read_at")
+  isAdmin        Boolean   @default(false) @map("is_admin")
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         UserProfile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
@@ -336,4 +389,91 @@ model PasswordReset {
   user UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("password_resets")
+}
+
+model AdminPermission {
+  id          String   @id @default(cuid()) @map("admin_permission_id")
+  code        String   @unique @map("code")
+  module      String   @map("module")
+  name        String   @map("name")
+  description String?  @map("description")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  adminRolePermissions AdminRolePermission[]
+
+  @@map("admin_permissions")
+}
+
+model AdminRole {
+  id          String   @id @default(cuid()) @map("admin_role_id")
+  code        String   @unique @map("code")
+  name        String   @map("name")
+  description String?  @map("description")
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  adminRolePermissions AdminRolePermission[]
+  userAdminRoles       UserAdminRole[]
+
+  @@map("admin_roles")
+}
+
+model AdminRolePermission {
+  adminRoleId       String   @map("admin_role_id")
+  adminPermissionId String   @map("admin_permission_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  adminRole       AdminRole       @relation(fields: [adminRoleId], references: [id], onDelete: Cascade)
+  adminPermission AdminPermission @relation(fields: [adminPermissionId], references: [id], onDelete: Cascade)
+
+  @@id([adminRoleId, adminPermissionId])
+  @@index([adminPermissionId])
+  @@map("admin_role_permissions")
+}
+
+model UserAdminRole {
+  userId      String   @map("user_id")
+  adminRoleId String   @map("admin_role_id")
+  grantedAt   DateTime @default(now()) @map("granted_at")
+  grantedBy   String?  @map("granted_by")
+
+  user          UserProfile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  adminRole     AdminRole    @relation(fields: [adminRoleId], references: [id], onDelete: Cascade)
+  grantedByUser UserProfile? @relation("AdminRoleGrantor", fields: [grantedBy], references: [userId], onDelete: SetNull)
+
+  @@id([userId, adminRoleId])
+  @@index([adminRoleId])
+  @@index([grantedBy])
+  @@map("user_admin_roles")
+}
+
+model HiddenPost {
+  userId   String   @map("user_id")
+  postId   String   @map("post_id")
+  hiddenAt DateTime @default(now()) @map("hidden_at")
+
+  user UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  post Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([userId, hiddenAt(sort: Desc)])
+  @@map("hidden_posts")
+}
+
+model PostModerationLog {
+  id        String               @id @default(cuid()) @map("log_id")
+  postId    String               @map("post_id")
+  actorId   String               @map("actor_id")
+  action    PostModerationAction @map("action")
+  reason    String?              @map("reason")
+  createdAt DateTime             @default(now()) @map("created_at")
+
+  post  Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  actor UserProfile @relation("ModerationActor", fields: [actorId], references: [userId], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@map("post_moderation_logs")
 }

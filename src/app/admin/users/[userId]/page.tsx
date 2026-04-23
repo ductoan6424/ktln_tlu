@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { AdminDetailPageShell } from "@/components/admin/shells/admin-detail-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
-
-const usersModule = getAdminModule("users")
+import { getUsersAdminModule } from "@/lib/admin/users/users-admin-data"
 
 export default async function AdminUserDetailPage({
   params,
@@ -11,6 +9,7 @@ export default async function AdminUserDetailPage({
   params: Promise<{ userId: string }>
 }) {
   const { userId } = await params
+  const usersModule = await getUsersAdminModule()
 
   if (!usersModule.getRecord(userId)) {
     notFound()

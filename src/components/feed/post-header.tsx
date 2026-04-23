@@ -3,6 +3,7 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { IconButton } from "@/components/shared/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MoreHorizontal, BadgeCheck } from "lucide-react"
+import type { ReactNode } from "react"
 
 interface PostHeaderProps {
   authorName: string
@@ -13,6 +14,7 @@ interface PostHeaderProps {
   isVerified?: boolean
   subtitle?: string
   onMore?: () => void
+  menu?: ReactNode
 }
 
 export function PostHeader({
@@ -24,6 +26,7 @@ export function PostHeader({
   isVerified = false,
   subtitle,
   onMore,
+  menu,
 }: PostHeaderProps) {
   return (
     <div className="flex justify-between items-start">
@@ -50,12 +53,16 @@ export function PostHeader({
           </p>
         </div>
       </div>
-      <IconButton
-        icon={MoreHorizontal}
-        size="sm"
-        onClick={onMore}
-        ariaLabel="Thêm tùy chọn"
-      />
+      {menu !== undefined ? (
+        <div className="shrink-0">{menu}</div>
+      ) : (
+        <IconButton
+          icon={MoreHorizontal}
+          size="sm"
+          onClick={onMore}
+          ariaLabel="Thêm tùy chọn"
+        />
+      )}
     </div>
   )
 }

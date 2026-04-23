@@ -1,51 +1,18 @@
 "use client"
 
 import Link from "next/link"
-import { useParams } from "next/navigation"
 import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+
 import { ClubHero, ClubHeroSkeleton } from "@/components/clubs/club-hero"
 import { MemberItem, MemberItemSkeleton } from "@/components/clubs/member-item"
 import { PostCard, PostCardSkeleton } from "@/components/feed/post-card"
 import { PostComposer } from "@/components/feed/post-composer"
-import { TabNavigation } from "@/components/shared/tab-navigation"
-import { Skeleton } from "@/components/ui/skeleton"
 import { PageContainer } from "@/components/layout/page-container"
-import { Rss, Users, CalendarDays, Info, Settings, ChevronLeft } from "lucide-react"
-
-const COURSES: Record<string, {
-  name: string; subject: string; studentCount: number; lecturer: string; coverImage: string
-}> = {
-  cs101: {
-    name: "Lập trình Python",
-    subject: "CS101",
-    studentCount: 45,
-    lecturer: "TS. Nguyễn Văn Minh",
-    coverImage: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=1200&h=400&fit=crop",
-  },
-  cntt: {
-    name: "Công nghệ thông tin",
-    subject: "CNTT",
-    studentCount: 120,
-    lecturer: "TS. Trần Văn Minh",
-    coverImage: "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=1200&h=400&fit=crop",
-  },
-  ktso: {
-    name: "Kỹ thuật số",
-    subject: "KTSO",
-    studentCount: 30,
-    lecturer: "ThS. Lê Hoàng Nam",
-    coverImage: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=400&fit=crop",
-  },
-  java: {
-    name: "Lập trình Java",
-    subject: "CS102",
-    studentCount: 80,
-    lecturer: "TS. Phạm Đình Khoa",
-    coverImage: "https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=1200&h=400&fit=crop",
-  },
-}
+import { TabNavigation } from "@/components/shared/tab-navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { CalendarDays, ChevronLeft, Info, Rss, Settings, Users } from "lucide-react"
 
 const TABS = [
   { label: "Bảng tin", value: "feed", icon: Rss },
@@ -54,27 +21,14 @@ const TABS = [
   { label: "Giới thiệu", value: "about", icon: Info },
 ]
 
-const STUDENTS = [
-  { name: "TS. Lê Văn Luyện", role: "Giảng viên" },
-  { name: "Hoàng Văn Thái Giám", role: "Lớp trưởng" },
-  { name: "Lê Thị Hương", role: "Lớp phó" },
-]
-
 const POSTS = [
   {
-    authorName: "TS. Lê Văn Luyện",
+    authorName: "Thông báo lớp",
     createdAt: "1 giờ trước",
-    content: "Tuần này chúng ta sẽ học về list comprehension và dictionary trong Python. Các bạn chuẩn bị bài thật kỹ nhé!",
-    likes: 32,
-    comments: 8,
-  },
-  {
-    authorName: "Hoàng Văn Thái Giám",
-    createdAt: "3 giờ trước",
-    content: "Mình chia sẻ lại tài liệu ôn thi giữa kỳ cho mọi người. Chúc cả lớp thi tốt! 📚",
-    likes: 45,
-    comments: 12,
-    imageUrl: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=400&fit=crop",
+    content:
+      "Bảng tin lớp học đang ở giai đoạn kết nối dữ liệu. Các bài viết và thông báo chi tiết sẽ được đồng bộ ở bước tiếp theo.",
+    likes: 12,
+    comments: 3,
   },
 ]
 
@@ -83,26 +37,36 @@ interface CurrentUser {
   avatarUrl: string | null
 }
 
-export function CourseDetailClient({ currentUser }: { currentUser: CurrentUser | null }) {
-  const params = useParams()
-  const courseId = params.courseId as string
-  const course = COURSES[courseId] ?? {
-    name: "Môn học",
-    subject: "",
-    studentCount: 0,
-    lecturer: "Chưa có",
-    coverImage: "",
+interface CourseDetailClientProps {
+  currentUser: CurrentUser | null
+  course: {
+    id: string
+    name: string
+    subject: string
+    description: string | null
+    studentCount: number
+    lecturer: string
+    coverImage: string
+    members: Array<{
+      name: string
+      role: string
+    }>
   }
+  canManage: boolean
+}
+
+export function CourseDetailClient({
+  currentUser,
+  course,
+  canManage,
+}: CourseDetailClientProps) {
   const [activeTab, setActiveTab] = useState("feed")
 
   return (
     <PageContainer variant="centered">
-      <ClubHero
-        coverImage={course.coverImage}
-        title={course.name}
-      />
+      <ClubHero coverImage={course.coverImage} title={course.name} />
 
-      <div className="flex flex-col md:flex-row md:items-center gap-4 py-4">
+      <div className="flex flex-col gap-4 py-4 md:flex-row md:items-center">
         <div className="flex items-center gap-2">
           <Link href="/courses">
             <Button variant="ghost" size="icon" className="shrink-0">
@@ -112,18 +76,22 @@ export function CourseDetailClient({ currentUser }: { currentUser: CurrentUser |
         </div>
         <div className="flex-1">
           <h2 className="text-xl font-bold">{course.name}</h2>
-          <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
-            <span>📚 {course.subject}</span>
-            <span>👥 {course.studentCount} sinh viên</span>
-            <span>👨‍🏫 {course.lecturer}</span>
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            <span>{course.subject}</span>
+            <span>{course.studentCount} sinh viên</span>
+            <span>{course.lecturer}</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
-            <Settings className="size-4" />
-            Quản lý
-          </Button>
-        </div>
+        {canManage ? (
+          <div className="flex items-center gap-3">
+            <Link href={`/courses/${course.id}/manage`}>
+              <Button variant="outline" className="gap-2">
+                <Settings className="size-4" />
+                Quản lý
+              </Button>
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       <TabNavigation
@@ -133,22 +101,21 @@ export function CourseDetailClient({ currentUser }: { currentUser: CurrentUser |
         className="mb-8"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <section className="lg:col-span-2 space-y-6">
-          {currentUser && (
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <section className="space-y-6 lg:col-span-2">
+          {currentUser ? (
             <PostComposer
               userName={currentUser.displayName}
               userAvatar={currentUser.avatarUrl ?? undefined}
             />
-          )}
+          ) : null}
 
-          {POSTS.map((post, i) => (
+          {POSTS.map((post, index) => (
             <PostCard
-              key={i}
+              key={index}
               authorName={post.authorName}
               createdAt={post.createdAt}
               content={post.content}
-              imageUrl={post.imageUrl}
               likes={post.likes}
               comments={post.comments}
             />
@@ -158,20 +125,21 @@ export function CourseDetailClient({ currentUser }: { currentUser: CurrentUser |
         <aside className="space-y-6">
           <Card>
             <CardContent className="p-5">
-              <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                👨‍🏫 Giáo viên & Lớp trưởng
-              </h3>
+              <h3 className="mb-4 text-sm font-bold">Thành viên nổi bật</h3>
               <div className="space-y-4">
-                {STUDENTS.map((s) => (
-                  <MemberItem key={s.name} name={s.name} role={s.role} />
+                {course.members.slice(0, 6).map((member) => (
+                  <MemberItem key={`${member.name}-${member.role}`} name={member.name} role={member.role} />
                 ))}
               </div>
-              <Button
-                variant="ghost"
-                className="w-full mt-4 text-primary text-xs font-bold bg-primary/10 hover:bg-primary/20"
-              >
-                Xem danh sách lớp
-              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-2 p-5">
+              <h3 className="text-sm font-bold">Giới thiệu lớp học</h3>
+              <p className="text-sm text-muted-foreground">
+                {course.description ?? "Giảng viên chưa cập nhật mô tả cho lớp học này."}
+              </p>
             </CardContent>
           </Card>
         </aside>
@@ -185,14 +153,14 @@ export function CourseDetailPageSkeleton() {
     <PageContainer variant="centered" className="space-y-4">
       <ClubHeroSkeleton />
       <Skeleton className="h-10 w-full" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <PostCardSkeleton />
           <PostCardSkeleton />
         </div>
         <div className="space-y-6">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <MemberItemSkeleton key={i} />
+          {Array.from({ length: 3 }).map((_, index) => (
+            <MemberItemSkeleton key={index} />
           ))}
         </div>
       </div>

@@ -2,33 +2,39 @@ import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma/client"
 import { FeedPageClient } from "./feed-page-client"
 import { formatRelativeTime } from "@/utils/formatters"
+import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
 
 const PAGE_SIZE = 20
 
-interface PostWithAuthor {
-  id: string
-  content: string
-  imageUrl: string | null
-  createdAt: Date
-  visibility: string
-  authorId: string
-  author: {
-    displayName: string
-    avatarUrl: string | null
-  }
-  isLiked: boolean
-  likes: number
-}
-
-export async function getInitialPosts(): Promise<PostWithAuthor[]> {
+export default async function FeedPage() {
   const supabase = await createClient()
   const { data: authData } = await supabase.auth.getUser()
   const currentUserId = authData.user?.id ?? null
 
-  return prisma.post.findMany({
+  let currentUser: { userId: string; displayName: string; avatarUrl: string | null } | null = null
+
+  if (authData.user) {
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId: authData.user.id },
+      select: { userId: true, displayName: true, avatarUrl: true },
+    })
+    currentUser = profile
+  }
+
+  const hiddenIds = currentUserId
+    ? (
+        await prisma.hiddenPost.findMany({
+          where: { userId: currentUserId },
+          select: { postId: true },
+        })
+      ).map((h) => h.postId)
+    : []
+
+  const rawPosts = await prisma.post.findMany({
     where: {
       visibility: "PUBLIC",
       deletedAt: null,
+      ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
     },
     include: {
       author: {
@@ -47,33 +53,49 @@ export async function getInitialPosts(): Promise<PostWithAuthor[]> {
     orderBy: { createdAt: "desc" },
     take: PAGE_SIZE,
     skip: 0,
-  }) as unknown as Promise<PostWithAuthor[]>
-}
+  })
 
-export default async function FeedPage() {
-  const supabase = await createClient()
-  const { data: authData } = await supabase.auth.getUser()
-
-  let currentUser: { userId: string; displayName: string; avatarUrl: string | null } | null = null
-
-  if (authData.user) {
-    const profile = await prisma.userProfile.findUnique({
-      where: { userId: authData.user.id },
-      select: { userId: true, displayName: true, avatarUrl: true },
-    })
-    currentUser = profile
-  }
-
-  const initialPosts = await getInitialPosts()
-
-  const postsWithFormattedTime = initialPosts.map((post) => ({
-    ...post,
-    createdAt: formatRelativeTime(post.createdAt),
-    isLiked: Array.isArray((post as unknown as { likes?: unknown[] }).likes)
-      ? ((post as unknown as { likes: unknown[] }).likes.length ?? 0) > 0
-      : false,
-    likes: (post as unknown as { _count?: { likes: number } })._count?.likes ?? 0,
-  }))
+  const postsWithFormattedTime = await Promise.all(
+    rawPosts.map(async (post) => {
+      let permissions = {
+        canDelete: false,
+        canHide: false,
+        deleteRole: null as "AUTHOR" | "MODERATOR" | null,
+      }
+      if (currentUserId) {
+        const ctx = {
+          postId: post.id,
+          authorId: post.authorId,
+          clubId: post.clubId,
+          groupId: post.groupId,
+        }
+        const role = await resolveDeleteRole(currentUserId, ctx)
+        permissions = {
+          canDelete: role !== null,
+          canHide: canHidePost(currentUserId, ctx),
+          deleteRole:
+            role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
+        }
+      }
+      return {
+        id: post.id,
+        content: post.content,
+        imageUrl: post.imageUrl,
+        createdAt: formatRelativeTime(post.createdAt),
+        visibility: post.visibility,
+        authorId: post.authorId,
+        author: {
+          displayName: post.author.displayName,
+          avatarUrl: post.author.avatarUrl,
+        },
+        isLiked: Array.isArray((post as unknown as { likes?: unknown[] }).likes)
+          ? ((post as unknown as { likes: unknown[] }).likes.length ?? 0) > 0
+          : false,
+        likes: post._count.likes,
+        permissions,
+      }
+    }),
+  )
 
   return <FeedPageClient currentUser={currentUser} initialPosts={postsWithFormattedTime} />
 }

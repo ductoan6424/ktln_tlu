@@ -4,10 +4,18 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { UploadValidationError, uploadPostImage } from "@/lib/cloudinary/upload"
 import { prisma } from "@/lib/prisma/client"
-import { postSchema, commentSchema } from "@/utils/validators"
+import { postSchema, commentSchema, postDeleteReasonSchema } from "@/utils/validators"
 import { formatRelativeTime } from "@/utils/formatters"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
+import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
+import type { PostModerationAction } from "@prisma/client"
+
+const ROLE_TO_ACTION: Record<"ADMIN" | "CLUB_ADMIN" | "GROUP_ADMIN", PostModerationAction> = {
+  ADMIN: "DELETE_BY_ADMIN",
+  CLUB_ADMIN: "DELETE_BY_CLUB_ADMIN",
+  GROUP_ADMIN: "DELETE_BY_GROUP_ADMIN",
+}
 
 // ─── Type for created post data ─────────────────────────────────────────────
 
@@ -178,6 +186,12 @@ export async function togglePostLike(
 
 // ─── Load More Posts (infinite scroll) ────────────────────────────────────
 
+interface PostPermissions {
+  canDelete: boolean
+  canHide: boolean
+  deleteRole: "AUTHOR" | "MODERATOR" | null
+}
+
 interface PostWithAuthorFlat {
   id: string
   content: string
@@ -191,6 +205,7 @@ interface PostWithAuthorFlat {
   isLiked: boolean
   likes: number
   comments: number
+  permissions: PostPermissions
 }
 
 export async function loadMorePosts(
@@ -204,10 +219,20 @@ export async function loadMorePosts(
 
     const skip = page * pageSize
 
+    const hiddenIds = currentUserId
+      ? (
+          await prisma.hiddenPost.findMany({
+            where: { userId: currentUserId },
+            select: { postId: true },
+          })
+        ).map((h) => h.postId)
+      : []
+
     const posts = await prisma.post.findMany({
       where: {
         visibility: "PUBLIC",
         deletedAt: null,
+        ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
       },
       include: {
         author: {
@@ -228,20 +253,45 @@ export async function loadMorePosts(
       skip,
     })
 
-    const formatted: PostWithAuthorFlat[] = posts.map((post) => ({
-      id: post.id,
-      content: post.content,
-      imageUrl: post.imageUrl,
-      createdAt: post.createdAt.toISOString(),
-      createdAtRelative: formatRelativeTime(post.createdAt),
-      visibility: post.visibility,
-      authorId: post.authorId,
-      authorDisplayName: post.author.displayName,
-      authorAvatarUrl: post.author.avatarUrl,
-      isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
-      likes: post._count.likes,
-      comments: post._count.comments,
-    }))
+    const formatted: PostWithAuthorFlat[] = await Promise.all(
+      posts.map(async (post) => {
+        let permissions: PostPermissions = {
+          canDelete: false,
+          canHide: false,
+          deleteRole: null,
+        }
+        if (currentUserId) {
+          const ctx = {
+            postId: post.id,
+            authorId: post.authorId,
+            clubId: post.clubId,
+            groupId: post.groupId,
+          }
+          const role = await resolveDeleteRole(currentUserId, ctx)
+          permissions = {
+            canDelete: role !== null,
+            canHide: canHidePost(currentUserId, ctx),
+            deleteRole:
+              role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
+          }
+        }
+        return {
+          id: post.id,
+          content: post.content,
+          imageUrl: post.imageUrl,
+          createdAt: post.createdAt.toISOString(),
+          createdAtRelative: formatRelativeTime(post.createdAt),
+          visibility: post.visibility,
+          authorId: post.authorId,
+          authorDisplayName: post.author.displayName,
+          authorAvatarUrl: post.author.avatarUrl,
+          isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
+          likes: post._count.likes,
+          comments: post._count.comments,
+          permissions,
+        }
+      }),
+    )
 
     return successResult(formatted)
   } catch (error) {
@@ -253,9 +303,9 @@ export async function loadMorePosts(
 // ─── Delete Post (soft delete) ────────────────────────────────────────────
 
 export async function deletePost(
-  postId: string
+  postId: string,
+  reason?: string,
 ): Promise<ActionResult<{ id: string }>> {
-  // 1. Check session
   const supabase = await createClient()
   const { data: userData, error: authError } = await supabase.auth.getUser()
 
@@ -265,36 +315,95 @@ export async function deletePost(
 
   const userId = userData.user.id
 
-  // 2. Query post and verify ownership
+  const parsed = postDeleteReasonSchema.safeParse({ reason })
+  if (!parsed.success) {
+    return errorResult(
+      parsed.error.issues[0]?.message ?? "Lý do không hợp lệ",
+      "VALIDATION_ERROR",
+    )
+  }
+
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      authorId: true,
+      clubId: true,
+      groupId: true,
+      deletedAt: true,
+      content: true,
+    },
+  })
+  if (!post) {
+    return errorResult("Bài viết không tồn tại.", "NOT_FOUND")
+  }
+  if (post.deletedAt) {
+    return errorResult("Bài viết đã bị xóa.", "ALREADY_DELETED")
+  }
+
+  const ctx = {
+    postId,
+    authorId: post.authorId,
+    clubId: post.clubId,
+    groupId: post.groupId,
+  }
+  const role = await resolveDeleteRole(userId, ctx)
+  if (!role) {
+    return errorResult("Bạn không có quyền xóa bài viết này.", "FORBIDDEN")
+  }
+
   try {
-    const post = await prisma.post.findUnique({
-      where: { id: postId },
-      select: { authorId: true, deletedAt: true },
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.post.updateMany({
+        where: { id: postId, deletedAt: null },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: userId,
+          deletedReason: parsed.data.reason ?? null,
+        },
+      })
+      if (updated.count === 0) {
+        throw new Error("ALREADY_DELETED")
+      }
+
+      if (role !== "AUTHOR") {
+        await tx.postModerationLog.create({
+          data: {
+            postId,
+            actorId: userId,
+            action: ROLE_TO_ACTION[role as "ADMIN" | "CLUB_ADMIN" | "GROUP_ADMIN"],
+            reason: parsed.data.reason ?? null,
+          },
+        })
+
+        const excerpt =
+          post.content.slice(0, 40) + (post.content.length > 40 ? "…" : "")
+        const reasonText = parsed.data.reason
+          ? `. Lý do: ${parsed.data.reason}`
+          : ""
+        await tx.notification.create({
+          data: {
+            userId: post.authorId,
+            type: "SYSTEM",
+            title: "Bài viết bị gỡ",
+            content: `Bài viết "${excerpt}" của bạn đã bị gỡ${reasonText}`,
+            link: "/feed",
+          },
+        })
+      }
     })
-
-    if (!post) {
-      return errorResult("Bài viết không tồn tại.", "NOT_FOUND")
-    }
-
-    if (post.deletedAt) {
+  } catch (error) {
+    if (error instanceof Error && error.message === "ALREADY_DELETED") {
       return errorResult("Bài viết đã bị xóa.", "ALREADY_DELETED")
     }
-
-    if (post.authorId !== userId) {
-      return errorResult("Bạn không có quyền xóa bài viết này.", "FORBIDDEN")
-    }
-
-    // 3. Soft delete
-    await prisma.post.update({
-      where: { id: postId },
-      data: { deletedAt: new Date() },
-    })
-
-    return successResult({ id: postId })
-  } catch (error) {
     console.error("deletePost error:", error)
     return errorResult("Không thể xóa bài viết. Vui lòng thử lại.")
   }
+
+  revalidatePath("/feed")
+  if (post.clubId) revalidatePath(`/clubs/${post.clubId}`)
+  if (post.groupId) revalidatePath(`/groups/${post.groupId}`)
+  return successResult({ id: postId })
 }
 
 // ─── Types for Comment ──────────────────────────────────────────────────────

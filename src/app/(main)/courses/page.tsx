@@ -1,171 +1,66 @@
-"use client"
-
 import Link from "next/link"
-import { useState } from "react"
+
+import { getAuthorizationContext } from "@/lib/auth/authorization"
+import { listCourses } from "@/lib/courses/course-queries"
 import { PageContainer } from "@/components/layout/page-container"
 import { SearchInput } from "@/components/shared/search-input"
-import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
-type CourseStatus = "active" | "upcoming" | "completed"
+export const dynamic = "force-dynamic"
 
-interface Course {
-  id: string
-  name: string
-  subject: string
-  studentCount: number
-  color: string
-  initials: string
-  status: CourseStatus
-}
-
-const COURSES: Course[] = [
-  {
-    id: "cs101",
-    name: "Lập trình Python",
-    subject: "CS101",
-    studentCount: 45,
-    color: "bg-emerald-500",
-    initials: "LT",
-    status: "active",
-  },
-  {
-    id: "cntt",
-    name: "Công nghệ thông tin",
-    subject: "CNTT",
-    studentCount: 120,
-    color: "bg-violet-500",
-    initials: "CT",
-    status: "upcoming",
-  },
-  {
-    id: "ktso",
-    name: "Kỹ thuật số",
-    subject: "KTSO",
-    studentCount: 30,
-    color: "bg-amber-500",
-    initials: "KS",
-    status: "completed",
-  },
-  {
-    id: "java",
-    name: "Lập trình Java",
-    subject: "CS102",
-    studentCount: 80,
-    color: "bg-blue-500",
-    initials: "LJ",
-    status: "active",
-  },
-]
-
-const STATUS_CONFIG: Record<CourseStatus, { label: string; dotClass: string }> = {
-  active: { label: "Đang học", dotClass: "bg-emerald-500" },
-  upcoming: { label: "Sắp bắt đầu", dotClass: "bg-amber-500" },
-  completed: { label: "Đã hoàn thành", dotClass: "bg-red-500" },
-}
-
-export default function CoursesPage() {
-  const [search, setSearch] = useState("")
-
-  const filtered = COURSES.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.subject.toLowerCase().includes(search.toLowerCase())
+export default async function CoursesPage() {
+  const [courses, context] = await Promise.all([
+    listCourses(),
+    getAuthorizationContext().catch(() => null),
+  ])
+  const canCreateCourse = Boolean(
+    context && (context.baseRole === "LECTURER" || context.baseRole === "ADMIN"),
   )
 
   return (
     <PageContainer variant="centered">
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold">Môn học</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Chọn môn học để xem chi tiết
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Môn học</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Danh sách lớp học do giảng viên quản lý trong hệ thống.
+            </p>
+          </div>
+          {canCreateCourse ? (
+            <Link href="/courses/new">
+              <Button>Tạo lớp học</Button>
+            </Link>
+          ) : null}
         </div>
 
-        {/* Thanh tìm kiếm */}
-        <SearchInput
-          placeholder="Tìm kiếm môn học..."
-          value={search}
-          onChange={(value) => setSearch(value)}
-          className="max-w-sm"
-        />
+        <SearchInput placeholder="Tìm kiếm môn học..." className="max-w-sm" />
 
-        {/* Grid danh sách môn học */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.length === 0 ? (
-            <p className="col-span-full text-center text-muted-foreground py-8">
-              Không tìm thấy môn học nào
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {courses.length === 0 ? (
+            <p className="col-span-full rounded-xl border border-dashed py-10 text-center text-muted-foreground">
+              Chưa có lớp học nào được tạo.
             </p>
           ) : (
-            filtered.map((course) => {
-              const statusConfig = STATUS_CONFIG[course.status]
-
-              return (
-                <Link
-                  key={course.id}
-                  href={`/courses/${course.id}`}
-                  className="group block"
-                >
-                  <div className="bg-card border rounded-xl p-5 hover:shadow-md hover:border-primary/50 transition-all">
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={cn(
-                          "size-12 rounded-lg text-white flex items-center justify-center text-lg font-bold shrink-0",
-                          course.color
-                        )}
-                      >
-                        {course.initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm group-hover:text-primary transition-colors truncate">
-                          {course.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {course.subject}
-                        </p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                          <span>{course.studentCount} sinh viên</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Trạng thái */}
-                    <div className="mt-3 pt-3 border-t flex items-center gap-2">
-                      <div
-                        className={cn(
-                          "size-2 rounded-full shrink-0",
-                          statusConfig.dotClass
-                        )}
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        {statusConfig.label}
-                      </span>
-                    </div>
+            courses.map((course) => (
+              <Link
+                key={course.id}
+                href={`/courses/${course.id}`}
+                className="rounded-xl border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="space-y-3">
+                  <div>
+                    <h2 className="font-semibold">{course.name}</h2>
+                    <p className="text-xs text-muted-foreground">{course.code}</p>
                   </div>
-                </Link>
-              )
-            })
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p>{course._count.members} sinh viên</p>
+                    <p>{course.lecturer.displayName}</p>
+                  </div>
+                </div>
+              </Link>
+            ))
           )}
-        </div>
-      </div>
-    </PageContainer>
-  )
-}
-
-export function CoursesPageSkeleton() {
-  return (
-    <PageContainer variant="centered">
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-4 w-48" />
-        </div>
-        <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
-          ))}
         </div>
       </div>
     </PageContainer>
