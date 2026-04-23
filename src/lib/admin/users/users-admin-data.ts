@@ -1,3 +1,7 @@
+import {
+  getAdminRoleDescription,
+  getAdminRoleLabel,
+} from "@/lib/admin/admin-role-labels"
 import { getBaseRoleLabel, type BaseRole } from "@/lib/auth/base-role"
 import { prisma } from "@/lib/prisma/client"
 import { USERS_ADMIN_MODULE } from "@/lib/admin/modules/users"
@@ -99,7 +103,9 @@ function mapProfileToRecord(profile: AdminUserProfile): AdminRecord<UserCells> {
 
 function buildDetailSections(profile: AdminUserProfile): AdminDetailSection[] {
   const status = getUserStatus(profile)
-  const delegatedRoleNames = profile.userAdminRoles.map(({ adminRole }) => adminRole.name)
+  const delegatedRoleNames = profile.userAdminRoles.map(({ adminRole }) =>
+    getAdminRoleLabel(adminRole.code, adminRole.name),
+  )
 
   return [
     {
@@ -120,10 +126,10 @@ function buildDetailSections(profile: AdminUserProfile): AdminDetailSection[] {
       ],
     },
     {
-      title: "RBAC quản trị",
+      title: "Phân quyền quản trị",
       items: [
         {
-          label: "Admin roles",
+          label: "Gói quyền quản trị",
           value: delegatedRoleNames.length > 0 ? delegatedRoleNames.join(", ") : "Chưa được cấp",
         },
       ],
@@ -235,8 +241,14 @@ export async function getUserAccessEditorData(
       major: profile.major,
       studentId: profile.studentId,
       adminRoleIds: profile.userAdminRoles.map(({ adminRole }) => adminRole.id),
-      adminRoleNames: profile.userAdminRoles.map(({ adminRole }) => adminRole.name),
+      adminRoleNames: profile.userAdminRoles.map(({ adminRole }) =>
+        getAdminRoleLabel(adminRole.code, adminRole.name),
+      ),
     },
-    adminRoles,
+    adminRoles: adminRoles.map((role) => ({
+      ...role,
+      name: getAdminRoleLabel(role.code, role.name),
+      description: getAdminRoleDescription(role.code, role.description),
+    })),
   }
 }

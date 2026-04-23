@@ -1,5 +1,6 @@
 import { updateUserAccess } from "@/actions/admin-users"
 import { AdminPageHeader } from "@/components/admin/module/admin-page-header"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { getBaseRoleLabel } from "@/lib/auth/base-role"
@@ -29,7 +30,7 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
     <div className="space-y-6">
       <AdminPageHeader
         title={`Cập nhật ${user.displayName}`}
-        description="Quản trị viên có thể thay đổi role nền và gói quyền admin RBAC của người dùng tại đây."
+        description="Quản trị viên có thể thay đổi vai trò nền và gói quyền quản trị của người dùng tại đây."
         secondaryActions={[
           { label: "Quay lại chi tiết", href: `/admin/users/${user.userId}`, variant: "outline" },
           { label: "Quay lại danh sách", href: "/admin/users", variant: "outline" },
@@ -39,6 +40,7 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <form
           action={async (formData) => {
+            "use server"
             await updateUserAccess(formData)
           }}
           className="space-y-6"
@@ -50,7 +52,7 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold text-foreground">Vai trò nền</h2>
                 <p className="text-sm text-muted-foreground">
-                  Role nền điều khiển quyền nghiệp vụ thường của người dùng.
+                  Vai trò nền điều khiển quyền nghiệp vụ thường của người dùng.
                 </p>
               </div>
 
@@ -83,7 +85,7 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
           <Card>
             <CardContent className="space-y-4">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-foreground">Admin RBAC</h2>
+                <h2 className="text-lg font-semibold text-foreground">Gói quyền quản trị</h2>
                 <p className="text-sm text-muted-foreground">
                   Các gói quyền này chỉ áp dụng trong khu vực <code>/admin</code>.
                 </p>
@@ -96,12 +98,10 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
                     className="flex items-start justify-between gap-4 rounded-xl border p-4"
                   >
                     <div className="space-y-1">
-                      <div className="font-medium">
-                        {role.name}
+                      <div className="flex items-center gap-2 font-medium">
+                        <span>{role.name}</span>
                         {role.isSystem ? (
-                          <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                            System
-                          </span>
+                          <Badge variant="secondary">Hệ thống</Badge>
                         ) : null}
                       </div>
                       <p className="text-sm text-muted-foreground">
@@ -152,11 +152,11 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
                 <dd className="font-medium">{user.major ?? "Chưa cập nhật"}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">Admin roles hiện tại</dt>
+                <dt className="text-muted-foreground">Gói quyền quản trị hiện tại</dt>
                 <dd className="font-medium">
                   {user.adminRoleNames.length > 0
                     ? user.adminRoleNames.join(", ")
-                    : "Chưa có quyền admin RBAC"}
+                    : "Chưa có gói quyền quản trị"}
                 </dd>
               </div>
             </dl>

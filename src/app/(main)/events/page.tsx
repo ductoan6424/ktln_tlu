@@ -7,7 +7,6 @@ import { TabNavigation } from "@/components/shared/tab-navigation"
 import { SectionHeader } from "@/components/shared/section-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { UserAvatar } from "@/components/shared/user-avatar"
-import { Skeleton } from "@/components/ui/skeleton"
 import { PageContainer } from "@/components/layout/page-container"
 import {
   CalendarDays,
@@ -374,55 +373,5 @@ function EventCard({ event }: { event: EventData }) {
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-/* Skeleton loading */
-function EventCardSkeleton() {
-  return (
-    <Card className="overflow-hidden">
-      <Skeleton className="h-44 w-full" />
-      <CardContent className="p-5 space-y-3">
-        <Skeleton className="h-5 w-3/4" />
-        <Skeleton className="h-4 w-full" />
-        <div className="grid grid-cols-2 gap-2">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <div className="flex items-center justify-between pt-2 border-t">
-          <Skeleton className="h-6 w-28" />
-          <Skeleton className="h-8 w-20" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-export function EventsPageSkeleton() {
-  return (
-    <PageContainer variant="centered" className="space-y-6">
-      <div className="flex justify-between">
-        <Skeleton className="h-7 w-32" />
-        <Skeleton className="h-9 w-36" />
-      </div>
-      <div className="flex gap-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-8 w-24 rounded-full" />
-        ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <EventCardSkeleton key={i} />
-          ))}
-        </div>
-        <div className="space-y-6">
-          <Skeleton className="h-72 w-full rounded-lg" />
-          <Skeleton className="h-48 w-full rounded-lg" />
-        </div>
-      </div>
-    </PageContainer>
   )
 }
