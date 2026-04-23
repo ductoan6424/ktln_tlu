@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { PostHeader } from "@/components/feed/post-header"
+import { PostMenu } from "@/components/feed/post-menu"
 import { CommentList } from "@/components/feed/comment-list"
 import { CommentInput } from "@/components/feed/comment-input"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
@@ -50,6 +51,13 @@ interface PostDetailDialogProps {
   currentUserId?: string | null
   authorId?: string
   onLike?: () => void
+  permissions?: {
+    canDelete: boolean
+    canHide: boolean
+    deleteRole: "AUTHOR" | "MODERATOR" | null
+  }
+  onDeleted?: () => void
+  onHidden?: () => void
 }
 
 export function PostDetailDialog({
@@ -73,6 +81,9 @@ export function PostDetailDialog({
   currentUserId,
   authorId,
   onLike,
+  permissions,
+  onDeleted,
+  onHidden,
 }: PostDetailDialogProps) {
   const { toast } = useToast()
   const [commentsData, setCommentsData] = useState<CommentWithAuthorFlat[]>([])
@@ -149,16 +160,19 @@ export function PostDetailDialog({
   const hasImage = Boolean(imageUrl)
 
   /* Phần stats + actions dùng chung cho cả mobile và desktop */
-  const statsBar = (
+  const hasStats = likes > 0 || comments > 0 || shares > 0
+  const statsBar = hasStats ? (
     <div className="shrink-0 px-4 py-2 flex items-center gap-4 text-xs text-muted-foreground border-y border-border">
-      <span className="flex items-center gap-1">
-        <Heart className={cn("size-3.5", likes > 0 ? "fill-primary text-primary" : "text-muted-foreground")} />
-        {likes > 0 && `${likes} lượt thích`}
-      </span>
+      {likes > 0 && (
+        <span className="flex items-center gap-1">
+          <Heart className="size-3.5 fill-primary text-primary" />
+          {likes} lượt thích
+        </span>
+      )}
       {comments > 0 && <span>{comments} bình luận</span>}
       {shares > 0 && <span>{shares} lượt chia sẻ</span>}
     </div>
-  )
+  ) : null
 
   const actionBar = (
     <div className="shrink-0 px-2 py-1 flex items-center border-b border-border">
@@ -263,6 +277,24 @@ export function PostDetailDialog({
                 tagVariant={tagVariant}
                 isVerified={isVerified}
                 subtitle={subtitle}
+                menu={
+                  permissions && postId ? (
+                    <PostMenu
+                      postId={postId}
+                      canDelete={permissions.canDelete}
+                      canHide={permissions.canHide}
+                      deleteRole={permissions.deleteRole}
+                      onDeleted={() => {
+                        onOpenChange(false)
+                        onDeleted?.()
+                      }}
+                      onHidden={() => {
+                        onOpenChange(false)
+                        onHidden?.()
+                      }}
+                    />
+                  ) : undefined
+                }
               />
               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {content}
@@ -338,6 +370,24 @@ export function PostDetailDialog({
                 tagVariant={tagVariant}
                 isVerified={isVerified}
                 subtitle={subtitle}
+                menu={
+                  permissions && postId ? (
+                    <PostMenu
+                      postId={postId}
+                      canDelete={permissions.canDelete}
+                      canHide={permissions.canHide}
+                      deleteRole={permissions.deleteRole}
+                      onDeleted={() => {
+                        onOpenChange(false)
+                        onDeleted?.()
+                      }}
+                      onHidden={() => {
+                        onOpenChange(false)
+                        onHidden?.()
+                      }}
+                    />
+                  ) : undefined
+                }
               />
               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {content}
