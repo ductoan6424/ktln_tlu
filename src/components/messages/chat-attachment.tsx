@@ -3,22 +3,28 @@ import { IconButton } from "@/components/shared/icon-button"
 import { FileText, Download } from "lucide-react"
 
 interface ChatAttachmentProps {
+  fileUrl: string
   fileName: string
   fileSize: string
   fileType: string
-  onDownload?: () => void
   className?: string
 }
 
 export function ChatAttachment({
+  fileUrl,
   fileName,
   fileSize,
   fileType,
-  onDownload,
   className,
 }: ChatAttachmentProps) {
+  const compactFileType = formatFileType(fileType)
+
   return (
-    <div
+    <a
+      href={fileUrl}
+      target="_blank"
+      rel="noreferrer"
+      download={fileName}
       className={cn(
         "flex items-center gap-3 bg-card p-3 rounded-xl border border-border hover:border-primary transition-colors cursor-pointer group",
         className
@@ -31,16 +37,23 @@ export function ChatAttachment({
         <p className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
           {fileName}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {fileSize} • {fileType}
+        <p className="text-xs text-muted-foreground truncate max-w-[170px]">
+          {fileSize} • {compactFileType}
         </p>
       </div>
       <IconButton
         icon={Download}
         size="sm"
-        onClick={onDownload}
         ariaLabel="Tải xuống"
       />
-    </div>
+    </a>
   )
+}
+
+function formatFileType(fileType: string) {
+  if (fileType.length <= 36) {
+    return fileType
+  }
+
+  return `${fileType.slice(0, 33)}...`
 }
