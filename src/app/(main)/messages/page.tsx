@@ -1,69 +1,273 @@
 "use client"
 
-import { useState } from "react"
-import { ConversationList } from "@/components/messages/conversation-list"
-import { ConversationItem } from "@/components/messages/conversation-item"
-import { ChatHeader } from "@/components/messages/chat-header"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { ArrowLeft, Loader2 } from "lucide-react"
+
+import {
+  getChatSessionUser,
+  getConversationMessages,
+  listMyConversations,
+  markConversationAsRead,
+  sendConversationMessage,
+} from "@/actions/chat"
 import { ChatBubble } from "@/components/messages/chat-bubble"
+import { ChatHeader } from "@/components/messages/chat-header"
+import { ConversationItem } from "@/components/messages/conversation-item"
+import { ConversationList } from "@/components/messages/conversation-list"
 import { ChatDateDivider } from "@/components/messages/chat-date-divider"
-import { ChatAttachment } from "@/components/messages/chat-attachment"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
-
-const CONVERSATIONS = [
-  {
-    id: "1",
-    name: "Trần Minh Thư",
-    lastMessage: "Bạn xem đề cương bài tập lớn chưa?",
-    time: "12:45",
-    unreadCount: 2,
-    status: "online" as const,
-  },
-  {
-    id: "2",
-    name: "Lê Văn Hùng",
-    lastMessage: "Báo cáo thực hành đã nộp rồi.",
-    time: "Hôm qua",
-    status: "offline" as const,
-  },
-  {
-    id: "3",
-    name: "Nhóm NCKH AI",
-    lastMessage: "File mới: bao_cao_v2.pdf",
-    time: "2 ngày",
-    isGroup: true,
-  },
-  {
-    id: "4",
-    name: "Phạm Quốc Anh",
-    lastMessage: "Dời lịch họp sang 3h chiều nhé.",
-    time: "T2",
-    status: "away" as const,
-  },
-]
-
-const ACTIVE_CHAT = {
-  name: "Trần Minh Thư",
-  role: "Trợ lý nghiên cứu",
-  isOnline: true,
-}
+import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import type { ChatConversationItem, ChatMessageItem, ChatSessionUser } from "@/types/chat"
+import { formatRelativeTime } from "@/utils/formatters"
 
 export default function MessagesPage() {
-  const [activeConversationId, setActiveConversationId] = useState<string | null>("1")
+  const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
+  const [conversations, setConversations] = useState<ChatConversationItem[]>([])
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<ChatMessageItem[]>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [isBooting, setIsBooting] = useState(true)
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+
+  const activeConversation = useMemo(
+    () => conversations.find((item) => item.id === activeConversationId) ?? null,
+    [activeConversationId, conversations],
+  )
+
+  const mergeIncomingMessage = useCallback((message: ChatMessageItem) => {
+    setMessages((prev) => {
+      if (prev.some((item) => item.id === message.id)) {
+        return prev
+      }
+      return [...prev, message]
+    })
+
+    setConversations((prev) =>
+      prev.map((conversation) => {
+        if (conversation.id !== message.conversationId) {
+          return conversation
+        }
+
+        const isActive = conversation.id === activeConversationId
+        const unreadDelta = message.isOwn || isActive ? 0 : 1
+
+        return {
+          ...conversation,
+          lastMessage: message.content,
+          lastMessageAt: formatRelativeTime(message.createdAt),
+          unreadCount: isActive ? 0 : conversation.unreadCount + unreadDelta,
+        }
+      }),
+    )
+  }, [activeConversationId])
+
+  const { onlineUserIds, typingUsers, publishTyping } = useChatRealtime({
+    currentUser: sessionUser,
+    conversationId: activeConversationId,
+    onMessage: mergeIncomingMessage,
+  })
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      setIsBooting(true)
+
+      const [sessionResult, conversationsResult] = await Promise.all([
+        getChatSessionUser(),
+        listMyConversations(),
+      ])
+
+      if (sessionResult.success && sessionResult.data) {
+        setSessionUser(sessionResult.data)
+      } else {
+        setSessionUser(null)
+      }
+
+      if (conversationsResult.success && conversationsResult.data) {
+        setConversations(conversationsResult.data)
+        setActiveConversationId(conversationsResult.data[0]?.id ?? null)
+      } else {
+        setConversations([])
+        setActiveConversationId(null)
+      }
+
+      setIsBooting(false)
+    }
+
+    void bootstrap()
+  }, [])
+
+  const loadMessages = useCallback(async (conversationId: string, cursor?: string) => {
+    const result = await getConversationMessages({
+      conversationId,
+      cursor,
+    })
+
+    if (!result.success || !result.data) {
+      return null
+    }
+
+    return result.data
+  }, [])
+
+  useEffect(() => {
+    const fetchInitialMessages = async () => {
+      if (!activeConversationId) {
+        setMessages([])
+        setNextCursor(null)
+        setHasMore(false)
+        return
+      }
+
+      setIsLoadingMessages(true)
+
+      const data = await loadMessages(activeConversationId)
+
+      if (!data) {
+        setMessages([])
+        setNextCursor(null)
+        setHasMore(false)
+        setIsLoadingMessages(false)
+        return
+      }
+
+      setMessages(data.items)
+      setNextCursor(data.nextCursor)
+      setHasMore(data.hasMore)
+      setIsLoadingMessages(false)
+
+      void markConversationAsRead(activeConversationId)
+      setConversations((prev) =>
+        prev.map((conversation) =>
+          conversation.id === activeConversationId
+            ? {
+                ...conversation,
+                unreadCount: 0,
+              }
+            : conversation,
+        ),
+      )
+    }
+
+    void fetchInitialMessages()
+  }, [activeConversationId, loadMessages])
+
+  const handleLoadOlder = async () => {
+    if (!activeConversationId || !nextCursor || isLoadingMore) {
+      return
+    }
+
+    setIsLoadingMore(true)
+    const data = await loadMessages(activeConversationId, nextCursor)
+    setIsLoadingMore(false)
+
+    if (!data) {
+      return
+    }
+
+    setMessages((prev) => [...data.items, ...prev])
+    setNextCursor(data.nextCursor)
+    setHasMore(data.hasMore)
+  }
+
+  const handleSendMessage = async ({
+    message,
+    attachmentFile,
+  }: {
+    message: string
+    attachmentFile?: File | null
+  }): Promise<boolean> => {
+    if (!activeConversationId) {
+      return false
+    }
+
+    const optimisticId = `temp-${Date.now()}`
+    const optimisticAttachment = attachmentFile
+      ? {
+          type: attachmentFile.type.startsWith("image/") ? ("image" as const) : ("file" as const),
+          url: URL.createObjectURL(attachmentFile),
+          name: attachmentFile.name,
+          mimeType: attachmentFile.type || "application/octet-stream",
+          sizeBytes: attachmentFile.size,
+        }
+      : null
+
+    const optimisticMessage: ChatMessageItem = {
+      id: optimisticId,
+      conversationId: activeConversationId,
+      content: message,
+      senderId: sessionUser?.userId ?? "",
+      senderName: sessionUser?.displayName ?? "Bạn",
+      senderAvatarUrl: sessionUser?.avatarUrl ?? null,
+      createdAt: new Date().toISOString(),
+      isOwn: true,
+      attachment: optimisticAttachment,
+    }
+
+    setMessages((prev) => [...prev, optimisticMessage])
+
+    setIsSending(true)
+    const formData = new FormData()
+    formData.append("conversationId", activeConversationId)
+    formData.append("content", message)
+    if (attachmentFile) {
+      formData.append("attachment", attachmentFile)
+    }
+
+    const result = await sendConversationMessage(formData)
+    setIsSending(false)
+
+    if (!result.success || !result.data) {
+      if (optimisticAttachment) {
+        URL.revokeObjectURL(optimisticAttachment.url)
+      }
+      setMessages((prev) => prev.filter((item) => item.id !== optimisticId))
+      return false
+    }
+
+    if (optimisticAttachment) {
+      URL.revokeObjectURL(optimisticAttachment.url)
+    }
+
+    setMessages((prev) => {
+      const withoutOptimistic = prev.filter((item) => item.id !== optimisticId)
+      if (withoutOptimistic.some((item) => item.id === result.data!.id)) {
+        return withoutOptimistic
+      }
+      return [...withoutOptimistic, result.data!]
+    })
+
+    mergeIncomingMessage(result.data)
+    return true
+  }
+
+  const mappedConversations = useMemo(
+    () =>
+      conversations.map((conversation) => ({
+        ...conversation,
+        status:
+          conversation.peerUserId && onlineUserIds.has(conversation.peerUserId)
+            ? ("online" as const)
+            : ("offline" as const),
+      })),
+    [conversations, onlineUserIds],
+  )
 
   return (
     <div className="flex h-[calc(100vh-3.5rem-3.5rem)] lg:h-[calc(100vh-4rem)] overflow-hidden">
-      {/* Danh sách hội thoại — ẩn trên mobile khi đang xem chat */}
       <div className={activeConversationId ? "hidden lg:flex" : "flex w-full lg:w-auto"}>
         <ConversationList>
-          {CONVERSATIONS.map((conv) => (
+          {mappedConversations.map((conv) => (
             <div key={conv.id} onClick={() => setActiveConversationId(conv.id)}>
               <ConversationItem
+                avatar={conv.avatarUrl ?? undefined}
                 name={conv.name}
                 lastMessage={conv.lastMessage}
-                time={conv.time}
+                time={conv.lastMessageAt ?? ""}
                 unreadCount={conv.unreadCount}
                 isActive={conv.id === activeConversationId}
                 status={conv.status}
@@ -71,16 +275,17 @@ export default function MessagesPage() {
               />
             </div>
           ))}
+          {!isBooting && mappedConversations.length === 0 && (
+            <p className="px-4 py-6 text-sm text-muted-foreground">Bạn chưa có hội thoại nào.</p>
+          )}
         </ConversationList>
       </div>
 
-      {/* Khung chat chính — ẩn trên mobile khi chưa chọn conversation */}
       <section className={
         activeConversationId
           ? "flex-1 flex flex-col bg-card relative"
           : "hidden lg:flex flex-1 flex-col bg-card relative"
       }>
-        {/* Nút quay lại — chỉ hiện trên mobile */}
         <div className="lg:hidden absolute top-0 left-0 z-10 h-14 flex items-center pl-2">
           <Button
             variant="ghost"
@@ -93,52 +298,81 @@ export default function MessagesPage() {
           </Button>
         </div>
 
-        <ChatHeader
-          name={ACTIVE_CHAT.name}
-          role={ACTIVE_CHAT.role}
-          isOnline={ACTIVE_CHAT.isOnline}
-          className="lg:pl-4 pl-12"
-        />
+        {activeConversation ? (
+          <>
+            <ChatHeader
+              name={activeConversation.name}
+              avatarSrc={activeConversation.avatarUrl ?? undefined}
+              isOnline={
+                activeConversation.peerUserId
+                  ? onlineUserIds.has(activeConversation.peerUserId)
+                  : false
+              }
+              className="lg:pl-4 pl-12"
+            />
 
-        {/* Luồng tin nhắn */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 flex flex-col">
-          <ChatDateDivider label="Hôm nay" />
+            <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 flex flex-col">
+              {hasMore && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void handleLoadOlder()
+                  }}
+                  disabled={isLoadingMore}
+                  className="self-center"
+                >
+                  {isLoadingMore ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="size-4 animate-spin" />
+                      Đang tải...
+                    </span>
+                  ) : (
+                    "Tải tin nhắn cũ hơn"
+                  )}
+                </Button>
+              )}
 
-          <ChatBubble
-            senderName="Trần Minh Thư"
-            message="Chào bạn! Mình đã hoàn thành bản nháp đầu tiên của bài báo tối ưu mạng nơ-ron. Bạn xem giúp mình khi rảnh nhé?"
-            time="12:42"
-            isOwn={false}
-          />
+              <ChatDateDivider label="Hôm nay" />
 
-          <ChatBubble
-            message="Tuyệt vời luôn, Thư. Gửi file PDF qua đây đi, mình xem trước buổi seminar lúc 4h chiều."
-            time="12:44"
-            isOwn={true}
-            readStatus="read"
-          />
+              {isLoadingMessages ? (
+                <p className="text-sm text-muted-foreground">Đang tải tin nhắn...</p>
+              ) : (
+                messages.map((message) => (
+                  <ChatBubble
+                    key={message.id}
+                    senderName={message.isOwn ? undefined : message.senderName}
+                    message={message.content}
+                    attachment={message.attachment}
+                    time={formatRelativeTime(message.createdAt)}
+                    isOwn={message.isOwn}
+                    readStatus={message.isOwn ? "delivered" : undefined}
+                  />
+                ))
+              )}
 
-          {/* Tin nhắn có đính kèm */}
-          <div className="flex flex-col gap-2 max-w-[80%]">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold">Trần Minh Thư</span>
-              <span className="text-[10px] text-muted-foreground">12:45</span>
+              {typingUsers.length > 0 && (
+                <TypingIndicator userName={typingUsers[0] ?? "Người dùng"} className="mt-2" />
+              )}
             </div>
-            <div className="bg-muted rounded-2xl rounded-tl-none p-3 space-y-3 shadow-sm">
-              <p className="text-sm">Đây là file. Mình đã đánh dấu các thay đổi trong phần 3.2.</p>
-              <ChatAttachment
-                fileName="ToiUu_MangNoRon_v2.pdf"
-                fileSize="2.4 MB"
-                fileType="PDF"
-              />
-            </div>
+
+            <MessageInput
+              recipientName={activeConversation.name}
+              disabled={!activeConversationId || isLoadingMessages}
+              isSending={isSending}
+              onTypingChange={(isTyping) => {
+                void publishTyping(isTyping)
+              }}
+              onSend={async (message) => {
+                return handleSendMessage(message)
+              }}
+            />
+          </>
+        ) : (
+          <div className="h-full flex items-center justify-center text-muted-foreground">
+            Chọn một hội thoại để bắt đầu nhắn tin.
           </div>
-
-          <TypingIndicator userName="Trần Minh Thư" className="mt-4" />
-        </div>
-
-        {/* Ô nhập tin nhắn */}
-        <MessageInput recipientName="Trần Minh Thư" />
+        )}
       </section>
     </div>
   )

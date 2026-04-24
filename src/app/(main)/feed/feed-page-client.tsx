@@ -18,8 +18,12 @@ import { ActiveFriends } from "@/components/layout/active-friends"
 import { ChatPopup } from "@/components/layout/chat-popup"
 import { mockGroups } from "@/components/layout/mock-data"
 import type { ActiveFriend } from "@/components/layout/mock-data"
+import { listMyConversations } from "@/actions/chat"
 import { loadMorePosts, togglePostLike } from "@/actions/posts"
 import { useToast } from "@/components/ui/use-toast"
+import { createAblyClient } from "@/lib/ably/client"
+import { getChatChannelName } from "@/lib/config/chat"
+import type { ChatMessageItem } from "@/types/chat"
 import { LayoutGrid, BookOpen, Users, Bookmark } from "lucide-react"
 import Link from "next/link"
 
@@ -176,7 +180,7 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
 
   const [openPopups, setOpenPopups] = useState<ActiveFriend[]>([])
 
-  const openChat = (friend: ActiveFriend) => {
+  const openChat = useCallback((friend: ActiveFriend) => {
     setOpenPopups((prev) => {
       const alreadyOpen = prev.find((p) => p.id === friend.id)
       if (alreadyOpen) return prev
@@ -184,7 +188,7 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
       if (next.length > 3) return next.slice(1)
       return next
     })
-  }
+  }, [])
 
   const closeChat = (friendId: string) => {
     setOpenPopups((prev) => prev.filter((p) => p.id !== friendId))
@@ -201,6 +205,60 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
       return next
     })
   }
+
+  useEffect(() => {
+    if (!currentUser) {
+      return
+    }
+
+    const ably = createAblyClient()
+    const subscriptions: Array<{
+      channel: ReturnType<typeof ably.channels.get>
+      handler: (message: { data?: unknown }) => void
+    }> = []
+    let cancelled = false
+
+    const setupIncomingListeners = async () => {
+      const result = await listMyConversations()
+      if (!result.success || !result.data || cancelled) {
+        return
+      }
+
+      for (const conversation of result.data) {
+        const channel = ably.channels.get(getChatChannelName(conversation.id))
+        const handler = (message: { data?: unknown }) => {
+          const payload = message.data as ChatMessageItem | undefined
+
+          if (!payload) {
+            return
+          }
+
+          if (payload.senderId === currentUser.userId) {
+            return
+          }
+
+          openChat({
+            id: payload.senderId,
+            name: payload.senderName,
+            avatar: payload.senderAvatarUrl ?? undefined,
+            status: "online",
+          })
+        }
+
+        channel.subscribe("message.new", handler)
+        subscriptions.push({ channel, handler })
+      }
+    }
+
+    void setupIncomingListeners()
+
+    return () => {
+      cancelled = true
+      for (const subscription of subscriptions) {
+        subscription.channel.unsubscribe("message.new", subscription.handler)
+      }
+    }
+  }, [currentUser, openChat])
 
   return (
     <>
