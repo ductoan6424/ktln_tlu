@@ -24,6 +24,7 @@ export type {
   Message,
   Notification,
   Friendship,
+  Follow,
   EmailVerification,
   PasswordReset,
 } from "@prisma/client"
