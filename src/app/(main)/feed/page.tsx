@@ -6,7 +6,13 @@ import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
 
 const PAGE_SIZE = 20
 
-export default async function FeedPage() {
+interface FeedPageProps {
+  searchParams: Promise<{ post?: string }>
+}
+
+export default async function FeedPage({ searchParams }: FeedPageProps) {
+  const params = await searchParams
+  const deepLinkPostId = typeof params.post === "string" ? params.post : null
   const supabase = await createClient()
   const { data: authData } = await supabase.auth.getUser()
   const currentUserId = authData.user?.id ?? null
@@ -48,6 +54,15 @@ export default async function FeedPage() {
         : false,
       _count: {
         select: { likes: true },
+      },
+      sharedPost: {
+        select: {
+          id: true,
+          content: true,
+          imageUrl: true,
+          deletedAt: true,
+          author: { select: { displayName: true, avatarUrl: true } },
+        },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -93,9 +108,18 @@ export default async function FeedPage() {
           : false,
         likes: post._count.likes,
         permissions,
+        sharedPost: post.sharedPost && !post.sharedPost.deletedAt
+          ? {
+              id: post.sharedPost.id,
+              content: post.sharedPost.content,
+              imageUrl: post.sharedPost.imageUrl,
+              authorDisplayName: post.sharedPost.author.displayName,
+              authorAvatarUrl: post.sharedPost.author.avatarUrl,
+            }
+          : null,
       }
     }),
   )
 
-  return <FeedPageClient currentUser={currentUser} initialPosts={postsWithFormattedTime} />
+  return <FeedPageClient currentUser={currentUser} initialPosts={postsWithFormattedTime} deepLinkPostId={deepLinkPostId} />
 }

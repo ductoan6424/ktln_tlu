@@ -1,3 +1,7 @@
 export const POST_DELETE_REASON_MAX = 500
 export const HIDDEN_POSTS_PAGE_SIZE = 20
 export const CLUB_ADMIN_CACHE_TTL_SECONDS = 60
+
+export const POST_SHARE_PATH_PREFIX = "/feed"
+export const POST_SHARE_QUERY_KEY = "post"
+export const POST_SHARE_REPOST_MAX = 500
