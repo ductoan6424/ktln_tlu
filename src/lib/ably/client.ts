@@ -1,9 +1,16 @@
-import Ably from "ably";
+import Ably from "ably"
 
-// Tạo Ably Realtime client cho phía browser
+let ablyClient: Ably.Realtime | null = null
+
 export function createAblyClient() {
-  return new Ably.Realtime({
-    key: process.env.NEXT_PUBLIC_ABLY_API_KEY!,
-    clientId: "uniconnect-client",
-  });
+  if (!ablyClient) {
+    ablyClient = new Ably.Realtime({
+      authUrl: "/api/ably/token",
+      autoConnect: true,
+      closeOnUnload: true,
+      recover: (_, cb) => cb(false),
+    })
+  }
+
+  return ablyClient
 }

@@ -1,9 +1,13 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/shared/user-avatar"
-import { mockActiveFriends } from "./mock-data"
+import { getChatSessionUser } from "@/actions/chat"
+import { listActiveFriends } from "@/actions/users"
+import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import type { ChatSessionUser } from "@/types/chat"
 import type { ActiveFriend } from "./mock-data"
 import { MessageSquare } from "lucide-react"
 
@@ -13,7 +17,43 @@ interface ActiveFriendsProps {
 }
 
 export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) {
-  const onlineFriends = mockActiveFriends.filter((f) => f.status !== "offline").slice(0, 10)
+  const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
+  const [friends, setFriends] = useState<ActiveFriend[]>([])
+
+  const { onlineUserIds } = useChatRealtime({
+    currentUser: sessionUser,
+    conversationId: null,
+  })
+
+  useEffect(() => {
+    const fetchFriends = async () => {
+      const [sessionResult, friendsResult] = await Promise.all([
+        getChatSessionUser(),
+        listActiveFriends(),
+      ])
+
+      if (sessionResult.success && sessionResult.data) {
+        setSessionUser(sessionResult.data)
+      }
+
+      if (!friendsResult.success || !friendsResult.data) {
+        setFriends([])
+        return
+      }
+
+      setFriends(friendsResult.data)
+    }
+
+    void fetchFriends()
+  }, [])
+
+  const onlineFriends = friends
+    .map((friend) => ({
+      ...friend,
+      status: onlineUserIds.has(friend.id) ? ("online" as const) : ("offline" as const),
+    }))
+    .filter((friend) => friend.status !== "offline")
+    .slice(0, 10)
 
   return (
     <Card className={className}>

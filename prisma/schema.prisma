@@ -36,6 +36,11 @@ enum ConversationType {
   GROUP
 }
 
+enum MessageAttachmentType {
+  IMAGE
+  FILE
+}
+
 enum FriendshipStatus {
   PENDING
   APPROVED
@@ -95,6 +100,8 @@ model UserProfile {
 
   sentMessages               Message[]                 @relation("MessageSender")
   conversationParticipations ConversationParticipant[]
+  directConversationAsUserA  DirectConversation[]      @relation("DirectConversationUserA")
+  directConversationAsUserB  DirectConversation[]      @relation("DirectConversationUserB")
 
   emailVerifications EmailVerification[]
   passwordResets     PasswordReset[]
@@ -299,9 +306,26 @@ model Conversation {
 
   participants ConversationParticipant[]
   messages     Message[]
+  directMeta   DirectConversation?
 
   @@index([groupId])
   @@map("conversations")
+}
+
+model DirectConversation {
+  conversationId String   @id @map("conversation_id")
+  userAId        String   @map("user_a_id")
+  userBId        String   @map("user_b_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userA        UserProfile  @relation("DirectConversationUserA", fields: [userAId], references: [userId], onDelete: Cascade)
+  userB        UserProfile  @relation("DirectConversationUserB", fields: [userBId], references: [userId], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@map("direct_conversations")
 }
 
 model ConversationParticipant {
@@ -323,6 +347,10 @@ model Message {
   id            String    @id @default(cuid()) @map("message_id")
   content       String    @map("content")
   attachmentUrl String?   @map("attachment_url")
+  attachmentType MessageAttachmentType? @map("attachment_type")
+  attachmentName String?  @map("attachment_name")
+  attachmentMimeType String? @map("attachment_mime_type")
+  attachmentSizeBytes Int? @map("attachment_size_bytes")
   createdAt     DateTime  @default(now()) @map("created_at")
   deletedAt     DateTime? @map("deleted_at")
 
@@ -332,7 +360,7 @@ model Message {
   conversationId String       @map("conversation_id")
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([conversationId, createdAt])
   @@map("messages")
 }
 

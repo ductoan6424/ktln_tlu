@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { MessageSquarePlus, MessageSquare } from "lucide-react"
+import { listMyConversations, markConversationAsRead } from "@/actions/chat"
 import { ConversationItem } from "@/components/messages/conversation-item"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,27 +13,76 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { mockMessages, type MessageData } from "./mock-data"
 import { cn } from "@/lib/utils"
+import type { ActiveFriend } from "./mock-data"
 
 interface MessagePopupProps {
-  messages?: MessageData[]
+  onOpenChat?: (friend: ActiveFriend) => void
   className?: string
 }
 
 export function MessagePopup({
-  messages = mockMessages,
+  onOpenChat,
   className,
 }: MessagePopupProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const unreadCount = messages.reduce((acc, m) => acc + m.unreadCount, 0)
+  const [conversations, setConversations] = useState<
+    Array<{
+      id: string
+      peerUserId: string
+      name: string
+      avatarUrl: string | null
+      lastMessage: string
+      lastMessageAt: string | null
+      unreadCount: number
+      isOnline: boolean
+    }>
+  >([])
 
-  const handleMarkAllRead = () => {
-    console.log("Mark all messages as read")
+  const unreadCount = useMemo(
+    () => conversations.reduce((acc, conversation) => acc + conversation.unreadCount, 0),
+    [conversations],
+  )
+
+  const loadConversations = async () => {
+    const result = await listMyConversations()
+
+    if (!result.success || !result.data) {
+      setConversations([])
+      return
+    }
+
+    setConversations(
+      result.data
+        .filter((conversation) => Boolean(conversation.peerUserId))
+        .map((conversation) => ({
+          id: conversation.id,
+          peerUserId: conversation.peerUserId!,
+          name: conversation.name,
+          avatarUrl: conversation.avatarUrl,
+          lastMessage: conversation.lastMessage,
+          lastMessageAt: conversation.lastMessageAt,
+          unreadCount: conversation.unreadCount,
+          isOnline: conversation.isOnline,
+        })),
+    )
+  }
+
+  const handleMarkAllRead = async () => {
+    await Promise.all(conversations.map((conversation) => markConversationAsRead(conversation.id)))
+    setConversations((prev) => prev.map((conversation) => ({ ...conversation, unreadCount: 0 })))
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open)
+        if (open) {
+          void loadConversations()
+        }
+      }}
+    >
       <DropdownMenuTrigger
         className={cn("outline-none", className)}
         aria-label="Tin nhắn"
@@ -70,42 +120,52 @@ export function MessagePopup({
                 Đánh dấu đã đọc
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label="Tin nhắn mới"
-            >
-              <MessageSquarePlus className="size-4" />
-            </Button>
+            <Link href="/messages">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label="Tin nhắn mới"
+              >
+                <MessageSquarePlus className="size-4" />
+              </Button>
+            </Link>
           </div>
         </div>
 
         {/* Message List - có "Xem tất cả" cố định ở dưới */}
         <ScrollArea className="max-h-[400px]">
           <div className="py-2">
-            {messages.length === 0 ? (
+            {conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <MessageSquare className="size-12 mb-3 opacity-30" />
                 <p className="text-sm">Chưa có tin nhắn nào</p>
               </div>
             ) : (
-              messages.map((message) => (
-                <Link
-                  key={message.id}
-                  href={`/messages?chat=${message.id}`}
+              conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
                   className="block"
+                  onClick={() => {
+                    setIsOpen(false)
+                    onOpenChat?.({
+                      id: conversation.peerUserId,
+                      name: conversation.name,
+                      avatar: conversation.avatarUrl ?? undefined,
+                      status: conversation.isOnline ? "online" : "offline",
+                    })
+                  }}
                 >
                   <ConversationItem
-                    avatar={message.avatar}
-                    name={message.name}
-                    lastMessage={message.lastMessage}
-                    time={message.time}
-                    unreadCount={message.unreadCount}
-                    status={message.status}
-                    isGroup={message.isGroup}
+                    avatar={conversation.avatarUrl ?? undefined}
+                    name={conversation.name}
+                    lastMessage={conversation.lastMessage}
+                    time={conversation.lastMessageAt ?? ""}
+                    unreadCount={conversation.unreadCount}
+                    status={conversation.isOnline ? "online" : "offline"}
+                    isGroup={false}
                   />
-                </Link>
+                </div>
               ))
             )}
           </div>
