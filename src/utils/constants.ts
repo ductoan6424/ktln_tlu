@@ -1,7 +1,7 @@
 // Hằng số toàn cục cho ứng dụng UniConnect
 
-export const APP_NAME = "UniConnect";
-export const APP_DESCRIPTION = "Mạng xã hội dành cho sinh viên đại học";
+export const APP_NAME = "TLU COMMUNITY";
+export const APP_DESCRIPTION = "Mạng xã hội dành cho sinh viên đại học Thăng Long";
 
 // Pagination mặc định
 export const DEFAULT_PAGE_SIZE = 20;
