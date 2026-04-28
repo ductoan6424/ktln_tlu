@@ -6,6 +6,7 @@ import { PostHeader, PostHeaderSkeleton } from "@/components/feed/post-header"
 import { PostActions } from "@/components/feed/post-actions"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { PostMenu } from "@/components/feed/post-menu"
+import { SharedPostPreview } from "@/components/feed/shared-post-preview"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -14,6 +15,14 @@ interface PostPermissions {
   canDelete: boolean
   canHide: boolean
   deleteRole: "AUTHOR" | "MODERATOR" | null
+}
+
+interface SharedPostData {
+  id: string
+  content: string
+  imageUrl: string | null
+  authorDisplayName: string
+  authorAvatarUrl: string | null
 }
 
 interface PostCardProps {
@@ -43,6 +52,7 @@ interface PostCardProps {
   permissions?: PostPermissions
   onDeleted?: () => void
   onHidden?: () => void
+  sharedPost?: SharedPostData | null
 }
 
 export function PostCard({
@@ -72,6 +82,7 @@ export function PostCard({
   permissions,
   onDeleted,
   onHidden,
+  sharedPost,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
@@ -124,7 +135,7 @@ export function PostCard({
             }
           />
 
-          {/* Vùng clickable — Nội dung + Ảnh */}
+          {/* Vùng clickable — Nội dung + Ảnh/Repost */}
           <div
             role="button"
             tabIndex={0}
@@ -133,25 +144,45 @@ export function PostCard({
             className="w-full text-left cursor-pointer"
           >
             {/* Nội dung */}
-            <p className="text-[13px] leading-snug mt-2.5 whitespace-pre-wrap break-words">{content}</p>
+            {content && (
+              <p className="text-[13px] leading-snug mt-2.5 whitespace-pre-wrap break-words">{content}</p>
+            )}
 
-            {/* Hình ảnh */}
-            {imageUrl && (
-              <div className="rounded-md overflow-hidden mt-2.5 border border-border">
-                <div className="relative aspect-video w-full">
-                  <Image
-                    src={imageUrl}
-                    alt="Ảnh bài viết"
-                    fill
-                    className="object-cover"
-                  />
+            {/* Nếu là bài repost — hiển thị embedded card */}
+            {sharedPost !== undefined && sharedPost !== null ? (
+              <SharedPostPreview
+                postId={sharedPost.id}
+                authorName={sharedPost.authorDisplayName}
+                authorAvatar={sharedPost.authorAvatarUrl}
+                content={sharedPost.content}
+                imageUrl={sharedPost.imageUrl}
+                className="mt-2.5"
+              />
+            ) : (
+              imageUrl && (
+                <div className="rounded-md overflow-hidden mt-2.5 border border-border">
+                  <div className="relative aspect-video w-full">
+                    <Image
+                      src={imageUrl}
+                      alt="Ảnh bài viết"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
                 </div>
-              </div>
+              )
             )}
           </div>
 
           {/* Actions */}
           <PostActions
+            postId={postId}
+            authorName={authorName}
+            authorAvatar={authorAvatar}
+            postContent={content}
+            postImage={imageUrl}
+            currentUserName={currentUser?.displayName}
+            currentUserAvatar={currentUser?.avatarUrl ?? undefined}
             likes={likes}
             comments={comments}
             shares={shares}
@@ -193,6 +224,7 @@ export function PostCard({
         permissions={permissions}
         onDeleted={onDeleted}
         onHidden={onHidden}
+        sharedPost={sharedPost}
       />
     </>
   )

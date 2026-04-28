@@ -9,6 +9,7 @@ import { formatRelativeTime } from "@/utils/formatters"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
+import { POST_SHARE_REPOST_MAX } from "@/lib/config/posts"
 import type { PostModerationAction } from "@prisma/client"
 
 const ROLE_TO_ACTION: Record<"ADMIN" | "CLUB_ADMIN" | "GROUP_ADMIN", PostModerationAction> = {
@@ -131,6 +132,207 @@ export async function createPost(
   }
 }
 
+// ─── Post Types ─────────────────────────────────────────────────────────────
+
+interface PostPermissions {
+  canDelete: boolean
+  canHide: boolean
+  deleteRole: "AUTHOR" | "MODERATOR" | null
+}
+
+interface SharedPostData {
+  id: string
+  content: string
+  imageUrl: string | null
+  authorDisplayName: string
+  authorAvatarUrl: string | null
+}
+
+interface PostWithAuthorFlat {
+  id: string
+  content: string
+  imageUrl: string | null
+  createdAt: string
+  createdAtRelative: string
+  visibility: string
+  authorId: string
+  authorDisplayName: string
+  authorAvatarUrl: string | null
+  isLiked: boolean
+  likes: number
+  comments: number
+  permissions: PostPermissions
+  sharedPost: SharedPostData | null
+}
+
+// ─── Share Post To Profile (repost) ─────────────────────────────────────────
+
+interface SharePostInput {
+  postId: string
+  message?: string
+}
+
+export async function sharePostToProfile(
+  input: SharePostInput
+): Promise<ActionResult<{ id: string }>> {
+  const supabase = await createClient()
+  const { data: userData, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !userData.user) {
+    return errorResult("Bạn cần đăng nhập để chia sẻ", "UNAUTHORIZED")
+  }
+
+  const userId = userData.user.id
+
+  if (!input?.postId || typeof input.postId !== "string") {
+    return errorResult("Bài viết không hợp lệ.", "VALIDATION_ERROR")
+  }
+
+  const userMessage =
+    typeof input.message === "string" ? input.message.trim() : ""
+
+  if (userMessage.length > POST_SHARE_REPOST_MAX) {
+    return errorResult(
+      `Lời chia sẻ tối đa ${POST_SHARE_REPOST_MAX} ký tự.`,
+      "VALIDATION_ERROR"
+    )
+  }
+
+  try {
+    const original = await prisma.post.findUnique({
+      where: { id: input.postId, deletedAt: null },
+      select: { id: true, authorId: true },
+    })
+
+    if (!original) {
+      return errorResult("Bài viết không tồn tại.", "NOT_FOUND")
+    }
+
+    if (original.authorId === userId && userMessage.length === 0) {
+      return errorResult(
+        "Đây là bài viết của bạn. Bạn không cần chia sẻ lại.",
+        "VALIDATION_ERROR"
+      )
+    }
+
+    const repost = await prisma.post.create({
+      data: {
+        content: userMessage,
+        authorId: userId,
+        visibility: "PUBLIC",
+        sharedPostId: original.id,
+      },
+      select: { id: true },
+    })
+
+    revalidatePath("/feed")
+
+    return successResult({ id: repost.id })
+  } catch (error) {
+    console.error("sharePostToProfile error:", error)
+    return errorResult("Không thể chia sẻ bài viết. Vui lòng thử lại.")
+  }
+}
+
+// ─── Get Single Post By ID (for deep links) ────────────────────────────────
+
+export async function getPostById(
+  postId: string
+): Promise<ActionResult<PostWithAuthorFlat>> {
+  if (!postId || typeof postId !== "string") {
+    return errorResult("ID bài viết không hợp lệ.", "VALIDATION_ERROR")
+  }
+
+  try {
+    const supabase = await createClient()
+    const { data: userData } = await supabase.auth.getUser()
+    const currentUserId = userData?.user?.id ?? null
+
+    const post = await prisma.post.findUnique({
+      where: { id: postId, deletedAt: null },
+      include: {
+        author: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        likes: currentUserId
+          ? { where: { userId: currentUserId }, select: { id: true } }
+          : false,
+        _count: {
+          select: { likes: true, comments: true },
+        },
+        sharedPost: {
+          select: {
+            id: true,
+            content: true,
+            imageUrl: true,
+            deletedAt: true,
+            author: { select: { displayName: true, avatarUrl: true } },
+          },
+        },
+      },
+    })
+
+    if (!post) {
+      return errorResult("Bài viết không tồn tại hoặc đã bị xoá.", "NOT_FOUND")
+    }
+
+    let permissions: PostPermissions = {
+      canDelete: false,
+      canHide: false,
+      deleteRole: null,
+    }
+    if (currentUserId) {
+      const ctx = {
+        postId: post.id,
+        authorId: post.authorId,
+        clubId: post.clubId,
+        groupId: post.groupId,
+      }
+      const role = await resolveDeleteRole(currentUserId, ctx)
+      permissions = {
+        canDelete: role !== null,
+        canHide: canHidePost(currentUserId, ctx),
+        deleteRole:
+          role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
+      }
+    }
+
+    const sharedPost: SharedPostData | null =
+      post.sharedPost && !post.sharedPost.deletedAt
+        ? {
+            id: post.sharedPost.id,
+            content: post.sharedPost.content,
+            imageUrl: post.sharedPost.imageUrl,
+            authorDisplayName: post.sharedPost.author.displayName,
+            authorAvatarUrl: post.sharedPost.author.avatarUrl,
+          }
+        : null
+
+    return successResult({
+      id: post.id,
+      content: post.content,
+      imageUrl: post.imageUrl,
+      createdAt: post.createdAt.toISOString(),
+      createdAtRelative: formatRelativeTime(post.createdAt),
+      visibility: post.visibility,
+      authorId: post.authorId,
+      authorDisplayName: post.author.displayName,
+      authorAvatarUrl: post.author.avatarUrl,
+      isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
+      likes: post._count.likes,
+      comments: post._count.comments,
+      permissions,
+      sharedPost,
+    })
+  } catch (error) {
+    console.error("getPostById error:", error)
+    return errorResult("Không thể tải bài viết.")
+  }
+}
+
 // ─── Toggle Post Like ───────────────────────────────────────────────────────
 
 export async function togglePostLike(
@@ -186,28 +388,6 @@ export async function togglePostLike(
 
 // ─── Load More Posts (infinite scroll) ────────────────────────────────────
 
-interface PostPermissions {
-  canDelete: boolean
-  canHide: boolean
-  deleteRole: "AUTHOR" | "MODERATOR" | null
-}
-
-interface PostWithAuthorFlat {
-  id: string
-  content: string
-  imageUrl: string | null
-  createdAt: string
-  createdAtRelative: string
-  visibility: string
-  authorId: string
-  authorDisplayName: string
-  authorAvatarUrl: string | null
-  isLiked: boolean
-  likes: number
-  comments: number
-  permissions: PostPermissions
-}
-
 export async function loadMorePosts(
   page: number,
   pageSize: number = 20
@@ -247,6 +427,15 @@ export async function loadMorePosts(
         _count: {
           select: { likes: true, comments: true },
         },
+        sharedPost: {
+          select: {
+            id: true,
+            content: true,
+            imageUrl: true,
+            deletedAt: true,
+            author: { select: { displayName: true, avatarUrl: true } },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: pageSize,
@@ -275,6 +464,19 @@ export async function loadMorePosts(
               role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
           }
         }
+
+        const sp = post.sharedPost
+        const sharedPost: SharedPostData | null =
+          sp && !sp.deletedAt
+            ? {
+                id: sp.id,
+                content: sp.content,
+                imageUrl: sp.imageUrl,
+                authorDisplayName: sp.author.displayName,
+                authorAvatarUrl: sp.author.avatarUrl,
+              }
+            : null
+
         return {
           id: post.id,
           content: post.content,
@@ -289,6 +491,7 @@ export async function loadMorePosts(
           likes: post._count.likes,
           comments: post._count.comments,
           permissions,
+          sharedPost,
         }
       }),
     )
@@ -469,20 +672,15 @@ export async function createComment(
   postId: string,
   rawContent: unknown
 ): Promise<ActionResult<CommentWithAuthorFlat>> {
-  console.log("[createComment] START postId=", postId, "rawContent=", rawContent)
   const supabase = await createClient()
   const { data: userData, error: authError } = await supabase.auth.getUser()
-  console.log("[createComment] auth userData=", userData?.user?.id, "authError=", authError)
 
   if (authError || !userData.user) {
-    console.log("[createComment] FAIL: not authenticated")
     return errorResult("Bạn cần đăng nhập để bình luận", "UNAUTHORIZED")
   }
 
   const validated = commentSchema.safeParse({ content: rawContent })
-  console.log("[createComment] validated=", validated.success, validated.error)
   if (!validated.success) {
-    console.log("[createComment] FAIL: validation error")
     return errorResult(
       validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
       "VALIDATION_ERROR"
@@ -490,20 +688,16 @@ export async function createComment(
   }
 
   const { content } = validated.data
-  console.log("[createComment] content=", content)
 
   const post = await prisma.post.findUnique({
     where: { id: postId, deletedAt: null },
     select: { id: true },
   })
-  console.log("[createComment] post=", post)
   if (!post) {
-    console.log("[createComment] FAIL: post not found")
     return errorResult("Bài viết không tồn tại hoặc đã bị xóa.", "NOT_FOUND")
   }
 
   try {
-    console.log("[createComment] creating comment with authorId=", userData.user.id)
     const comment = await prisma.comment.create({
       data: {
         content,
@@ -534,7 +728,6 @@ export async function createComment(
       likes: comment._count.likes,
     }
 
-    console.log("[createComment] SUCCESS")
     return successResult(result)
   } catch (error) {
     console.error("[createComment] DB error:", error)
