@@ -23,6 +23,7 @@ import { PostMenu } from "@/components/feed/post-menu"
 import { CommentList } from "@/components/feed/comment-list"
 import { CommentInput } from "@/components/feed/comment-input"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
+import { SharedPostPreview } from "@/components/feed/shared-post-preview"
 import { loadComments, createComment, deleteComment } from "@/actions/posts"
 import type { CommentWithAuthorFlat } from "@/components/feed/comment-item"
 import { Heart, MessageCircle, ArrowLeft } from "lucide-react"
@@ -58,6 +59,13 @@ interface PostDetailDialogProps {
   }
   onDeleted?: () => void
   onHidden?: () => void
+  sharedPost?: {
+    id: string
+    content: string
+    imageUrl: string | null
+    authorDisplayName: string
+    authorAvatarUrl: string | null
+  } | null
 }
 
 export function PostDetailDialog({
@@ -84,6 +92,7 @@ export function PostDetailDialog({
   permissions,
   onDeleted,
   onHidden,
+  sharedPost,
 }: PostDetailDialogProps) {
   const { toast } = useToast()
   const [commentsData, setCommentsData] = useState<CommentWithAuthorFlat[]>([])
@@ -107,7 +116,6 @@ export function PostDetailDialog({
   }, [open, postId])
 
   const handleCommentSubmit = async (text: string) => {
-    console.log("[CommentSubmit] resolvedCurrentUser=", resolvedCurrentUser?.id, "postId=", postId, "text=", text)
     if (!resolvedCurrentUser?.id || !postId) {
       toast({ description: "Bạn cần đăng nhập để bình luận" })
       return
@@ -157,7 +165,8 @@ export function PostDetailDialog({
   }
 
   const canLike = Boolean(resolvedCurrentUser?.id && authorId && resolvedCurrentUser.id !== authorId)
-  const hasImage = Boolean(imageUrl)
+  const isRepost = sharedPost !== undefined && sharedPost !== null
+  const hasImage = Boolean(imageUrl) && !isRepost
 
   /* Phần stats + actions dùng chung cho cả mobile và desktop */
   const hasStats = likes > 0 || comments > 0 || shares > 0
@@ -213,7 +222,14 @@ export function PostDetailDialog({
       </Button>
       <div className="flex-1 flex justify-center">
         <ShareDropdown
-          shareCount={shares}
+          postId={postId}
+          authorName={authorName}
+          authorAvatar={authorAvatar}
+          postContent={content}
+          postImage={imageUrl}
+          currentUserName={resolvedCurrentUser?.displayName}
+          currentUserAvatar={resolvedCurrentUser?.avatarUrl ?? undefined}
+          showLabel
           className="w-full justify-center"
         />
       </div>
@@ -296,9 +312,20 @@ export function PostDetailDialog({
                   ) : undefined
                 }
               />
-              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                {content}
-              </p>
+              {content && (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  {content}
+                </p>
+              )}
+              {isRepost && (
+                <SharedPostPreview
+                  postId={sharedPost.id}
+                  authorName={sharedPost.authorDisplayName}
+                  authorAvatar={sharedPost.authorAvatarUrl}
+                  content={sharedPost.content}
+                  imageUrl={sharedPost.imageUrl}
+                />
+              )}
             </div>
 
             {statsBar}
@@ -389,9 +416,20 @@ export function PostDetailDialog({
                   ) : undefined
                 }
               />
-              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                {content}
-              </p>
+              {content && (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  {content}
+                </p>
+              )}
+              {isRepost && (
+                <SharedPostPreview
+                  postId={sharedPost.id}
+                  authorName={sharedPost.authorDisplayName}
+                  authorAvatar={sharedPost.authorAvatarUrl}
+                  content={sharedPost.content}
+                  imageUrl={sharedPost.imageUrl}
+                />
+              )}
             </div>
 
             {statsBar}

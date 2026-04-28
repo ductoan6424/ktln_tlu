@@ -226,6 +226,10 @@ model Post {
   groupId String? @map("group_id")
   group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
+  sharedPostId String? @map("shared_post_id")
+  sharedPost   Post?   @relation("PostReposts", fields: [sharedPostId], references: [id], onDelete: SetNull)
+  reposts      Post[]  @relation("PostReposts")
+
   comments       Comment[]
   likes          Like[]
   hiddenBy       HiddenPost[]
@@ -235,6 +239,7 @@ model Post {
   @@index([visibility])
   @@index([clubId])
   @@index([groupId])
+  @@index([sharedPostId])
   @@index([createdAt(sort: Desc)])
   @@map("posts")
 }
