@@ -234,7 +234,7 @@ export function ShareDropdown({
                   ? `Nói gì đó về bài viết của ${authorName}...`
                   : "Bạn đang nghĩ gì?"
               }
-              maxLength={POST_SHARE_REPOST_MAX + 50}
+              maxLength={POST_SHARE_REPOST_MAX}
               rows={3}
               disabled={isPending}
               className="border-0 shadow-none resize-none focus-visible:ring-0 px-0 text-sm placeholder:text-muted-foreground/60"
