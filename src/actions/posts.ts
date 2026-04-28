@@ -201,12 +201,15 @@ export async function sharePostToProfile(
   try {
     const original = await prisma.post.findUnique({
       where: { id: input.postId, deletedAt: null },
-      select: { id: true, authorId: true },
+      select: { id: true, authorId: true, sharedPostId: true },
     })
 
     if (!original) {
       return errorResult("Bài viết không tồn tại.", "NOT_FOUND")
     }
+
+    // Nếu bài được share đã là repost, trỏ về bài gốc nhất tránh chuỗi repost lồng nhau
+    const rootPostId = original.sharedPostId ?? original.id
 
     if (original.authorId === userId && userMessage.length === 0) {
       return errorResult(
@@ -220,7 +223,7 @@ export async function sharePostToProfile(
         content: userMessage,
         authorId: userId,
         visibility: "PUBLIC",
-        sharedPostId: original.id,
+        sharedPostId: rootPostId,
       },
       select: { id: true },
     })

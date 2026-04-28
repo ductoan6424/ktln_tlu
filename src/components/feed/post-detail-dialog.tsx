@@ -59,6 +59,7 @@ interface PostDetailDialogProps {
   }
   onDeleted?: () => void
   onHidden?: () => void
+  onShared?: () => void
   sharedPost?: {
     id: string
     content: string
@@ -92,6 +93,7 @@ export function PostDetailDialog({
   permissions,
   onDeleted,
   onHidden,
+  onShared,
   sharedPost,
 }: PostDetailDialogProps) {
   const { toast } = useToast()
@@ -223,13 +225,14 @@ export function PostDetailDialog({
       <div className="flex-1 flex justify-center">
         <ShareDropdown
           postId={postId}
-          authorName={authorName}
-          authorAvatar={authorAvatar}
-          postContent={content}
-          postImage={imageUrl}
+          authorName={isRepost ? sharedPost.authorDisplayName : authorName}
+          authorAvatar={isRepost ? (sharedPost.authorAvatarUrl ?? undefined) : authorAvatar}
+          postContent={isRepost ? sharedPost.content : content}
+          postImage={isRepost ? (sharedPost.imageUrl ?? undefined) : imageUrl}
           currentUserName={resolvedCurrentUser?.displayName}
           currentUserAvatar={resolvedCurrentUser?.avatarUrl ?? undefined}
           showLabel
+          onShared={onShared}
           className="w-full justify-center"
         />
       </div>
