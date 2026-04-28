@@ -177,10 +177,10 @@ export function PostCard({
           {/* Actions */}
           <PostActions
             postId={postId}
-            authorName={authorName}
-            authorAvatar={authorAvatar}
-            postContent={content}
-            postImage={imageUrl}
+            authorName={sharedPost ? sharedPost.authorDisplayName : authorName}
+            authorAvatar={sharedPost ? (sharedPost.authorAvatarUrl ?? undefined) : authorAvatar}
+            postContent={sharedPost ? sharedPost.content : content}
+            postImage={sharedPost ? (sharedPost.imageUrl ?? undefined) : imageUrl}
             currentUserName={currentUser?.displayName}
             currentUserAvatar={currentUser?.avatarUrl ?? undefined}
             likes={likes}
