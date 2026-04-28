@@ -18,7 +18,8 @@ import { ActiveFriends } from "@/components/layout/active-friends"
 import { ChatPopup } from "@/components/layout/chat-popup"
 import { mockGroups } from "@/components/layout/mock-data"
 import type { ActiveFriend } from "@/components/layout/mock-data"
-import { loadMorePosts, togglePostLike } from "@/actions/posts"
+import { loadMorePosts, togglePostLike, getPostById } from "@/actions/posts"
+import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { LayoutGrid, BookOpen, Users, Bookmark } from "lucide-react"
 import Link from "next/link"
@@ -41,6 +42,14 @@ const EVENTS_DATA = [
   { month: "Th3", day: "18", title: "Ngày hội việc làm", location: "Sảnh chính", time: "09:00" },
 ]
 
+interface SharedPostData {
+  id: string
+  content: string
+  imageUrl: string | null
+  authorDisplayName: string
+  authorAvatarUrl: string | null
+}
+
 interface FeedPost {
   id: string
   content: string
@@ -59,6 +68,22 @@ interface FeedPost {
     canHide: boolean
     deleteRole: "AUTHOR" | "MODERATOR" | null
   }
+  sharedPost?: SharedPostData | null
+}
+
+interface DeepLinkPost {
+  postId: string
+  authorName: string
+  authorAvatar?: string
+  createdAt: string
+  content: string
+  imageUrl?: string
+  likes: number
+  isLiked: boolean
+  authorId: string
+  currentUserId: string | null
+  permissions?: FeedPost["permissions"]
+  sharedPost?: SharedPostData | null
 }
 
 interface FeedPageClientProps {
@@ -68,9 +93,10 @@ interface FeedPageClientProps {
     avatarUrl: string | null
   } | null
   initialPosts: FeedPost[]
+  deepLinkPostId?: string | null
 }
 
-export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProps) {
+export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: FeedPageClientProps) {
   const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -78,6 +104,58 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
   const sentinelRef = useRef<HTMLDivElement>(null)
   const rollbackRef = useRef<FeedPost[] | null>(null)
   const { toast } = useToast()
+
+  const [deepLinkData, setDeepLinkData] = useState<DeepLinkPost | null>(null)
+  const [isDeepLinkOpen, setIsDeepLinkOpen] = useState(false)
+  const deepLinkHandledRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!deepLinkPostId || deepLinkHandledRef.current === deepLinkPostId) return
+    deepLinkHandledRef.current = deepLinkPostId
+
+    const existingPost = posts.find((p) => p.id === deepLinkPostId)
+    if (existingPost) {
+      setDeepLinkData({
+        postId: existingPost.id,
+        authorName: existingPost.author.displayName,
+        authorAvatar: existingPost.author.avatarUrl ?? undefined,
+        createdAt: existingPost.createdAt,
+        content: existingPost.content,
+        imageUrl: existingPost.imageUrl ?? undefined,
+        likes: existingPost.likes,
+        isLiked: existingPost.isLiked,
+        authorId: existingPost.authorId,
+        currentUserId: currentUser?.userId ?? null,
+        permissions: existingPost.permissions,
+        sharedPost: existingPost.sharedPost ?? null,
+      })
+      setIsDeepLinkOpen(true)
+      return
+    }
+
+    getPostById(deepLinkPostId).then((result) => {
+      if (!result.success || !result.data) {
+        toast({ description: "Bài viết không tồn tại hoặc đã bị xoá." })
+        return
+      }
+      const p = result.data
+      setDeepLinkData({
+        postId: p.id,
+        authorName: p.authorDisplayName,
+        authorAvatar: p.authorAvatarUrl ?? undefined,
+        createdAt: p.createdAtRelative,
+        content: p.content,
+        imageUrl: p.imageUrl ?? undefined,
+        likes: p.likes,
+        isLiked: p.isLiked,
+        authorId: p.authorId,
+        currentUserId: currentUser?.userId ?? null,
+        permissions: p.permissions,
+        sharedPost: p.sharedPost ?? null,
+      })
+      setIsDeepLinkOpen(true)
+    })
+  }, [deepLinkPostId, posts, currentUser, toast])
 
   const handleLike = useCallback(
     async (postId: string) => {
@@ -139,6 +217,7 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
         isLiked: post.isLiked,
         likes: post.likes,
         permissions: post.permissions,
+        sharedPost: post.sharedPost ?? null,
       }))
 
       setPosts((prev) => {
@@ -297,6 +376,7 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
                       onHidden={() =>
                         setPosts((prev) => prev.filter((p) => p.id !== post.id))
                       }
+                      sharedPost={post.sharedPost}
                     />
                   ))}
 
@@ -372,6 +452,36 @@ export function FeedPageClient({ currentUser, initialPosts }: FeedPageClientProp
           </aside>
         </div>
       </PageContainer>
+
+      {/* Deep link dialog — mở tự động khi truy cập /feed?post=<id> */}
+      {deepLinkData && (
+        <PostDetailDialog
+          open={isDeepLinkOpen}
+          onOpenChange={setIsDeepLinkOpen}
+          postId={deepLinkData.postId}
+          authorName={deepLinkData.authorName}
+          authorAvatar={deepLinkData.authorAvatar}
+          createdAt={deepLinkData.createdAt}
+          content={deepLinkData.content}
+          imageUrl={deepLinkData.imageUrl}
+          likes={deepLinkData.likes}
+          isLiked={deepLinkData.isLiked}
+          currentUser={currentUser ? { id: currentUser.userId, displayName: currentUser.displayName, avatarUrl: currentUser.avatarUrl } : null}
+          currentUserId={deepLinkData.currentUserId}
+          authorId={deepLinkData.authorId}
+          onLike={() => handleLike(deepLinkData.postId)}
+          permissions={deepLinkData.permissions}
+          onDeleted={() => {
+            setIsDeepLinkOpen(false)
+            setPosts((prev) => prev.filter((p) => p.id !== deepLinkData.postId))
+          }}
+          onHidden={() => {
+            setIsDeepLinkOpen(false)
+            setPosts((prev) => prev.filter((p) => p.id !== deepLinkData.postId))
+          }}
+          sharedPost={deepLinkData.sharedPost}
+        />
+      )}
     </>
   )
 }

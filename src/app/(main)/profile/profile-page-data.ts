@@ -101,6 +101,13 @@ export type ProfilePostDto = {
     name: string
     slug: string
   } | null
+  sharedPost: {
+    id: string
+    content: string
+    imageUrl: string | null
+    authorDisplayName: string
+    authorAvatarUrl: string | null
+  } | null
 }
 
 type ProfileRecord = {
@@ -184,6 +191,13 @@ type PostRecord = {
     id: string
     name: string
     slug: string
+  } | null
+  sharedPost: {
+    id: string
+    content: string
+    imageUrl: string | null
+    deletedAt: Date | null
+    author: { displayName: string; avatarUrl: string | null }
   } | null
 }
 
@@ -277,6 +291,15 @@ function mapPost(post: PostRecord): ProfilePostDto {
         id: post.group.id,
         name: post.group.name,
         slug: post.group.slug,
+      }
+      : null,
+    sharedPost: post.sharedPost && !post.sharedPost.deletedAt
+      ? {
+        id: post.sharedPost.id,
+        content: post.sharedPost.content,
+        imageUrl: post.sharedPost.imageUrl,
+        authorDisplayName: post.sharedPost.author.displayName,
+        authorAvatarUrl: post.sharedPost.author.avatarUrl,
       }
       : null,
   }
@@ -499,6 +522,15 @@ export async function getProfilePageData({
             id: true,
             name: true,
             slug: true,
+          },
+        },
+        sharedPost: {
+          select: {
+            id: true,
+            content: true,
+            imageUrl: true,
+            deletedAt: true,
+            author: { select: { displayName: true, avatarUrl: true } },
           },
         },
       },
