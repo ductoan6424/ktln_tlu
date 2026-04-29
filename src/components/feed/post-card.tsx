@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { PostHeader, PostHeaderSkeleton } from "@/components/feed/post-header"
 import { PostActions } from "@/components/feed/post-actions"
+import { PostContent } from "@/components/feed/post-content"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { PostMenu } from "@/components/feed/post-menu"
 import { SharedPostPreview } from "@/components/feed/shared-post-preview"
@@ -114,6 +115,7 @@ export function PostCard({
         <CardContent className="px-3 py-3 md:px-4 md:py-3">
           {/* Header */}
           <PostHeader
+            authorId={authorId}
             authorName={authorName}
             authorAvatar={authorAvatar}
             createdAt={createdAt}
@@ -121,6 +123,7 @@ export function PostCard({
             tagVariant={tagVariant}
             isVerified={isVerified}
             subtitle={subtitle}
+            currentUserId={currentUserId}
             menu={
               permissions && postId ? (
                 <PostMenu
@@ -145,7 +148,7 @@ export function PostCard({
           >
             {/* Nội dung */}
             {content && (
-              <p className="text-[13px] leading-snug mt-2.5 whitespace-pre-wrap break-words">{content}</p>
+              <PostContent content={content} className="mt-2.5" />
             )}
 
             {/* Nếu là bài repost — hiển thị embedded card */}

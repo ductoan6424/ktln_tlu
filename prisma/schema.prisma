@@ -98,6 +98,9 @@ model UserProfile {
   initiatedFriendships Friendship[] @relation("FriendshipRequester")
   receivedFriendships  Friendship[] @relation("FriendshipAddressee")
 
+  followers Follow[] @relation("UserFollowers")
+  following Follow[] @relation("UserFollowing")
+
   sentMessages               Message[]                 @relation("MessageSender")
   conversationParticipations ConversationParticipant[]
   directConversationAsUserA  DirectConversation[]      @relation("DirectConversationUserA")
@@ -398,6 +401,21 @@ model Friendship {
   @@index([requesterId])
   @@index([addresseeId])
   @@map("friendships")
+}
+
+model Follow {
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  follower  UserProfile @relation("UserFollowers", fields: [followerId], references: [userId], onDelete: Cascade)
+  following UserProfile @relation("UserFollowing", fields: [followingId], references: [userId], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
 }
 
 model EmailVerification {

@@ -83,6 +83,8 @@ const baseProfileData: ProfilePageData = {
     clubsCount: 2,
     groupsCount: 1,
     connectionsCount: 12,
+    followersCount: 0,
+    followingCount: 0,
   },
   clubs: [
     {
@@ -148,8 +150,10 @@ const baseProfileData: ProfilePageData = {
       createdAt: "2025-04-01T00:00:00.000Z",
       club: null,
       group: null,
+      sharedPost: null,
     },
   ],
+  followStatus: null,
 }
 
 beforeEach(() => {

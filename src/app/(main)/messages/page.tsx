@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { ArrowLeft, Loader2 } from "lucide-react"
 
 import {
@@ -23,6 +24,9 @@ import type { ChatConversationItem, ChatMessageItem, ChatSessionUser } from "@/t
 import { formatRelativeTime } from "@/utils/formatters"
 
 export default function MessagesPage() {
+  const searchParams = useSearchParams()
+  const requestedConversationId = searchParams.get("conversation")
+
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
   const [conversations, setConversations] = useState<ChatConversationItem[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
@@ -100,6 +104,16 @@ export default function MessagesPage() {
 
     void bootstrap()
   }, [])
+
+  // Đồng bộ activeConversation theo query param ?conversation=[id]
+  useEffect(() => {
+    if (!requestedConversationId || conversations.length === 0) return
+
+    const matched = conversations.find((item) => item.id === requestedConversationId)
+    if (matched) {
+      setActiveConversationId(matched.id)
+    }
+  }, [requestedConversationId, conversations])
 
   const loadMessages = useCallback(async (conversationId: string, cursor?: string) => {
     const result = await getConversationMessages({
