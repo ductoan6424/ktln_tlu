@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistance } from "date-fns";
 import { vi } from "date-fns/locale";
 
 // Format ngày tháng dạng đầy đủ: "11 tháng 3, 2026"
@@ -12,8 +12,11 @@ export function formatDateShort(date: Date | string): string {
 }
 
 // Format thời gian tương đối: "3 phút trước"
-export function formatRelativeTime(date: Date | string): string {
-  return formatDistanceToNow(new Date(date), {
+export function formatRelativeTime(
+  date: Date | string,
+  baseDate: Date | string = new Date(),
+): string {
+  return formatDistance(new Date(date), new Date(baseDate), {
     addSuffix: true,
     locale: vi,
   });

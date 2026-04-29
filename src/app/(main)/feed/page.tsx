@@ -35,7 +35,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     id: post.id,
     content: post.content,
     imageUrl: post.imageUrl,
-    createdAt: post.createdAtRelative,
+    createdAt: post.createdAt,
     visibility: post.visibility,
     authorId: post.authorId,
     author: {

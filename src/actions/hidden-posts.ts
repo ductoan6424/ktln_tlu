@@ -11,6 +11,7 @@ import { formatRelativeTime } from "@/utils/formatters"
 export interface HiddenPostItem {
   postId: string
   hiddenAt: string
+  hiddenAtRelative: string
   content: string
   imageUrl: string | null
   authorId: string
@@ -115,6 +116,7 @@ export async function loadHiddenPosts(
     const items: HiddenPostItem[] = rows.map((r) => ({
       postId: r.postId,
       hiddenAt: r.hiddenAt.toISOString(),
+      hiddenAtRelative: formatRelativeTime(r.hiddenAt),
       content: r.post.content,
       imageUrl: r.post.imageUrl,
       authorId: r.post.authorId,
