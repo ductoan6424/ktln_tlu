@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { RelativeTime } from "@/components/shared/relative-time"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import Image from "next/image"
 import type { HiddenPostItem } from "@/actions/hidden-posts"
@@ -24,7 +25,10 @@ export function HiddenPostCard({ item, onUnhide, disabled }: HiddenPostCardProps
           <div className="min-w-0">
             <p className="font-medium text-sm truncate">{item.authorDisplayName}</p>
             <p className="text-xs text-muted-foreground">
-              {item.createdAtRelative}
+              <RelativeTime
+                date={item.hiddenAt}
+                fallback={item.hiddenAtRelative}
+              />
             </p>
           </div>
         </div>

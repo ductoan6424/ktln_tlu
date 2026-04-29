@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { RelativeTime } from "@/components/shared/relative-time"
 import { UserAvatar } from "@/components/shared/user-avatar"
 
 export interface CommentWithAuthorFlat {
@@ -53,7 +54,10 @@ export function CommentItem({
             </Button>
           )}
           <span className="text-xs text-muted-foreground">
-            {comment.createdAtRelative}
+            <RelativeTime
+              date={comment.createdAt}
+              fallback={comment.createdAtRelative}
+            />
           </span>
         </div>
       </div>
