@@ -104,6 +104,8 @@ export function ProfilePageContent({ data }: ProfilePageContentProps) {
         studentId={data.profile.studentId}
         clubs={getHeaderClubs(data)}
         isOwnProfile={data.isOwnProfile}
+        targetUserId={data.profileUserId}
+        followStatus={data.followStatus}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">

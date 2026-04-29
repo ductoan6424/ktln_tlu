@@ -49,6 +49,8 @@ const ownProfileData: ProfilePageData = {
     clubsCount: 1,
     groupsCount: 1,
     connectionsCount: 5,
+    followersCount: 0,
+    followingCount: 0,
   },
   clubs: [],
   groups: [],
@@ -57,6 +59,7 @@ const ownProfileData: ProfilePageData = {
     items: [],
   },
   posts: [],
+  followStatus: null,
 }
 
 beforeEach(() => {

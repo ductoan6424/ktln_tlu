@@ -2,11 +2,18 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { IconButton } from "@/components/shared/icon-button"
-import { Smile, Paperclip, Send, PlusCircle, X } from "lucide-react"
+import { Smile, Send, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CHAT_FILE_INPUT_ACCEPT, CHAT_INPUT_MAX_LENGTH } from "@/lib/config/chat"
 
@@ -41,8 +48,20 @@ export function MessageInput({
   const [internalValue, setInternalValue] = useState(value ?? "")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const draft = value ?? internalValue
+
+  // Auto-resize textarea theo nội dung. Cap max-height = 112px (~4.5 dòng)
+  // rồi cho phép scroll bên trong, không grow tràn ra ngoài layout.
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    textarea.style.height = "auto"
+    const nextHeight = Math.min(textarea.scrollHeight, 112)
+    textarea.style.height = `${nextHeight}px`
+  }, [draft])
 
   const placeholder = recipientName
     ? `Nhắn tin cho ${recipientName}...`
@@ -168,53 +187,54 @@ export function MessageInput({
         </div>
       )}
 
-      <div className="bg-muted border border-border rounded-2xl p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
-        <div className="flex items-end gap-1.5">
-          <IconButton
-            icon={PlusCircle}
-            size="sm"
-            ariaLabel="Thêm tệp đính kèm"
-            className="rounded-lg shrink-0"
-            onClick={openFilePicker}
+      <div className="flex items-end gap-1.5">
+        {/* Action ngoài: Thêm tệp */}
+        <IconButton
+          icon={Plus}
+          size="sm"
+          ariaLabel="Thêm tệp đính kèm"
+          className="size-8 shrink-0 rounded-full text-primary hover:bg-primary/10 hover:text-primary"
+          onClick={openFilePicker}
+        />
+
+        {/* Pill input: textarea + emoji */}
+        <div
+          className={cn(
+            "flex flex-1 items-end gap-1 rounded-2xl bg-muted px-2.5 py-1 transition-colors",
+            "focus-within:bg-muted/70 focus-within:ring-1 focus-within:ring-ring/40"
+          )}
+        >
+          <Textarea
+            ref={textareaRef}
+            placeholder={placeholder}
+            rows={1}
+            value={draft}
+            maxLength={CHAT_INPUT_MAX_LENGTH}
+            disabled={disabled || isSending}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={handleKeyDown}
+            className="min-h-6 max-h-28 flex-1 resize-none overflow-y-auto border-none bg-transparent px-0 py-0.5 text-[13px] leading-5 shadow-none focus-visible:ring-0 placeholder:text-muted-foreground"
           />
-          <div className="flex-1 min-w-0 py-0.5">
-            <Textarea
-              placeholder={placeholder}
-              rows={1}
-              value={draft}
-              maxLength={CHAT_INPUT_MAX_LENGTH}
-              disabled={disabled || isSending}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={handleKeyDown}
-              className="bg-transparent border-none focus-visible:ring-0 text-sm resize-none py-0.5 min-h-0 placeholder:text-muted-foreground"
-            />
-          </div>
-          <div className="flex items-center gap-0.5 shrink-0">
-            <IconButton
-              icon={Smile}
-              size="sm"
-              ariaLabel="Biểu tượng cảm xúc"
-              className="rounded-lg"
-            />
-            <IconButton
-              icon={Paperclip}
-              size="sm"
-              ariaLabel="Đính kèm tệp"
-              className="rounded-lg"
-              onClick={openFilePicker}
-            />
-            <Button
-              size="icon"
-              className="rounded-lg shadow-sm size-8"
-              disabled={!canSend}
-              onClick={() => {
-                void handleSend()
-              }}
-            >
-              <Send className="size-3.5" />
-            </Button>
-          </div>
+          <IconButton
+            icon={Smile}
+            size="sm"
+            ariaLabel="Biểu tượng cảm xúc"
+            className="size-6 shrink-0 self-end rounded-full text-muted-foreground hover:text-primary"
+          />
         </div>
+
+        {/* Send button (tròn) */}
+        <Button
+          size="icon"
+          aria-label="Gửi tin nhắn"
+          className="size-8 shrink-0 rounded-full"
+          disabled={!canSend}
+          onClick={() => {
+            void handleSend()
+          }}
+        >
+          <Send className="size-3.5" />
+        </Button>
       </div>
       {!compact && (
         <p className="text-[10px] text-center text-muted-foreground mt-2">
