@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma/client"
 import { FeedPageClient } from "./feed-page-client"
-import { formatRelativeTime } from "@/utils/formatters"
 import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
 
 const PAGE_SIZE = 20
@@ -70,7 +69,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     skip: 0,
   })
 
-  const postsWithFormattedTime = await Promise.all(
+  const postsWithTimestamps = await Promise.all(
     rawPosts.map(async (post) => {
       let permissions = {
         canDelete: false,
@@ -96,7 +95,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         id: post.id,
         content: post.content,
         imageUrl: post.imageUrl,
-        createdAt: formatRelativeTime(post.createdAt),
+        createdAt: post.createdAt.toISOString(),
         visibility: post.visibility,
         authorId: post.authorId,
         author: {
@@ -121,5 +120,5 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     }),
   )
 
-  return <FeedPageClient currentUser={currentUser} initialPosts={postsWithFormattedTime} deepLinkPostId={deepLinkPostId} />
+  return <FeedPageClient currentUser={currentUser} initialPosts={postsWithTimestamps} deepLinkPostId={deepLinkPostId} />
 }

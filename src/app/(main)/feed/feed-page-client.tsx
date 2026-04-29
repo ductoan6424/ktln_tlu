@@ -119,6 +119,7 @@ export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: Fe
 
     const existingPost = posts.find((p) => p.id === deepLinkPostId)
     if (existingPost) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- open the dialog in response to a deep-link query param
       setDeepLinkData({
         postId: existingPost.id,
         authorName: existingPost.author.displayName,
@@ -147,7 +148,7 @@ export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: Fe
         postId: p.id,
         authorName: p.authorDisplayName,
         authorAvatar: p.authorAvatarUrl ?? undefined,
-        createdAt: p.createdAtRelative,
+        createdAt: p.createdAt,
         content: p.content,
         imageUrl: p.imageUrl ?? undefined,
         likes: p.likes,
@@ -211,7 +212,7 @@ export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: Fe
         id: post.id,
         content: post.content,
         imageUrl: post.imageUrl,
-        createdAt: post.createdAtRelative,
+        createdAt: post.createdAt,
         visibility: post.visibility,
         authorId: post.authorId,
         author: {

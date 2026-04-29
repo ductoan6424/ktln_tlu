@@ -1,6 +1,7 @@
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { IconButton } from "@/components/shared/icon-button"
+import { RelativeTime } from "@/components/shared/relative-time"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MoreHorizontal, BadgeCheck } from "lucide-react"
 import type { ReactNode } from "react"
@@ -41,7 +42,7 @@ export function PostHeader({
           </div>
           <p className="text-xs text-muted-foreground">
             {subtitle && <>{subtitle} • </>}
-            {createdAt}
+            <RelativeTime date={createdAt} fallback={createdAt} />
             {tag && (
               <>
                 {" • "}

@@ -11,7 +11,6 @@ import { ProfileClubGroupCard } from "@/components/profile/profile-club-group-ca
 import { ProfileHeader } from "@/components/profile/profile-header"
 import { ProfileOverviewCard } from "@/components/profile/profile-overview-card"
 import { ProfileTabs } from "@/components/profile/profile-tabs"
-import { formatRelativeTime } from "@/utils/formatters"
 import { FileText } from "lucide-react"
 
 interface ProfilePageContentProps {
@@ -63,7 +62,7 @@ function renderPostsPanel(data: ProfilePageData) {
             postId={post.id}
             authorName={data.profile.displayName}
             authorAvatar={data.profile.avatarUrl ?? undefined}
-            createdAt={formatRelativeTime(post.createdAt)}
+            createdAt={post.createdAt}
             content={post.content}
             imageUrl={post.imageUrl ?? undefined}
             tag={post.club?.name ?? post.group?.name}
