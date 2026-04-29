@@ -5,3 +5,6 @@ export const CLUB_ADMIN_CACHE_TTL_SECONDS = 60
 export const POST_SHARE_PATH_PREFIX = "/feed"
 export const POST_SHARE_QUERY_KEY = "post"
 export const POST_SHARE_REPOST_MAX = 500
+
+export const FEED_PAGE_SIZE = 10
+export const POST_LONG_THRESHOLD = 300

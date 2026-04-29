@@ -39,45 +39,65 @@ export function ProfileOverviewCard({
   return (
     <Card className={className}>
       <CardContent className="space-y-4 p-5">
-        <SectionHeader title="T\u1ed5ng quan" />
+        <SectionHeader title="Tổng quan" />
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-muted/60 px-3 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              B\u00e0i vi\u1ebft
-            </p>
-            <p className="mt-1 text-xl font-bold">{formatNumber(stats.postsCount)}</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg bg-muted/60 px-2.5 py-3 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Bài viết
+              </p>
+              <p className="mt-1 text-lg font-bold tabular-nums">
+                {formatNumber(stats.postsCount)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2.5 py-3 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Followers
+              </p>
+              <p className="mt-1 text-lg font-bold tabular-nums">
+                {formatNumber(stats.followersCount)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-2.5 py-3 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Following
+              </p>
+              <p className="mt-1 text-lg font-bold tabular-nums">
+                {formatNumber(stats.followingCount)}
+              </p>
+            </div>
           </div>
-          <div className="rounded-lg bg-muted/60 px-3 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              K\u1ebft n\u1ed1i
-            </p>
-            <p className="mt-1 text-xl font-bold">{formatNumber(stats.connectionsCount)}</p>
-          </div>
-          <div className="rounded-lg bg-muted/60 px-3 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              C\u00e2u l\u1ea1c b\u1ed9
-            </p>
-            <p className="mt-1 text-xl font-bold">{formatNumber(stats.clubsCount)}</p>
-          </div>
-          <div className="rounded-lg bg-muted/60 px-3 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Nh\u00f3m
-            </p>
-            <p className="mt-1 text-xl font-bold">{formatNumber(stats.groupsCount)}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-muted/60 px-3 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Câu lạc bộ
+              </p>
+              <p className="mt-1 text-xl font-bold tabular-nums">
+                {formatNumber(stats.clubsCount)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/60 px-3 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Nhóm
+              </p>
+              <p className="mt-1 text-xl font-bold tabular-nums">
+                {formatNumber(stats.groupsCount)}
+              </p>
+            </div>
           </div>
         </div>
 
         <div className="space-y-3">
-          <OverviewRow label="Vai tr\u00f2" value={getBaseRoleLabel(profile.role)} />
+          <OverviewRow label="Vai trò" value={getBaseRoleLabel(profile.role)} />
           {profile.studentId && (
-            <OverviewRow label="M\u00e3 sinh vi\u00ean" value={profile.studentId} />
+            <OverviewRow label="Mã sinh viên" value={profile.studentId} />
           )}
           {profile.major && (
-            <OverviewRow label="Ng\u00e0nh" value={profile.major} />
+            <OverviewRow label="Ngành" value={profile.major} />
           )}
           {profile.year && (
-            <OverviewRow label="Kh\u00f3a" value={`K${profile.year}`} />
+            <OverviewRow label="Khóa" value={`K${profile.year}`} />
           )}
           <OverviewRow
             label="Tham gia"
@@ -87,10 +107,10 @@ export function ProfileOverviewCard({
 
         <div className="rounded-lg border border-border/60 bg-background px-3 py-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Gi\u1edbi thi\u1ec7u
+            Giới thiệu
           </p>
           <p className="mt-2 text-sm leading-relaxed text-foreground/80">
-            {profile.bio?.trim() || "Ch\u01b0a c\u00f3 ph\u1ea7n gi\u1edbi thi\u1ec7u."}
+            {profile.bio?.trim() || "Chưa có phần giới thiệu."}
           </p>
         </div>
       </CardContent>

@@ -9,7 +9,8 @@ import { formatRelativeTime } from "@/utils/formatters"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
-import { POST_SHARE_REPOST_MAX } from "@/lib/config/posts"
+import { FEED_PAGE_SIZE, POST_SHARE_REPOST_MAX } from "@/lib/config/posts"
+import { getFeedPosts, type FeedCursor, type FeedPage } from "@/lib/feed/queries"
 import type { PostModerationAction } from "@prisma/client"
 
 const ROLE_TO_ACTION: Record<"ADMIN" | "CLUB_ADMIN" | "GROUP_ADMIN", PostModerationAction> = {
@@ -386,119 +387,22 @@ export async function togglePostLike(
   }
 }
 
-// ─── Load More Posts (infinite scroll) ────────────────────────────────────
+// ─── Load Feed Posts (2-bucket: followed first, then rest) ────────────────
 
-export async function loadMorePosts(
-  page: number,
-  pageSize: number = 20
-): Promise<ActionResult<PostWithAuthorFlat[]>> {
+export async function loadFeedPosts(
+  cursor: FeedCursor,
+  pageSize: number = FEED_PAGE_SIZE
+): Promise<ActionResult<FeedPage>> {
   try {
     const supabase = await createClient()
     const { data: userData } = await supabase.auth.getUser()
     const currentUserId = userData?.user?.id ?? null
 
-    const skip = page * pageSize
+    const result = await getFeedPosts(currentUserId, cursor, pageSize)
 
-    const hiddenIds = currentUserId
-      ? (
-          await prisma.hiddenPost.findMany({
-            where: { userId: currentUserId },
-            select: { postId: true },
-          })
-        ).map((h) => h.postId)
-      : []
-
-    const posts = await prisma.post.findMany({
-      where: {
-        visibility: "PUBLIC",
-        deletedAt: null,
-        ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
-      },
-      include: {
-        author: {
-          select: {
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        likes: currentUserId
-          ? { where: { userId: currentUserId }, select: { id: true } }
-          : false,
-        _count: {
-          select: { likes: true, comments: true },
-        },
-        sharedPost: {
-          select: {
-            id: true,
-            content: true,
-            imageUrl: true,
-            deletedAt: true,
-            author: { select: { displayName: true, avatarUrl: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: pageSize,
-      skip,
-    })
-
-    const formatted: PostWithAuthorFlat[] = await Promise.all(
-      posts.map(async (post) => {
-        let permissions: PostPermissions = {
-          canDelete: false,
-          canHide: false,
-          deleteRole: null,
-        }
-        if (currentUserId) {
-          const ctx = {
-            postId: post.id,
-            authorId: post.authorId,
-            clubId: post.clubId,
-            groupId: post.groupId,
-          }
-          const role = await resolveDeleteRole(currentUserId, ctx)
-          permissions = {
-            canDelete: role !== null,
-            canHide: canHidePost(currentUserId, ctx),
-            deleteRole:
-              role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
-          }
-        }
-
-        const sp = post.sharedPost
-        const sharedPost: SharedPostData | null =
-          sp && !sp.deletedAt
-            ? {
-                id: sp.id,
-                content: sp.content,
-                imageUrl: sp.imageUrl,
-                authorDisplayName: sp.author.displayName,
-                authorAvatarUrl: sp.author.avatarUrl,
-              }
-            : null
-
-        return {
-          id: post.id,
-          content: post.content,
-          imageUrl: post.imageUrl,
-          createdAt: post.createdAt.toISOString(),
-          createdAtRelative: formatRelativeTime(post.createdAt),
-          visibility: post.visibility,
-          authorId: post.authorId,
-          authorDisplayName: post.author.displayName,
-          authorAvatarUrl: post.author.avatarUrl,
-          isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
-          likes: post._count.likes,
-          comments: post._count.comments,
-          permissions,
-          sharedPost,
-        }
-      }),
-    )
-
-    return successResult(formatted)
+    return successResult(result)
   } catch (error) {
-    console.error("loadMorePosts error:", error)
+    console.error("loadFeedPosts error:", error)
     return errorResult("Không thể tải thêm bài viết.")
   }
 }

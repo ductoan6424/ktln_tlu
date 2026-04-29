@@ -1,10 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma/client"
 import { FeedPageClient } from "./feed-page-client"
-import { formatRelativeTime } from "@/utils/formatters"
-import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
-
-const PAGE_SIZE = 20
+import { FEED_PAGE_SIZE } from "@/lib/config/posts"
+import { INITIAL_FEED_CURSOR, getFeedPosts } from "@/lib/feed/queries"
 
 interface FeedPageProps {
   searchParams: Promise<{ post?: string }>
@@ -27,99 +25,37 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     currentUser = profile
   }
 
-  const hiddenIds = currentUserId
-    ? (
-        await prisma.hiddenPost.findMany({
-          where: { userId: currentUserId },
-          select: { postId: true },
-        })
-      ).map((h) => h.postId)
-    : []
-
-  const rawPosts = await prisma.post.findMany({
-    where: {
-      visibility: "PUBLIC",
-      deletedAt: null,
-      ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
-    },
-    include: {
-      author: {
-        select: {
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
-      likes: currentUserId
-        ? { where: { userId: currentUserId }, select: { id: true } }
-        : false,
-      _count: {
-        select: { likes: true },
-      },
-      sharedPost: {
-        select: {
-          id: true,
-          content: true,
-          imageUrl: true,
-          deletedAt: true,
-          author: { select: { displayName: true, avatarUrl: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: PAGE_SIZE,
-    skip: 0,
-  })
-
-  const postsWithFormattedTime = await Promise.all(
-    rawPosts.map(async (post) => {
-      let permissions = {
-        canDelete: false,
-        canHide: false,
-        deleteRole: null as "AUTHOR" | "MODERATOR" | null,
-      }
-      if (currentUserId) {
-        const ctx = {
-          postId: post.id,
-          authorId: post.authorId,
-          clubId: post.clubId,
-          groupId: post.groupId,
-        }
-        const role = await resolveDeleteRole(currentUserId, ctx)
-        permissions = {
-          canDelete: role !== null,
-          canHide: canHidePost(currentUserId, ctx),
-          deleteRole:
-            role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
-        }
-      }
-      return {
-        id: post.id,
-        content: post.content,
-        imageUrl: post.imageUrl,
-        createdAt: formatRelativeTime(post.createdAt),
-        visibility: post.visibility,
-        authorId: post.authorId,
-        author: {
-          displayName: post.author.displayName,
-          avatarUrl: post.author.avatarUrl,
-        },
-        isLiked: Array.isArray((post as unknown as { likes?: unknown[] }).likes)
-          ? ((post as unknown as { likes: unknown[] }).likes.length ?? 0) > 0
-          : false,
-        likes: post._count.likes,
-        permissions,
-        sharedPost: post.sharedPost && !post.sharedPost.deletedAt
-          ? {
-              id: post.sharedPost.id,
-              content: post.sharedPost.content,
-              imageUrl: post.sharedPost.imageUrl,
-              authorDisplayName: post.sharedPost.author.displayName,
-              authorAvatarUrl: post.sharedPost.author.avatarUrl,
-            }
-          : null,
-      }
-    }),
+  const initialFeed = await getFeedPosts(
+    currentUserId,
+    INITIAL_FEED_CURSOR,
+    FEED_PAGE_SIZE
   )
 
-  return <FeedPageClient currentUser={currentUser} initialPosts={postsWithFormattedTime} deepLinkPostId={deepLinkPostId} />
+  const initialPosts = initialFeed.posts.map((post) => ({
+    id: post.id,
+    content: post.content,
+    imageUrl: post.imageUrl,
+    createdAt: post.createdAtRelative,
+    visibility: post.visibility,
+    authorId: post.authorId,
+    author: {
+      displayName: post.authorDisplayName,
+      avatarUrl: post.authorAvatarUrl,
+    },
+    isLiked: post.isLiked,
+    likes: post.likes,
+    permissions: post.permissions,
+    sharedPost: post.sharedPost,
+    isFromFollowed: post.isFromFollowed,
+  }))
+
+  return (
+    <FeedPageClient
+      currentUser={currentUser}
+      initialPosts={initialPosts}
+      initialCursor={initialFeed.nextCursor}
+      initialHasMore={initialFeed.hasMore}
+      deepLinkPostId={deepLinkPostId}
+    />
+  )
 }

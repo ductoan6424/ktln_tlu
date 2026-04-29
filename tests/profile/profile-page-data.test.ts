@@ -20,6 +20,10 @@ const prisma = vi.hoisted(() => ({
     findMany: vi.fn(),
     count: vi.fn(),
   },
+  follow: {
+    findUnique: vi.fn(),
+    count: vi.fn(),
+  },
 }))
 
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
@@ -178,6 +182,10 @@ beforeEach(() => {
   prisma.groupMember.count.mockReset()
   prisma.post.findMany.mockReset()
   prisma.post.count.mockReset()
+  prisma.follow.findUnique.mockReset()
+  prisma.follow.count.mockReset()
+  prisma.follow.findUnique.mockResolvedValue(null)
+  prisma.follow.count.mockResolvedValue(0)
 })
 
 describe("getProfilePageData", () => {
@@ -220,6 +228,8 @@ describe("getProfilePageData", () => {
       clubsCount: 1,
       groupsCount: 1,
       connectionsCount: 2,
+      followersCount: 0,
+      followingCount: 0,
     })
     expect(result?.clubs).toEqual([
       {
@@ -285,6 +295,7 @@ describe("getProfilePageData", () => {
         createdAt: "2025-04-01T00:00:00.000Z",
         club: null,
         group: null,
+        sharedPost: null,
       },
       {
         id: "post-public",
@@ -302,6 +313,7 @@ describe("getProfilePageData", () => {
           name: "Data Study Group",
           slug: "data-study-group",
         },
+        sharedPost: null,
       },
     ])
 
@@ -381,6 +393,7 @@ describe("getProfilePageData", () => {
         createdAt: "2025-04-03T00:00:00.000Z",
         club: null,
         group: null,
+        sharedPost: null,
       },
     ])
 

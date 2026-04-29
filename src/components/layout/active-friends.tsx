@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/shared/user-avatar"
@@ -19,6 +19,7 @@ interface ActiveFriendsProps {
 export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) {
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
   const [friends, setFriends] = useState<ActiveFriend[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const { onlineUserIds } = useChatRealtime({
     currentUser: sessionUser,
@@ -38,22 +39,33 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
 
       if (!friendsResult.success || !friendsResult.data) {
         setFriends([])
+        setIsLoading(false)
         return
       }
 
       setFriends(friendsResult.data)
+      setIsLoading(false)
     }
 
     void fetchFriends()
   }, [])
 
-  const onlineFriends = friends
-    .map((friend) => ({
-      ...friend,
-      status: onlineUserIds.has(friend.id) ? ("online" as const) : ("offline" as const),
-    }))
-    .filter((friend) => friend.status !== "offline")
-    .slice(0, 10)
+  // Gắn status online/offline + sort: online ưu tiên trên, offline ở dưới
+  // Trong cùng nhóm online/offline giữ nguyên thứ tự (bạn bè trước, following sau)
+  const sortedContacts = useMemo(() => {
+    return friends
+      .map((friend) => ({
+        ...friend,
+        status: onlineUserIds.has(friend.id)
+          ? ("online" as const)
+          : ("offline" as const),
+      }))
+      .sort((a, b) => {
+        if (a.status === "online" && b.status !== "online") return -1
+        if (a.status !== "online" && b.status === "online") return 1
+        return 0
+      })
+  }, [friends, onlineUserIds])
 
   return (
     <Card className={className}>
@@ -63,7 +75,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
           <p className="font-bold text-sm">Người liên hệ</p>
         </div>
         <div className="space-y-1">
-          {onlineFriends.map((friend) => (
+          {sortedContacts.map((friend) => (
             <Button
               key={friend.id}
               variant="ghost"
@@ -80,8 +92,10 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
               <p className="text-sm font-medium truncate">{friend.name}</p>
             </Button>
           ))}
-          {onlineFriends.length === 0 && (
-            <p className="text-sm text-muted-foreground py-2">Không có ai đang hoạt động</p>
+          {!isLoading && sortedContacts.length === 0 && (
+            <p className="text-sm text-muted-foreground py-2">
+              Chưa có liên hệ. Theo dõi ai đó để bắt đầu trò chuyện.
+            </p>
           )}
         </div>
       </CardContent>
