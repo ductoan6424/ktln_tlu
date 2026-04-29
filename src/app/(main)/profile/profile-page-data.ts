@@ -1,5 +1,10 @@
 import { FriendshipStatus, MemberRole, PostVisibility, type UserRole } from "@prisma/client"
 import { prisma } from "@/lib/prisma/client"
+import {
+  getFollowCounts,
+  getFollowStatus,
+  type FollowStatus,
+} from "@/lib/follows/queries"
 
 export type ProfilePageParams = {
   viewerId: string
@@ -16,6 +21,7 @@ export type ProfilePageData = {
   groups: GroupMembershipDto[]
   connectionsPreview: ConnectionsPreview
   posts: ProfilePostDto[]
+  followStatus: FollowStatus | null
 }
 
 export type ProfileSummary = {
@@ -36,6 +42,8 @@ export type ProfileStats = {
   clubsCount: number
   groupsCount: number
   connectionsCount: number
+  followersCount: number
+  followingCount: number
 }
 
 export type ConnectionsPreview = {
@@ -344,6 +352,8 @@ export async function getProfilePageData({
     groups,
     postsCount,
     posts,
+    followCounts,
+    followStatus,
   ] = await Promise.all([
     prisma.friendship.count({
       where: {
@@ -539,6 +549,10 @@ export async function getProfilePageData({
       },
       take: 10,
     }),
+    getFollowCounts(profileUserId),
+    isOwnProfile
+      ? Promise.resolve(null)
+      : getFollowStatus(viewerId, profileUserId),
   ])
 
   return {
@@ -551,6 +565,8 @@ export async function getProfilePageData({
       clubsCount,
       groupsCount,
       connectionsCount,
+      followersCount: followCounts.followersCount,
+      followingCount: followCounts.followingCount,
     },
     clubs: clubs.map(mapClubMembership),
     groups: groups.map(mapGroupMembership),
@@ -559,5 +575,6 @@ export async function getProfilePageData({
       items: connectionsPreview.map((friendship) => mapConnection(friendship, profileUserId)),
     },
     posts: posts.map(mapPost),
+    followStatus,
   }
 }

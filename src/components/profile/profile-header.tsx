@@ -2,10 +2,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { AvatarUploader } from "@/components/profile/avatar-uploader"
+import { FollowButton } from "@/components/profile/follow-button"
+import { MessageButton } from "@/components/messages/message-button"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pencil, Share2, Camera } from "lucide-react"
 import Image from "next/image"
+import type { FollowStatus } from "@/lib/follows/queries"
 
 interface ProfileHeaderProps {
   coverImage?: string
@@ -18,6 +21,8 @@ interface ProfileHeaderProps {
   studentId?: string | null
   clubs?: string[]
   isOwnProfile?: boolean
+  targetUserId?: string
+  followStatus?: FollowStatus | null
   className?: string
 }
 
@@ -32,6 +37,8 @@ export function ProfileHeader({
   studentId,
   clubs = [],
   isOwnProfile = false,
+  targetUserId,
+  followStatus,
   className,
 }: ProfileHeaderProps) {
   const metaItems = [
@@ -121,6 +128,15 @@ export function ProfileHeader({
                 <Pencil className="size-4" />
                 Sửa hồ sơ
               </Button>
+            )}
+            {!isOwnProfile && targetUserId && followStatus && (
+              <>
+                <MessageButton targetUserId={targetUserId} />
+                <FollowButton
+                  targetUserId={targetUserId}
+                  initialStatus={followStatus}
+                />
+              </>
             )}
             <Button
               variant="outline"

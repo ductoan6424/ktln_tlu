@@ -19,7 +19,9 @@ import { ChatPopup } from "@/components/layout/chat-popup"
 import { mockGroups } from "@/components/layout/mock-data"
 import type { ActiveFriend } from "@/components/layout/mock-data"
 import { listMyConversations } from "@/actions/chat"
-import { loadMorePosts, togglePostLike, getPostById } from "@/actions/posts"
+import { loadFeedPosts, togglePostLike, getPostById } from "@/actions/posts"
+import { FEED_PAGE_SIZE } from "@/lib/config/posts"
+import type { FeedCursor } from "@/lib/feed/queries"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { createAblyClient } from "@/lib/ably/client"
@@ -73,6 +75,7 @@ interface FeedPost {
     deleteRole: "AUTHOR" | "MODERATOR" | null
   }
   sharedPost?: SharedPostData | null
+  isFromFollowed?: boolean
 }
 
 interface DeepLinkPost {
@@ -97,14 +100,22 @@ interface FeedPageClientProps {
     avatarUrl: string | null
   } | null
   initialPosts: FeedPost[]
+  initialCursor: FeedCursor
+  initialHasMore: boolean
   deepLinkPostId?: string | null
 }
 
-export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: FeedPageClientProps) {
+export function FeedPageClient({
+  currentUser,
+  initialPosts,
+  initialCursor,
+  initialHasMore,
+  deepLinkPostId,
+}: FeedPageClientProps) {
   const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [currentPage, setCurrentPage] = useState(0)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [cursor, setCursor] = useState<FeedCursor>(initialCursor)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const rollbackRef = useRef<FeedPost[] | null>(null)
   const { toast } = useToast()
@@ -202,12 +213,12 @@ export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: Fe
     if (isLoadingMore || !hasMore) return
 
     setIsLoadingMore(true)
-    const nextPage = currentPage + 1
 
-    const result = await loadMorePosts(nextPage)
+    const result = await loadFeedPosts(cursor, FEED_PAGE_SIZE)
 
     if (result.success && result.data) {
-      const newPosts = result.data.map((post) => ({
+      const page = result.data
+      const newPosts: FeedPost[] = page.posts.map((post) => ({
         id: post.id,
         content: post.content,
         imageUrl: post.imageUrl,
@@ -222,6 +233,7 @@ export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: Fe
         likes: post.likes,
         permissions: post.permissions,
         sharedPost: post.sharedPost ?? null,
+        isFromFollowed: post.isFromFollowed,
       }))
 
       setPosts((prev) => {
@@ -229,16 +241,14 @@ export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: Fe
         const filtered = newPosts.filter((p) => !existingIds.has(p.id))
         return [...prev, ...filtered]
       })
-      setCurrentPage(nextPage)
-      if (result.data.length < 20) {
-        setHasMore(false)
-      }
+      setCursor(page.nextCursor)
+      setHasMore(page.hasMore)
     } else {
       setHasMore(false)
     }
 
     setIsLoadingMore(false)
-  }, [isLoadingMore, hasMore, currentPage])
+  }, [isLoadingMore, hasMore, cursor])
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -443,7 +453,8 @@ export function FeedPageClient({ currentUser, initialPosts, deepLinkPostId }: Fe
 
                   {/* Loading skeletons when fetching more */}
                   {isLoadingMore && (
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3" aria-busy="true" aria-label="Đang tải thêm bài viết">
+                      <PostCardSkeleton />
                       <PostCardSkeleton />
                     </div>
                   )}
