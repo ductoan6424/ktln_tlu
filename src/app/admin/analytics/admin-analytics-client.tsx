@@ -1,19 +1,25 @@
 "use client"
 
-import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { ProgressBar } from "@/components/shared/progress-bar"
 import { SectionHeader } from "@/components/shared/section-header"
-import { StatusBadge } from "@/components/shared/status-badge"
+import { SimpleBarChart } from "@/components/shared/simple-bar-chart"
+import { EmptyState } from "@/components/shared/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Eye,
-  Clock,
-  MousePointerClick,
-  UserPlus,
+  Users,
+  FileText,
+  MessageSquare,
+  Heart,
   TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  Building2,
+  UserCircle,
 } from "lucide-react"
+import type { AnalyticsOverview } from "@/lib/admin/stats-queries"
 
 const TIME_TABS = [
   { label: "7 ngày", value: "7d" },
@@ -22,211 +28,226 @@ const TIME_TABS = [
   { label: "Năm nay", value: "year" },
 ]
 
-const OVERVIEW_STATS = [
-  {
-    icon: Eye,
-    label: "Lượt truy cập",
-    value: "45,238",
-    change: "+18%",
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
-  },
-  {
-    icon: Clock,
-    label: "Thời gian trung bình",
-    value: "4m 32s",
-    change: "+5%",
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
-  },
-  {
-    icon: MousePointerClick,
-    label: "Tỉ lệ tương tác",
-    value: "67.3%",
-    change: "+2.1%",
-    color: "text-green-600",
-    bgColor: "bg-green-50",
-  },
-  {
-    icon: UserPlus,
-    label: "Người dùng mới",
-    value: "234",
-    change: "+12%",
-    color: "text-orange-600",
-    bgColor: "bg-orange-50",
-  },
-]
+interface AdminAnalyticsClientProps {
+  overview: AnalyticsOverview
+}
 
-const WEEKLY_DATA = [
-  { label: "T2", pageViews: 6800, users: 1200 },
-  { label: "T3", pageViews: 7200, users: 1350 },
-  { label: "T4", pageViews: 5400, users: 980 },
-  { label: "T5", pageViews: 8100, users: 1500 },
-  { label: "T6", pageViews: 7600, users: 1420 },
-  { label: "T7", pageViews: 4200, users: 780 },
-  { label: "CN", pageViews: 3100, users: 560 },
-]
+function formatTrendLabel(value: number): { label: string; positive: boolean } {
+  const sign = value > 0 ? "+" : ""
+  return {
+    label: `${sign}${value}%`,
+    positive: value >= 0,
+  }
+}
 
-const DEPARTMENT_DATA = [
-  { name: "Công nghệ thông tin", users: 890, percentage: 31 },
-  { name: "Kỹ thuật xây dựng", users: 620, percentage: 22 },
-  { name: "Kinh tế & Quản lý", users: 480, percentage: 17 },
-  { name: "Thuỷ lợi", users: 350, percentage: 12 },
-  { name: "Môi trường", users: 280, percentage: 10 },
-  { name: "Khác", users: 227, percentage: 8 },
-]
+export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-const POPULAR_PAGES = [
-  { page: "/feed", title: "Bảng tin", views: 12450, avgTime: "3m 12s" },
-  { page: "/messages", title: "Tin nhắn", views: 8930, avgTime: "6m 45s" },
-  { page: "/clubs", title: "Câu lạc bộ", views: 5620, avgTime: "2m 18s" },
-  { page: "/events", title: "Sự kiện", views: 4180, avgTime: "1m 54s" },
-  { page: "/profile", title: "Hồ sơ cá nhân", views: 3740, avgTime: "1m 22s" },
-  { page: "/groups", title: "Nhóm", views: 2890, avgTime: "4m 08s" },
-]
+  function handleRangeChange(nextRange: string) {
+    const params = new URLSearchParams(searchParams?.toString() ?? "")
+    params.set("range", nextRange)
+    router.push(`/admin/analytics?${params.toString()}`)
+  }
 
-export default function AdminAnalyticsClient() {
-  const [timeRange, setTimeRange] = useState("7d")
+  const userTrend = formatTrendLabel(overview.newUsersTrend)
+  const postTrend = formatTrendLabel(overview.newPostsTrend)
 
-  const maxPageViews = Math.max(...WEEKLY_DATA.map((d) => d.pageViews))
+  const statCards = [
+    {
+      icon: Users,
+      label: "Tổng người dùng",
+      value: overview.totalUsers.toLocaleString("vi-VN"),
+      sub: `${overview.newUsers.toLocaleString("vi-VN")} mới`,
+      change: userTrend.label,
+      positive: userTrend.positive,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
+      icon: FileText,
+      label: "Bài viết",
+      value: overview.totalPosts.toLocaleString("vi-VN"),
+      sub: `${overview.newPosts.toLocaleString("vi-VN")} mới`,
+      change: postTrend.label,
+      positive: postTrend.positive,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+    },
+    {
+      icon: MessageSquare,
+      label: "Bình luận",
+      value: overview.totalComments.toLocaleString("vi-VN"),
+      sub: `${overview.newComments.toLocaleString("vi-VN")} mới trong kỳ`,
+      change: "",
+      positive: true,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+    },
+    {
+      icon: Heart,
+      label: "Lượt thích",
+      value: overview.totalLikes.toLocaleString("vi-VN"),
+      sub: `${overview.activeUsers.toLocaleString("vi-VN")} người đăng bài`,
+      change: "",
+      positive: true,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
+  ]
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Phân tích</h1>
           <p className="text-sm text-muted-foreground">
-            Thống kê chi tiết hoạt động hệ thống
+            Dữ liệu thực từ cơ sở dữ liệu UniConnect — cập nhật theo khoảng thời gian bạn chọn
           </p>
         </div>
         <TabNavigation
           tabs={TIME_TABS}
-          activeTab={timeRange}
-          onTabChange={setTimeRange}
+          activeTab={overview.range}
+          onTabChange={handleRangeChange}
           variant="pill"
         />
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {OVERVIEW_STATS.map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon
+          const TrendIcon = stat.positive ? ArrowUpRight : ArrowDownRight
           return (
             <Card key={stat.label}>
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <div className={`size-10 rounded-lg ${stat.bgColor} ${stat.color} flex items-center justify-center`}>
+                  <div
+                    className={`size-10 rounded-lg ${stat.bgColor} ${stat.color} flex items-center justify-center`}
+                  >
                     <Icon className="size-5" />
                   </div>
-                  <span className="text-xs font-bold text-green-600 flex items-center gap-0.5">
-                    <TrendingUp className="size-3.5" />
-                    {stat.change}
-                  </span>
+                  {stat.change && (
+                    <span
+                      className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-green-600" : "text-orange-600"}`}
+                    >
+                      <TrendIcon className="size-3.5" />
+                      {stat.change}
+                    </span>
+                  )}
                 </div>
                 <p className="text-2xl font-bold">{stat.value}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{stat.sub}</p>
               </CardContent>
             </Card>
           )
         })}
       </div>
 
-      {/* Biểu đồ + Phân bổ theo khoa */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Biểu đồ lượt truy cập tuần */}
-        <Card>
-          <CardContent className="p-5">
-            <SectionHeader title="Lượt truy cập theo ngày" className="mb-6" />
-            <div className="flex items-end justify-between gap-3 h-48">
-              {WEEKLY_DATA.map((item) => (
-                <div key={item.label} className="flex-1 flex flex-col items-center gap-2">
-                  <span className="text-[10px] font-bold text-muted-foreground">
-                    {(item.pageViews / 1000).toFixed(1)}k
-                  </span>
-                  <div className="w-full bg-muted rounded-t-md relative overflow-hidden" style={{ height: "100%" }}>
-                    <div
-                      className="absolute bottom-0 w-full bg-primary/80 hover:bg-primary rounded-t-md transition-colors"
-                      style={{ height: `${(item.pageViews / maxPageViews) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground font-medium">{item.label}</span>
-                </div>
-              ))}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <Card className="lg:col-span-3">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <SectionHeader title="Hoạt động theo thời gian" />
+              <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                <TrendingUp className="size-3.5" />
+                Số bài viết theo ngày
+              </div>
             </div>
+            <SimpleBarChart
+              data={overview.activityByDay.map((d) => ({
+                label: d.label,
+                value: d.posts,
+                tooltip: `${d.label}: ${d.posts} bài, ${d.users} người mới`,
+              }))}
+              height={220}
+            />
           </CardContent>
         </Card>
 
-        {/* Phân bổ theo khoa */}
-        <Card>
-          <CardContent className="p-5">
-            <SectionHeader title="Phân bổ theo khoa" className="mb-4" />
-            <div className="space-y-4">
-              {DEPARTMENT_DATA.map((dept) => (
-                <div key={dept.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium truncate">{dept.name}</span>
-                    <span className="text-muted-foreground shrink-0 ml-2">
-                      {dept.users} ({dept.percentage}%)
-                    </span>
-                  </div>
-                  <ProgressBar value={dept.percentage} max={100} />
-                </div>
-              ))}
+        <Card className="lg:col-span-2">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <SectionHeader title="Phân bổ theo vai trò" />
+              <UserCircle className="size-4 text-muted-foreground" />
             </div>
+            {overview.usersByRole.length === 0 ? (
+              <EmptyState icon={UserCircle} title="Chưa có dữ liệu" />
+            ) : (
+              <div className="space-y-4">
+                {overview.usersByRole.map((role) => (
+                  <div key={role.role} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{role.role}</span>
+                      <span className="text-muted-foreground">
+                        {role.count.toLocaleString("vi-VN")} ({role.percentage}%)
+                      </span>
+                    </div>
+                    <ProgressBar value={role.percentage} max={100} />
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Trang phổ biến */}
-      <Card>
-        <CardContent className="p-5">
-          <SectionHeader title="Trang phổ biến nhất" className="mb-4" />
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3">
-                    Trang
-                  </th>
-                  <th className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3">
-                    Đường dẫn
-                  </th>
-                  <th className="text-right text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3">
-                    Lượt xem
-                  </th>
-                  <th className="text-right text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3">
-                    Thời gian TB
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {POPULAR_PAGES.map((pageItem, index) => (
-                  <tr key={pageItem.page} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-muted-foreground w-5 text-center">
-                          {index + 1}
-                        </span>
-                        <span className="text-sm font-medium">{pageItem.title}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge variant="muted">{pageItem.page}</StatusBadge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="text-sm font-semibold">{pageItem.views.toLocaleString()}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="text-sm text-muted-foreground">{pageItem.avgTime}</span>
-                    </td>
-                  </tr>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <SectionHeader title="Phân bổ theo khoa/chuyên ngành" />
+              <Building2 className="size-4 text-muted-foreground" />
+            </div>
+            {overview.usersByMajor.length === 0 ? (
+              <EmptyState
+                icon={Building2}
+                title="Chưa có dữ liệu"
+                description="Người dùng chưa cập nhật thông tin chuyên ngành"
+              />
+            ) : (
+              <div className="space-y-4">
+                {overview.usersByMajor.map((dept) => (
+                  <div key={dept.major} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium truncate">{dept.major}</span>
+                      <span className="text-muted-foreground shrink-0 ml-2">
+                        {dept.count} ({dept.percentage}%)
+                      </span>
+                    </div>
+                    <ProgressBar value={dept.percentage} max={100} />
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5 space-y-4">
+            <SectionHeader title="Bài viết nổi bật trong kỳ" />
+            {overview.topPosts.length === 0 ? (
+              <EmptyState icon={FileText} title="Chưa có bài viết" />
+            ) : (
+              <div className="space-y-3">
+                {overview.topPosts.map((post, index) => (
+                  <div key={post.id} className="flex items-start gap-3">
+                    <span className="text-base font-bold text-muted-foreground w-6 text-center shrink-0 mt-0.5">
+                      {index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{post.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {post.authorName} • {post.likes} thích • {post.comments} bình luận
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
