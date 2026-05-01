@@ -10,6 +10,10 @@ import { PostCard } from "@/components/feed/post-card"
 import { PostCardSkeleton } from "@/components/feed/post-card"
 import { FeedEmptyState } from "@/components/feed/feed-empty-state"
 import { PostComposer } from "@/components/feed/post-composer"
+import {
+  AnnouncementFeedCard,
+  type AnnouncementFeedCardProps,
+} from "@/components/feed/announcement-feed-card"
 import { TrendingItem } from "@/components/dashboard/trending-item"
 import { EventItem } from "@/components/dashboard/event-item"
 import { PageContainer } from "@/components/layout/page-container"
@@ -103,6 +107,7 @@ interface FeedPageClientProps {
   initialCursor: FeedCursor
   initialHasMore: boolean
   deepLinkPostId?: string | null
+  announcements?: AnnouncementFeedCardProps[]
 }
 
 export function FeedPageClient({
@@ -111,6 +116,7 @@ export function FeedPageClient({
   initialCursor,
   initialHasMore,
   deepLinkPostId,
+  announcements = [],
 }: FeedPageClientProps) {
   const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -416,6 +422,22 @@ export function FeedPageClient({
                 userAvatar={currentUser?.avatarUrl ?? undefined}
                 variant="full"
               />
+
+              {announcements.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {announcements.map((announcement) => (
+                    <AnnouncementFeedCard
+                      key={announcement.id}
+                      id={announcement.id}
+                      title={announcement.title}
+                      content={announcement.content}
+                      publishedAt={announcement.publishedAt}
+                      pinToTop={announcement.pinToTop}
+                    />
+                  ))}
+                </div>
+              )}
+
               <DividerLabel label="Cập nhật gần đây" />
 
               {posts.length === 0 && !isLoadingMore ? (

@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { POST_DELETE_REASON_MAX } from "@/lib/config/posts";
+import {
+  ANNOUNCEMENT_TITLE_MAX,
+  ANNOUNCEMENT_CONTENT_MAX,
+} from "@/lib/config/announcements";
 
 // Validation schema cho đăng nhập
 export const loginSchema = z.object({
@@ -34,9 +38,35 @@ export const postDeleteReasonSchema = z.object({
   reason: z.string().trim().max(POST_DELETE_REASON_MAX, `Lý do tối đa ${POST_DELETE_REASON_MAX} ký tự`).optional(),
 });
 
+// Validation schema cho thông báo chính thức
+export const announcementAudienceSchema = z.enum(["ALL", "STUDENTS", "FACULTY"]);
+
+export const announcementInputSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Tiêu đề không được để trống")
+    .max(ANNOUNCEMENT_TITLE_MAX, `Tiêu đề tối đa ${ANNOUNCEMENT_TITLE_MAX} ký tự`),
+  content: z
+    .string()
+    .trim()
+    .min(1, "Nội dung không được để trống")
+    .max(ANNOUNCEMENT_CONTENT_MAX, `Nội dung tối đa ${ANNOUNCEMENT_CONTENT_MAX} ký tự`),
+  audience: announcementAudienceSchema.default("ALL"),
+  pinToTop: z.boolean().default(false),
+  sendEmail: z.boolean().default(false),
+  expiresAt: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .or(z.literal("")),
+});
+
 // Export inferred types
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type PostInput = z.infer<typeof postSchema>;
 export type CommentInput = z.infer<typeof commentSchema>;
 export type PostDeleteReasonInput = z.infer<typeof postDeleteReasonSchema>;
+export type AnnouncementInput = z.infer<typeof announcementInputSchema>;
+export type AnnouncementAudienceInput = z.infer<typeof announcementAudienceSchema>;
