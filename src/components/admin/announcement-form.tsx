@@ -1,91 +1,240 @@
 "use client"
 
+import { useState, useTransition } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { RichTextToolbar } from "@/components/admin/rich-text-toolbar"
 import { AudienceSelector } from "@/components/admin/audience-selector"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useState } from "react"
+import { useToast } from "@/components/ui/use-toast"
+import { Send, Save, Loader2 } from "lucide-react"
+import {
+  createAnnouncement,
+  updateAnnouncement,
+  publishAnnouncement,
+} from "@/actions/announcements"
 
-interface AnnouncementFormProps {
-  onSubmit?: () => void
-  onSaveDraft?: () => void
+type AnnouncementAudienceValue = "ALL" | "STUDENTS" | "FACULTY"
+
+export interface AnnouncementFormInitialValues {
+  id?: string
+  title: string
+  content: string
+  audience: AnnouncementAudienceValue
+  pinToTop: boolean
+  expiresAt?: string | null
+  status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"
 }
 
-export function AnnouncementForm({
-  onSubmit,
-  onSaveDraft,
-}: AnnouncementFormProps) {
-  const [audience, setAudience] = useState("all")
-  const [pinToTop, setPinToTop] = useState(false)
-  const [sendEmail, setSendEmail] = useState(true)
+interface AnnouncementFormProps {
+  initialValues?: AnnouncementFormInitialValues
+  onSaved?: () => void
+}
+
+const AUDIENCE_OPTIONS = [
+  { value: "ALL", label: "Tất cả" },
+  { value: "STUDENTS", label: "Sinh viên" },
+  { value: "FACULTY", label: "Giảng viên" },
+]
+
+function formatDateTimeLocal(iso: string | null | undefined): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormProps) {
+  const [title, setTitle] = useState(initialValues?.title ?? "")
+  const [content, setContent] = useState(initialValues?.content ?? "")
+  const [audience, setAudience] = useState<AnnouncementAudienceValue>(
+    initialValues?.audience ?? "ALL",
+  )
+  const [pinToTop, setPinToTop] = useState(initialValues?.pinToTop ?? false)
+  const [expiresAt, setExpiresAt] = useState(formatDateTimeLocal(initialValues?.expiresAt))
+  const [isPending, startTransition] = useTransition()
+  const [activeAction, setActiveAction] = useState<"draft" | "publish" | null>(null)
+  const { toast } = useToast()
+
+  const isEditing = Boolean(initialValues?.id)
+  const isPublished = initialValues?.status === "PUBLISHED"
+
+  function buildPayload() {
+    const expiresIso = expiresAt ? new Date(expiresAt).toISOString() : ""
+    return {
+      title: title.trim(),
+      content: content.trim(),
+      audience,
+      pinToTop,
+      sendEmail: false,
+      expiresAt: expiresIso,
+    }
+  }
+
+  function validateBasic(): string | null {
+    if (!title.trim()) return "Vui lòng nhập tiêu đề thông báo"
+    if (!content.trim()) return "Vui lòng nhập nội dung thông báo"
+    return null
+  }
+
+  function handleSubmit(mode: "draft" | "publish") {
+    const validationError = validateBasic()
+    if (validationError) {
+      toast({ title: "Thiếu thông tin", description: validationError, variant: "destructive" })
+      return
+    }
+
+    setActiveAction(mode)
+    startTransition(async () => {
+      const payload = buildPayload()
+
+      if (isEditing && initialValues?.id) {
+        const updateResult = await updateAnnouncement({ ...payload, id: initialValues.id })
+        if (!updateResult.success) {
+          toast({ title: "Lỗi", description: updateResult.error, variant: "destructive" })
+          setActiveAction(null)
+          return
+        }
+
+        if (mode === "publish" && !isPublished) {
+          const publishResult = await publishAnnouncement(initialValues.id)
+          if (!publishResult.success) {
+            toast({ title: "Lỗi", description: publishResult.error, variant: "destructive" })
+            setActiveAction(null)
+            return
+          }
+          toast({
+            title: "Đã đăng thông báo",
+            description: `Đã gửi tới ${publishResult.data?.recipients ?? 0} người dùng`,
+          })
+        } else {
+          toast({ title: "Đã lưu", description: "Cập nhật thông báo thành công" })
+        }
+      } else {
+        const result = await createAnnouncement(payload, { publish: mode === "publish" })
+        if (!result.success) {
+          toast({ title: "Lỗi", description: result.error, variant: "destructive" })
+          setActiveAction(null)
+          return
+        }
+        toast({
+          title: mode === "publish" ? "Đã đăng thông báo" : "Đã lưu bản nháp",
+          description:
+            mode === "publish"
+              ? "Thông báo đã được phát tới người dùng"
+              : "Bạn có thể đăng sau trong tab Quản lý",
+        })
+
+        if (mode === "publish") {
+          setTitle("")
+          setContent("")
+          setAudience("ALL")
+          setPinToTop(false)
+          setExpiresAt("")
+        }
+      }
+
+      setActiveAction(null)
+      onSaved?.()
+    })
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Thông báo mới</h2>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-2xl font-bold">
+          {isEditing ? "Chỉnh sửa thông báo" : "Thông báo mới"}
+        </h2>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={onSaveDraft}>
+          <Button
+            variant="outline"
+            onClick={() => handleSubmit("draft")}
+            disabled={isPending || isPublished}
+          >
+            {isPending && activeAction === "draft" ? (
+              <Loader2 className="size-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="size-4 mr-2" />
+            )}
             Lưu bản nháp
           </Button>
-          <Button onClick={onSubmit} className="font-bold shadow-md shadow-destructive/20 bg-destructive hover:bg-destructive/90">
-            Đăng ngay
+          <Button
+            onClick={() => handleSubmit("publish")}
+            disabled={isPending}
+            className="font-bold"
+          >
+            {isPending && activeAction === "publish" ? (
+              <Loader2 className="size-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="size-4 mr-2" />
+            )}
+            {isPublished ? "Cập nhật" : "Đăng ngay"}
           </Button>
         </div>
       </div>
 
-      {/* Form */}
       <Card>
         <CardContent className="p-6 space-y-6">
-          {/* Tiêu đề */}
           <div>
-            <label className="text-sm font-bold mb-2 block">
-              Tiêu đề thông báo
-            </label>
+            <label className="text-sm font-semibold mb-2 block">Tiêu đề thông báo</label>
             <Input
-              placeholder="VD: Lịch bảo trì hệ thống - Học kỳ 2 năm 2024"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="VD: Lịch bảo trì hệ thống - Học kỳ 2 năm 2026"
               className="h-12"
+              maxLength={200}
             />
+            <p className="text-xs text-muted-foreground mt-1">{title.length}/200 ký tự</p>
           </div>
 
-          {/* Nội dung */}
           <div>
-            <label className="text-sm font-bold mb-2 block">
-              Nội dung
-            </label>
-            <div className="rounded-lg border border-border overflow-hidden">
-              <RichTextToolbar />
-              <Textarea
-                placeholder="Bắt đầu nhập nội dung thông báo..."
-                className="rounded-none border-none min-h-[240px] resize-none focus-visible:ring-0"
-              />
-            </div>
+            <label className="text-sm font-semibold mb-2 block">Nội dung</label>
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Bắt đầu nhập nội dung thông báo..."
+              className="min-h-[240px]"
+              maxLength={10000}
+            />
+            <p className="text-xs text-muted-foreground mt-1">{content.length}/10000 ký tự</p>
           </div>
 
-          {/* Đối tượng + Tùy chọn */}
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="text-sm font-bold mb-3 block">
-                Đối tượng nhận
-              </label>
-              <AudienceSelector value={audience} onChange={setAudience} />
+              <label className="text-sm font-semibold mb-3 block">Đối tượng nhận</label>
+              <AudienceSelector
+                value={audience}
+                onChange={(v) => setAudience(v as AnnouncementAudienceValue)}
+                options={AUDIENCE_OPTIONS}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Chọn nhóm người dùng sẽ nhận được thông báo này.
+              </p>
             </div>
+
             <div>
-              <label className="text-sm font-bold mb-3 block">
-                Hiển thị & Ưu tiên
-              </label>
+              <label className="text-sm font-semibold mb-3 block">Tùy chọn hiển thị</label>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Ghim lên đầu</span>
+                <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <p className="text-sm font-medium">Ghim lên đầu bảng tin</p>
+                    <p className="text-xs text-muted-foreground">Nổi bật thông báo ở đầu feed</p>
+                  </div>
                   <Switch checked={pinToTop} onCheckedChange={setPinToTop} />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Gửi email thông báo</span>
-                  <Switch checked={sendEmail} onCheckedChange={setSendEmail} />
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Tự động ẩn sau (tùy chọn)
+                  </label>
+                  <Input
+                    type="datetime-local"
+                    value={expiresAt}
+                    onChange={(e) => setExpiresAt(e.target.value)}
+                    className="h-10"
+                  />
                 </div>
               </div>
             </div>
