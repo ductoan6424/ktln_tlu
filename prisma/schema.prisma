@@ -63,6 +63,18 @@ enum PostModerationAction {
   DELETE_BY_GROUP_ADMIN
 }
 
+enum AnnouncementAudience {
+  ALL
+  STUDENTS
+  FACULTY
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model UserProfile {
@@ -108,6 +120,9 @@ model UserProfile {
 
   emailVerifications EmailVerification[]
   passwordResets     PasswordReset[]
+
+  authoredAnnouncements Announcement[]  @relation("AnnouncementAuthor")
+  systemSettingUpdates  SystemSetting[] @relation("SystemSettingUpdater")
 
   @@map("user_profiles")
 }
@@ -527,4 +542,45 @@ model PostModerationLog {
   @@index([postId])
   @@index([actorId, createdAt(sort: Desc)])
   @@map("post_moderation_logs")
+}
+
+model Announcement {
+  id          String               @id @default(cuid()) @map("announcement_id")
+  title       String               @map("title")
+  content     String               @map("content")
+  audience    AnnouncementAudience @default(ALL) @map("audience")
+  status      AnnouncementStatus   @default(DRAFT) @map("status")
+  pinToTop    Boolean              @default(false) @map("pin_to_top")
+  sentEmail   Boolean              @default(false) @map("sent_email")
+  publishedAt DateTime?            @map("published_at")
+  expiresAt   DateTime?            @map("expires_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  deletedAt   DateTime?            @map("deleted_at")
+
+  authorId String      @map("author_id")
+  author   UserProfile @relation("AnnouncementAuthor", fields: [authorId], references: [userId], onDelete: Cascade)
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+  @@map("announcements")
+}
+
+model SystemSetting {
+  key       String       @id @map("key")
+  value     Json         @map("value")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  updatedBy String?      @map("updated_by")
+  updater   UserProfile? @relation("SystemSettingUpdater", fields: [updatedBy], references: [userId], onDelete: SetNull)
+
+  @@map("system_settings")
+}
+
+model ModuleFlag {
+  key       String   @id @map("key")
+  enabled   Boolean  @default(true) @map("enabled")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("module_flags")
 }

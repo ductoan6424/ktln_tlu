@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma/client"
 import { FeedPageClient } from "./feed-page-client"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
 import { INITIAL_FEED_CURSOR, getFeedPosts } from "@/lib/feed/queries"
+import {
+  listActiveAnnouncementsForViewer,
+  type ViewerRole,
+} from "@/lib/announcements/queries"
 
 interface FeedPageProps {
   searchParams: Promise<{ post?: string }>
@@ -15,21 +19,32 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   const { data: authData } = await supabase.auth.getUser()
   const currentUserId = authData.user?.id ?? null
 
-  let currentUser: { userId: string; displayName: string; avatarUrl: string | null } | null = null
+  let currentUser: {
+    userId: string
+    displayName: string
+    avatarUrl: string | null
+    role: ViewerRole
+  } | null = null
 
   if (authData.user) {
     const profile = await prisma.userProfile.findUnique({
       where: { userId: authData.user.id },
-      select: { userId: true, displayName: true, avatarUrl: true },
+      select: { userId: true, displayName: true, avatarUrl: true, role: true },
     })
-    currentUser = profile
+    if (profile) {
+      currentUser = {
+        userId: profile.userId,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+        role: profile.role as ViewerRole,
+      }
+    }
   }
 
-  const initialFeed = await getFeedPosts(
-    currentUserId,
-    INITIAL_FEED_CURSOR,
-    FEED_PAGE_SIZE
-  )
+  const [initialFeed, announcements] = await Promise.all([
+    getFeedPosts(currentUserId, INITIAL_FEED_CURSOR, FEED_PAGE_SIZE),
+    listActiveAnnouncementsForViewer(currentUser?.role ?? null, 5),
+  ])
 
   const initialPosts = initialFeed.posts.map((post) => ({
     id: post.id,
@@ -49,13 +64,28 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     isFromFollowed: post.isFromFollowed,
   }))
 
+  const clientUser = currentUser
+    ? {
+        userId: currentUser.userId,
+        displayName: currentUser.displayName,
+        avatarUrl: currentUser.avatarUrl,
+      }
+    : null
+
   return (
     <FeedPageClient
-      currentUser={currentUser}
+      currentUser={clientUser}
       initialPosts={initialPosts}
       initialCursor={initialFeed.nextCursor}
       initialHasMore={initialFeed.hasMore}
       deepLinkPostId={deepLinkPostId}
+      announcements={announcements.map((a) => ({
+        id: a.id,
+        title: a.title,
+        content: a.content,
+        publishedAt: a.publishedAt,
+        pinToTop: a.pinToTop,
+      }))}
     />
   )
 }
