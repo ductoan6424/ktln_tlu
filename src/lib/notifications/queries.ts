@@ -2,6 +2,7 @@ import { NOTIFICATION_PAGE_SIZE } from "@/lib/config/notifications"
 import { prisma } from "@/lib/prisma/client"
 import { formatRelativeTime } from "@/utils/formatters"
 
+import { buildNotificationLink } from "./formatters"
 import type { NotificationListItem, NotificationMetadata } from "./types"
 
 export type NotificationListCursor = {
@@ -65,12 +66,19 @@ export async function listNotifications(
         ? (row.metadata as NotificationMetadata)
         : null
 
+    const computedLink = buildNotificationLink({
+      type: row.type,
+      actorId: row.actorId,
+      postId: metadata?.postId ?? null,
+      commentId: metadata?.commentId ?? null,
+    })
+
     return {
       id: row.id,
       type: row.type,
       title: row.title,
       content: row.content,
-      link: row.link,
+      link: computedLink ?? row.link,
       isRead: row.isRead,
       readAt: row.readAt ? row.readAt.toISOString() : null,
       createdAt: row.createdAt.toISOString(),
