@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Heart, MessageCircle, Bookmark, BookmarkCheck } from "lucide-react"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
+import { LikersTooltip } from "@/components/feed/likers-tooltip"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 
@@ -85,12 +86,14 @@ export function PostActions({
         <div className="flex items-center justify-between px-1 py-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             {likes > 0 && (
-              <>
-                <span className="inline-flex items-center justify-center size-[18px] rounded-full bg-destructive/10 ring-1 ring-background">
-                  <Heart className="size-3 fill-destructive text-destructive" />
+              <LikersTooltip postId={postId}>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex items-center justify-center size-[18px] rounded-full bg-destructive/10 ring-1 ring-background">
+                    <Heart className="size-3 fill-destructive text-destructive" />
+                  </span>
+                  <span className="tabular-nums">{likes}</span>
                 </span>
-                <span className="tabular-nums">{likes}</span>
-              </>
+              </LikersTooltip>
             )}
           </div>
           <div className="flex items-center gap-3">

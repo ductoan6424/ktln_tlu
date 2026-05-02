@@ -805,6 +805,37 @@ export async function deleteComment(
   }
 }
 
+// ─── Get Post Likers ─────────────────────────────────────────────────────────
+
+export async function getPostLikers(
+  postId: string,
+  limit = 10
+): Promise<ActionResult<{ users: { displayName: string; avatarUrl: string | null }[]; total: number }>> {
+  try {
+    const [likers, total] = await Promise.all([
+      prisma.like.findMany({
+        where: { postId },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: {
+          user: {
+            select: { displayName: true, avatarUrl: true },
+          },
+        },
+      }),
+      prisma.like.count({ where: { postId } }),
+    ])
+
+    return successResult({
+      users: likers.map((l) => l.user),
+      total,
+    })
+  } catch (error) {
+    console.error("getPostLikers error:", error)
+    return errorResult("Không thể tải danh sách lượt thích.")
+  }
+}
+
 // ─── Phase 6+ Notes ─────────────────────────────────────────────────────────
 // TODO (Phase 6+): toggleCommentLike — dùng Like model với:
 //   prisma.like.findUnique({ where: { userId_commentId: { userId, commentId } } })

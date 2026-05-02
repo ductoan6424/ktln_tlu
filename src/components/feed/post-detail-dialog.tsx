@@ -27,6 +27,7 @@ import { SharedPostPreview } from "@/components/feed/shared-post-preview"
 import { loadComments, createComment, deleteComment } from "@/actions/posts"
 import type { CommentWithAuthorFlat } from "@/components/feed/comment-item"
 import { Heart, MessageCircle, ArrowLeft } from "lucide-react"
+import { LikersTooltip } from "@/components/feed/likers-tooltip"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 
@@ -175,10 +176,12 @@ export function PostDetailDialog({
   const statsBar = hasStats ? (
     <div className="shrink-0 px-4 py-2 flex items-center gap-4 text-xs text-muted-foreground border-y border-border">
       {likes > 0 && (
-        <span className="flex items-center gap-1">
-          <Heart className="size-3.5 fill-primary text-primary" />
-          {likes} lượt thích
-        </span>
+        <LikersTooltip postId={postId}>
+          <span className="flex items-center gap-1 cursor-default">
+            <Heart className="size-3.5 fill-primary text-primary" />
+            {likes} lượt thích
+          </span>
+        </LikersTooltip>
       )}
       {comments > 0 && <span>{comments} bình luận</span>}
       {shares > 0 && <span>{shares} lượt chia sẻ</span>}
