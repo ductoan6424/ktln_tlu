@@ -53,19 +53,19 @@ describe("buildNotificationLink", () => {
     ).toBe("/profile/u1")
   })
 
-  it("COMMENT/LIKE/REPOST/COMMENT_REPLY trỏ tới feed detail", () => {
+  it("COMMENT/LIKE/REPOST/COMMENT_REPLY trỏ tới feed deep-link qua query string", () => {
     expect(
       buildNotificationLink({ type: "COMMENT", postId: "p1" }),
-    ).toBe("/feed/p1")
+    ).toBe("/feed?post=p1")
     expect(
       buildNotificationLink({ type: "LIKE", postId: "p1" }),
-    ).toBe("/feed/p1")
+    ).toBe("/feed?post=p1")
     expect(
       buildNotificationLink({ type: "REPOST", postId: "p1" }),
-    ).toBe("/feed/p1")
+    ).toBe("/feed?post=p1")
     expect(
       buildNotificationLink({ type: "COMMENT_REPLY", postId: "p1" }),
-    ).toBe("/feed/p1")
+    ).toBe("/feed?post=p1")
   })
 
   it("trả về null khi thiếu thông tin", () => {
