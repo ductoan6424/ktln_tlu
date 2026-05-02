@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { CheckCheck, Bell } from "lucide-react"
 import { NotificationItem } from "@/components/notifications/notification-item"
@@ -12,23 +12,117 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { mockNotifications, type NotificationData } from "./mock-data"
 import { cn } from "@/lib/utils"
+import {
+  getNotificationSession,
+  listMyNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+} from "@/actions/notifications"
+import { useNotificationsRealtime } from "@/hooks/use-notifications-realtime"
+import { NOTIFICATION_POPUP_LIMIT } from "@/lib/config/notifications"
+import { getNotificationPresentation } from "@/lib/notifications/presentation"
+import type { NotificationListItem } from "@/lib/notifications/types"
 
 interface NotificationPopupProps {
-  notifications?: NotificationData[]
   className?: string
 }
 
-export function NotificationPopup({
-  notifications = mockNotifications,
-  className,
-}: NotificationPopupProps) {
+export function NotificationPopup({ className }: NotificationPopupProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const unreadCount = notifications.filter((n) => n.isUnread).length
+  const [userId, setUserId] = useState<string | null>(null)
+  const [notifications, setNotifications] = useState<NotificationListItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const handleMarkAllRead = () => {
-    console.log("Mark all notifications as read")
+  useEffect(() => {
+    let cancelled = false
+
+    const init = async () => {
+      const sessionResult = await getNotificationSession()
+      if (cancelled) return
+
+      if (sessionResult.success && sessionResult.data) {
+        setUserId(sessionResult.data.userId)
+        setUnreadCount(sessionResult.data.unreadCount)
+      } else {
+        setIsLoading(false)
+        return
+      }
+
+      const listResult = await listMyNotifications({ limit: NOTIFICATION_POPUP_LIMIT })
+      if (cancelled) return
+
+      if (listResult.success && listResult.data) {
+        setNotifications(listResult.data.items)
+        setUnreadCount(listResult.data.unreadCount)
+      }
+
+      setIsLoading(false)
+    }
+
+    void init()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleCreated = useCallback((notification: NotificationListItem) => {
+    setNotifications((prev) => {
+      const withoutSame = prev.filter((item) => item.id !== notification.id)
+      return [notification, ...withoutSame].slice(0, NOTIFICATION_POPUP_LIMIT)
+    })
+  }, [])
+
+  const handleUpdated = useCallback((notification: NotificationListItem) => {
+    setNotifications((prev) =>
+      prev.map((item) => (item.id === notification.id ? notification : item)),
+    )
+  }, [])
+
+  const handleRead = useCallback((notificationId: string) => {
+    setNotifications((prev) =>
+      prev.map((item) =>
+        item.id === notificationId ? { ...item, isRead: true } : item,
+      ),
+    )
+  }, [])
+
+  const handleReadAll = useCallback(() => {
+    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })))
+  }, [])
+
+  useNotificationsRealtime({
+    userId,
+    onCreated: handleCreated,
+    onUpdated: handleUpdated,
+    onRead: handleRead,
+    onReadAll: handleReadAll,
+    onUnreadCountChange: setUnreadCount,
+  })
+
+  const handleMarkAllRead = async () => {
+    const result = await markAllNotificationsAsRead()
+    if (result.success && result.data) {
+      setUnreadCount(result.data.unreadCount)
+      setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })))
+    }
+  }
+
+  const handleItemClick = async (notification: NotificationListItem) => {
+    if (!notification.isRead) {
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item.id === notification.id ? { ...item, isRead: true } : item,
+        ),
+      )
+      const result = await markNotificationAsRead(notification.id)
+      if (result.success && result.data) {
+        setUnreadCount(result.data.unreadCount)
+      }
+    }
+    setIsOpen(false)
   }
 
   return (
@@ -72,40 +166,52 @@ export function NotificationPopup({
           )}
         </div>
 
-        {/* Notification List - có "Xem tất cả" cố định ở dưới */}
+        {/* Notification List */}
         <ScrollArea className="max-h-[400px]">
           <div className="py-2">
-            {notifications.length === 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <p className="text-sm">Đang tải thông báo...</p>
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Bell className="size-12 mb-3 opacity-30" />
                 <p className="text-sm">Chưa có thông báo nào</p>
               </div>
             ) : (
-              notifications.map((notification) => (
-                <Link
-                  key={notification.id}
-                  href={notification.actionUrl || "#"}
-                  className="block"
-                >
-                  <NotificationItem
-                    icon={notification.icon}
-                    iconColor={notification.iconColor}
-                    iconBg={notification.iconBg}
-                    title={notification.title}
-                    description={notification.description}
-                    time={notification.time}
-                    isUnread={notification.isUnread}
-                  />
-                </Link>
-              ))
+              notifications.map((notification) => {
+                const presentation = getNotificationPresentation(notification.type)
+                return (
+                  <Link
+                    key={notification.id}
+                    href={notification.link || "#"}
+                    className="block"
+                    onClick={() => {
+                      void handleItemClick(notification)
+                    }}
+                  >
+                    <NotificationItem
+                      icon={presentation.icon}
+                      iconColor={presentation.iconColor}
+                      iconBg={presentation.iconBg}
+                      title={notification.title}
+                      description={notification.content}
+                      time={notification.createdAtRelative}
+                      isUnread={!notification.isRead}
+                      actor={notification.actor}
+                    />
+                  </Link>
+                )
+              })
             )}
           </div>
 
-          {/* Footer - Xem tất cả (cố định ở dưới cùng) */}
+          {/* Footer - Xem tất cả */}
           <DropdownMenuSeparator />
           <Link
             href="/notifications"
             className="block sticky bottom-0 bg-card"
+            onClick={() => setIsOpen(false)}
           >
             <div className="py-3 text-center text-sm text-primary font-medium hover:bg-muted transition-colors cursor-pointer">
               Xem tất cả thông báo

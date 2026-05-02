@@ -5,13 +5,36 @@ import { createClient } from "@/lib/supabase/server"
 import { UploadValidationError, uploadPostImage } from "@/lib/cloudinary/upload"
 import { prisma } from "@/lib/prisma/client"
 import { postSchema, commentSchema, postDeleteReasonSchema } from "@/utils/validators"
-import { formatRelativeTime } from "@/utils/formatters"
+import { formatRelativeTime, truncateText } from "@/utils/formatters"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
 import { FEED_PAGE_SIZE, POST_SHARE_REPOST_MAX } from "@/lib/config/posts"
 import { getFeedPosts, type FeedCursor, type FeedPage } from "@/lib/feed/queries"
 import type { PostModerationAction } from "@prisma/client"
+import {
+  notifyComment,
+  notifyCommentReply,
+  notifyLike,
+  notifyRepost,
+  withdrawLikeNotification,
+} from "@/lib/notifications/dispatchers"
+import type { NotificationActorSummary } from "@/lib/notifications/types"
+
+const NOTIFICATION_EXCERPT_LENGTH = 120
+
+async function getActorSummary(userId: string): Promise<NotificationActorSummary | null> {
+  const profile = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { userId: true, displayName: true, avatarUrl: true },
+  })
+  if (!profile) return null
+  return {
+    userId: profile.userId,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
+  }
+}
 
 const ROLE_TO_ACTION: Record<"ADMIN" | "CLUB_ADMIN" | "GROUP_ADMIN", PostModerationAction> = {
   ADMIN: "DELETE_BY_ADMIN",
@@ -202,7 +225,7 @@ export async function sharePostToProfile(
   try {
     const original = await prisma.post.findUnique({
       where: { id: input.postId, deletedAt: null },
-      select: { id: true, authorId: true, sharedPostId: true },
+      select: { id: true, authorId: true, sharedPostId: true, content: true },
     })
 
     if (!original) {
@@ -219,6 +242,14 @@ export async function sharePostToProfile(
       )
     }
 
+    const rootPost =
+      original.sharedPostId
+        ? await prisma.post.findUnique({
+            where: { id: rootPostId },
+            select: { id: true, authorId: true, content: true },
+          })
+        : { id: original.id, authorId: original.authorId, content: original.content }
+
     const repost = await prisma.post.create({
       data: {
         content: userMessage,
@@ -228,6 +259,20 @@ export async function sharePostToProfile(
       },
       select: { id: true },
     })
+
+    if (rootPost && rootPost.authorId !== userId) {
+      const actor = await getActorSummary(userId)
+      if (actor) {
+        await notifyRepost({
+          actor,
+          recipientId: rootPost.authorId,
+          postId: rootPost.id,
+          repostId: repost.id,
+        }).catch((error) => {
+          console.error("notifyRepost error:", error)
+        })
+      }
+    }
 
     revalidatePath("/feed")
 
@@ -382,6 +427,29 @@ export async function togglePostLike(
     }
 
     const likeCount = await prisma.like.count({ where: { postId } })
+
+    if (post.authorId !== userId) {
+      const actor = await getActorSummary(userId)
+      if (actor) {
+        if (liked) {
+          await notifyLike({
+            actor,
+            recipientId: post.authorId,
+            postId,
+          }).catch((error) => {
+            console.error("notifyLike error:", error)
+          })
+        } else {
+          await withdrawLikeNotification({
+            recipientId: post.authorId,
+            actorId: userId,
+            postId,
+          }).catch((error) => {
+            console.error("withdrawLikeNotification error:", error)
+          })
+        }
+      }
+    }
 
     return successResult({ liked, likes: likeCount })
   } catch (error) {
@@ -577,7 +645,8 @@ export async function loadComments(
 
 export async function createComment(
   postId: string,
-  rawContent: unknown
+  rawContent: unknown,
+  parentCommentId?: string,
 ): Promise<ActionResult<CommentWithAuthorFlat>> {
   const supabase = await createClient()
   const { data: userData, error: authError } = await supabase.auth.getUser()
@@ -598,10 +667,26 @@ export async function createComment(
 
   const post = await prisma.post.findUnique({
     where: { id: postId, deletedAt: null },
-    select: { id: true },
+    select: { id: true, authorId: true, content: true },
   })
   if (!post) {
     return errorResult("Bài viết không tồn tại hoặc đã bị xóa.", "NOT_FOUND")
+  }
+
+  const trimmedParentId =
+    typeof parentCommentId === "string" && parentCommentId.trim().length > 0
+      ? parentCommentId.trim()
+      : null
+
+  let parentComment: { id: string; authorId: string; postId: string } | null = null
+  if (trimmedParentId) {
+    parentComment = await prisma.comment.findUnique({
+      where: { id: trimmedParentId },
+      select: { id: true, authorId: true, postId: true },
+    })
+    if (!parentComment || parentComment.postId !== post.id) {
+      return errorResult("Bình luận cha không hợp lệ.", "VALIDATION_ERROR")
+    }
   }
 
   try {
@@ -610,6 +695,7 @@ export async function createComment(
         content,
         postId,
         authorId: userData.user.id,
+        parentId: trimmedParentId,
       },
       include: {
         author: {
@@ -633,6 +719,39 @@ export async function createComment(
       authorDisplayName: comment.author.displayName,
       authorAvatarUrl: comment.author.avatarUrl,
       likes: comment._count.likes,
+    }
+
+    const excerpt = truncateText(comment.content, NOTIFICATION_EXCERPT_LENGTH)
+
+    if (parentComment) {
+      if (parentComment.authorId !== userData.user.id) {
+        const actor = await getActorSummary(userData.user.id)
+        if (actor) {
+          await notifyCommentReply({
+            actor,
+            recipientId: parentComment.authorId,
+            postId,
+            commentId: comment.id,
+            parentCommentId: parentComment.id,
+            commentExcerpt: excerpt,
+          }).catch((error) => {
+            console.error("notifyCommentReply error:", error)
+          })
+        }
+      }
+    } else if (post.authorId !== userData.user.id) {
+      const actor = await getActorSummary(userData.user.id)
+      if (actor) {
+        await notifyComment({
+          actor,
+          recipientId: post.authorId,
+          postId,
+          commentId: comment.id,
+          commentExcerpt: excerpt,
+        }).catch((error) => {
+          console.error("notifyComment error:", error)
+        })
+      }
     }
 
     return successResult(result)
