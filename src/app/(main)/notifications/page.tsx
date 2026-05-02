@@ -11,7 +11,10 @@ import {
   markNotificationAsRead,
 } from "@/actions/notifications"
 import { PageContainer } from "@/components/layout/page-container"
-import { NotificationItem } from "@/components/notifications/notification-item"
+import {
+  NotificationItem,
+  NotificationItemSkeleton,
+} from "@/components/notifications/notification-item"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -194,8 +197,14 @@ export default function NotificationsPage() {
 
           <div className="p-4 lg:p-6">
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <p className="text-sm">Đang tải thông báo...</p>
+              <div
+                className="divide-y divide-border"
+                aria-label="Đang tải thông báo"
+                role="status"
+              >
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <NotificationItemSkeleton key={index} />
+                ))}
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
