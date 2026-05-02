@@ -50,7 +50,7 @@ export function buildNotificationLink(input: {
     case "LIKE":
     case "REPOST":
     case "POST":
-      return input.postId ? `/feed/${input.postId}` : null
+      return input.postId ? `/feed?post=${input.postId}` : null
     default:
       return null
   }

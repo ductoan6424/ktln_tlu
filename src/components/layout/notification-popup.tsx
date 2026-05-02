@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { CheckCheck, Bell } from "lucide-react"
-import { NotificationItem } from "@/components/notifications/notification-item"
+import {
+  NotificationItem,
+  NotificationItemSkeleton,
+} from "@/components/notifications/notification-item"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -170,8 +173,10 @@ export function NotificationPopup({ className }: NotificationPopupProps) {
         <ScrollArea className="max-h-[400px]">
           <div className="py-2">
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <p className="text-sm">Đang tải thông báo...</p>
+              <div aria-label="Đang tải thông báo" role="status">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <NotificationItemSkeleton key={index} />
+                ))}
               </div>
             ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">

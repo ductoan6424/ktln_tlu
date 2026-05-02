@@ -4,7 +4,10 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { MessageSquarePlus, MessageSquare } from "lucide-react"
 import { listMyConversations, markConversationAsRead } from "@/actions/chat"
-import { ConversationItem } from "@/components/messages/conversation-item"
+import {
+  ConversationItem,
+  ConversationItemSkeleton,
+} from "@/components/messages/conversation-item"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -26,6 +29,8 @@ export function MessagePopup({
   className,
 }: MessagePopupProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [conversations, setConversations] = useState<
     Array<{
       id: string
@@ -45,27 +50,33 @@ export function MessagePopup({
   )
 
   const loadConversations = async () => {
-    const result = await listMyConversations()
+    setIsLoading(true)
+    try {
+      const result = await listMyConversations()
 
-    if (!result.success || !result.data) {
-      setConversations([])
-      return
+      if (!result.success || !result.data) {
+        setConversations([])
+        return
+      }
+
+      setConversations(
+        result.data
+          .filter((conversation) => Boolean(conversation.peerUserId))
+          .map((conversation) => ({
+            id: conversation.id,
+            peerUserId: conversation.peerUserId!,
+            name: conversation.name,
+            avatarUrl: conversation.avatarUrl,
+            lastMessage: conversation.lastMessage,
+            lastMessageAt: conversation.lastMessageAt,
+            unreadCount: conversation.unreadCount,
+            isOnline: conversation.isOnline,
+          })),
+      )
+    } finally {
+      setIsLoading(false)
+      setHasLoadedOnce(true)
     }
-
-    setConversations(
-      result.data
-        .filter((conversation) => Boolean(conversation.peerUserId))
-        .map((conversation) => ({
-          id: conversation.id,
-          peerUserId: conversation.peerUserId!,
-          name: conversation.name,
-          avatarUrl: conversation.avatarUrl,
-          lastMessage: conversation.lastMessage,
-          lastMessageAt: conversation.lastMessageAt,
-          unreadCount: conversation.unreadCount,
-          isOnline: conversation.isOnline,
-        })),
-    )
   }
 
   const handleMarkAllRead = async () => {
@@ -136,7 +147,13 @@ export function MessagePopup({
         {/* Message List - có "Xem tất cả" cố định ở dưới */}
         <ScrollArea className="max-h-[400px]">
           <div className="py-2">
-            {conversations.length === 0 ? (
+            {isLoading && !hasLoadedOnce ? (
+              <div aria-label="Đang tải tin nhắn" role="status">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <ConversationItemSkeleton key={index} />
+                ))}
+              </div>
+            ) : conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <MessageSquare className="size-12 mb-3 opacity-30" />
                 <p className="text-sm">Chưa có tin nhắn nào</p>
