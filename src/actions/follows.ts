@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma/client"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import { getFollowStatus, type FollowStatus } from "@/lib/follows/queries"
+import { notifyFollow, notifyFriendship } from "@/lib/notifications/dispatchers"
+import type { NotificationActorSummary } from "@/lib/notifications/types"
 
 export type FollowResult = {
   followerId: string
@@ -77,7 +79,9 @@ export async function followUser(
         select: { followerId: true },
       })
 
-      if (!existing) {
+      const isNewFollow = !existing
+
+      if (isNewFollow) {
         await tx.follow.create({ data: { followerId, followingId } })
       }
 
@@ -92,6 +96,7 @@ export async function followUser(
       })
 
       const isMutual = Boolean(reverse)
+      let friendshipCreated = false
 
       if (isMutual) {
         const existingFriendship = await findFriendshipBetween(
@@ -108,16 +113,70 @@ export async function followUser(
               status: FriendshipStatus.APPROVED,
             },
           })
+          friendshipCreated = true
         } else if (existingFriendship.status !== FriendshipStatus.APPROVED) {
           await tx.friendship.update({
             where: { id: existingFriendship.id },
             data: { status: FriendshipStatus.APPROVED },
           })
+          friendshipCreated = true
         }
       }
 
-      return { isMutual }
+      return { isMutual, isNewFollow, friendshipCreated }
     })
+
+    if (result.isNewFollow || result.friendshipCreated) {
+      const [actor, target] = await Promise.all([
+        prisma.userProfile.findUnique({
+          where: { userId: followerId },
+          select: { userId: true, displayName: true, avatarUrl: true },
+        }),
+        prisma.userProfile.findUnique({
+          where: { userId: followingId },
+          select: { userId: true, displayName: true, avatarUrl: true },
+        }),
+      ])
+
+      if (actor && target) {
+        const actorSummary: NotificationActorSummary = {
+          userId: actor.userId,
+          displayName: actor.displayName,
+          avatarUrl: actor.avatarUrl,
+        }
+        const targetSummary: NotificationActorSummary = {
+          userId: target.userId,
+          displayName: target.displayName,
+          avatarUrl: target.avatarUrl,
+        }
+
+        if (result.isNewFollow) {
+          await notifyFollow({
+            actor: actorSummary,
+            recipientId: followingId,
+          }).catch((error) => {
+            console.error("notifyFollow error:", error)
+          })
+        }
+
+        if (result.friendshipCreated) {
+          await Promise.all([
+            notifyFriendship({
+              actor: actorSummary,
+              recipientId: followingId,
+            }).catch((error) => {
+              console.error("notifyFriendship for addressee error:", error)
+            }),
+            notifyFriendship({
+              actor: targetSummary,
+              recipientId: followerId,
+            }).catch((error) => {
+              console.error("notifyFriendship for requester error:", error)
+            }),
+          ])
+        }
+      }
+    }
 
     revalidatePath(`/profile/${followingId}`)
     revalidatePath("/profile")
