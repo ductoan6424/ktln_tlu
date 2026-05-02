@@ -50,11 +50,15 @@ enum FriendshipStatus {
 enum NotificationType {
   POST
   COMMENT
+  COMMENT_REPLY
   LIKE
   MESSAGE
   CLUB
   SYSTEM
   ANNOUNCEMENT
+  FOLLOW
+  FRIENDSHIP
+  REPOST
 }
 
 enum PostModerationAction {
@@ -92,11 +96,12 @@ model UserProfile {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
 
-  posts             Post[]
-  comments          Comment[]
-  likes             Like[]
-  notifications     Notification[]
-  clubMemberships   ClubMember[]
+  posts                Post[]
+  comments             Comment[]
+  likes                Like[]
+  notifications        Notification[]
+  notificationsAsActor Notification[] @relation("NotificationActor")
+  clubMemberships      ClubMember[]
   groupMemberships  GroupMember[]
   courseMemberships CourseMember[]
   ownedCourses      Course[]        @relation("CourseLecturer")
@@ -390,13 +395,21 @@ model Notification {
   link      String?          @map("link")
   metadata  Json?            @map("metadata")
   isRead    Boolean          @default(false) @map("is_read")
+  readAt    DateTime?        @map("read_at")
+  groupKey  String?          @map("group_key")
+  actorId   String?          @map("actor_id")
   createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
 
   userId String      @map("user_id")
   user   UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
+  actor UserProfile? @relation("NotificationActor", fields: [actorId], references: [userId], onDelete: SetNull)
+
   @@index([userId, isRead])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, groupKey])
+  @@index([actorId])
   @@map("notifications")
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getAblyRestClient } from "@/lib/ably/server"
+import { getNotificationChannelName } from "@/lib/notifications/channels"
 import { prisma } from "@/lib/prisma/client"
 
 export async function GET() {
@@ -34,6 +35,7 @@ export async function GET() {
       capability: JSON.stringify({
         ["chat:*"]: ["subscribe", "publish", "presence"],
         ["presence:users"]: ["subscribe", "presence"],
+        [getNotificationChannelName(user.id)]: ["subscribe"],
       }),
     })
 
@@ -45,5 +47,5 @@ export async function GET() {
       },
       { status: 500 },
     )
-   }
- }
+  }
+}
