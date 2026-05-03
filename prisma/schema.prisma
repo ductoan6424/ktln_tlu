@@ -26,6 +26,11 @@ enum PostVisibility {
   GROUP_ONLY
 }
 
+enum PollType {
+  SINGLE
+  MULTIPLE
+}
+
 enum MemberRole {
   MEMBER
   ADMIN
@@ -59,6 +64,8 @@ enum NotificationType {
   FOLLOW
   FRIENDSHIP
   REPOST
+  POLL_VOTE
+  POLL_CLOSED
 }
 
 enum PostModerationAction {
@@ -99,6 +106,7 @@ model UserProfile {
   posts                Post[]
   comments             Comment[]
   likes                Like[]
+  pollVotes            PollVote[]
   notifications        Notification[]
   notificationsAsActor Notification[] @relation("NotificationActor")
   clubMemberships      ClubMember[]
@@ -265,6 +273,8 @@ model Post {
   hiddenBy       HiddenPost[]
   moderationLogs PostModerationLog[]
 
+  poll Poll?
+
   @@index([authorId])
   @@index([visibility])
   @@index([clubId])
@@ -316,6 +326,55 @@ model Like {
   @@unique([userId, postId])
   @@unique([userId, commentId])
   @@map("likes")
+}
+
+model Poll {
+  id          String    @id @default(cuid()) @map("poll_id")
+  postId      String    @unique @map("post_id")
+  question    String    @map("question")
+  type        PollType  @default(SINGLE) @map("type")
+  closedAt    DateTime? @map("closed_at")
+  closedEarly Boolean   @default(false) @map("closed_early")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+
+  @@index([closedAt])
+  @@map("polls")
+}
+
+model PollOption {
+  id        String   @id @default(cuid()) @map("poll_option_id")
+  pollId    String   @map("poll_id")
+  content   String   @map("content")
+  position  Int      @map("position")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id        String   @id @default(cuid()) @map("poll_vote_id")
+  pollId    String   @map("poll_id")
+  optionId  String   @map("option_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  poll   Poll        @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, optionId])
+  @@index([pollId])
+  @@index([userId])
+  @@map("poll_votes")
 }
 
 model Conversation {

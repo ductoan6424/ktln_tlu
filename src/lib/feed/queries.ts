@@ -2,6 +2,8 @@ import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma/client"
 import { formatRelativeTime } from "@/utils/formatters"
 import { canHidePost, resolveDeleteRole } from "@/lib/auth/post-permissions"
+import { getPollsForPosts } from "@/lib/polls/queries"
+import type { PollView } from "@/lib/polls/types"
 
 export type FeedCursor = {
   followedFetched: number
@@ -39,6 +41,7 @@ export type FeedPostDto = {
   isFromFollowed: boolean
   permissions: FeedPostPermissions
   sharedPost: FeedSharedPost | null
+  poll: PollView | null
 }
 
 export type FeedPage = {
@@ -119,7 +122,8 @@ function buildPostInclude(viewerId: string | null) {
 async function mapRawPost(
   post: RawFeedPost,
   viewerId: string | null,
-  isFromFollowed: boolean
+  isFromFollowed: boolean,
+  poll: PollView | null,
 ): Promise<FeedPostDto> {
   let permissions: FeedPostPermissions = {
     canDelete: false,
@@ -171,6 +175,7 @@ async function mapRawPost(
     isFromFollowed,
     permissions,
     sharedPost,
+    poll,
   }
 }
 
@@ -249,11 +254,22 @@ export async function getFeedPosts(
     restFetched += restRaw.length
   }
 
+  // Batch fetch polls cho tất cả post trong trang hiện tại (tránh N+1)
+  const allPostIds = [
+    ...followedRaw.map((p) => p.id),
+    ...restRaw.map((p) => p.id),
+  ]
+  const pollMap = await getPollsForPosts(allPostIds, viewerId)
+
   const followedDtos = await Promise.all(
-    followedRaw.map((p) => mapRawPost(p, viewerId, true))
+    followedRaw.map((p) =>
+      mapRawPost(p, viewerId, true, pollMap.get(p.id) ?? null),
+    ),
   )
   const restDtos = await Promise.all(
-    restRaw.map((p) => mapRawPost(p, viewerId, false))
+    restRaw.map((p) =>
+      mapRawPost(p, viewerId, false, pollMap.get(p.id) ?? null),
+    ),
   )
 
   const posts = [...followedDtos, ...restDtos]

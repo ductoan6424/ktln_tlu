@@ -24,7 +24,9 @@ import { CommentList } from "@/components/feed/comment-list"
 import { CommentInput } from "@/components/feed/comment-input"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
 import { SharedPostPreview } from "@/components/feed/shared-post-preview"
+import { PollDisplay } from "@/components/polls/poll-display"
 import { loadComments, createComment, deleteComment } from "@/actions/posts"
+import type { PollView } from "@/lib/polls/types"
 import type { CommentWithAuthorFlat } from "@/components/feed/comment-item"
 import { Heart, MessageCircle, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -67,6 +69,7 @@ interface PostDetailDialogProps {
     authorDisplayName: string
     authorAvatarUrl: string | null
   } | null
+  poll?: PollView | null
 }
 
 export function PostDetailDialog({
@@ -95,6 +98,7 @@ export function PostDetailDialog({
   onHidden,
   onShared,
   sharedPost,
+  poll,
 }: PostDetailDialogProps) {
   const { toast } = useToast()
   const [commentsData, setCommentsData] = useState<CommentWithAuthorFlat[]>([])
@@ -329,6 +333,13 @@ export function PostDetailDialog({
                   imageUrl={sharedPost.imageUrl}
                 />
               )}
+              {poll && (
+                <PollDisplay
+                  poll={poll}
+                  currentUserId={resolvedCurrentUser?.id ?? null}
+                  authorId={authorId ?? ""}
+                />
+              )}
             </div>
 
             {statsBar}
@@ -431,6 +442,13 @@ export function PostDetailDialog({
                   authorAvatar={sharedPost.authorAvatarUrl}
                   content={sharedPost.content}
                   imageUrl={sharedPost.imageUrl}
+                />
+              )}
+              {poll && (
+                <PollDisplay
+                  poll={poll}
+                  currentUserId={resolvedCurrentUser?.id ?? null}
+                  authorId={authorId ?? ""}
                 />
               )}
             </div>

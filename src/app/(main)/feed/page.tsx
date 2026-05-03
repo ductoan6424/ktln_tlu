@@ -62,6 +62,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     permissions: post.permissions,
     sharedPost: post.sharedPost,
     isFromFollowed: post.isFromFollowed,
+    poll: post.poll,
   }))
 
   const clientUser = currentUser

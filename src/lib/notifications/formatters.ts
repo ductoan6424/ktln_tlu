@@ -17,6 +17,8 @@ export type NotificationGroupKeyInput =
   | { type: "COMMENT_REPLY"; parentCommentId: string }
   | { type: "REPOST"; postId: string }
   | { type: "LIKE"; postId: string }
+  | { type: "POLL_VOTE"; pollId: string }
+  | { type: "POLL_CLOSED"; pollId: string; recipientId: string }
 
 export function buildGroupKey(input: NotificationGroupKeyInput): string {
   switch (input.type) {
@@ -32,6 +34,10 @@ export function buildGroupKey(input: NotificationGroupKeyInput): string {
       return `REPOST:${input.postId}`
     case "LIKE":
       return `LIKE:${input.postId}`
+    case "POLL_VOTE":
+      return `POLL_VOTE:${input.pollId}`
+    case "POLL_CLOSED":
+      return `POLL_CLOSED:${input.pollId}:${input.recipientId}`
   }
 }
 
@@ -50,6 +56,8 @@ export function buildNotificationLink(input: {
     case "LIKE":
     case "REPOST":
     case "POST":
+    case "POLL_VOTE":
+    case "POLL_CLOSED":
       return input.postId ? `/feed?post=${input.postId}` : null
     default:
       return null
@@ -97,6 +105,7 @@ export type NotificationRenderInput = {
   totalActorCount: number
   postExcerpt?: string | null
   commentExcerpt?: string | null
+  pollQuestion?: string | null
 }
 
 export type NotificationRenderResult = {
@@ -137,6 +146,14 @@ export function renderNotification(
     case "LIKE":
       title = `${nameSuffix} đã thích bài viết của bạn`
       content = input.postExcerpt ?? "Nhấn để xem bài viết."
+      break
+    case "POLL_VOTE":
+      title = `${nameSuffix} đã bình chọn trong khảo sát của bạn`
+      content = input.pollQuestion ?? "Nhấn để xem kết quả."
+      break
+    case "POLL_CLOSED":
+      title = "Khảo sát bạn tham gia đã đóng"
+      content = input.pollQuestion ?? "Nhấn để xem kết quả cuối cùng."
       break
     default:
       title = nameSuffix

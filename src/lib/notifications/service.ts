@@ -31,10 +31,11 @@ type PrismaTx = Prisma.TransactionClient | typeof prisma
 type CreateNotificationInput = {
   recipientId: string
   type: NotificationType
-  actor: NotificationActorSummary
+  actor: NotificationActorSummary | null
   groupKey: string
   postExcerpt?: string | null
   commentExcerpt?: string | null
+  pollQuestion?: string | null
   extraMetadata?: Record<string, unknown>
   linkOverride?: string
 }
@@ -189,7 +190,7 @@ export async function createNotification(
   input: CreateNotificationInput,
   client?: PrismaTx,
 ): Promise<NotificationListItem | null> {
-  if (input.recipientId === input.actor.userId) {
+  if (input.actor && input.recipientId === input.actor.userId) {
     return null
   }
 
@@ -197,7 +198,7 @@ export async function createNotification(
     input.linkOverride ??
     buildNotificationLink({
       type: input.type,
-      actorId: input.actor.userId,
+      actorId: input.actor?.userId ?? null,
       postId:
         typeof input.extraMetadata?.postId === "string"
           ? (input.extraMetadata.postId as string)
@@ -217,7 +218,9 @@ export async function createNotification(
 
     if (existing) {
       const existingAggregate = extractAggregate(existing.metadata)
-      const nextAggregate = mergeAggregateMetadata(existingAggregate, input.actor)
+      const nextAggregate = input.actor
+        ? mergeAggregateMetadata(existingAggregate, input.actor)
+        : existingAggregate ?? { actorIds: [], actorNames: [], count: 0 }
 
       const rendered = renderNotification({
         type: input.type,
@@ -225,6 +228,7 @@ export async function createNotification(
         totalActorCount: nextAggregate.count,
         postExcerpt: input.postExcerpt,
         commentExcerpt: input.commentExcerpt,
+        pollQuestion: input.pollQuestion,
       })
 
       const updated = await db.notification.update({
@@ -232,7 +236,7 @@ export async function createNotification(
         data: {
           title: rendered.title,
           content: rendered.content,
-          actorId: input.actor.userId,
+          actorId: input.actor?.userId ?? null,
           link: link ?? existing.link,
           metadata: toMetadata(nextAggregate, input.extraMetadata),
           isRead: false,
@@ -248,13 +252,16 @@ export async function createNotification(
       return { row: updated, kind: "updated" as const }
     }
 
-    const initialAggregate = buildInitialAggregateMetadata(input.actor)
+    const initialAggregate = input.actor
+      ? buildInitialAggregateMetadata(input.actor)
+      : { actorIds: [], actorNames: [], count: 0 }
     const rendered = renderNotification({
       type: input.type,
       actors: initialAggregate.actorNames,
       totalActorCount: initialAggregate.count,
       postExcerpt: input.postExcerpt,
       commentExcerpt: input.commentExcerpt,
+      pollQuestion: input.pollQuestion,
     })
 
     const created = await db.notification.create({
@@ -265,7 +272,7 @@ export async function createNotification(
         content: rendered.content,
         link: link ?? null,
         metadata: toMetadata(initialAggregate, input.extraMetadata),
-        actorId: input.actor.userId,
+        actorId: input.actor?.userId ?? null,
         groupKey: input.groupKey,
       },
       include: {

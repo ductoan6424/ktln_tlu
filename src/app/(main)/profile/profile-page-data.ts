@@ -5,6 +5,8 @@ import {
   getFollowStatus,
   type FollowStatus,
 } from "@/lib/follows/queries"
+import { getPollsForPosts } from "@/lib/polls/queries"
+import type { PollView } from "@/lib/polls/types"
 
 export type ProfilePageParams = {
   viewerId: string
@@ -116,6 +118,7 @@ export type ProfilePostDto = {
     authorDisplayName: string
     authorAvatarUrl: string | null
   } | null
+  poll: PollView | null
 }
 
 type ProfileRecord = {
@@ -280,7 +283,10 @@ function mapGroupMembership(membership: GroupMembershipRecord): GroupMembershipD
   }
 }
 
-function mapPost(post: PostRecord): ProfilePostDto {
+function mapPost(
+  post: PostRecord,
+  poll: PollView | null,
+): ProfilePostDto {
   return {
     id: post.id,
     content: post.content,
@@ -310,6 +316,7 @@ function mapPost(post: PostRecord): ProfilePostDto {
         authorAvatarUrl: post.sharedPost.author.avatarUrl,
       }
       : null,
+    poll,
   }
 }
 
@@ -555,6 +562,12 @@ export async function getProfilePageData({
       : getFollowStatus(viewerId, profileUserId),
   ])
 
+  // Batch fetch polls cho các post hiển thị trên profile
+  const pollMap = await getPollsForPosts(
+    posts.map((post) => post.id),
+    viewerId,
+  )
+
   return {
     viewerId,
     profileUserId,
@@ -574,7 +587,7 @@ export async function getProfilePageData({
       totalCount: connectionsCount,
       items: connectionsPreview.map((friendship) => mapConnection(friendship, profileUserId)),
     },
-    posts: posts.map(mapPost),
+    posts: posts.map((post) => mapPost(post, pollMap.get(post.id) ?? null)),
     followStatus,
   }
 }

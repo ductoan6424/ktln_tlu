@@ -12,6 +12,10 @@ import { createPost } from "@/actions/posts"
 import { cn } from "@/lib/utils"
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/utils/constants"
 import { BarChart3, ImageIcon, Loader2, Video, X } from "lucide-react"
+import {
+  PollComposerModal,
+  type PollDraft,
+} from "@/components/polls/poll-composer-modal"
 
 interface PostComposerProps {
   userAvatar?: string
@@ -33,6 +37,8 @@ export function PostComposer({
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [poll, setPoll] = useState<PollDraft | null>(null)
+  const [isPollModalOpen, setIsPollModalOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -111,6 +117,10 @@ export function PostComposer({
         formData.set("image", selectedImage)
       }
 
+      if (poll) {
+        formData.set("poll", JSON.stringify(poll))
+      }
+
       const result = await createPost(formData)
 
       if (!result.success) {
@@ -120,6 +130,7 @@ export function PostComposer({
 
       setContent("")
       resetSelectedImage()
+      setPoll(null)
 
       if (onPostCreated && result.data) {
         onPostCreated(result.data)
@@ -205,6 +216,46 @@ export function PostComposer({
               </div>
             )}
 
+            {poll && (
+              <div className="mt-2 rounded-xl border border-border bg-muted/40 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Khảo sát
+                    </p>
+                    <p className="truncate text-[13px] font-medium text-foreground">
+                      {poll.question || "(Chưa có câu hỏi)"}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {poll.options.length} đáp án ·{" "}
+                      {poll.type === "SINGLE" ? "Chọn 1 đáp án" : "Chọn nhiều"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-[12px]"
+                      onClick={() => setIsPollModalOpen(true)}
+                    >
+                      Sửa
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      onClick={() => setPoll(null)}
+                      aria-label="Xoá khảo sát"
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {error && (
               <p className="mt-1 text-[12px] text-destructive">{error}</p>
             )}
@@ -227,10 +278,16 @@ export function PostComposer({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="gap-2 text-muted-foreground"
+                  className={cn(
+                    "gap-2 text-muted-foreground",
+                    poll && "text-primary",
+                  )}
+                  onClick={() => setIsPollModalOpen(true)}
                 >
                   <BarChart3 className="size-4" />
-                  <span className="hidden md:inline">Khảo sát</span>
+                  <span className="hidden md:inline">
+                    {poll ? "Sửa khảo sát" : "Khảo sát"}
+                  </span>
                 </Button>
                 <Button
                   type="button"
@@ -262,6 +319,14 @@ export function PostComposer({
           </div>
         </div>
       </CardContent>
+
+      <PollComposerModal
+        open={isPollModalOpen}
+        onOpenChange={setIsPollModalOpen}
+        initialValue={poll}
+        onSubmit={(draft) => setPoll(draft)}
+        onRemove={() => setPoll(null)}
+      />
     </Card>
   )
 }
