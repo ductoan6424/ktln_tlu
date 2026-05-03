@@ -26,6 +26,7 @@ import { listMyConversations } from "@/actions/chat"
 import { loadFeedPosts, togglePostLike, getPostById } from "@/actions/posts"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
 import type { FeedCursor } from "@/lib/feed/queries"
+import type { PollView } from "@/lib/polls/types"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { createAblyClient } from "@/lib/ably/client"
@@ -80,6 +81,7 @@ interface FeedPost {
   }
   sharedPost?: SharedPostData | null
   isFromFollowed?: boolean
+  poll?: PollView | null
 }
 
 interface DeepLinkPost {
@@ -125,6 +127,15 @@ export function FeedPageClient({
   const sentinelRef = useRef<HTMLDivElement>(null)
   const rollbackRef = useRef<FeedPost[] | null>(null)
   const { toast } = useToast()
+
+  // Sync lại state khi server revalidate `/feed` (vd: sau khi đăng bài mới)
+  // → Next.js truyền `initialPosts` mới, nhưng useState chỉ init 1 lần nên cần effect này
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync posts với kết quả revalidate từ server
+    setPosts(initialPosts)
+    setCursor(initialCursor)
+    setHasMore(initialHasMore)
+  }, [initialPosts, initialCursor, initialHasMore])
 
   const [deepLinkData, setDeepLinkData] = useState<DeepLinkPost | null>(null)
   const [isDeepLinkOpen, setIsDeepLinkOpen] = useState(false)
@@ -241,6 +252,7 @@ export function FeedPageClient({
         permissions: post.permissions,
         sharedPost: post.sharedPost ?? null,
         isFromFollowed: post.isFromFollowed,
+        poll: post.poll ?? null,
       }))
 
       setPosts((prev) => {
@@ -468,6 +480,7 @@ export function FeedPageClient({
                         setPosts((prev) => prev.filter((p) => p.id !== post.id))
                       }
                       sharedPost={post.sharedPost}
+                      poll={post.poll}
                     />
                   ))}
 

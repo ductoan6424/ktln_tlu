@@ -151,6 +151,7 @@ const baseProfileData: ProfilePageData = {
       club: null,
       group: null,
       sharedPost: null,
+      poll: null,
     },
   ],
   followStatus: null,

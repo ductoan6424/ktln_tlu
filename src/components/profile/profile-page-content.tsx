@@ -70,6 +70,7 @@ function renderPostsPanel(data: ProfilePageData) {
             currentUserId={data.viewerId}
             authorId={data.profile.userId}
             sharedPost={post.sharedPost}
+            poll={post.poll}
           />
         ))
       )}

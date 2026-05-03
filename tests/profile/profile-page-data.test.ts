@@ -20,6 +20,9 @@ const prisma = vi.hoisted(() => ({
     findMany: vi.fn(),
     count: vi.fn(),
   },
+  poll: {
+    findMany: vi.fn(),
+  },
   follow: {
     findUnique: vi.fn(),
     count: vi.fn(),
@@ -182,6 +185,8 @@ beforeEach(() => {
   prisma.groupMember.count.mockReset()
   prisma.post.findMany.mockReset()
   prisma.post.count.mockReset()
+  prisma.poll.findMany.mockReset()
+  prisma.poll.findMany.mockResolvedValue([])
   prisma.follow.findUnique.mockReset()
   prisma.follow.count.mockReset()
   prisma.follow.findUnique.mockResolvedValue(null)
@@ -296,6 +301,7 @@ describe("getProfilePageData", () => {
         club: null,
         group: null,
         sharedPost: null,
+        poll: null,
       },
       {
         id: "post-public",
@@ -314,6 +320,7 @@ describe("getProfilePageData", () => {
           slug: "data-study-group",
         },
         sharedPost: null,
+        poll: null,
       },
     ])
 
@@ -394,6 +401,7 @@ describe("getProfilePageData", () => {
         club: null,
         group: null,
         sharedPost: null,
+        poll: null,
       },
     ])
 
