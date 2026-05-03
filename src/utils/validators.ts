@@ -4,6 +4,14 @@ import {
   ANNOUNCEMENT_TITLE_MAX,
   ANNOUNCEMENT_CONTENT_MAX,
 } from "@/lib/config/announcements";
+import {
+  POLL_OPTIONS_MAX_COUNT,
+  POLL_OPTIONS_MIN_COUNT,
+  POLL_OPTION_MAX_LENGTH,
+  POLL_OPTION_MIN_LENGTH,
+  POLL_QUESTION_MAX_LENGTH,
+  POLL_QUESTION_MIN_LENGTH,
+} from "@/lib/config/polls";
 
 // Validation schema cho đăng nhập
 export const loginSchema = z.object({
@@ -38,6 +46,62 @@ export const postDeleteReasonSchema = z.object({
   reason: z.string().trim().max(POST_DELETE_REASON_MAX, `Lý do tối đa ${POST_DELETE_REASON_MAX} ký tự`).optional(),
 });
 
+// Validation schema cho khảo sát (poll) đi kèm bài viết
+export const pollTypeSchema = z.enum(["SINGLE", "MULTIPLE"]);
+
+export const pollDurationPresetSchema = z.enum(["1h", "1d", "3d", "7d", "never"]);
+
+export const pollOptionSchema = z.object({
+  content: z
+    .string()
+    .trim()
+    .min(
+      POLL_OPTION_MIN_LENGTH,
+      "Đáp án không được để trống",
+    )
+    .max(
+      POLL_OPTION_MAX_LENGTH,
+      `Đáp án tối đa ${POLL_OPTION_MAX_LENGTH} ký tự`,
+    ),
+});
+
+export const pollInputSchema = z
+  .object({
+    question: z
+      .string()
+      .trim()
+      .min(
+        POLL_QUESTION_MIN_LENGTH,
+        "Câu hỏi khảo sát không được để trống",
+      )
+      .max(
+        POLL_QUESTION_MAX_LENGTH,
+        `Câu hỏi khảo sát tối đa ${POLL_QUESTION_MAX_LENGTH} ký tự`,
+      ),
+    type: pollTypeSchema,
+    durationPreset: pollDurationPresetSchema,
+    options: z
+      .array(pollOptionSchema)
+      .min(
+        POLL_OPTIONS_MIN_COUNT,
+        `Khảo sát cần ít nhất ${POLL_OPTIONS_MIN_COUNT} đáp án`,
+      )
+      .max(
+        POLL_OPTIONS_MAX_COUNT,
+        `Khảo sát tối đa ${POLL_OPTIONS_MAX_COUNT} đáp án`,
+      ),
+  })
+  .refine(
+    (data) => {
+      const lowered = data.options.map((option) => option.content.toLowerCase())
+      return new Set(lowered).size === lowered.length
+    },
+    {
+      message: "Các đáp án không được trùng nhau",
+      path: ["options"],
+    },
+  );
+
 // Validation schema cho thông báo chính thức
 export const announcementAudienceSchema = z.enum(["ALL", "STUDENTS", "FACULTY"]);
 
@@ -70,3 +134,7 @@ export type CommentInput = z.infer<typeof commentSchema>;
 export type PostDeleteReasonInput = z.infer<typeof postDeleteReasonSchema>;
 export type AnnouncementInput = z.infer<typeof announcementInputSchema>;
 export type AnnouncementAudienceInput = z.infer<typeof announcementAudienceSchema>;
+export type PollInput = z.infer<typeof pollInputSchema>;
+export type PollOptionInput = z.infer<typeof pollOptionSchema>;
+export type PollTypeInput = z.infer<typeof pollTypeSchema>;
+export type PollDurationPresetInput = z.infer<typeof pollDurationPresetSchema>;

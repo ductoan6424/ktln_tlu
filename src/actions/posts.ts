@@ -4,7 +4,16 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { UploadValidationError, uploadPostImage } from "@/lib/cloudinary/upload"
 import { prisma } from "@/lib/prisma/client"
-import { postSchema, commentSchema, postDeleteReasonSchema } from "@/utils/validators"
+import {
+  postSchema,
+  commentSchema,
+  postDeleteReasonSchema,
+  pollInputSchema,
+  type PollInput,
+} from "@/utils/validators"
+import { POLL_DURATION_PRESETS } from "@/lib/config/polls"
+import { getPollForPost } from "@/lib/polls/queries"
+import type { PollView } from "@/lib/polls/types"
 import { formatRelativeTime, truncateText } from "@/utils/formatters"
 import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -56,11 +65,21 @@ function extractCreatePostInput(rawInput: unknown) {
   if (rawInput instanceof FormData) {
     const contentValue = rawInput.get("content")
     const imageValue = rawInput.get("image")
+    const pollValue = rawInput.get("poll")
+    let poll: unknown = undefined
+    if (typeof pollValue === "string" && pollValue.length > 0) {
+      try {
+        poll = JSON.parse(pollValue)
+      } catch {
+        poll = undefined
+      }
+    }
 
     return {
       content: typeof contentValue === "string" ? contentValue : "",
       imageUrl: undefined,
       imageFile: imageValue instanceof File && imageValue.size > 0 ? imageValue : null,
+      poll,
     }
   }
 
@@ -69,12 +88,14 @@ function extractCreatePostInput(rawInput: unknown) {
       content?: unknown
       imageUrl?: unknown
       imageFile?: unknown
+      poll?: unknown
     }
 
     return {
       content: typeof input.content === "string" ? input.content : "",
       imageUrl: typeof input.imageUrl === "string" ? input.imageUrl : undefined,
       imageFile: input.imageFile instanceof File && input.imageFile.size > 0 ? input.imageFile : null,
+      poll: input.poll,
     }
   }
 
@@ -82,7 +103,15 @@ function extractCreatePostInput(rawInput: unknown) {
     content: "",
     imageUrl: undefined,
     imageFile: null,
+    poll: undefined,
   }
+}
+
+// Quy đổi durationPreset thành thời điểm đóng poll (null = không giới hạn)
+function resolvePollClosedAt(preset: PollInput["durationPreset"]): Date | null {
+  const seconds = POLL_DURATION_PRESETS[preset]
+  if (seconds === null) return null
+  return new Date(Date.now() + seconds * 1000)
 }
 
 // ─── Create Post ────────────────────────────────────────────────────────────
@@ -101,7 +130,7 @@ export async function createPost(
   const userId = userData.user.id
 
   // 2. Validate input
-  const { content, imageUrl, imageFile } = extractCreatePostInput(rawInput)
+  const { content, imageUrl, imageFile, poll: rawPoll } = extractCreatePostInput(rawInput)
 
   const validated = postSchema.safeParse({
     content,
@@ -113,6 +142,19 @@ export async function createPost(
       validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
       "VALIDATION_ERROR"
     )
+  }
+
+  // Validate poll nếu có
+  let pollInput: PollInput | null = null
+  if (rawPoll !== undefined && rawPoll !== null) {
+    const parsed = pollInputSchema.safeParse(rawPoll)
+    if (!parsed.success) {
+      return errorResult(
+        parsed.error.issues[0]?.message ?? "Khảo sát không hợp lệ",
+        "VALIDATION_ERROR",
+      )
+    }
+    pollInput = parsed.data
   }
 
   let finalImageUrl = validated.data.imageUrl?.trim() || null
@@ -130,15 +172,36 @@ export async function createPost(
     }
   }
 
-  // 3. Create post in database
+  // 3. Create post (và poll nếu có) trong transaction để đảm bảo atomic
   try {
-    const post = await prisma.post.create({
-      data: {
-        content: validated.data.content,
-        authorId: userId,
-        visibility: "PUBLIC",
-        imageUrl: finalImageUrl,
-      },
+    const post = await prisma.$transaction(async (tx) => {
+      const created = await tx.post.create({
+        data: {
+          content: validated.data.content,
+          authorId: userId,
+          visibility: "PUBLIC",
+          imageUrl: finalImageUrl,
+        },
+      })
+
+      if (pollInput) {
+        await tx.poll.create({
+          data: {
+            postId: created.id,
+            question: pollInput.question,
+            type: pollInput.type,
+            closedAt: resolvePollClosedAt(pollInput.durationPreset),
+            options: {
+              create: pollInput.options.map((option, index) => ({
+                content: option.content,
+                position: index,
+              })),
+            },
+          },
+        })
+      }
+
+      return created
     })
 
     revalidatePath("/feed")
@@ -187,6 +250,7 @@ interface PostWithAuthorFlat {
   comments: number
   permissions: PostPermissions
   sharedPost: SharedPostData | null
+  poll: PollView | null
 }
 
 // ─── Share Post To Profile (repost) ─────────────────────────────────────────
@@ -360,6 +424,8 @@ export async function getPostById(
           }
         : null
 
+    const poll = await getPollForPost(post.id, currentUserId)
+
     return successResult({
       id: post.id,
       content: post.content,
@@ -375,6 +441,7 @@ export async function getPostById(
       comments: post._count.comments,
       permissions,
       sharedPost,
+      poll,
     })
   } catch (error) {
     console.error("getPostById error:", error)

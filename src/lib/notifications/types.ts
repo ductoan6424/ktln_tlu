@@ -60,6 +60,21 @@ export type NotifyLikePayload = {
   postId: string
 }
 
+export type NotifyPollVotePayload = {
+  actor: NotificationActorSummary
+  recipientId: string
+  postId: string
+  pollId: string
+  pollQuestion: string
+}
+
+export type NotifyPollClosedPayload = {
+  recipientId: string
+  postId: string
+  pollId: string
+  pollQuestion: string
+}
+
 export type NotificationListItem = {
   id: string
   type: NotificationType
