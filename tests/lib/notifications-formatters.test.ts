@@ -38,6 +38,22 @@ describe("buildGroupKey", () => {
   it("tạo key cho LIKE theo post", () => {
     expect(buildGroupKey({ type: "LIKE", postId: "p1" })).toBe("LIKE:p1")
   })
+
+  it("tạo key cho POLL_VOTE theo poll (aggregate chung cho tất cả voters)", () => {
+    expect(buildGroupKey({ type: "POLL_VOTE", pollId: "poll-1" })).toBe(
+      "POLL_VOTE:poll-1",
+    )
+  })
+
+  it("tạo key cho POLL_CLOSED theo poll + recipient (mỗi voter có noti riêng)", () => {
+    expect(
+      buildGroupKey({
+        type: "POLL_CLOSED",
+        pollId: "poll-1",
+        recipientId: "u1",
+      }),
+    ).toBe("POLL_CLOSED:poll-1:u1")
+  })
 })
 
 describe("buildNotificationLink", () => {
@@ -71,6 +87,15 @@ describe("buildNotificationLink", () => {
   it("trả về null khi thiếu thông tin", () => {
     expect(buildNotificationLink({ type: "FOLLOW" })).toBeNull()
     expect(buildNotificationLink({ type: "COMMENT" })).toBeNull()
+  })
+
+  it("POLL_VOTE/POLL_CLOSED trỏ về deep-link post", () => {
+    expect(
+      buildNotificationLink({ type: "POLL_VOTE", postId: "p1" }),
+    ).toBe("/feed?post=p1")
+    expect(
+      buildNotificationLink({ type: "POLL_CLOSED", postId: "p1" }),
+    ).toBe("/feed?post=p1")
   })
 })
 
@@ -176,5 +201,29 @@ describe("renderNotification", () => {
     })
 
     expect(rendered.title).toBe("An đã chia sẻ bài viết của bạn")
+  })
+
+  it("POLL_VOTE hiển thị câu hỏi khảo sát", () => {
+    const rendered = renderNotification({
+      type: "POLL_VOTE",
+      actors: ["An"],
+      totalActorCount: 1,
+      pollQuestion: "Bạn thích màu nào?",
+    })
+
+    expect(rendered.title).toBe("An đã bình chọn trong khảo sát của bạn")
+    expect(rendered.content).toBe("Bạn thích màu nào?")
+  })
+
+  it("POLL_CLOSED tiêu đề cố định, content là câu hỏi", () => {
+    const rendered = renderNotification({
+      type: "POLL_CLOSED",
+      actors: [],
+      totalActorCount: 0,
+      pollQuestion: "Chọn địa điểm sự kiện",
+    })
+
+    expect(rendered.title).toBe("Khảo sát bạn tham gia đã đóng")
+    expect(rendered.content).toBe("Chọn địa điểm sự kiện")
   })
 })

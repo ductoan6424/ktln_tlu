@@ -4,6 +4,7 @@ const prisma = vi.hoisted(() => ({
   follow: { findMany: vi.fn() },
   hiddenPost: { findMany: vi.fn() },
   post: { findMany: vi.fn() },
+  poll: { findMany: vi.fn() },
 }))
 
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
@@ -52,7 +53,9 @@ beforeEach(() => {
   prisma.follow.findMany.mockReset()
   prisma.hiddenPost.findMany.mockReset()
   prisma.post.findMany.mockReset()
+  prisma.poll.findMany.mockReset()
   prisma.hiddenPost.findMany.mockResolvedValue([])
+  prisma.poll.findMany.mockResolvedValue([])
 })
 
 describe("getFeedPosts — 2-bucket strategy", () => {

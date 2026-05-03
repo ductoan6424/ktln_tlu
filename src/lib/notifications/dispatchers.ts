@@ -8,6 +8,8 @@ import type {
   NotifyFollowPayload,
   NotifyFriendshipPayload,
   NotifyLikePayload,
+  NotifyPollClosedPayload,
+  NotifyPollVotePayload,
   NotifyRepostPayload,
 } from "./types"
 
@@ -156,4 +158,66 @@ export async function withdrawLikeNotification(params: {
     actorId: params.actorId,
     client: params.client,
   })
+}
+
+export async function notifyPollVote(
+  payload: NotifyPollVotePayload,
+  client?: PrismaTx,
+) {
+  const groupKey = buildGroupKey({ type: "POLL_VOTE", pollId: payload.pollId })
+
+  await createNotification(
+    {
+      type: "POLL_VOTE",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey,
+      pollQuestion: payload.pollQuestion,
+      extraMetadata: {
+        postId: payload.postId,
+        pollId: payload.pollId,
+      },
+    },
+    client,
+  )
+}
+
+export async function withdrawPollVoteNotification(params: {
+  recipientId: string
+  actorId: string
+  pollId: string
+  client?: PrismaTx
+}) {
+  await deleteGroupNotification({
+    recipientId: params.recipientId,
+    groupKey: buildGroupKey({ type: "POLL_VOTE", pollId: params.pollId }),
+    actorId: params.actorId,
+    client: params.client,
+  })
+}
+
+export async function notifyPollClosed(
+  payload: NotifyPollClosedPayload,
+  client?: PrismaTx,
+) {
+  const groupKey = buildGroupKey({
+    type: "POLL_CLOSED",
+    pollId: payload.pollId,
+    recipientId: payload.recipientId,
+  })
+
+  await createNotification(
+    {
+      type: "POLL_CLOSED",
+      recipientId: payload.recipientId,
+      actor: null,
+      groupKey,
+      pollQuestion: payload.pollQuestion,
+      extraMetadata: {
+        postId: payload.postId,
+        pollId: payload.pollId,
+      },
+    },
+    client,
+  )
 }

@@ -8,9 +8,11 @@ import { PostContent } from "@/components/feed/post-content"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { PostMenu } from "@/components/feed/post-menu"
 import { SharedPostPreview } from "@/components/feed/shared-post-preview"
+import { PollDisplay } from "@/components/polls/poll-display"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
+import type { PollView } from "@/lib/polls/types"
 
 interface PostPermissions {
   canDelete: boolean
@@ -54,6 +56,7 @@ interface PostCardProps {
   onDeleted?: () => void
   onHidden?: () => void
   sharedPost?: SharedPostData | null
+  poll?: PollView | null
 }
 
 export function PostCard({
@@ -84,6 +87,7 @@ export function PostCard({
   onDeleted,
   onHidden,
   sharedPost,
+  poll,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
@@ -177,6 +181,15 @@ export function PostCard({
             )}
           </div>
 
+          {poll && (
+            <PollDisplay
+              poll={poll}
+              currentUserId={currentUserId ?? null}
+              authorId={authorId ?? ""}
+              className="mt-2.5"
+            />
+          )}
+
           {/* Actions */}
           <PostActions
             postId={postId}
@@ -228,6 +241,7 @@ export function PostCard({
         onDeleted={onDeleted}
         onHidden={onHidden}
         sharedPost={sharedPost}
+        poll={poll}
       />
     </>
   )
