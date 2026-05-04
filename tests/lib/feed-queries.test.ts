@@ -1,35 +1,56 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prisma = vi.hoisted(() => ({
   follow: { findMany: vi.fn() },
   hiddenPost: { findMany: vi.fn() },
   post: { findMany: vi.fn() },
   poll: { findMany: vi.fn() },
-}))
+}));
 
-vi.mock("@/lib/prisma/client", () => ({ prisma }))
+const fanout = vi.hoisted(() => ({
+  getPersonalizedFeedPostIds: vi.fn(),
+  getCelebrityAuthorIds: vi.fn(),
+}));
+
+vi.mock("@/lib/prisma/client", () => ({ prisma }));
+
+vi.mock("@/lib/feed/fanout", () => fanout);
+
+vi.mock("@/lib/feed/config", () => ({
+  getFeedFanoutConfig: vi.fn().mockResolvedValue({
+    followerThreshold: 500,
+    feedCacheSize: 200,
+    feedCacheTtlSeconds: 3600,
+    followBackfillLimit: 30,
+    redisReadCandidateLimit: 10,
+    celebrityReadCandidateLimit: 10,
+    freshnessOverlayRatio: 0.3,
+    freshnessWindowMinutes: 30,
+  }),
+}));
 
 vi.mock("@/lib/auth/post-permissions", () => ({
   resolveDeleteRole: vi.fn().mockResolvedValue(null),
   canHidePost: vi.fn().mockReturnValue(false),
-}))
+}));
 
-import { getFeedPosts, INITIAL_FEED_CURSOR } from "@/lib/feed/queries"
+import { getFeedPosts, INITIAL_FEED_CURSOR } from "@/lib/feed/queries";
 
-const VIEWER_ID = "user-viewer"
-const FOLLOWED_A = "user-followed-a"
-const FOLLOWED_B = "user-followed-b"
-const RANDOM_C = "user-random-c"
+const VIEWER_ID = "user-viewer";
+const FOLLOWED_A = "user-followed-a";
+const RANDOM_C = "user-random-c";
 
-function makeRawPost(overrides: Partial<{
-  id: string
-  authorId: string
-  content: string
-  createdAt: Date
-}>) {
+function makeRawPost(
+  overrides: Partial<{
+    id: string;
+    authorId: string;
+    content: string;
+    createdAt: Date;
+  }>,
+) {
   return {
     id: overrides.id ?? "post-x",
-    content: overrides.content ?? "Nội dung",
+    content: overrides.content ?? "Noi dung",
     imageUrl: null,
     visibility: "PUBLIC",
     createdAt: overrides.createdAt ?? new Date("2026-04-01T00:00:00.000Z"),
@@ -46,142 +67,180 @@ function makeRawPost(overrides: Partial<{
     likes: [],
     _count: { likes: 0, comments: 0 },
     sharedPost: null,
-  }
+  };
+}
+
+function makeCandidate(
+  overrides: Partial<{
+    id: string;
+    authorId: string;
+    createdAt: Date;
+  }>,
+) {
+  return {
+    id: overrides.id ?? "candidate-x",
+    authorId: overrides.authorId ?? "author-1",
+    createdAt: overrides.createdAt ?? new Date("2026-04-01T00:00:00.000Z"),
+  };
+}
+
+function mockHybridPostQueries(buckets: {
+  personalized?: ReturnType<typeof makeCandidate>[];
+  celebrity?: ReturnType<typeof makeCandidate>[];
+  fallbackFollowed?: ReturnType<typeof makeCandidate>[];
+  freshness?: ReturnType<typeof makeCandidate>[];
+  rest?: ReturnType<typeof makeCandidate>[];
+  full?: ReturnType<typeof makeRawPost>[];
+}) {
+  prisma.post.findMany.mockImplementation(
+    async (args: {
+      include?: unknown;
+      where?: {
+        id?: { in?: string[] };
+        authorId?: { in?: string[]; notIn?: string[] };
+        createdAt?: { gte?: Date };
+      };
+      take?: number;
+    }) => {
+      if (args.include && args.where?.id?.in) return buckets.full ?? [];
+      if (args.where?.id?.in) return buckets.personalized ?? [];
+      if (args.where?.createdAt?.gte) return buckets.freshness ?? [];
+      if (args.where?.authorId?.notIn || !args.where?.authorId)
+        return buckets.rest ?? [];
+      if (args.where?.authorId?.in && args.take === 10)
+        return buckets.celebrity ?? [];
+      if (args.where?.authorId?.in) return buckets.fallbackFollowed ?? [];
+      return [];
+    },
+  );
 }
 
 beforeEach(() => {
-  prisma.follow.findMany.mockReset()
-  prisma.hiddenPost.findMany.mockReset()
-  prisma.post.findMany.mockReset()
-  prisma.poll.findMany.mockReset()
-  prisma.hiddenPost.findMany.mockResolvedValue([])
-  prisma.poll.findMany.mockResolvedValue([])
-})
+  prisma.follow.findMany.mockReset();
+  prisma.hiddenPost.findMany.mockReset();
+  prisma.post.findMany.mockReset();
+  prisma.poll.findMany.mockReset();
+  fanout.getPersonalizedFeedPostIds.mockReset();
+  fanout.getCelebrityAuthorIds.mockReset();
+  prisma.hiddenPost.findMany.mockResolvedValue([]);
+  prisma.poll.findMany.mockResolvedValue([]);
+  fanout.getPersonalizedFeedPostIds.mockResolvedValue([]);
+  fanout.getCelebrityAuthorIds.mockResolvedValue([]);
+});
 
-describe("getFeedPosts — 2-bucket strategy", () => {
-  it("anonymous viewer: chỉ query rest bucket, không có follow logic", async () => {
-    prisma.post.findMany.mockResolvedValueOnce([
-      makeRawPost({ id: "p1", authorId: RANDOM_C }),
-    ])
+describe("getFeedPosts hybrid feed", () => {
+  it("anonymous viewer: does not query follow or fanout, returns freshness and rest posts", async () => {
+    const freshness = makeCandidate({ id: "fresh-1", authorId: RANDOM_C });
+    const rest = makeCandidate({ id: "rest-1", authorId: RANDOM_C });
+    mockHybridPostQueries({
+      freshness: [freshness],
+      rest: [rest],
+      full: [
+        makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
+        makeRawPost({ id: "rest-1", authorId: RANDOM_C }),
+      ],
+    });
 
-    const result = await getFeedPosts(null, INITIAL_FEED_CURSOR, 10)
+    const result = await getFeedPosts(null, INITIAL_FEED_CURSOR, 2);
 
-    expect(prisma.follow.findMany).not.toHaveBeenCalled()
-    expect(result.posts).toHaveLength(1)
-    expect(result.posts[0]?.isFromFollowed).toBe(false)
-    expect(result.nextCursor.followedExhausted).toBe(true)
-    expect(result.nextCursor.restFetched).toBe(1)
-  })
+    expect(prisma.follow.findMany).not.toHaveBeenCalled();
+    expect(fanout.getPersonalizedFeedPostIds).not.toHaveBeenCalled();
+    expect(fanout.getCelebrityAuthorIds).not.toHaveBeenCalled();
+    expect(result.posts.map((post) => post.id)).toEqual(["fresh-1", "rest-1"]);
+    expect(result.posts.every((post) => !post.isFromFollowed)).toBe(true);
+    expect(result.nextCursor.followedExhausted).toBe(true);
+  });
 
-  it("user không follow ai: bucket 1 bỏ qua, chỉ query bucket 2", async () => {
-    prisma.follow.findMany.mockResolvedValue([])
-    prisma.post.findMany.mockResolvedValueOnce([
-      makeRawPost({ id: "p1", authorId: RANDOM_C }),
-      makeRawPost({ id: "p2", authorId: RANDOM_C }),
-    ])
+  it("logged-in viewer with no follows returns freshness and rest posts", async () => {
+    prisma.follow.findMany.mockResolvedValue([]);
+    const freshness = makeCandidate({ id: "fresh-1", authorId: RANDOM_C });
+    const rest = makeCandidate({ id: "rest-1", authorId: RANDOM_C });
+    mockHybridPostQueries({
+      freshness: [freshness],
+      rest: [rest],
+      full: [
+        makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
+        makeRawPost({ id: "rest-1", authorId: RANDOM_C }),
+      ],
+    });
 
-    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 10)
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
 
-    expect(prisma.post.findMany).toHaveBeenCalledTimes(1)
-    expect(result.posts).toHaveLength(2)
-    expect(result.posts.every((p) => !p.isFromFollowed)).toBe(true)
-    expect(result.nextCursor.followedExhausted).toBe(true)
-  })
+    expect(result.posts.map((post) => post.id)).toEqual(["fresh-1", "rest-1"]);
+    expect(result.posts.every((post) => !post.isFromFollowed)).toBe(true);
+    expect(result.nextCursor.followedExhausted).toBe(true);
+  });
 
-  it("bucket 1 đầy: trả followed posts trước, không gọi bucket 2", async () => {
-    prisma.follow.findMany.mockResolvedValue([
-      { followingId: FOLLOWED_A },
-      { followingId: FOLLOWED_B },
-    ])
+  it("merges freshness overlay before followed cache and rest fill", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    fanout.getPersonalizedFeedPostIds.mockResolvedValue(["cached-1"]);
+    const freshness = makeCandidate({
+      id: "fresh-1",
+      authorId: RANDOM_C,
+      createdAt: new Date("2026-04-03T00:00:00.000Z"),
+    });
+    const cached = makeCandidate({
+      id: "cached-1",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+    });
+    const rest = makeCandidate({
+      id: "rest-1",
+      authorId: RANDOM_C,
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
+    });
+    mockHybridPostQueries({
+      personalized: [cached],
+      freshness: [freshness],
+      rest: [rest],
+      full: [
+        makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
+        makeRawPost({ id: "cached-1", authorId: FOLLOWED_A }),
+        makeRawPost({ id: "rest-1", authorId: RANDOM_C }),
+      ],
+    });
 
-    const followedPosts = Array.from({ length: 10 }, (_, i) => {
-      const day = String(10 - i).padStart(2, "0")
-      return makeRawPost({
-        id: `f${i}`,
-        authorId: FOLLOWED_A,
-        createdAt: new Date(`2026-04-${day}T00:00:00.000Z`),
-      })
-    })
-    prisma.post.findMany.mockResolvedValueOnce(followedPosts)
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 3);
 
-    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 10)
+    expect(result.posts.map((post) => post.id)).toEqual([
+      "fresh-1",
+      "cached-1",
+      "rest-1",
+    ]);
+    expect(result.posts[1]?.isFromFollowed).toBe(true);
+    expect(result.nextCursor.redisFetched).toBe(1);
+    expect(result.nextCursor.freshnessFetched).toBe(1);
+  });
 
-    expect(prisma.post.findMany).toHaveBeenCalledTimes(1)
-    expect(result.posts).toHaveLength(10)
-    expect(result.posts.every((p) => p.isFromFollowed)).toBe(true)
-    expect(result.nextCursor.followedExhausted).toBe(false)
-    expect(result.nextCursor.followedFetched).toBe(10)
-    expect(result.hasMore).toBe(true)
-  })
+  it("uses DB followed fallback when personalized and celebrity candidates are empty", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    const followed = makeCandidate({ id: "followed-1", authorId: FOLLOWED_A });
+    mockHybridPostQueries({
+      fallbackFollowed: [followed],
+      full: [makeRawPost({ id: "followed-1", authorId: FOLLOWED_A })],
+    });
 
-  it("bucket 1 ít hơn pageSize: tự động fill từ bucket 2", async () => {
-    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }])
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
 
-    const followedPosts = [
-      makeRawPost({ id: "f1", authorId: FOLLOWED_A }),
-      makeRawPost({ id: "f2", authorId: FOLLOWED_A }),
-    ]
-    const restPosts = [
-      makeRawPost({ id: "r1", authorId: RANDOM_C }),
-      makeRawPost({ id: "r2", authorId: RANDOM_C }),
-      makeRawPost({ id: "r3", authorId: RANDOM_C }),
-    ]
-    prisma.post.findMany.mockResolvedValueOnce(followedPosts)
-    prisma.post.findMany.mockResolvedValueOnce(restPosts)
+    expect(result.posts.map((post) => post.id)).toEqual(["followed-1"]);
+    expect(result.posts[0]?.isFromFollowed).toBe(true);
+    expect(result.nextCursor.followedFetched).toBe(1);
+  });
 
-    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 5)
+  it("includes hidden post IDs in DB query where.id.notIn", async () => {
+    prisma.hiddenPost.findMany.mockResolvedValue([{ postId: "hidden-1" }]);
+    prisma.follow.findMany.mockResolvedValue([]);
+    mockHybridPostQueries({});
 
-    expect(prisma.post.findMany).toHaveBeenCalledTimes(2)
-    expect(result.posts).toHaveLength(5)
-    expect(result.posts.slice(0, 2).every((p) => p.isFromFollowed)).toBe(true)
-    expect(result.posts.slice(2).every((p) => !p.isFromFollowed)).toBe(true)
-    expect(result.nextCursor.followedExhausted).toBe(true)
-    expect(result.nextCursor.followedFetched).toBe(2)
-    expect(result.nextCursor.restFetched).toBe(3)
-  })
+    await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
 
-  it("cursor followedExhausted=true: skip bucket 1 hoàn toàn", async () => {
-    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }])
-    prisma.post.findMany.mockResolvedValueOnce([
-      makeRawPost({ id: "r1", authorId: RANDOM_C }),
-    ])
-
-    const result = await getFeedPosts(
-      VIEWER_ID,
-      { followedFetched: 5, restFetched: 0, followedExhausted: true },
-      10
-    )
-
-    expect(prisma.post.findMany).toHaveBeenCalledTimes(1)
-    const call = prisma.post.findMany.mock.calls[0]?.[0] as {
-      where: { authorId?: { notIn?: string[] } }
-    }
-    expect(call.where.authorId?.notIn).toEqual([FOLLOWED_A])
-    expect(result.posts).toHaveLength(1)
-    expect(result.posts[0]?.isFromFollowed).toBe(false)
-  })
-
-  it("hasMore=false khi posts trả về < pageSize", async () => {
-    prisma.follow.findMany.mockResolvedValue([])
-    prisma.post.findMany.mockResolvedValueOnce([
-      makeRawPost({ id: "p1", authorId: RANDOM_C }),
-    ])
-
-    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 10)
-
-    expect(result.hasMore).toBe(false)
-  })
-
-  it("filter hidden posts qua hiddenPost.findMany", async () => {
-    prisma.hiddenPost.findMany.mockResolvedValue([{ postId: "hidden-1" }])
-    prisma.follow.findMany.mockResolvedValue([])
-    prisma.post.findMany.mockResolvedValueOnce([])
-
-    await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 10)
-
-    const call = prisma.post.findMany.mock.calls[0]?.[0] as {
-      where: { id?: { notIn?: string[] } }
-    }
-    expect(call.where.id?.notIn).toEqual(["hidden-1"])
-  })
-})
+    const calls = prisma.post.findMany.mock.calls.map((call) => call[0]) as {
+      where?: { id?: { notIn?: string[] } };
+    }[];
+    expect(
+      calls.some(
+        (call) => call.where?.id?.notIn?.includes("hidden-1") ?? false,
+      ),
+    ).toBe(true);
+  });
+});
