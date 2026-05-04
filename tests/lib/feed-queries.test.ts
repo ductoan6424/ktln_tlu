@@ -253,6 +253,26 @@ describe("getFeedPosts hybrid feed", () => {
     expect(result.nextCursor.restFetched).toBe(7);
   });
 
+  it("advances redis cursor for a cached candidate duplicated by freshness", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    fanout.getPersonalizedFeedPostIds.mockResolvedValue(["dup-1"]);
+    const duplicate = makeCandidate({
+      id: "dup-1",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-03T00:00:00.000Z"),
+    });
+    mockHybridPostQueries({
+      personalized: [duplicate],
+      freshness: [duplicate],
+      full: [makeRawPost({ id: "dup-1", authorId: FOLLOWED_A })],
+    });
+
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
+
+    expect(result.posts.map((post) => post.id)).toEqual(["dup-1"]);
+    expect(result.nextCursor.redisFetched).toBe(1);
+  });
+
   it("uses DB followed fallback when personalized and celebrity candidates are empty", async () => {
     prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
     const followed = makeCandidate({ id: "followed-1", authorId: FOLLOWED_A });
@@ -315,6 +335,20 @@ describe("getFeedPosts hybrid feed", () => {
       "followed-2",
     ]);
     expect(result.nextCursor.followedFetched).toBe(2);
+  });
+
+  it("advances rest cursor for a rest candidate duplicated by freshness", async () => {
+    const duplicate = makeCandidate({ id: "dup-1", authorId: RANDOM_C });
+    mockHybridPostQueries({
+      freshness: [duplicate],
+      rest: [duplicate],
+      full: [makeRawPost({ id: "dup-1", authorId: RANDOM_C })],
+    });
+
+    const result = await getFeedPosts(null, INITIAL_FEED_CURSOR, 2);
+
+    expect(result.posts.map((post) => post.id)).toEqual(["dup-1"]);
+    expect(result.nextCursor.restFetched).toBe(1);
   });
 
   it("includes hidden post IDs in DB query where.id.notIn", async () => {

@@ -288,7 +288,6 @@ export async function getFeedPosts(
     skip: freshnessFetched,
     take: Math.max(freshnessQuota, 0),
   })) as FeedCandidatePost[];
-  const freshnessBefore = selected.length;
   takeUniqueCandidates(
     selected,
     seenIds,
@@ -299,7 +298,7 @@ export async function getFeedPosts(
     })),
     pageSize,
   );
-  freshnessFetched += selected.length - freshnessBefore;
+  freshnessFetched += freshnessCandidates.length;
 
   if (viewerId && selected.length < pageSize) {
     const personalizedIds = await getPersonalizedFeedPostIds(
@@ -307,6 +306,7 @@ export async function getFeedPosts(
       redisFetched,
       config.redisReadCandidateLimit,
     );
+    redisFetched += personalizedIds.length;
 
     if (personalizedIds.length > 0) {
       const rows = (await prisma.post.findMany({
@@ -349,7 +349,6 @@ export async function getFeedPosts(
     })),
   ].sort(byCreatedAtDesc);
 
-  const followedBefore = selected.length;
   takeUniqueCandidates(
     selected,
     seenIds,
@@ -359,13 +358,7 @@ export async function getFeedPosts(
     })),
     pageSize,
   );
-  const selectedFollowedCandidates = selected.slice(followedBefore);
-  redisFetched += selectedFollowedCandidates.filter(
-    (post) => post.source === "redis",
-  ).length;
-  celebrityFetched += selectedFollowedCandidates.filter(
-    (post) => post.source === "celebrity",
-  ).length;
+  celebrityFetched += celebrityCandidates.length;
 
   if (
     viewerId &&
@@ -387,7 +380,6 @@ export async function getFeedPosts(
       take: remainingSlots,
     })) as FeedCandidatePost[];
 
-    const fallbackBefore = selected.length;
     takeUniqueCandidates(
       selected,
       seenIds,
@@ -398,7 +390,7 @@ export async function getFeedPosts(
       })),
       pageSize,
     );
-    followedFetched += selected.length - fallbackBefore;
+    followedFetched += fallbackFollowedCandidates.length;
 
     if (fallbackFollowedCandidates.length < remainingSlots) {
       followedExhausted = true;
@@ -420,7 +412,6 @@ export async function getFeedPosts(
       take: remainingSlots,
     })) as FeedCandidatePost[];
 
-    const restBefore = selected.length;
     takeUniqueCandidates(
       selected,
       seenIds,
@@ -431,7 +422,7 @@ export async function getFeedPosts(
       })),
       pageSize,
     );
-    restFetched += selected.length - restBefore;
+    restFetched += restCandidates.length;
   }
 
   const selectedIds = selected.map((post) => post.id);
