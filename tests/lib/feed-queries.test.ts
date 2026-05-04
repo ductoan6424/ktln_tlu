@@ -212,6 +212,47 @@ describe("getFeedPosts hybrid feed", () => {
     expect(result.nextCursor.freshnessFetched).toBe(1);
   });
 
+  it("does not query rest when freshness and followed cache fill the page", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    fanout.getPersonalizedFeedPostIds.mockResolvedValue(["cached-1"]);
+    const freshness = makeCandidate({
+      id: "fresh-1",
+      authorId: RANDOM_C,
+      createdAt: new Date("2026-04-03T00:00:00.000Z"),
+    });
+    const cached = makeCandidate({
+      id: "cached-1",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+    });
+    mockHybridPostQueries({
+      personalized: [cached],
+      freshness: [freshness],
+      rest: [makeCandidate({ id: "rest-1", authorId: RANDOM_C })],
+      full: [
+        makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
+        makeRawPost({ id: "cached-1", authorId: FOLLOWED_A }),
+      ],
+    });
+
+    const result = await getFeedPosts(
+      VIEWER_ID,
+      { ...INITIAL_FEED_CURSOR, restFetched: 7 },
+      2,
+    );
+
+    const restCalls = prisma.post.findMany.mock.calls.filter((call) => {
+      const args = call[0] as { where?: { authorId?: { notIn?: string[] } } };
+      return Boolean(args.where?.authorId?.notIn);
+    });
+    expect(restCalls).toHaveLength(0);
+    expect(result.posts.map((post) => post.id)).toEqual([
+      "fresh-1",
+      "cached-1",
+    ]);
+    expect(result.nextCursor.restFetched).toBe(7);
+  });
+
   it("uses DB followed fallback when personalized and celebrity candidates are empty", async () => {
     prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
     const followed = makeCandidate({ id: "followed-1", authorId: FOLLOWED_A });
@@ -225,6 +266,55 @@ describe("getFeedPosts hybrid feed", () => {
     expect(result.posts.map((post) => post.id)).toEqual(["followed-1"]);
     expect(result.posts[0]?.isFromFollowed).toBe(true);
     expect(result.nextCursor.followedFetched).toBe(1);
+  });
+
+  it("limits DB followed fallback to remaining page slots after freshness", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    const freshness = makeCandidate({ id: "fresh-1", authorId: RANDOM_C });
+    const followedCandidates = [
+      makeCandidate({ id: "followed-1", authorId: FOLLOWED_A }),
+      makeCandidate({ id: "followed-2", authorId: FOLLOWED_A }),
+      makeCandidate({ id: "followed-3", authorId: FOLLOWED_A }),
+    ];
+    prisma.post.findMany.mockImplementation(
+      async (args: {
+        include?: unknown;
+        where?: {
+          id?: { in?: string[] };
+          authorId?: { in?: string[]; notIn?: string[] };
+          createdAt?: { gte?: Date };
+        };
+        take?: number;
+      }) => {
+        if (args.include && args.where?.id?.in) {
+          return [
+            makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
+            makeRawPost({ id: "followed-1", authorId: FOLLOWED_A }),
+            makeRawPost({ id: "followed-2", authorId: FOLLOWED_A }),
+          ];
+        }
+        if (args.where?.createdAt?.gte) return [freshness];
+        if (args.where?.authorId?.notIn) return [];
+        if (args.where?.authorId?.in) {
+          return followedCandidates.slice(0, args.take);
+        }
+        return [];
+      },
+    );
+
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 3);
+
+    const fallbackCall = prisma.post.findMany.mock.calls.find((call) => {
+      const args = call[0] as { where?: { authorId?: { in?: string[] } } };
+      return Boolean(args.where?.authorId?.in);
+    })?.[0] as { take?: number };
+    expect(fallbackCall.take).toBe(2);
+    expect(result.posts.map((post) => post.id)).toEqual([
+      "fresh-1",
+      "followed-1",
+      "followed-2",
+    ]);
+    expect(result.nextCursor.followedFetched).toBe(2);
   });
 
   it("includes hidden post IDs in DB query where.id.notIn", async () => {

@@ -92,6 +92,7 @@ type FeedCandidatePost = {
 
 type SelectedFeedCandidate = FeedCandidatePost & {
   isFromFollowed: boolean;
+  source: "redis" | "celebrity" | "freshness" | "fallback" | "rest";
 };
 
 const candidateSelect = {
@@ -270,17 +271,42 @@ export async function getFeedPosts(
   let restFetched = cursor.restFetched ?? 0;
   let followedExhausted = cursor.followedExhausted || !viewerId || noFollowing;
 
+  const selected: SelectedFeedCandidate[] = [];
+  const seenIds = new Set<string>();
   let redisCandidates: FeedCandidatePost[] = [];
   let celebrityCandidates: FeedCandidatePost[] = [];
-  let fallbackFollowedCandidates: FeedCandidatePost[] = [];
 
-  if (viewerId) {
+  const freshnessCandidates = (await prisma.post.findMany({
+    where: {
+      ...baseWhere,
+      createdAt: {
+        gte: new Date(Date.now() - config.freshnessWindowMinutes * 60 * 1000),
+      },
+    },
+    select: candidateSelect,
+    orderBy: { createdAt: "desc" },
+    skip: freshnessFetched,
+    take: Math.max(freshnessQuota, 0),
+  })) as FeedCandidatePost[];
+  const freshnessBefore = selected.length;
+  takeUniqueCandidates(
+    selected,
+    seenIds,
+    freshnessCandidates.map((post) => ({
+      ...post,
+      isFromFollowed: followingSet.has(post.authorId),
+      source: "freshness",
+    })),
+    pageSize,
+  );
+  freshnessFetched += selected.length - freshnessBefore;
+
+  if (viewerId && selected.length < pageSize) {
     const personalizedIds = await getPersonalizedFeedPostIds(
       viewerId,
       redisFetched,
       config.redisReadCandidateLimit,
     );
-    redisFetched += personalizedIds.length;
 
     if (personalizedIds.length > 0) {
       const rows = (await prisma.post.findMany({
@@ -294,7 +320,7 @@ export async function getFeedPosts(
       );
     }
 
-    if (followingIds.length > 0) {
+    if (followingIds.length > 0 && selected.length < pageSize) {
       const celebrityAuthorIds = await getCelebrityAuthorIds();
       const followedCelebrityIds = celebrityAuthorIds.filter((authorId) =>
         followingSet.has(authorId),
@@ -312,80 +338,18 @@ export async function getFeedPosts(
           take: config.celebrityReadCandidateLimit,
         })) as FeedCandidatePost[];
       }
-
-      celebrityFetched += celebrityCandidates.length;
-    }
-  }
-
-  const freshnessCandidates = (await prisma.post.findMany({
-    where: {
-      ...baseWhere,
-      createdAt: {
-        gte: new Date(Date.now() - config.freshnessWindowMinutes * 60 * 1000),
-      },
-    },
-    select: candidateSelect,
-    orderBy: { createdAt: "desc" },
-    skip: freshnessFetched,
-    take: Math.max(freshnessQuota, 0),
-  })) as FeedCandidatePost[];
-  freshnessFetched += freshnessCandidates.length;
-
-  const restCandidates = (await prisma.post.findMany({
-    where: {
-      ...baseWhere,
-      ...(followingIds.length > 0 ? { authorId: { notIn: followingIds } } : {}),
-    },
-    select: candidateSelect,
-    orderBy: { createdAt: "desc" },
-    skip: restFetched,
-    take: pageSize,
-  })) as FeedCandidatePost[];
-  restFetched += restCandidates.length;
-
-  if (
-    viewerId &&
-    followingIds.length > 0 &&
-    redisCandidates.length === 0 &&
-    celebrityCandidates.length === 0 &&
-    !followedExhausted
-  ) {
-    fallbackFollowedCandidates = (await prisma.post.findMany({
-      where: {
-        ...baseWhere,
-        authorId: { in: followingIds },
-      },
-      select: candidateSelect,
-      orderBy: { createdAt: "desc" },
-      skip: followedFetched,
-      take: pageSize,
-    })) as FeedCandidatePost[];
-
-    followedFetched += fallbackFollowedCandidates.length;
-
-    if (fallbackFollowedCandidates.length < pageSize) {
-      followedExhausted = true;
     }
   }
 
   const followedCandidates = [
-    ...redisCandidates,
-    ...celebrityCandidates,
-    ...fallbackFollowedCandidates,
+    ...redisCandidates.map((post) => ({ ...post, source: "redis" as const })),
+    ...celebrityCandidates.map((post) => ({
+      ...post,
+      source: "celebrity" as const,
+    })),
   ].sort(byCreatedAtDesc);
 
-  const selected: SelectedFeedCandidate[] = [];
-  const seenIds = new Set<string>();
-
-  takeUniqueCandidates(
-    selected,
-    seenIds,
-    freshnessCandidates.slice(0, freshnessQuota).map((post) => ({
-      ...post,
-      isFromFollowed: followingSet.has(post.authorId),
-    })),
-    pageSize,
-  );
+  const followedBefore = selected.length;
   takeUniqueCandidates(
     selected,
     seenIds,
@@ -395,15 +359,80 @@ export async function getFeedPosts(
     })),
     pageSize,
   );
-  takeUniqueCandidates(
-    selected,
-    seenIds,
-    restCandidates.map((post) => ({
-      ...post,
-      isFromFollowed: false,
-    })),
-    pageSize,
-  );
+  const selectedFollowedCandidates = selected.slice(followedBefore);
+  redisFetched += selectedFollowedCandidates.filter(
+    (post) => post.source === "redis",
+  ).length;
+  celebrityFetched += selectedFollowedCandidates.filter(
+    (post) => post.source === "celebrity",
+  ).length;
+
+  if (
+    viewerId &&
+    followingIds.length > 0 &&
+    redisCandidates.length === 0 &&
+    celebrityCandidates.length === 0 &&
+    !followedExhausted &&
+    selected.length < pageSize
+  ) {
+    const remainingSlots = pageSize - selected.length;
+    const fallbackFollowedCandidates = (await prisma.post.findMany({
+      where: {
+        ...baseWhere,
+        authorId: { in: followingIds },
+      },
+      select: candidateSelect,
+      orderBy: { createdAt: "desc" },
+      skip: followedFetched,
+      take: remainingSlots,
+    })) as FeedCandidatePost[];
+
+    const fallbackBefore = selected.length;
+    takeUniqueCandidates(
+      selected,
+      seenIds,
+      fallbackFollowedCandidates.map((post) => ({
+        ...post,
+        isFromFollowed: followingSet.has(post.authorId),
+        source: "fallback",
+      })),
+      pageSize,
+    );
+    followedFetched += selected.length - fallbackBefore;
+
+    if (fallbackFollowedCandidates.length < remainingSlots) {
+      followedExhausted = true;
+    }
+  }
+
+  if (selected.length < pageSize) {
+    const remainingSlots = pageSize - selected.length;
+    const restCandidates = (await prisma.post.findMany({
+      where: {
+        ...baseWhere,
+        ...(followingIds.length > 0
+          ? { authorId: { notIn: followingIds } }
+          : {}),
+      },
+      select: candidateSelect,
+      orderBy: { createdAt: "desc" },
+      skip: restFetched,
+      take: remainingSlots,
+    })) as FeedCandidatePost[];
+
+    const restBefore = selected.length;
+    takeUniqueCandidates(
+      selected,
+      seenIds,
+      restCandidates.map((post) => ({
+        ...post,
+        isFromFollowed: false,
+        source: "rest",
+      })),
+      pageSize,
+    );
+    restFetched += selected.length - restBefore;
+  }
 
   const selectedIds = selected.map((post) => post.id);
   const selectedById = new Map(
