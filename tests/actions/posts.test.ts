@@ -10,21 +10,12 @@ const isLiveTest = Boolean(TEST_USER_ID)
 const createClient = vi.hoisted(() => vi.fn())
 const distributePostToFeeds = vi.hoisted(() => vi.fn())
 const revalidatePath = vi.hoisted(() => vi.fn())
-const prisma = vi.hoisted(() => ({
-  $transaction: vi.fn(),
-  post: {
-    create: vi.fn(),
-    findUnique: vi.fn(),
-    update: vi.fn(),
-    updateMany: vi.fn(),
-  },
-}))
 
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
 vi.mock("@/lib/feed/fanout", () => ({ distributePostToFeeds }))
-vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("next/cache", () => ({ revalidatePath }))
 
+import { prisma } from "@/lib/prisma/client"
 import { createPost, deletePost, sharePostToProfile } from "@/actions/posts"
 import { postSchema } from "@/utils/validators"
 
@@ -50,7 +41,10 @@ const mockWithSession = (userId: string) => {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.restoreAllMocks()
+  createClient.mockReset()
+  revalidatePath.mockReset()
+  distributePostToFeeds.mockReset()
   distributePostToFeeds.mockResolvedValue(undefined)
 })
 
@@ -114,12 +108,16 @@ describe("fan-out after post creation", () => {
     const txPostCreate = vi.fn().mockResolvedValue(createdPost)
 
     mockWithSession("user-1")
-    prisma.$transaction.mockImplementation(async (callback) =>
-      callback({
+    vi.spyOn(prisma, "$transaction").mockImplementationOnce(async (callback) => {
+      if (typeof callback !== "function") {
+        throw new Error("Unexpected transaction call")
+      }
+
+      return await callback({
         post: { create: txPostCreate },
         poll: { create: vi.fn() },
-      })
-    )
+      } as never)
+    })
 
     const result = await createPost({ content: "Noi dung hop le" })
 
@@ -140,13 +138,13 @@ describe("fan-out after post creation", () => {
     }
 
     mockWithSession("user-1")
-    prisma.post.findUnique.mockResolvedValue({
+    vi.spyOn(prisma.post, "findUnique").mockResolvedValueOnce({
       id: "original-1",
       authorId: "user-1",
       sharedPostId: null,
       content: "Original post",
-    })
-    prisma.post.create.mockResolvedValue(repost)
+    } as never)
+    vi.spyOn(prisma.post, "create").mockResolvedValueOnce(repost as never)
 
     const result = await sharePostToProfile({
       postId: "original-1",
