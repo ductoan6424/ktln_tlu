@@ -267,30 +267,78 @@ function consumeCandidates(
   consumed: number;
   selectedCount: number;
   sourceCounts: CandidateSourceCounts;
-  maxRedisIndex: number | null;
+  consumedRedisIndexes: Set<number>;
 } {
   let consumed = 0;
   let selectedCount = 0;
-  let maxRedisIndex: number | null = null;
+  const consumedRedisIndexes = new Set<number>();
   const sourceCounts = createCandidateSourceCounts();
 
   for (const candidate of candidates) {
-    if (target.length >= limit) break;
+    const alreadySeen = seenIds.has(candidate.id);
+    if (target.length >= limit && !alreadySeen) break;
+
     consumed += 1;
     sourceCounts[candidate.source] += 1;
     if (candidate.source === "redis" && candidate.redisIndex !== undefined) {
-      maxRedisIndex =
-        maxRedisIndex === null
-          ? candidate.redisIndex
-          : Math.max(maxRedisIndex, candidate.redisIndex);
+      consumedRedisIndexes.add(candidate.redisIndex);
     }
-    if (seenIds.has(candidate.id)) continue;
+
+    if (alreadySeen) continue;
+
     seenIds.add(candidate.id);
     target.push(candidate);
     selectedCount += 1;
   }
 
-  return { consumed, selectedCount, sourceCounts, maxRedisIndex };
+  return { consumed, selectedCount, sourceCounts, consumedRedisIndexes };
+}
+
+function getSeenPrefixCount(
+  candidates: FeedCandidatePost[],
+  seenIds: Set<string>,
+): number {
+  let count = 0;
+  for (const candidate of candidates) {
+    if (!seenIds.has(candidate.id)) break;
+    count += 1;
+  }
+  return count;
+}
+
+function getRedisCursorAdvance(params: {
+  personalizedIdCount: number;
+  redisCandidates: RedisFeedCandidatePost[];
+  consumedRedisIndexes: Set<number>;
+  seenIds: Set<string>;
+}): number {
+  const candidatesByIndex = new Map(
+    params.redisCandidates.map((candidate) => [
+      candidate.redisIndex,
+      candidate,
+    ] as const),
+  );
+
+  let advance = 0;
+  for (let index = 0; index < params.personalizedIdCount; index += 1) {
+    const candidate = candidatesByIndex.get(index);
+    if (!candidate) {
+      advance = index + 1;
+      continue;
+    }
+
+    if (
+      params.consumedRedisIndexes.has(index) ||
+      params.seenIds.has(candidate.id)
+    ) {
+      advance = index + 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return advance;
 }
 
 function getOverreadTake(
@@ -361,7 +409,7 @@ export async function getFeedPosts(
   );
   freshnessFetched += freshnessCandidates.length;
 
-  if (viewerId && selected.length < pageSize) {
+  if (viewerId) {
     const personalizedIds = await getPersonalizedFeedPostIds(
       viewerId,
       redisFetched,
@@ -387,7 +435,7 @@ export async function getFeedPosts(
       });
     }
 
-    if (followingIds.length > 0 && selected.length < pageSize) {
+    if (followingIds.length > 0) {
       const celebrityAuthorIds = await getCelebrityAuthorIds();
       const followedCelebrityIds = celebrityAuthorIds.filter((authorId) =>
         followingSet.has(authorId),
@@ -426,35 +474,32 @@ export async function getFeedPosts(
     pageSize,
   );
   if (personalizedIdCount > 0) {
-    const firstValidRedisIndex = redisCandidates[0]?.redisIndex;
-    if (
-      redisCandidates.length === 0 ||
-      followedConsumption.sourceCounts.redis === redisCandidates.length
-    ) {
-      redisFetched += personalizedIdCount;
-    } else if (followedConsumption.maxRedisIndex !== null) {
-      redisFetched += followedConsumption.maxRedisIndex + 1;
-    } else if (firstValidRedisIndex !== undefined) {
-      redisFetched += firstValidRedisIndex;
-    }
+    redisFetched += getRedisCursorAdvance({
+      personalizedIdCount,
+      redisCandidates,
+      consumedRedisIndexes: followedConsumption.consumedRedisIndexes,
+      seenIds,
+    });
   }
-  celebrityFetched += followedConsumption.sourceCounts.celebrity;
+  celebrityFetched += getSeenPrefixCount(celebrityCandidates, seenIds);
+
+  const selectedHasFollowedOverlap = selected.some(
+    (post) => post.isFromFollowed,
+  );
 
   if (
     viewerId &&
     followingIds.length > 0 &&
-    redisCandidates.length === 0 &&
-    celebrityCandidates.length === 0 &&
     !followedExhausted &&
-    selected.length < pageSize
+    (selected.length < pageSize || selectedHasFollowedOverlap)
   ) {
-    const remainingSlots = pageSize - selected.length;
-    const fallbackTake = getOverreadTake(
+    const remainingSlots = Math.max(pageSize - selected.length, 0);
+    const fallbackTake = Math.max(1, getOverreadTake(
       remainingSlots,
       freshnessQuota,
       followedCandidates.length,
       pageSize,
-    );
+    ));
     const fallbackFollowedCandidates = (await prisma.post.findMany({
       where: {
         ...baseWhere,
@@ -478,19 +523,27 @@ export async function getFeedPosts(
     );
     followedFetched += fallbackConsumption.consumed;
 
-    if (fallbackFollowedCandidates.length < fallbackTake) {
+    if (
+      fallbackConsumption.consumed === fallbackFollowedCandidates.length &&
+      fallbackFollowedCandidates.length < fallbackTake
+    ) {
       followedExhausted = true;
     }
   }
 
-  if (selected.length < pageSize) {
-    const remainingSlots = pageSize - selected.length;
-    const restTake = getOverreadTake(
+  const selectedHasRestOverlap =
+    followingIds.length > 0
+      ? selected.some((post) => !post.isFromFollowed)
+      : selected.length > 0;
+
+  if (selected.length < pageSize || selectedHasRestOverlap) {
+    const remainingSlots = Math.max(pageSize - selected.length, 0);
+    const restTake = Math.max(1, getOverreadTake(
       remainingSlots,
       freshnessQuota,
       followedCandidates.length,
       pageSize,
-    );
+    ));
     const restCandidates = (await prisma.post.findMany({
       where: {
         ...baseWhere,
