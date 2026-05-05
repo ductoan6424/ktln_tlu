@@ -426,13 +426,16 @@ export async function getFeedPosts(
     pageSize,
   );
   if (personalizedIdCount > 0) {
+    const firstValidRedisIndex = redisCandidates[0]?.redisIndex;
     if (
-      followedConsumption.sourceCounts.redis === redisCandidates.length &&
-      selected.length < pageSize
+      redisCandidates.length === 0 ||
+      followedConsumption.sourceCounts.redis === redisCandidates.length
     ) {
       redisFetched += personalizedIdCount;
     } else if (followedConsumption.maxRedisIndex !== null) {
       redisFetched += followedConsumption.maxRedisIndex + 1;
+    } else if (firstValidRedisIndex !== undefined) {
+      redisFetched += firstValidRedisIndex;
     }
   }
   celebrityFetched += followedConsumption.sourceCounts.celebrity;
