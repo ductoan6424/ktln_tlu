@@ -1,8 +1,9 @@
-"use client"
+﻿"use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { useVirtualizer } from "@tanstack/react-virtual"
+import { ArrowLeft } from "lucide-react"
 
 import {
   getChatSessionUser,
@@ -12,16 +13,41 @@ import {
   sendConversationMessage,
 } from "@/actions/chat"
 import { ChatBubble } from "@/components/messages/chat-bubble"
+import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { ChatHeader } from "@/components/messages/chat-header"
 import { ConversationItem } from "@/components/messages/conversation-item"
 import { ConversationList } from "@/components/messages/conversation-list"
-import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { Button } from "@/components/ui/button"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
 import type { ChatConversationItem, ChatMessageItem, ChatSessionUser } from "@/types/chat"
-import { formatRelativeTime } from "@/utils/formatters"
+import { formatChatFullTime, formatChatTime, formatRelativeTime } from "@/utils/formatters"
+
+const ChatMessageRow = memo(function ChatMessageRow({
+  message,
+  showDateDivider,
+}: {
+  message: ChatMessageItem
+  showDateDivider: boolean
+}) {
+  return (
+    <>
+      {showDateDivider && <ChatDateDivider date={message.createdAt} />}
+      <div className={message.isOwn ? "w-full min-w-0 flex justify-end" : "w-full min-w-0 flex justify-start"}>
+        <ChatBubble
+          senderName={message.isOwn ? undefined : message.senderName}
+          message={message.content}
+          attachment={message.attachment}
+          time={formatChatTime(message.createdAt)}
+          fullTime={formatChatFullTime(message.createdAt)}
+          isOwn={message.isOwn}
+          readStatus={message.isOwn ? "delivered" : undefined}
+        />
+      </div>
+    </>
+  )
+})
 
 export default function MessagesPage() {
   const searchParams = useSearchParams()
@@ -37,6 +63,16 @@ export default function MessagesPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSending, setIsSending] = useState(false)
+
+  const activeConversationIdRef = useRef(activeConversationId)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  const isPrependingRef = useRef(false)
+  const previousScrollHeightRef = useRef(0)
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId
+  }, [activeConversationId])
 
   const activeConversation = useMemo(
     () => conversations.find((item) => item.id === activeConversationId) ?? null,
@@ -57,7 +93,7 @@ export default function MessagesPage() {
           return conversation
         }
 
-        const isActive = conversation.id === activeConversationId
+        const isActive = conversation.id === activeConversationIdRef.current
         const unreadDelta = message.isOwn || isActive ? 0 : 1
 
         return {
@@ -68,7 +104,16 @@ export default function MessagesPage() {
         }
       }),
     )
-  }, [activeConversationId])
+  }, [])
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const rowVirtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => messagesContainerRef.current,
+    estimateSize: () => 84,
+    overscan: 8,
+    getItemKey: (index) => messages[index]?.id ?? index,
+  })
 
   const { onlineUserIds, typingUsers, publishTyping } = useChatRealtime({
     currentUser: sessionUser,
@@ -105,7 +150,6 @@ export default function MessagesPage() {
     void bootstrap()
   }, [])
 
-  // Đồng bộ activeConversation theo query param ?conversation=[id]
   useEffect(() => {
     if (!requestedConversationId || conversations.length === 0) return
 
@@ -116,10 +160,7 @@ export default function MessagesPage() {
   }, [requestedConversationId, conversations])
 
   const loadMessages = useCallback(async (conversationId: string, cursor?: string) => {
-    const result = await getConversationMessages({
-      conversationId,
-      cursor,
-    })
+    const result = await getConversationMessages({ conversationId, cursor })
 
     if (!result.success || !result.data) {
       return null
@@ -138,7 +179,6 @@ export default function MessagesPage() {
       }
 
       setIsLoadingMessages(true)
-
       const data = await loadMessages(activeConversationId)
 
       if (!data) {
@@ -158,10 +198,7 @@ export default function MessagesPage() {
       setConversations((prev) =>
         prev.map((conversation) =>
           conversation.id === activeConversationId
-            ? {
-                ...conversation,
-                unreadCount: 0,
-              }
+            ? { ...conversation, unreadCount: 0 }
             : conversation,
         ),
       )
@@ -170,9 +207,28 @@ export default function MessagesPage() {
     void fetchInitialMessages()
   }, [activeConversationId, loadMessages])
 
-  const handleLoadOlder = async () => {
+  useEffect(() => {
+    if (isPrependingRef.current || isLoadingMessages || messages.length === 0) {
+      return
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      rowVirtualizer.scrollToIndex(messages.length - 1, { align: "end" })
+      bottomAnchorRef.current?.scrollIntoView({ behavior: "auto" })
+    })
+
+    return () => cancelAnimationFrame(frameId)
+  }, [activeConversationId, isLoadingMessages, messages.length, rowVirtualizer])
+
+  const handleLoadOlder = useCallback(async () => {
     if (!activeConversationId || !nextCursor || isLoadingMore) {
       return
+    }
+
+    const container = messagesContainerRef.current
+    if (container) {
+      previousScrollHeightRef.current = container.scrollHeight
+      isPrependingRef.current = true
     }
 
     setIsLoadingMore(true)
@@ -180,84 +236,101 @@ export default function MessagesPage() {
     setIsLoadingMore(false)
 
     if (!data) {
+      isPrependingRef.current = false
       return
     }
 
     setMessages((prev) => [...data.items, ...prev])
     setNextCursor(data.nextCursor)
     setHasMore(data.hasMore)
-  }
 
-  const handleSendMessage = async ({
-    message,
-    attachmentFile,
-  }: {
-    message: string
-    attachmentFile?: File | null
-  }): Promise<boolean> => {
-    if (!activeConversationId) {
-      return false
-    }
+    requestAnimationFrame(() => {
+      const currentContainer = messagesContainerRef.current
+      if (!currentContainer) {
+        isPrependingRef.current = false
+        return
+      }
 
-    const optimisticId = `temp-${Date.now()}`
-    const optimisticAttachment = attachmentFile
-      ? {
-          type: attachmentFile.type.startsWith("image/") ? ("image" as const) : ("file" as const),
-          url: URL.createObjectURL(attachmentFile),
-          name: attachmentFile.name,
-          mimeType: attachmentFile.type || "application/octet-stream",
-          sizeBytes: attachmentFile.size,
+      const delta = currentContainer.scrollHeight - previousScrollHeightRef.current
+      currentContainer.scrollTop = Math.max(currentContainer.scrollTop + delta, 0)
+      isPrependingRef.current = false
+    })
+  }, [activeConversationId, isLoadingMore, loadMessages, nextCursor])
+
+  const handleSendMessage = useCallback(
+    async ({
+      message,
+      attachmentFile,
+    }: {
+      message: string
+      attachmentFile?: File | null
+    }): Promise<boolean> => {
+      const currentConversationId = activeConversationIdRef.current
+      if (!currentConversationId) {
+        return false
+      }
+
+      const optimisticId = `temp-${Date.now()}`
+      const optimisticAttachment = attachmentFile
+        ? {
+            type: attachmentFile.type.startsWith("image/") ? ("image" as const) : ("file" as const),
+            url: URL.createObjectURL(attachmentFile),
+            name: attachmentFile.name,
+            mimeType: attachmentFile.type || "application/octet-stream",
+            sizeBytes: attachmentFile.size,
+          }
+        : null
+
+      const optimisticMessage: ChatMessageItem = {
+        id: optimisticId,
+        conversationId: currentConversationId,
+        content: message,
+        senderId: sessionUser?.userId ?? "",
+        senderName: sessionUser?.displayName ?? "Bạn",
+        senderAvatarUrl: sessionUser?.avatarUrl ?? null,
+        createdAt: new Date().toISOString(),
+        isOwn: true,
+        attachment: optimisticAttachment,
+      }
+
+      setMessages((prev) => [...prev, optimisticMessage])
+      setIsSending(true)
+
+      const formData = new FormData()
+      formData.append("conversationId", currentConversationId)
+      formData.append("content", message)
+      if (attachmentFile) {
+        formData.append("attachment", attachmentFile)
+      }
+
+      const result = await sendConversationMessage(formData)
+      setIsSending(false)
+
+      if (!result.success || !result.data) {
+        if (optimisticAttachment) {
+          URL.revokeObjectURL(optimisticAttachment.url)
         }
-      : null
+        setMessages((prev) => prev.filter((item) => item.id !== optimisticId))
+        return false
+      }
 
-    const optimisticMessage: ChatMessageItem = {
-      id: optimisticId,
-      conversationId: activeConversationId,
-      content: message,
-      senderId: sessionUser?.userId ?? "",
-      senderName: sessionUser?.displayName ?? "Bạn",
-      senderAvatarUrl: sessionUser?.avatarUrl ?? null,
-      createdAt: new Date().toISOString(),
-      isOwn: true,
-      attachment: optimisticAttachment,
-    }
-
-    setMessages((prev) => [...prev, optimisticMessage])
-
-    setIsSending(true)
-    const formData = new FormData()
-    formData.append("conversationId", activeConversationId)
-    formData.append("content", message)
-    if (attachmentFile) {
-      formData.append("attachment", attachmentFile)
-    }
-
-    const result = await sendConversationMessage(formData)
-    setIsSending(false)
-
-    if (!result.success || !result.data) {
       if (optimisticAttachment) {
         URL.revokeObjectURL(optimisticAttachment.url)
       }
-      setMessages((prev) => prev.filter((item) => item.id !== optimisticId))
-      return false
-    }
 
-    if (optimisticAttachment) {
-      URL.revokeObjectURL(optimisticAttachment.url)
-    }
+      setMessages((prev) => {
+        const withoutOptimistic = prev.filter((item) => item.id !== optimisticId)
+        if (withoutOptimistic.some((item) => item.id === result.data!.id)) {
+          return withoutOptimistic
+        }
 
-    setMessages((prev) => {
-      const withoutOptimistic = prev.filter((item) => item.id !== optimisticId)
-      if (withoutOptimistic.some((item) => item.id === result.data!.id)) {
-        return withoutOptimistic
-      }
-      return [...withoutOptimistic, result.data!]
-    })
+        return [...withoutOptimistic, result.data!]
+      })
 
-    mergeIncomingMessage(result.data)
-    return true
-  }
+      return true
+    },
+    [sessionUser],
+  )
 
   const mappedConversations = useMemo(
     () =>
@@ -295,11 +368,13 @@ export default function MessagesPage() {
         </ConversationList>
       </div>
 
-      <section className={
-        activeConversationId
-          ? "flex-1 flex flex-col bg-card relative"
-          : "hidden lg:flex flex-1 flex-col bg-card relative"
-      }>
+      <section
+        className={
+          activeConversationId
+            ? "flex-1 flex flex-col bg-card relative"
+            : "hidden lg:flex flex-1 flex-col bg-card relative"
+        }
+      >
         <div className="lg:hidden absolute top-0 left-0 z-10 h-14 flex items-center pl-2">
           <Button
             variant="ghost"
@@ -325,49 +400,63 @@ export default function MessagesPage() {
               className="lg:pl-4 pl-12"
             />
 
-            <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 flex flex-col">
-              {hasMore && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void handleLoadOlder()
-                  }}
-                  disabled={isLoadingMore}
-                  className="self-center"
-                >
-                  {isLoadingMore ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="size-4 animate-spin" />
-                      Đang tải...
-                    </span>
-                  ) : (
-                    "Tải tin nhắn cũ hơn"
-                  )}
-                </Button>
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto p-4 lg:p-6"
+              onScroll={() => {
+                const container = messagesContainerRef.current
+                if (!container || isLoadingMessages || isLoadingMore || !hasMore) return
+                if (container.scrollTop <= 80) {
+                  void handleLoadOlder()
+                }
+              }}
+            >
+              {isLoadingMore && hasMore && (
+                <p className="text-xs text-muted-foreground text-center mb-3">Đang tải tin nhắn cũ hơn...</p>
               )}
-
-              <ChatDateDivider label="Hôm nay" />
 
               {isLoadingMessages ? (
                 <p className="text-sm text-muted-foreground">Đang tải tin nhắn...</p>
               ) : (
-                messages.map((message) => (
-                  <ChatBubble
-                    key={message.id}
-                    senderName={message.isOwn ? undefined : message.senderName}
-                    message={message.content}
-                    attachment={message.attachment}
-                    time={formatRelativeTime(message.createdAt)}
-                    isOwn={message.isOwn}
-                    readStatus={message.isOwn ? "delivered" : undefined}
-                  />
-                ))
+                <div
+                  style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    width: "100%",
+                    position: "relative",
+                  }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                    const message = messages[virtualItem.index]
+                    if (!message) return null
+
+                    const prevMessage = virtualItem.index > 0 ? messages[virtualItem.index - 1] : null
+                    const showDateDivider = !prevMessage ||
+                      new Date(message.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString()
+
+                    return (
+                      <div
+                        key={message.id}
+                        data-index={virtualItem.index}
+                        ref={rowVirtualizer.measureElement}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${virtualItem.start}px)`,
+                        }}
+                      >
+                        <ChatMessageRow message={message} showDateDivider={showDateDivider} />
+                      </div>
+                    )
+                  })}
+                </div>
               )}
 
               {typingUsers.length > 0 && (
                 <TypingIndicator userName={typingUsers[0] ?? "Người dùng"} className="mt-2" />
               )}
+              <div ref={bottomAnchorRef} />
             </div>
 
             <MessageInput

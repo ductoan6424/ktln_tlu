@@ -98,6 +98,7 @@ export function ProfilePageContent({ data }: ProfilePageContentProps) {
         name={data.profile.displayName}
         username={data.profile.username}
         avatar={data.profile.avatarUrl ?? undefined}
+        coverImage={data.profile.coverUrl ?? undefined}
         bio={data.profile.bio}
         major={data.profile.major ?? undefined}
         classYear={data.profile.year ? `K${data.profile.year}` : undefined}

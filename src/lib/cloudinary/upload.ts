@@ -9,6 +9,7 @@ import {
 
 const DEFAULT_POST_IMAGE_FOLDER = "uniconnect/posts"
 const DEFAULT_AVATAR_IMAGE_FOLDER = "uniconnect/avatars"
+const DEFAULT_COVER_IMAGE_FOLDER = "uniconnect/covers"
 const DEFAULT_CHAT_ATTACHMENT_FOLDER = "uniconnect/chat"
 
 export type UploadedChatAttachment = {
@@ -136,5 +137,11 @@ export async function uploadAvatarImage(file: File) {
   return uploadImage(
     file,
     process.env.CLOUDINARY_AVATARS_FOLDER ?? DEFAULT_AVATAR_IMAGE_FOLDER,
+  )
+}
+export async function uploadCoverImage(file: File) {
+  return uploadImage(
+    file,
+    process.env.CLOUDINARY_COVERS_FOLDER ?? DEFAULT_COVER_IMAGE_FOLDER,
   )
 }

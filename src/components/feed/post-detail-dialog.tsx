@@ -39,6 +39,7 @@ interface PostDetailDialogProps {
   postId?: string
   authorName: string
   authorAvatar?: string
+  authorCover?: string
   createdAt: string
   content: string
   imageUrl?: string
@@ -79,6 +80,7 @@ export function PostDetailDialog({
   postId,
   authorName,
   authorAvatar,
+  authorCover,
   createdAt,
   content,
   imageUrl,
@@ -296,13 +298,16 @@ export function PostDetailDialog({
             {/* Header + nội dung — cố định chiều cao */}
             <div className="p-4 space-y-3 min-h-[120px]">
               <PostHeader
+                authorId={authorId}
                 authorName={authorName}
                 authorAvatar={authorAvatar}
+                authorCover={authorCover}
                 createdAt={createdAt}
                 tag={tag}
                 tagVariant={tagVariant}
                 isVerified={isVerified}
                 subtitle={subtitle}
+                currentUserId={resolvedCurrentUser?.id ?? null}
                 menu={
                   permissions && postId ? (
                     <PostMenu
@@ -407,13 +412,16 @@ export function PostDetailDialog({
               hasImage ? "max-h-[220px]" : "max-h-[240px]"
             )}>
               <PostHeader
+                authorId={authorId}
                 authorName={authorName}
                 authorAvatar={authorAvatar}
+                authorCover={authorCover}
                 createdAt={createdAt}
                 tag={tag}
                 tagVariant={tagVariant}
                 isVerified={isVerified}
                 subtitle={subtitle}
+                currentUserId={resolvedCurrentUser?.id ?? null}
                 menu={
                   permissions && postId ? (
                     <PostMenu

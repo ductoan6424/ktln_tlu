@@ -11,26 +11,37 @@ import {
   sendConversationMessage,
 } from "@/actions/chat"
 import { ChatBubble } from "@/components/messages/chat-bubble"
+import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { ChatHeader } from "@/components/messages/chat-header"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
 import type { ChatMessageItem, ChatSessionUser } from "@/types/chat"
-import { formatRelativeTime } from "@/utils/formatters"
+import { formatChatFullTime, formatChatTime } from "@/utils/formatters"
 import type { ActiveFriend } from "./mock-data"
 
-const ChatMessageRow = memo(function ChatMessageRow({ message }: { message: ChatMessageItem }) {
+const ChatMessageRow = memo(function ChatMessageRow({
+  message,
+  showDateDivider,
+}: {
+  message: ChatMessageItem
+  showDateDivider: boolean
+}) {
   return (
-    <div className={message.isOwn ? "w-full min-w-0 flex justify-end" : "w-full min-w-0 flex justify-start"}>
-      <ChatBubble
-        senderName={message.isOwn ? undefined : message.senderName}
-        message={message.content}
-        attachment={message.attachment}
-        time={formatRelativeTime(message.createdAt)}
-        isOwn={message.isOwn}
-        readStatus={message.isOwn ? "delivered" : undefined}
-      />
-    </div>
+    <>
+      {showDateDivider && <ChatDateDivider date={message.createdAt} />}
+      <div className={message.isOwn ? "w-full min-w-0 flex justify-end" : "w-full min-w-0 flex justify-start"}>
+        <ChatBubble
+          senderName={message.isOwn ? undefined : message.senderName}
+          message={message.content}
+          attachment={message.attachment}
+          time={formatChatTime(message.createdAt)}
+          fullTime={formatChatFullTime(message.createdAt)}
+          isOwn={message.isOwn}
+          readStatus={message.isOwn ? "delivered" : undefined}
+        />
+      </div>
+    </>
   )
 })
 
@@ -307,6 +318,10 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
                 return null
               }
 
+              const prevMessage = virtualItem.index > 0 ? messages[virtualItem.index - 1] : null
+              const showDateDivider = !prevMessage ||
+                new Date(message.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString()
+
               return (
                 <div
                   key={message.id}
@@ -320,7 +335,7 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
                     transform: `translateY(${virtualItem.start}px)`,
                   }}
                 >
-                  <ChatMessageRow message={message} />
+                  <ChatMessageRow message={message} showDateDivider={showDateDivider} />
                 </div>
               )
             })}

@@ -71,6 +71,7 @@ interface FeedPost {
   author: {
     displayName: string
     avatarUrl: string | null
+    coverUrl: string | null
   }
   isLiked: boolean
   likes: number
@@ -88,6 +89,7 @@ interface DeepLinkPost {
   postId: string
   authorName: string
   authorAvatar?: string
+  authorCover?: string
   createdAt: string
   content: string
   imageUrl?: string
@@ -152,6 +154,7 @@ export function FeedPageClient({
         postId: existingPost.id,
         authorName: existingPost.author.displayName,
         authorAvatar: existingPost.author.avatarUrl ?? undefined,
+        authorCover: existingPost.author.coverUrl ?? undefined,
         createdAt: existingPost.createdAt,
         content: existingPost.content,
         imageUrl: existingPost.imageUrl ?? undefined,
@@ -176,6 +179,7 @@ export function FeedPageClient({
         postId: p.id,
         authorName: p.authorDisplayName,
         authorAvatar: p.authorAvatarUrl ?? undefined,
+        authorCover: p.authorCoverUrl ?? undefined,
         createdAt: p.createdAt,
         content: p.content,
         imageUrl: p.imageUrl ?? undefined,
@@ -246,6 +250,7 @@ export function FeedPageClient({
         author: {
           displayName: post.authorDisplayName,
           avatarUrl: post.authorAvatarUrl,
+          coverUrl: post.authorCoverUrl,
         },
         isLiked: post.isLiked,
         likes: post.likes,
@@ -462,6 +467,7 @@ export function FeedPageClient({
                       postId={post.id}
                       authorName={post.author.displayName}
                       authorAvatar={post.author.avatarUrl ?? undefined}
+                      authorCover={post.author.coverUrl ?? undefined}
                       createdAt={post.createdAt}
                       content={post.content}
                       imageUrl={post.imageUrl ?? undefined}
@@ -566,6 +572,7 @@ export function FeedPageClient({
           postId={deepLinkData.postId}
           authorName={deepLinkData.authorName}
           authorAvatar={deepLinkData.authorAvatar}
+          authorCover={deepLinkData.authorCover}
           createdAt={deepLinkData.createdAt}
           content={deepLinkData.content}
           imageUrl={deepLinkData.imageUrl}

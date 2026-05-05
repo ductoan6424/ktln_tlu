@@ -95,21 +95,18 @@ export function MessagePopup({
       }}
     >
       <DropdownMenuTrigger
-        className={cn("outline-none", className)}
+        className={cn(
+          "relative inline-flex items-center justify-center size-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none cursor-pointer",
+          className
+        )}
         aria-label="Tin nhắn"
       >
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative size-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-        >
-          <MessageSquare className="size-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-white text-[10px] font-bold leading-none">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
-        </Button>
+        <MessageSquare className="size-5" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-white text-[10px] font-bold leading-none">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
       </DropdownMenuTrigger>
 
       <DropdownMenuContent

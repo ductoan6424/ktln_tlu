@@ -1,9 +1,17 @@
 import { DividerLabel } from "@/components/shared/divider-label"
+import { formatChatDateLabel, formatChatFullTime } from "@/utils/formatters"
 
 interface ChatDateDividerProps {
-  label: string
+  date: Date | string
 }
 
-export function ChatDateDivider({ label }: ChatDateDividerProps) {
-  return <DividerLabel label={label} />
+export function ChatDateDivider({ date }: ChatDateDividerProps) {
+  const label = formatChatDateLabel(date)
+  const fullTime = formatChatFullTime(date)
+
+  return (
+    <div title={fullTime}>
+      <DividerLabel label={label} />
+    </div>
+  )
 }

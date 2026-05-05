@@ -3,7 +3,7 @@
 import { z } from "zod"
 
 import { getAblyRestClient } from "@/lib/ably/server"
-import { CHAT_INPUT_MAX_LENGTH, CHAT_PAGE_SIZE, getChatChannelName } from "@/lib/config/chat"
+import { CHAT_INPUT_MAX_LENGTH, CHAT_PAGE_SIZE, getChatChannelName, getUserInboxChannelName } from "@/lib/config/chat"
 import { mapMessageToItem, sortMessagesAsc } from "@/lib/chat/map"
 import { UploadValidationError, uploadChatAttachment } from "@/lib/cloudinary/upload"
 import { prisma } from "@/lib/prisma/client"
@@ -508,6 +508,29 @@ export async function sendConversationMessage(
       await ably.channels
         .get(getChatChannelName(input.conversationId))
         .publish("message.new", payload)
+
+      const participants = await prisma.conversationParticipant.findMany({
+        where: { conversationId: input.conversationId },
+        select: { userId: true },
+      })
+
+      const recipientIds = participants
+        .map((p) => p.userId)
+        .filter((id) => id !== currentUser.userId)
+
+      await Promise.allSettled(
+        recipientIds.map((recipientId) =>
+          ably.channels
+            .get(getUserInboxChannelName(recipientId))
+            .publish("chat.incoming", {
+              conversationId: input.conversationId,
+              senderId: currentUser.userId,
+              senderName: currentUser.displayName,
+              senderAvatarUrl: currentUser.avatarUrl,
+              content: finalContent,
+            }),
+        ),
+      )
     } catch {
     }
 

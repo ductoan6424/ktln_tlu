@@ -56,6 +56,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     author: {
       displayName: post.authorDisplayName,
       avatarUrl: post.authorAvatarUrl,
+      coverUrl: post.authorCoverUrl,
     },
     isLiked: post.isLiked,
     likes: post.likes,

@@ -252,6 +252,7 @@ interface PostWithAuthorFlat {
   authorId: string
   authorDisplayName: string
   authorAvatarUrl: string | null
+  authorCoverUrl: string | null
   isLiked: boolean
   likes: number
   comments: number
@@ -381,6 +382,7 @@ export async function getPostById(
           select: {
             displayName: true,
             avatarUrl: true,
+            coverUrl: true,
           },
         },
         likes: currentUserId
@@ -449,6 +451,7 @@ export async function getPostById(
       authorId: post.authorId,
       authorDisplayName: post.author.displayName,
       authorAvatarUrl: post.author.avatarUrl,
+      authorCoverUrl: post.author.coverUrl,
       isLiked: Array.isArray(post.likes) ? post.likes.length > 0 : false,
       likes: post._count.likes,
       comments: post._count.comments,
