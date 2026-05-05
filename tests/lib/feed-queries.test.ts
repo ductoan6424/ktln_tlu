@@ -295,6 +295,47 @@ describe("getFeedPosts hybrid feed", () => {
     expect(result.nextCursor.redisFetched).toBe(2);
   });
 
+  it("advances redis cursor past stale prefix when page fills before valid redis consumption", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    fanout.getPersonalizedFeedPostIds.mockResolvedValue([
+      "stale-hidden",
+      "valid-redis",
+    ]);
+    fanout.getCelebrityAuthorIds.mockResolvedValue([FOLLOWED_A]);
+    const freshness = makeCandidate({
+      id: "fresh-1",
+      authorId: RANDOM_C,
+      createdAt: new Date("2026-04-04T00:00:00.000Z"),
+    });
+    const celebrity = makeCandidate({
+      id: "celebrity-1",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-03T00:00:00.000Z"),
+    });
+    const validRedis = makeCandidate({
+      id: "valid-redis",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+    });
+    mockHybridPostQueries({
+      personalized: [validRedis],
+      celebrity: [celebrity],
+      freshness: [freshness],
+      full: [
+        makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
+        makeRawPost({ id: "celebrity-1", authorId: FOLLOWED_A }),
+      ],
+    });
+
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
+
+    expect(result.posts.map((post) => post.id)).toEqual([
+      "fresh-1",
+      "celebrity-1",
+    ]);
+    expect(result.nextCursor.redisFetched).toBe(1);
+  });
+
   it("advances redis cursor only by followed candidates consumed before page fill", async () => {
     prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
     fanout.getPersonalizedFeedPostIds.mockResolvedValue([
