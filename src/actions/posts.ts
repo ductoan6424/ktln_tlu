@@ -20,6 +20,7 @@ import type { ActionResult } from "@/types/api"
 import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
 import { FEED_PAGE_SIZE, POST_SHARE_REPOST_MAX } from "@/lib/config/posts"
 import { getFeedPosts, type FeedCursor, type FeedPage } from "@/lib/feed/queries"
+import { distributePostToFeeds } from "@/lib/feed/fanout"
 import type { PostModerationAction } from "@prisma/client"
 import {
   notifyComment,
@@ -204,6 +205,12 @@ export async function createPost(
       return created
     })
 
+    await distributePostToFeeds({
+      postId: post.id,
+      authorId: post.authorId,
+      createdAt: post.createdAt,
+    })
+
     revalidatePath("/feed")
 
     return successResult({
@@ -321,7 +328,7 @@ export async function sharePostToProfile(
         visibility: "PUBLIC",
         sharedPostId: rootPostId,
       },
-      select: { id: true },
+      select: { id: true, authorId: true, createdAt: true },
     })
 
     if (rootPost && rootPost.authorId !== userId) {
@@ -337,6 +344,12 @@ export async function sharePostToProfile(
         })
       }
     }
+
+    await distributePostToFeeds({
+      postId: repost.id,
+      authorId: repost.authorId,
+      createdAt: repost.createdAt,
+    })
 
     revalidatePath("/feed")
 
