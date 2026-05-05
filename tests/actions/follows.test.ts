@@ -6,11 +6,19 @@ const OTHER_USER_ID = process.env["OTHER_USER_ID"]
 const isLiveTest = Boolean(TEST_USER_ID && OTHER_USER_ID)
 
 const createClient = vi.hoisted(() => vi.fn())
+const fanoutMocks = vi.hoisted(() => ({
+  backfillFollowedAuthorPosts: vi.fn(),
+  removeAuthorPostsFromUserFeed: vi.fn(),
+}))
+const revalidatePath = vi.hoisted(() => vi.fn())
 
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
+vi.mock("@/lib/feed/fanout", () => fanoutMocks)
+vi.mock("next/cache", () => ({ revalidatePath }))
 
 import { followUser, unfollowUser } from "@/actions/follows"
 import { getFollowStatus, getFollowCounts } from "@/lib/follows/queries"
+import { prisma } from "@/lib/prisma/client"
 
 const mockNoSession = () => {
   createClient.mockResolvedValue({
@@ -32,7 +40,11 @@ const mockWithSession = (userId: string) => {
 }
 
 beforeEach(() => {
-  createClient.mockClear()
+  vi.restoreAllMocks()
+  createClient.mockReset()
+  fanoutMocks.backfillFollowedAuthorPosts.mockReset()
+  fanoutMocks.removeAuthorPostsFromUserFeed.mockReset()
+  revalidatePath.mockReset()
 })
 
 describe("followUser — Server Action", () => {
@@ -62,6 +74,41 @@ describe("followUser — Server Action", () => {
     const result = await followUser("user-a")
     expect(result.success).toBe(false)
     expect(result.code).toBe("CANNOT_FOLLOW_SELF")
+  })
+
+  it("backfills followed author's posts into viewer feed after successful follow", async () => {
+    const followerId = "viewer-1"
+    const followingId = "author-1"
+    mockWithSession(followerId)
+
+    vi.spyOn(prisma.userProfile, "findFirst").mockResolvedValue({
+      userId: followingId,
+    })
+    vi.spyOn(prisma.userProfile, "findUnique").mockResolvedValue(null)
+    vi.spyOn(prisma, "$transaction").mockImplementation(async (callback) =>
+      callback({
+        follow: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null),
+          create: vi.fn().mockResolvedValue({}),
+        },
+        friendship: {
+          findFirst: vi.fn(),
+          create: vi.fn(),
+          update: vi.fn(),
+        },
+      } as never)
+    )
+
+    const result = await followUser(followingId)
+
+    expect(result.success).toBe(true)
+    expect(fanoutMocks.backfillFollowedAuthorPosts).toHaveBeenCalledWith({
+      viewerId: followerId,
+      authorId: followingId,
+    })
   })
 
   it(`follow user thành công và idempotent [${isLiveTest ? "LIVE" : "SKIP"}]`, async () => {
@@ -168,6 +215,32 @@ describe("unfollowUser — Server Action", () => {
     const result = await unfollowUser("user-a")
     expect(result.success).toBe(false)
     expect(result.code).toBe("CANNOT_UNFOLLOW_SELF")
+  })
+
+  it("removes followed author's posts from viewer feed after successful unfollow", async () => {
+    const followerId = "viewer-1"
+    const followingId = "author-1"
+    mockWithSession(followerId)
+
+    vi.spyOn(prisma, "$transaction").mockImplementation(async (callback) =>
+      callback({
+        follow: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        },
+        friendship: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          delete: vi.fn(),
+        },
+      } as never)
+    )
+
+    const result = await unfollowUser(followingId)
+
+    expect(result.success).toBe(true)
+    expect(fanoutMocks.removeAuthorPostsFromUserFeed).toHaveBeenCalledWith({
+      viewerId: followerId,
+      authorId: followingId,
+    })
   })
 
   it(`unfollow idempotent — không lỗi khi không follow [${isLiveTest ? "LIVE" : "SKIP"}]`, async () => {

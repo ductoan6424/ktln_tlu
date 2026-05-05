@@ -9,6 +9,10 @@ import type { ActionResult } from "@/types/api"
 import { getFollowStatus, type FollowStatus } from "@/lib/follows/queries"
 import { notifyFollow, notifyFriendship } from "@/lib/notifications/dispatchers"
 import type { NotificationActorSummary } from "@/lib/notifications/types"
+import {
+  backfillFollowedAuthorPosts,
+  removeAuthorPostsFromUserFeed,
+} from "@/lib/feed/fanout"
 
 export type FollowResult = {
   followerId: string
@@ -178,6 +182,11 @@ export async function followUser(
       }
     }
 
+    await backfillFollowedAuthorPosts({
+      viewerId: followerId,
+      authorId: followingId,
+    })
+
     revalidatePath(`/profile/${followingId}`)
     revalidatePath("/profile")
 
@@ -227,6 +236,11 @@ export async function unfollowUser(
       }
 
       return false
+    })
+
+    await removeAuthorPostsFromUserFeed({
+      viewerId: followerId,
+      authorId: followingId,
     })
 
     revalidatePath(`/profile/${followingId}`)
