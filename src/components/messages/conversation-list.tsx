@@ -1,22 +1,30 @@
 "use client"
 
 import { MessageFilterTabs } from "@/components/messages/message-filter-tabs"
-import { Skeleton } from "@/components/ui/skeleton"
-import { SquarePen } from "lucide-react"
 import { IconButton } from "@/components/shared/icon-button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { SquarePen } from "lucide-react"
 import { useState } from "react"
 
 interface ConversationListProps {
   children: React.ReactNode
   className?: string
+  activeTab?: string
+  onTabChange?: (value: string) => void
+  onCreateGroupClick?: () => void
 }
 
 export function ConversationList({
   children,
   className,
+  activeTab: controlledActiveTab,
+  onTabChange,
+  onCreateGroupClick,
 }: ConversationListProps) {
-  const [activeTab, setActiveTab] = useState("all")
+  const [internalActiveTab, setInternalActiveTab] = useState("all")
+  const activeTab = controlledActiveTab ?? internalActiveTab
+  const handleTabChange = onTabChange ?? setInternalActiveTab
 
   return (
     <aside
@@ -25,19 +33,21 @@ export function ConversationList({
         className
       )}
     >
-      {/* Header */}
       <div className="p-4 space-y-4 shrink-0">
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-bold">Tin nhắn</h2>
-          <IconButton icon={SquarePen} size="sm" ariaLabel="Tin nhắn mới" />
+          <IconButton
+            icon={SquarePen}
+            size="sm"
+            ariaLabel="Tạo nhóm chat"
+            onClick={onCreateGroupClick}
+          />
         </div>
-        <MessageFilterTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <MessageFilterTabs activeTab={activeTab} onTabChange={handleTabChange} />
       </div>
 
-      {/* Danh sách */}
       <div className="flex-1 overflow-y-auto">{children}</div>
 
-      {/* Status */}
       <div className="p-4 border-t border-border flex items-center gap-3 shrink-0">
         <div className="size-9 bg-muted rounded-full flex items-center justify-center">
           <div className="size-2.5 bg-green-500 rounded-full" />

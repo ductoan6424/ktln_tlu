@@ -27,9 +27,34 @@ export type ChatConversationItem = {
   avatarUrl: string | null
   isGroup: boolean
   isOnline: boolean
+  participantCount: number
   unreadCount: number
   lastMessage: string
   lastMessageAt: string | null
+}
+
+export type ChatUserSearchResult = {
+  userId: string
+  displayName: string
+  avatarUrl: string | null
+  subtitle: string | null
+}
+
+export type ChatGroupMember = {
+  userId: string
+  displayName: string
+  avatarUrl: string | null
+  isAdmin: boolean
+  joinedAt: string
+}
+
+export type ChatGroupDetails = {
+  conversationId: string
+  name: string
+  participantCount: number
+  currentUserId: string
+  currentUserIsAdmin: boolean
+  members: ChatGroupMember[]
 }
 
 export type ChatMessagesPage = {
