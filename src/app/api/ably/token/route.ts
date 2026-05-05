@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getAblyRestClient } from "@/lib/ably/server"
 import { getNotificationChannelName } from "@/lib/notifications/channels"
+import { getUserInboxChannelName } from "@/lib/config/chat"
+import { POLL_REALTIME_CHANNEL_PREFIX } from "@/lib/config/polls"
 import { prisma } from "@/lib/prisma/client"
 
 export async function GET() {
@@ -36,6 +38,8 @@ export async function GET() {
         ["chat:*"]: ["subscribe", "publish", "presence"],
         ["presence:users"]: ["subscribe", "presence"],
         [getNotificationChannelName(user.id)]: ["subscribe"],
+        [getUserInboxChannelName(user.id)]: ["subscribe"],
+        [`${POLL_REALTIME_CHANNEL_PREFIX}:*`]: ["subscribe"],
       }),
     })
 

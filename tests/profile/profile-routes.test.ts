@@ -37,6 +37,7 @@ const ownProfileData: ProfilePageData = {
     displayName: "Nguyen Van A",
     username: "vana",
     avatarUrl: null,
+    coverUrl: null,
     bio: "Sinh vien nam cuoi",
     studentId: "A46287",
     role: "STUDENT",

@@ -220,7 +220,7 @@ export function AvatarUploader({
         src={avatarSrc}
         name={displayName}
         size="xl"
-        className={cn(isEmbeddedProfile && "size-28 border-4 border-card shadow-lg")}
+        className={cn(isEmbeddedProfile && "size-32 md:size-36 border-[6px] border-card shadow-lg ring-1 ring-border/10")}
       />
       <Button
         type="button"

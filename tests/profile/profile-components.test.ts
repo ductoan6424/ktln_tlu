@@ -71,6 +71,7 @@ const baseProfileData: ProfilePageData = {
     displayName: "Nguyen Van A",
     username: "vana",
     avatarUrl: "https://cdn.example/avatar-self.png",
+    coverUrl: null,
     bio: "Sinh vien nam cuoi",
     studentId: "A46287",
     role: "STUDENT",

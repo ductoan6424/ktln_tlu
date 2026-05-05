@@ -27,3 +27,7 @@ export const CHAT_FILE_INPUT_ACCEPT = [
 export function getChatChannelName(conversationId: string) {
   return `chat:${conversationId}`
 }
+
+export function getUserInboxChannelName(userId: string) {
+  return `inbox:${userId}`
+}

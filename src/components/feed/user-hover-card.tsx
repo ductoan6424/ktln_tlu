@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
+import Image from "next/image"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FollowButton } from "@/components/profile/follow-button"
@@ -15,6 +16,7 @@ interface UserHoverCardProps {
   userId: string
   displayName: string
   avatarUrl?: string | null
+  coverUrl?: string | null
   subtitle?: string | null
   currentUserId?: string | null
   children: ReactNode
@@ -30,6 +32,7 @@ export function UserHoverCard({
   userId,
   displayName,
   avatarUrl,
+  coverUrl,
   subtitle,
   currentUserId,
   children,
@@ -97,17 +100,27 @@ export function UserHoverCard({
   useEffect(() => {
     if (!isOpen || isOwnUser) return
 
-    setIsLoadingStatus(true)
+    let cancelled = false
 
-    getFollowStatusAction(userId)
-      .then((result) => {
-        if (result.success && result.data) {
+    void Promise.resolve().then(async () => {
+      if (cancelled) return
+      setIsLoadingStatus(true)
+
+      try {
+        const result = await getFollowStatusAction(userId)
+        if (!cancelled && result.success && result.data) {
           setFollowStatus(result.data)
         }
-      })
-      .finally(() => {
-        setIsLoadingStatus(false)
-      })
+      } finally {
+        if (!cancelled) {
+          setIsLoadingStatus(false)
+        }
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [isOpen, isOwnUser, userId])
 
   const popoverContent = isOpen && (
@@ -115,25 +128,36 @@ export function UserHoverCard({
       role="dialog"
       aria-label={`Thông tin về ${displayName}`}
       style={{ top: position.top, left: position.left, width: CARD_WIDTH }}
-      className="fixed z-[9999] rounded-xl border border-border bg-popover p-4 shadow-lg animate-in fade-in-0 zoom-in-95"
+      className="fixed z-[9999] overflow-hidden rounded-xl border border-border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Header: Avatar + tên bên cạnh */}
-      <div className="flex items-center gap-3">
+      <div className="relative h-20 bg-muted">
+        {coverUrl && (
+          <Image
+            src={coverUrl}
+            alt={`Ảnh bìa của ${displayName}`}
+            fill
+            className="object-cover"
+          />
+        )}
+      </div>
+
+      <div className="flex items-end gap-3 px-4 pt-0">
         <Link
           href={profileHref}
-          className="shrink-0 rounded-full transition-opacity hover:opacity-90"
+          className="-mt-6 shrink-0 rounded-full transition-opacity hover:opacity-90"
           aria-label={`Trang cá nhân của ${displayName}`}
         >
           <UserAvatar
             src={avatarUrl ?? undefined}
             name={displayName}
             size="lg"
+            className="border-4 border-popover"
           />
         </Link>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pb-1">
           <Link
             href={profileHref}
             className="block truncate text-sm font-semibold leading-tight hover:underline"
@@ -150,7 +174,7 @@ export function UserHoverCard({
 
       {/* Actions: Follow + Message buttons */}
       {showFollowButton && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2 px-4 pb-4">
           {isLoadingStatus || !followStatus ? (
             <Skeleton className="h-8 w-full rounded-md" />
           ) : (
