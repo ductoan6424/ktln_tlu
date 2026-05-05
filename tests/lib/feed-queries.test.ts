@@ -273,6 +273,55 @@ describe("getFeedPosts hybrid feed", () => {
     expect(result.nextCursor.redisFetched).toBe(1);
   });
 
+  it("advances redis cursor only by followed candidates consumed before page fill", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    fanout.getPersonalizedFeedPostIds.mockResolvedValue([
+      "cached-1",
+      "cached-2",
+      "cached-3",
+    ]);
+    const freshness = makeCandidate({
+      id: "fresh-1",
+      authorId: RANDOM_C,
+      createdAt: new Date("2026-04-04T00:00:00.000Z"),
+    });
+    const cachedCandidates = [
+      makeCandidate({
+        id: "cached-1",
+        authorId: FOLLOWED_A,
+        createdAt: new Date("2026-04-03T00:00:00.000Z"),
+      }),
+      makeCandidate({
+        id: "cached-2",
+        authorId: FOLLOWED_A,
+        createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      }),
+      makeCandidate({
+        id: "cached-3",
+        authorId: FOLLOWED_A,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+      }),
+    ];
+    mockHybridPostQueries({
+      personalized: cachedCandidates,
+      freshness: [freshness],
+      full: [
+        makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
+        makeRawPost({ id: "cached-1", authorId: FOLLOWED_A }),
+        makeRawPost({ id: "cached-2", authorId: FOLLOWED_A }),
+      ],
+    });
+
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 3);
+
+    expect(result.posts.map((post) => post.id)).toEqual([
+      "fresh-1",
+      "cached-1",
+      "cached-2",
+    ]);
+    expect(result.nextCursor.redisFetched).toBe(2);
+  });
+
   it("uses DB followed fallback when personalized and celebrity candidates are empty", async () => {
     prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
     const followed = makeCandidate({ id: "followed-1", authorId: FOLLOWED_A });
@@ -328,7 +377,7 @@ describe("getFeedPosts hybrid feed", () => {
       const args = call[0] as { where?: { authorId?: { in?: string[] } } };
       return Boolean(args.where?.authorId?.in);
     })?.[0] as { take?: number };
-    expect(fallbackCall.take).toBe(2);
+    expect(fallbackCall.take).toBe(3);
     expect(result.posts.map((post) => post.id)).toEqual([
       "fresh-1",
       "followed-1",
@@ -349,6 +398,49 @@ describe("getFeedPosts hybrid feed", () => {
 
     expect(result.posts.map((post) => post.id)).toEqual(["dup-1"]);
     expect(result.nextCursor.restFetched).toBe(1);
+  });
+
+  it("overreads rest when duplicate candidates appear before unique fill", async () => {
+    const duplicate = makeCandidate({
+      id: "dup-1",
+      authorId: RANDOM_C,
+      createdAt: new Date("2026-04-03T00:00:00.000Z"),
+    });
+    const unique = makeCandidate({
+      id: "rest-2",
+      authorId: RANDOM_C,
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+    });
+    const restCandidates = [duplicate, unique];
+    prisma.post.findMany.mockImplementation(
+      async (args: {
+        include?: unknown;
+        where?: {
+          id?: { in?: string[] };
+          authorId?: { in?: string[]; notIn?: string[] };
+          createdAt?: { gte?: Date };
+        };
+        take?: number;
+      }) => {
+        if (args.include && args.where?.id?.in) {
+          return [
+            makeRawPost({ id: "dup-1", authorId: RANDOM_C }),
+            makeRawPost({ id: "rest-2", authorId: RANDOM_C }),
+          ];
+        }
+        if (args.where?.createdAt?.gte) return [duplicate];
+        if (args.where?.authorId?.notIn || !args.where?.authorId) {
+          return restCandidates.slice(0, args.take);
+        }
+        return [];
+      },
+    );
+
+    const result = await getFeedPosts(null, INITIAL_FEED_CURSOR, 2);
+
+    expect(result.posts.map((post) => post.id)).toEqual(["dup-1", "rest-2"]);
+    expect(result.nextCursor.restFetched).toBe(2);
+    expect(result.hasMore).toBe(true);
   });
 
   it("includes hidden post IDs in DB query where.id.notIn", async () => {
