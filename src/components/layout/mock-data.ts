@@ -194,6 +194,8 @@ export interface ActiveFriend {
   name: string
   avatar?: string
   status: "online" | "offline" | "away"
+  source?: "friend" | "conversation" | "follow"
+  sourceIndex?: number
 }
 
 export const mockActiveFriends: ActiveFriend[] = [

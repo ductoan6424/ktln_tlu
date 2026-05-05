@@ -12,10 +12,12 @@ import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import type {
   ChatConversationItem,
+  ChatGroupDetails,
   ChatMessagesPage,
   ChatMessageItem,
   ChatOpenConversationResult,
   ChatSessionUser,
+  ChatUserSearchResult,
 } from "@/types/chat"
 import { formatRelativeTime } from "@/utils/formatters"
 
@@ -28,6 +30,38 @@ const conversationMessagesInputSchema = z.object({
 const sendMessageInputSchema = z.object({
   conversationId: z.string().min(1, "Thiếu hội thoại"),
   content: z.string().max(CHAT_INPUT_MAX_LENGTH).default(""),
+})
+
+const createGroupInputSchema = z.object({
+  name: z.string().trim().max(80, "Tên nhóm tối đa 80 ký tự").optional(),
+  participantIds: z
+    .array(z.string().min(1))
+    .min(2, "Chọn ít nhất 2 thành viên")
+    .max(49, "Nhóm chat tối đa 50 thành viên"),
+})
+
+const searchUsersInputSchema = z.object({
+  query: z.string().trim().max(80).default(""),
+  limit: z.number().int().min(1).max(50).default(20),
+})
+
+const groupConversationIdInputSchema = z.object({
+  conversationId: z.string().min(1, "Thiếu hội thoại"),
+})
+
+const renameGroupInputSchema = groupConversationIdInputSchema.extend({
+  name: z.string().trim().min(1, "Tên nhóm không được trống").max(80, "Tên nhóm tối đa 80 ký tự"),
+})
+
+const addGroupMembersInputSchema = groupConversationIdInputSchema.extend({
+  participantIds: z
+    .array(z.string().min(1))
+    .min(1, "Chọn ít nhất 1 thành viên")
+    .max(49, "Không thể thêm quá 49 thành viên mỗi lần"),
+})
+
+const removeGroupMemberInputSchema = groupConversationIdInputSchema.extend({
+  memberId: z.string().min(1, "Thiếu thành viên"),
 })
 
 function extractSendMessageInput(rawInput: unknown) {
@@ -140,6 +174,84 @@ async function requireConversationMembership(conversationId: string, userId: str
   return participant
 }
 
+async function requireGroupAdmin(conversationId: string, userId: string) {
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: {
+        conversationId,
+        userId,
+      },
+    },
+    include: {
+      conversation: {
+        select: {
+          type: true,
+        },
+      },
+    },
+  })
+
+  return participant?.conversation.type === "GROUP" && participant.isAdmin
+    ? participant
+    : null
+}
+
+async function mapGroupDetails(conversationId: string, currentUserId: string): Promise<ChatGroupDetails | null> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      participants: {
+        orderBy: [{ isAdmin: "desc" }, { joinedAt: "asc" }],
+        include: {
+          user: {
+            select: {
+              userId: true,
+              displayName: true,
+              avatarUrl: true,
+              deletedAt: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!conversation || conversation.type !== "GROUP") {
+    return null
+  }
+
+  const activeParticipants = conversation.participants.filter((participant) => !participant.user.deletedAt)
+  const currentParticipant = activeParticipants.find((participant) => participant.userId === currentUserId)
+
+  if (!currentParticipant) {
+    return null
+  }
+
+  const fallbackName = activeParticipants
+    .filter((participant) => participant.userId !== currentUserId)
+    .slice(0, 3)
+    .map((participant) => participant.user.displayName)
+    .join(", ")
+
+  return {
+    conversationId: conversation.id,
+    name: conversation.name?.trim() || fallbackName || "Nhóm chat",
+    participantCount: activeParticipants.length,
+    currentUserId,
+    currentUserIsAdmin: currentParticipant.isAdmin,
+    members: activeParticipants.map((participant) => ({
+      userId: participant.userId,
+      displayName: participant.user.displayName,
+      avatarUrl: participant.user.avatarUrl,
+      isAdmin: participant.isAdmin,
+      joinedAt: participant.joinedAt.toISOString(),
+    })),
+  }
+}
+
 export async function getChatSessionUser(): Promise<ActionResult<ChatSessionUser>> {
   try {
     const profile = await getSessionProfile()
@@ -234,14 +346,26 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
 
       const peer = peers[0] ?? null
       const lastMessage = item.conversation.messages[0] ?? null
+      const isGroup = item.conversation.type === "GROUP"
+      const participantCount = item.conversation.participants.filter(
+        (participant) => !participant.user.deletedAt,
+      ).length
+      const groupFallbackName = peers
+        .slice(0, 3)
+        .map((user) => user.displayName)
+        .join(", ")
 
       return {
         id: item.conversationId,
         name: peer?.displayName ?? "Cuộc trò chuyện",
-        peerUserId: peer?.userId ?? null,
-        avatarUrl: peer?.avatarUrl ?? null,
-        isGroup: item.conversation.type === "GROUP",
+        ...(isGroup
+          ? { name: item.conversation.name?.trim() || groupFallbackName || "Nhóm chat" }
+          : {}),
+        peerUserId: isGroup ? null : peer?.userId ?? null,
+        avatarUrl: isGroup ? null : peer?.avatarUrl ?? null,
+        isGroup,
         isOnline: false,
+        participantCount,
         unreadCount: unreadCountResults[index] ?? 0,
         lastMessage: lastMessage?.content ?? "Chưa có tin nhắn",
         lastMessageAt: lastMessage ? formatRelativeTime(lastMessage.createdAt) : null,
@@ -251,6 +375,480 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
     return successResult(conversations)
   } catch {
     return errorResult("Không thể tải danh sách hội thoại", "FETCH_FAILED")
+  }
+}
+
+export async function searchChatUsers(
+  rawInput: unknown,
+): Promise<ActionResult<ChatUserSearchResult[]>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập để tìm thành viên", "UNAUTHORIZED")
+    }
+
+    const input = searchUsersInputSchema.parse(rawInput)
+    const query = input.query
+
+    const users = await prisma.userProfile.findMany({
+      where: {
+        userId: { not: currentUser.userId },
+        deletedAt: null,
+        ...(query
+          ? {
+              OR: [
+                { displayName: { contains: query, mode: "insensitive" } },
+                { email: { contains: query, mode: "insensitive" } },
+                { studentId: { contains: query, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        userId: true,
+        displayName: true,
+        avatarUrl: true,
+        major: true,
+        email: true,
+      },
+      orderBy: [{ displayName: "asc" }, { userId: "asc" }],
+      take: input.limit,
+    })
+
+    return successResult(
+      users.map((user) => ({
+        userId: user.userId,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        subtitle: user.major ?? user.email,
+      })),
+    )
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể tìm thành viên", "FETCH_FAILED")
+  }
+}
+
+export async function createGroupConversation(
+  rawInput: unknown,
+): Promise<ActionResult<ChatConversationItem>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập để tạo nhóm chat", "UNAUTHORIZED")
+    }
+
+    const input = createGroupInputSchema.parse(rawInput)
+    const participantIds = Array.from(new Set(input.participantIds))
+      .map((id) => id.trim())
+      .filter((id) => id && id !== currentUser.userId)
+
+    if (participantIds.length < 2) {
+      return errorResult("Chọn ít nhất 2 thành viên", "VALIDATION_ERROR")
+    }
+
+    const participants = await prisma.userProfile.findMany({
+      where: {
+        userId: { in: participantIds },
+        deletedAt: null,
+      },
+      select: {
+        userId: true,
+        displayName: true,
+      },
+    })
+
+    if (participants.length !== participantIds.length) {
+      return errorResult("Một số thành viên không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    const groupName =
+      input.name?.trim()
+      || participants
+        .slice(0, 3)
+        .map((user) => user.displayName)
+        .join(", ")
+      || "Nhóm chat"
+
+    const created = await prisma.conversation.create({
+      data: {
+        type: "GROUP",
+        name: groupName,
+        participants: {
+          create: [
+            { userId: currentUser.userId, isAdmin: true },
+            ...participants.map((participant) => ({
+              userId: participant.userId,
+              isAdmin: false,
+            })),
+          ],
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        participants: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    })
+
+    return successResult({
+      id: created.id,
+      name: created.name ?? groupName,
+      peerUserId: null,
+      avatarUrl: null,
+      isGroup: true,
+      isOnline: false,
+      participantCount: created.participants.length,
+      unreadCount: 0,
+      lastMessage: "Chưa có tin nhắn",
+      lastMessageAt: null,
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể tạo nhóm chat", "CREATE_FAILED")
+  }
+}
+
+export async function getGroupConversationDetails(
+  rawInput: unknown,
+): Promise<ActionResult<ChatGroupDetails>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const input = groupConversationIdInputSchema.parse(rawInput)
+    const details = await mapGroupDetails(input.conversationId, currentUser.userId)
+
+    if (!details) {
+      return errorResult("Không tìm thấy nhóm chat", "NOT_FOUND")
+    }
+
+    return successResult(details)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể tải thông tin nhóm", "FETCH_FAILED")
+  }
+}
+
+export async function renameGroupConversation(
+  rawInput: unknown,
+): Promise<ActionResult<{ conversationId: string; name: string }>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const input = renameGroupInputSchema.parse(rawInput)
+    const admin = await requireGroupAdmin(input.conversationId, currentUser.userId)
+
+    if (!admin) {
+      return errorResult("Bạn không có quyền đổi tên nhóm", "FORBIDDEN")
+    }
+
+    const updated = await prisma.conversation.update({
+      where: { id: input.conversationId },
+      data: { name: input.name },
+      select: { id: true, name: true },
+    })
+
+    return successResult({
+      conversationId: updated.id,
+      name: updated.name ?? input.name,
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể đổi tên nhóm", "UPDATE_FAILED")
+  }
+}
+
+export async function addGroupConversationMembers(
+  rawInput: unknown,
+): Promise<ActionResult<ChatGroupDetails>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const input = addGroupMembersInputSchema.parse(rawInput)
+    const admin = await requireGroupAdmin(input.conversationId, currentUser.userId)
+
+    if (!admin) {
+      return errorResult("Bạn không có quyền thêm thành viên", "FORBIDDEN")
+    }
+
+    const participantIds = Array.from(new Set(input.participantIds))
+      .map((id) => id.trim())
+      .filter((id) => id && id !== currentUser.userId)
+
+    if (participantIds.length === 0) {
+      return errorResult("Chọn ít nhất 1 thành viên", "VALIDATION_ERROR")
+    }
+
+    const [existingParticipants, currentParticipantCount, users] = await Promise.all([
+      prisma.conversationParticipant.findMany({
+        where: {
+          conversationId: input.conversationId,
+          userId: { in: participantIds },
+        },
+        select: { userId: true },
+      }),
+      prisma.conversationParticipant.count({
+        where: {
+          conversationId: input.conversationId,
+          user: {
+            deletedAt: null,
+          },
+        },
+      }),
+      prisma.userProfile.findMany({
+        where: {
+          userId: { in: participantIds },
+          deletedAt: null,
+        },
+        select: { userId: true },
+      }),
+    ])
+
+    const existingIds = new Set(existingParticipants.map((participant) => participant.userId))
+    const validIds = users.map((user) => user.userId).filter((userId) => !existingIds.has(userId))
+
+    if (currentParticipantCount + validIds.length > 50) {
+      return errorResult("Nhóm chat tối đa 50 thành viên", "VALIDATION_ERROR")
+    }
+
+    if (validIds.length > 0) {
+      await prisma.conversationParticipant.createMany({
+        data: validIds.map((userId) => ({
+          conversationId: input.conversationId,
+          userId,
+          isAdmin: false,
+        })),
+        skipDuplicates: true,
+      })
+    }
+
+    const details = await mapGroupDetails(input.conversationId, currentUser.userId)
+
+    if (!details) {
+      return errorResult("Không tìm thấy nhóm chat", "NOT_FOUND")
+    }
+
+    return successResult(details)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể thêm thành viên", "UPDATE_FAILED")
+  }
+}
+
+export async function removeGroupConversationMember(
+  rawInput: unknown,
+): Promise<ActionResult<ChatGroupDetails>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const input = removeGroupMemberInputSchema.parse(rawInput)
+    const admin = await requireGroupAdmin(input.conversationId, currentUser.userId)
+
+    if (!admin) {
+      return errorResult("Bạn không có quyền xoá thành viên", "FORBIDDEN")
+    }
+
+    if (input.memberId === currentUser.userId) {
+      return errorResult("Dùng chức năng rời nhóm để rời khỏi nhóm", "VALIDATION_ERROR")
+    }
+
+    const targetParticipant = await prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: {
+          conversationId: input.conversationId,
+          userId: input.memberId,
+        },
+      },
+      select: {
+        isAdmin: true,
+      },
+    })
+
+    if (!targetParticipant) {
+      return errorResult("Không tìm thấy thành viên", "NOT_FOUND")
+    }
+
+    if (targetParticipant.isAdmin) {
+      return errorResult("Không thể xoá leader khỏi nhóm", "VALIDATION_ERROR")
+    }
+
+    await prisma.conversationParticipant.deleteMany({
+      where: {
+        conversationId: input.conversationId,
+        userId: input.memberId,
+        isAdmin: false,
+      },
+    })
+
+    const details = await mapGroupDetails(input.conversationId, currentUser.userId)
+
+    if (!details) {
+      return errorResult("Không tìm thấy nhóm chat", "NOT_FOUND")
+    }
+
+    return successResult(details)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể xoá thành viên", "UPDATE_FAILED")
+  }
+}
+
+export async function deleteGroupConversation(
+  rawInput: unknown,
+): Promise<ActionResult<{ conversationId: string }>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const input = groupConversationIdInputSchema.parse(rawInput)
+    const admin = await requireGroupAdmin(input.conversationId, currentUser.userId)
+
+    if (!admin) {
+      return errorResult("Bạn không có quyền xoá nhóm", "FORBIDDEN")
+    }
+
+    await prisma.conversation.delete({
+      where: { id: input.conversationId },
+    })
+
+    return successResult({ conversationId: input.conversationId })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể xoá nhóm", "UPDATE_FAILED")
+  }
+}
+
+export async function leaveGroupConversation(
+  rawInput: unknown,
+): Promise<ActionResult<{ conversationId: string; deleted: boolean }>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const input = groupConversationIdInputSchema.parse(rawInput)
+    const participation = await prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: {
+          conversationId: input.conversationId,
+          userId: currentUser.userId,
+        },
+      },
+      include: {
+        conversation: {
+          select: {
+            type: true,
+          },
+        },
+      },
+    })
+
+    if (!participation || participation.conversation.type !== "GROUP") {
+      return errorResult("Không tìm thấy nhóm chat", "NOT_FOUND")
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.conversationParticipant.delete({
+        where: {
+          conversationId_userId: {
+            conversationId: input.conversationId,
+            userId: currentUser.userId,
+          },
+        },
+      })
+
+      const remainingParticipants = await tx.conversationParticipant.findMany({
+        where: {
+          conversationId: input.conversationId,
+        },
+        orderBy: { joinedAt: "asc" },
+        select: {
+          userId: true,
+          isAdmin: true,
+        },
+      })
+
+      if (remainingParticipants.length === 0) {
+        await tx.conversation.delete({ where: { id: input.conversationId } })
+        return { deleted: true }
+      }
+
+      if (!remainingParticipants.some((participant) => participant.isAdmin)) {
+        const nextLeader = remainingParticipants[0]
+        if (nextLeader) {
+          await tx.conversationParticipant.update({
+            where: {
+              conversationId_userId: {
+                conversationId: input.conversationId,
+                userId: nextLeader.userId,
+              },
+            },
+            data: { isAdmin: true },
+          })
+        }
+      }
+
+      return { deleted: false }
+    })
+
+    return successResult({
+      conversationId: input.conversationId,
+      deleted: result.deleted,
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể rời nhóm", "UPDATE_FAILED")
   }
 }
 
