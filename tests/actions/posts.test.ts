@@ -8,10 +8,15 @@ const isLiveTest = Boolean(TEST_USER_ID)
 // ─── Stable mock via vi.hoisted ───────────────────────────────────────────────
 
 const createClient = vi.hoisted(() => vi.fn())
+const distributePostToFeeds = vi.hoisted(() => vi.fn())
+const revalidatePath = vi.hoisted(() => vi.fn())
 
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
+vi.mock("@/lib/feed/fanout", () => ({ distributePostToFeeds }))
+vi.mock("next/cache", () => ({ revalidatePath }))
 
-import { createPost, deletePost } from "@/actions/posts"
+import { prisma } from "@/lib/prisma/client"
+import { createPost, deletePost, sharePostToProfile } from "@/actions/posts"
 import { postSchema } from "@/utils/validators"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -36,7 +41,11 @@ const mockWithSession = (userId: string) => {
 }
 
 beforeEach(() => {
-  createClient.mockClear()
+  vi.restoreAllMocks()
+  createClient.mockReset()
+  revalidatePath.mockReset()
+  distributePostToFeeds.mockReset()
+  distributePostToFeeds.mockResolvedValue(undefined)
 })
 
 // ─── Schema unit tests (no mock needed) ───────────────────────────────────────
@@ -83,6 +92,71 @@ describe("postSchema — Zod validation", () => {
     if (result.success) {
       expect(result.data.imageUrl ?? "").toBe("")
     }
+  })
+})
+
+describe("fan-out after post creation", () => {
+  it("distributes a created post after a successful transaction", async () => {
+    const createdAt = new Date("2026-05-05T02:00:00.000Z")
+    const createdPost = {
+      id: "post-1",
+      content: "Noi dung hop le",
+      imageUrl: null,
+      createdAt,
+      authorId: "user-1",
+    }
+    const txPostCreate = vi.fn().mockResolvedValue(createdPost)
+
+    mockWithSession("user-1")
+    vi.spyOn(prisma, "$transaction").mockImplementationOnce(async (callback) => {
+      if (typeof callback !== "function") {
+        throw new Error("Unexpected transaction call")
+      }
+
+      return await callback({
+        post: { create: txPostCreate },
+        poll: { create: vi.fn() },
+      } as never)
+    })
+
+    const result = await createPost({ content: "Noi dung hop le" })
+
+    expect(result.success).toBe(true)
+    expect(distributePostToFeeds).toHaveBeenCalledWith({
+      postId: "post-1",
+      authorId: "user-1",
+      createdAt,
+    })
+  })
+
+  it("distributes a repost after a successful share", async () => {
+    const createdAt = new Date("2026-05-05T03:00:00.000Z")
+    const repost = {
+      id: "repost-1",
+      authorId: "user-1",
+      createdAt,
+    }
+
+    mockWithSession("user-1")
+    vi.spyOn(prisma.post, "findUnique").mockResolvedValueOnce({
+      id: "original-1",
+      authorId: "user-1",
+      sharedPostId: null,
+      content: "Original post",
+    } as never)
+    vi.spyOn(prisma.post, "create").mockResolvedValueOnce(repost as never)
+
+    const result = await sharePostToProfile({
+      postId: "original-1",
+      message: "Chia se lai",
+    })
+
+    expect(result.success).toBe(true)
+    expect(distributePostToFeeds).toHaveBeenCalledWith({
+      postId: "repost-1",
+      authorId: "user-1",
+      createdAt,
+    })
   })
 })
 
