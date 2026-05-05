@@ -273,6 +273,28 @@ describe("getFeedPosts hybrid feed", () => {
     expect(result.nextCursor.redisFetched).toBe(1);
   });
 
+  it("advances redis cursor past stale IDs filtered before valid cached posts", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    fanout.getPersonalizedFeedPostIds.mockResolvedValue([
+      "hidden-1",
+      "cached-1",
+    ]);
+    const cached = makeCandidate({
+      id: "cached-1",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-03T00:00:00.000Z"),
+    });
+    mockHybridPostQueries({
+      personalized: [cached],
+      full: [makeRawPost({ id: "cached-1", authorId: FOLLOWED_A })],
+    });
+
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
+
+    expect(result.posts.map((post) => post.id)).toEqual(["cached-1"]);
+    expect(result.nextCursor.redisFetched).toBe(2);
+  });
+
   it("advances redis cursor only by followed candidates consumed before page fill", async () => {
     prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
     fanout.getPersonalizedFeedPostIds.mockResolvedValue([

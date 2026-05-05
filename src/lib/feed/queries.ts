@@ -90,6 +90,10 @@ type FeedCandidatePost = {
   createdAt: Date;
 };
 
+type RedisFeedCandidatePost = FeedCandidatePost & {
+  redisIndex: number;
+};
+
 type FeedCandidateSource =
   | "redis"
   | "celebrity"
@@ -100,6 +104,7 @@ type FeedCandidateSource =
 type SelectedFeedCandidate = FeedCandidatePost & {
   isFromFollowed: boolean;
   source: FeedCandidateSource;
+  redisIndex?: number;
 };
 
 type CandidateSourceCounts = Record<FeedCandidateSource, number>;
@@ -262,22 +267,30 @@ function consumeCandidates(
   consumed: number;
   selectedCount: number;
   sourceCounts: CandidateSourceCounts;
+  maxRedisIndex: number | null;
 } {
   let consumed = 0;
   let selectedCount = 0;
+  let maxRedisIndex: number | null = null;
   const sourceCounts = createCandidateSourceCounts();
 
   for (const candidate of candidates) {
     if (target.length >= limit) break;
     consumed += 1;
     sourceCounts[candidate.source] += 1;
+    if (candidate.source === "redis" && candidate.redisIndex !== undefined) {
+      maxRedisIndex =
+        maxRedisIndex === null
+          ? candidate.redisIndex
+          : Math.max(maxRedisIndex, candidate.redisIndex);
+    }
     if (seenIds.has(candidate.id)) continue;
     seenIds.add(candidate.id);
     target.push(candidate);
     selectedCount += 1;
   }
 
-  return { consumed, selectedCount, sourceCounts };
+  return { consumed, selectedCount, sourceCounts, maxRedisIndex };
 }
 
 function getOverreadTake(
@@ -320,8 +333,9 @@ export async function getFeedPosts(
 
   const selected: SelectedFeedCandidate[] = [];
   const seenIds = new Set<string>();
-  let redisCandidates: FeedCandidatePost[] = [];
+  let redisCandidates: RedisFeedCandidatePost[] = [];
   let celebrityCandidates: FeedCandidatePost[] = [];
+  let personalizedIdCount = 0;
 
   const freshnessCandidates = (await prisma.post.findMany({
     where: {
@@ -353,6 +367,7 @@ export async function getFeedPosts(
       redisFetched,
       config.redisReadCandidateLimit,
     );
+    personalizedIdCount = personalizedIds.length;
 
     if (personalizedIds.length > 0) {
       const rows = (await prisma.post.findMany({
@@ -361,9 +376,15 @@ export async function getFeedPosts(
         orderBy: { createdAt: "desc" },
       })) as FeedCandidatePost[];
 
-      redisCandidates = rows.filter(
-        (post) => post.authorId === viewerId || followingSet.has(post.authorId),
-      );
+      const rowsById = new Map(rows.map((post) => [post.id, post]));
+      redisCandidates = personalizedIds.flatMap((postId, redisIndex) => {
+        const post = rowsById.get(postId);
+        if (!post) return [];
+        if (post.authorId !== viewerId && !followingSet.has(post.authorId)) {
+          return [];
+        }
+        return [{ ...post, redisIndex }];
+      });
     }
 
     if (followingIds.length > 0 && selected.length < pageSize) {
@@ -404,7 +425,16 @@ export async function getFeedPosts(
     })),
     pageSize,
   );
-  redisFetched += followedConsumption.sourceCounts.redis;
+  if (personalizedIdCount > 0) {
+    if (
+      followedConsumption.sourceCounts.redis === redisCandidates.length &&
+      selected.length < pageSize
+    ) {
+      redisFetched += personalizedIdCount;
+    } else if (followedConsumption.maxRedisIndex !== null) {
+      redisFetched += followedConsumption.maxRedisIndex + 1;
+    }
+  }
   celebrityFetched += followedConsumption.sourceCounts.celebrity;
 
   if (
