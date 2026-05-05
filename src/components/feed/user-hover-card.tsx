@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,7 +22,9 @@ interface UserHoverCardProps {
 }
 
 const HOVER_OPEN_DELAY_MS = 300
-const HOVER_CLOSE_DELAY_MS = 150
+const HOVER_CLOSE_DELAY_MS = 200
+const CARD_WIDTH = 320
+const CARD_GAP = 8
 
 export function UserHoverCard({
   userId,
@@ -35,15 +38,17 @@ export function UserHoverCard({
   const [isOpen, setIsOpen] = useState(false)
   const [followStatus, setFollowStatus] = useState<FollowStatus | null>(null)
   const [isLoadingStatus, setIsLoadingStatus] = useState(false)
+  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+
+  const triggerRef = useRef<HTMLSpanElement>(null)
   const openTimerRef = useRef<NodeJS.Timeout | null>(null)
   const closeTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const hasFetchedRef = useRef(false)
 
   const isOwnUser = currentUserId === userId
   const profileHref = `/profile/${userId}`
   const showFollowButton = !isOwnUser && Boolean(currentUserId)
 
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     if (openTimerRef.current) {
       clearTimeout(openTimerRef.current)
       openTimerRef.current = null
@@ -52,32 +57,46 @@ export function UserHoverCard({
       clearTimeout(closeTimerRef.current)
       closeTimerRef.current = null
     }
-  }
+  }, [])
 
-  const handleMouseEnter = () => {
+  const computePosition = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    let left = rect.left + window.scrollX
+    const top = rect.bottom + window.scrollY + CARD_GAP
+
+    // Đảm bảo card không tràn ra bên phải viewport
+    const maxLeft = window.innerWidth - CARD_WIDTH - 16
+    if (left > maxLeft) left = Math.max(0, maxLeft)
+
+    setPosition({ top, left })
+  }, [])
+
+  const handleMouseEnter = useCallback(() => {
     clearTimers()
     openTimerRef.current = setTimeout(() => {
+      computePosition()
       setIsOpen(true)
     }, HOVER_OPEN_DELAY_MS)
-  }
+  }, [clearTimers, computePosition])
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     clearTimers()
     closeTimerRef.current = setTimeout(() => {
       setIsOpen(false)
     }, HOVER_CLOSE_DELAY_MS)
-  }
+  }, [clearTimers])
 
   useEffect(() => {
     return () => {
       clearTimers()
     }
-  }, [])
+  }, [clearTimers])
 
+  // Re-fetch follow status mỗi lần card mở (fix stale state)
   useEffect(() => {
-    if (!isOpen || isOwnUser || hasFetchedRef.current) return
+    if (!isOpen || isOwnUser) return
 
-    hasFetchedRef.current = true
     setIsLoadingStatus(true)
 
     getFollowStatusAction(userId)
@@ -91,67 +110,75 @@ export function UserHoverCard({
       })
   }, [isOpen, isOwnUser, userId])
 
+  const popoverContent = isOpen && (
+    <div
+      role="dialog"
+      aria-label={`Thông tin về ${displayName}`}
+      style={{ top: position.top, left: position.left, width: CARD_WIDTH }}
+      className="fixed z-[9999] rounded-xl border border-border bg-popover p-4 shadow-lg animate-in fade-in-0 zoom-in-95"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Header: Avatar + tên bên cạnh */}
+      <div className="flex items-center gap-3">
+        <Link
+          href={profileHref}
+          className="shrink-0 rounded-full transition-opacity hover:opacity-90"
+          aria-label={`Trang cá nhân của ${displayName}`}
+        >
+          <UserAvatar
+            src={avatarUrl ?? undefined}
+            name={displayName}
+            size="lg"
+          />
+        </Link>
+
+        <div className="min-w-0 flex-1">
+          <Link
+            href={profileHref}
+            className="block truncate text-sm font-semibold leading-tight hover:underline"
+          >
+            {displayName}
+          </Link>
+          {subtitle && (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Actions: Follow + Message buttons */}
+      {showFollowButton && (
+        <div className="mt-3 flex items-center gap-2">
+          {isLoadingStatus || !followStatus ? (
+            <Skeleton className="h-8 w-full rounded-md" />
+          ) : (
+            <FollowButton
+              targetUserId={userId}
+              initialStatus={followStatus}
+              className="h-8 min-w-0 flex-1 text-xs"
+            />
+          )}
+          <MessageButton
+            targetUserId={userId}
+            variant="icon"
+            className="h-8 w-8 shrink-0"
+          />
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <span
-      className={cn("relative inline-block", className)}
+      ref={triggerRef}
+      className={cn("inline-block", className)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {children}
-
-      {isOpen && (
-        <div
-          role="dialog"
-          aria-label={`Thông tin về ${displayName}`}
-          className="absolute left-0 top-full z-50 mt-2 w-[300px] rounded-xl border border-border bg-popover p-4 shadow-lg animate-in fade-in-0 zoom-in-95"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          {/* Hàng trên: Avatar + Follow button (Twitter-style) */}
-          <div className="flex items-start justify-between gap-3">
-            <Link
-              href={profileHref}
-              className="shrink-0 rounded-full transition-opacity hover:opacity-90"
-              aria-label={`Trang cá nhân của ${displayName}`}
-            >
-              <UserAvatar
-                src={avatarUrl ?? undefined}
-                name={displayName}
-                size="xl"
-              />
-            </Link>
-
-            {showFollowButton && (
-              <div className="flex shrink-0 items-center gap-1.5">
-                <MessageButton targetUserId={userId} variant="icon" />
-                {isLoadingStatus || !followStatus ? (
-                  <Skeleton className="h-9 w-[110px] rounded-md" />
-                ) : (
-                  <FollowButton
-                    targetUserId={userId}
-                    initialStatus={followStatus}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Hàng dưới: Tên + subtitle full width */}
-          <div className="mt-3 min-w-0">
-            <Link
-              href={profileHref}
-              className="block truncate text-base font-bold leading-tight hover:underline"
-            >
-              {displayName}
-            </Link>
-            {subtitle && (
-              <p className="mt-1 truncate text-sm text-muted-foreground">
-                {subtitle}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+      {popoverContent && createPortal(popoverContent, document.body)}
     </span>
   )
 }
