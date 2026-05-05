@@ -58,6 +58,7 @@ export default async function MainLayout({
       <TopNavbar
         navItems={visibleNavItems}
         user={sessionUser}
+        userId={authUser?.id}
         notificationCount={3}
         messageCount={5}
         searchPlaceholder="Tìm kiếm trong cộng đồng..."

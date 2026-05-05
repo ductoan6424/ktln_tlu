@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { IconButton } from "@/components/shared/icon-button"
 import { Smile, Send, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { CHAT_FILE_INPUT_ACCEPT, CHAT_INPUT_MAX_LENGTH } from "@/lib/config/chat"
+import { CHAT_FILE_INPUT_ACCEPT, CHAT_INPUT_MAX_LENGTH, CHAT_TYPING_TIMEOUT_MS } from "@/lib/config/chat"
 
 type SendPayload = {
   message: string
@@ -49,6 +49,8 @@ export function MessageInput({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastTypingStateRef = useRef(false)
 
   const draft = value ?? internalValue
 
@@ -88,12 +90,51 @@ export function MessageInput({
     }
   }, [selectedImagePreviewUrl])
 
+  useEffect(() => {
+    return () => {
+      if (typingStopTimerRef.current) {
+        clearTimeout(typingStopTimerRef.current)
+      }
+    }
+  }, [])
+
+  const publishTypingState = (isTyping: boolean) => {
+    if (lastTypingStateRef.current === isTyping) {
+      return
+    }
+
+    lastTypingStateRef.current = isTyping
+    onTypingChange?.(isTyping)
+  }
+
+  const clearTypingStopTimer = () => {
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current)
+      typingStopTimerRef.current = null
+    }
+  }
+
+  const scheduleTypingStop = () => {
+    clearTypingStopTimer()
+    typingStopTimerRef.current = setTimeout(() => {
+      publishTypingState(false)
+      typingStopTimerRef.current = null
+    }, CHAT_TYPING_TIMEOUT_MS)
+  }
+
   const setDraft = (nextValue: string) => {
     if (value === undefined) {
       setInternalValue(nextValue)
     }
     onChange?.(nextValue)
-    onTypingChange?.(nextValue.trim().length > 0)
+
+    if (nextValue.trim().length > 0) {
+      publishTypingState(true)
+      scheduleTypingStop()
+    } else {
+      clearTypingStopTimer()
+      publishTypingState(false)
+    }
   }
 
   const handleSend = async () => {
@@ -117,7 +158,8 @@ export function MessageInput({
       onChange?.("")
     }
 
-    onTypingChange?.(false)
+    clearTypingStopTimer()
+    publishTypingState(false)
     setSelectedFile(null)
 
     if (fileInputRef.current) {
