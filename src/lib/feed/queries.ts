@@ -90,10 +90,19 @@ type FeedCandidatePost = {
   createdAt: Date;
 };
 
+type FeedCandidateSource =
+  | "redis"
+  | "celebrity"
+  | "freshness"
+  | "fallback"
+  | "rest";
+
 type SelectedFeedCandidate = FeedCandidatePost & {
   isFromFollowed: boolean;
-  source: "redis" | "celebrity" | "freshness" | "fallback" | "rest";
+  source: FeedCandidateSource;
 };
+
+type CandidateSourceCounts = Record<FeedCandidateSource, number>;
 
 const candidateSelect = {
   id: true,
@@ -234,18 +243,56 @@ function byCreatedAtDesc(a: FeedCandidatePost, b: FeedCandidatePost): number {
   return b.createdAt.getTime() - a.createdAt.getTime();
 }
 
-function takeUniqueCandidates(
+function createCandidateSourceCounts(): CandidateSourceCounts {
+  return {
+    redis: 0,
+    celebrity: 0,
+    freshness: 0,
+    fallback: 0,
+    rest: 0,
+  };
+}
+
+function consumeCandidates(
   target: SelectedFeedCandidate[],
   seenIds: Set<string>,
   candidates: SelectedFeedCandidate[],
   limit: number,
-): void {
+): {
+  consumed: number;
+  selectedCount: number;
+  sourceCounts: CandidateSourceCounts;
+} {
+  let consumed = 0;
+  let selectedCount = 0;
+  const sourceCounts = createCandidateSourceCounts();
+
   for (const candidate of candidates) {
-    if (target.length >= limit) return;
+    if (target.length >= limit) break;
+    consumed += 1;
+    sourceCounts[candidate.source] += 1;
     if (seenIds.has(candidate.id)) continue;
     seenIds.add(candidate.id);
     target.push(candidate);
+    selectedCount += 1;
   }
+
+  return { consumed, selectedCount, sourceCounts };
+}
+
+function getOverreadTake(
+  remainingSlots: number,
+  freshnessQuota: number,
+  followedCandidateCount: number,
+  pageSize: number,
+): number {
+  return Math.min(
+    Math.max(
+      remainingSlots,
+      remainingSlots + freshnessQuota + followedCandidateCount,
+    ),
+    pageSize * 3,
+  );
 }
 
 export async function getFeedPosts(
@@ -288,7 +335,7 @@ export async function getFeedPosts(
     skip: freshnessFetched,
     take: Math.max(freshnessQuota, 0),
   })) as FeedCandidatePost[];
-  takeUniqueCandidates(
+  consumeCandidates(
     selected,
     seenIds,
     freshnessCandidates.map((post) => ({
@@ -306,7 +353,6 @@ export async function getFeedPosts(
       redisFetched,
       config.redisReadCandidateLimit,
     );
-    redisFetched += personalizedIds.length;
 
     if (personalizedIds.length > 0) {
       const rows = (await prisma.post.findMany({
@@ -349,7 +395,7 @@ export async function getFeedPosts(
     })),
   ].sort(byCreatedAtDesc);
 
-  takeUniqueCandidates(
+  const followedConsumption = consumeCandidates(
     selected,
     seenIds,
     followedCandidates.map((post) => ({
@@ -358,7 +404,8 @@ export async function getFeedPosts(
     })),
     pageSize,
   );
-  celebrityFetched += celebrityCandidates.length;
+  redisFetched += followedConsumption.sourceCounts.redis;
+  celebrityFetched += followedConsumption.sourceCounts.celebrity;
 
   if (
     viewerId &&
@@ -369,6 +416,12 @@ export async function getFeedPosts(
     selected.length < pageSize
   ) {
     const remainingSlots = pageSize - selected.length;
+    const fallbackTake = getOverreadTake(
+      remainingSlots,
+      freshnessQuota,
+      followedCandidates.length,
+      pageSize,
+    );
     const fallbackFollowedCandidates = (await prisma.post.findMany({
       where: {
         ...baseWhere,
@@ -377,10 +430,10 @@ export async function getFeedPosts(
       select: candidateSelect,
       orderBy: { createdAt: "desc" },
       skip: followedFetched,
-      take: remainingSlots,
+      take: fallbackTake,
     })) as FeedCandidatePost[];
 
-    takeUniqueCandidates(
+    const fallbackConsumption = consumeCandidates(
       selected,
       seenIds,
       fallbackFollowedCandidates.map((post) => ({
@@ -390,15 +443,21 @@ export async function getFeedPosts(
       })),
       pageSize,
     );
-    followedFetched += fallbackFollowedCandidates.length;
+    followedFetched += fallbackConsumption.consumed;
 
-    if (fallbackFollowedCandidates.length < remainingSlots) {
+    if (fallbackFollowedCandidates.length < fallbackTake) {
       followedExhausted = true;
     }
   }
 
   if (selected.length < pageSize) {
     const remainingSlots = pageSize - selected.length;
+    const restTake = getOverreadTake(
+      remainingSlots,
+      freshnessQuota,
+      followedCandidates.length,
+      pageSize,
+    );
     const restCandidates = (await prisma.post.findMany({
       where: {
         ...baseWhere,
@@ -409,10 +468,10 @@ export async function getFeedPosts(
       select: candidateSelect,
       orderBy: { createdAt: "desc" },
       skip: restFetched,
-      take: remainingSlots,
+      take: restTake,
     })) as FeedCandidatePost[];
 
-    takeUniqueCandidates(
+    const restConsumption = consumeCandidates(
       selected,
       seenIds,
       restCandidates.map((post) => ({
@@ -422,7 +481,7 @@ export async function getFeedPosts(
       })),
       pageSize,
     );
-    restFetched += restCandidates.length;
+    restFetched += restConsumption.consumed;
   }
 
   const selectedIds = selected.map((post) => post.id);
