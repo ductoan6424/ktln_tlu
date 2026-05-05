@@ -94,6 +94,7 @@ model UserProfile {
   displayName String    @map("display_name")
   username    String?   @unique @map("username")
   avatarUrl   String?   @map("avatar_url")
+  coverUrl    String?   @map("cover_url")
   bio         String?   @map("bio")
   studentId   String?   @unique @map("student_id")
   role        UserRole  @default(STUDENT) @map("role")

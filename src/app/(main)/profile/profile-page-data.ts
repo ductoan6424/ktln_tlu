@@ -31,6 +31,7 @@ export type ProfileSummary = {
   displayName: string
   username: string | null
   avatarUrl: string | null
+  coverUrl: string | null
   bio: string | null
   studentId: string | null
   role: UserRole
@@ -126,6 +127,7 @@ type ProfileRecord = {
   displayName: string
   username: string | null
   avatarUrl: string | null
+  coverUrl: string | null
   bio: string | null
   studentId: string | null
   role: UserRole
@@ -222,6 +224,7 @@ function mapProfile(profile: ProfileRecord): ProfileSummary {
     displayName: profile.displayName,
     username: profile.username,
     avatarUrl: profile.avatarUrl,
+    coverUrl: profile.coverUrl,
     bio: profile.bio,
     studentId: profile.studentId,
     role: profile.role,
@@ -334,6 +337,7 @@ export async function getProfilePageData({
       displayName: true,
       username: true,
       avatarUrl: true,
+      coverUrl: true,
       bio: true,
       studentId: true,
       role: true,

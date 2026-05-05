@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { logout } from "@/actions/auth"
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
+import { useInboxNotification } from "@/hooks/use-inbox-notification"
 import { cn } from "@/lib/utils"
 import {
   CalendarDays,
@@ -51,6 +52,7 @@ interface TopNavbarProps {
     subtitle?: string
     avatarSrc?: string
   }
+  userId?: string
   notificationCount?: number
   messageCount?: number
   searchPlaceholder?: string
@@ -60,6 +62,7 @@ interface TopNavbarProps {
 export function TopNavbar({
   navItems = [],
   user,
+  userId,
   notificationCount,
   messageCount,
   searchPlaceholder = "Tìm kiếm...",
@@ -73,6 +76,32 @@ export function TopNavbar({
 
   void notificationCount
   void messageCount
+
+  const handleInboxNotification = useCallback(
+    (notification: { senderId: string; senderName: string; senderAvatarUrl: string | null }) => {
+      if (pathname === "/messages") return
+
+      setOpenPopups((prev) => {
+        const alreadyOpen = prev.find((item) => item.id === notification.senderId)
+        if (alreadyOpen) return prev
+
+        const friend: ActiveFriend = {
+          id: notification.senderId,
+          name: notification.senderName,
+          avatar: notification.senderAvatarUrl ?? undefined,
+          status: "online",
+        }
+
+        return [friend, ...prev].slice(0, 3)
+      })
+    },
+    [pathname],
+  )
+
+  useInboxNotification({
+    userId: userId ?? null,
+    onIncoming: handleInboxNotification,
+  })
 
   const handleDarkModeToggle = (checked: boolean) => {
     setDarkMode(checked)

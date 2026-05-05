@@ -10,6 +10,7 @@ interface ChatBubbleProps {
   attachment?: ChatAttachmentType | null
   senderName?: string
   time: string
+  fullTime?: string
   isOwn: boolean
   readStatus?: "sent" | "delivered" | "read"
   senderAvatar?: string
@@ -21,6 +22,7 @@ export function ChatBubble({
   attachment,
   senderName,
   time,
+  fullTime,
   isOwn,
   readStatus,
   className,
@@ -44,7 +46,7 @@ export function ChatBubble({
       <div className="flex items-center gap-2">
         {isOwn ? (
           <>
-            <span className="text-[10px] text-muted-foreground">{time}</span>
+            <span className="text-[10px] text-muted-foreground cursor-default" title={fullTime}>{time}</span>
             <span className="text-sm font-bold">Bạn</span>
           </>
         ) : (
@@ -52,7 +54,7 @@ export function ChatBubble({
             {senderName && (
               <span className="text-sm font-bold">{senderName}</span>
             )}
-            <span className="text-[10px] text-muted-foreground">{time}</span>
+            <span className="text-[10px] text-muted-foreground cursor-default" title={fullTime}>{time}</span>
           </>
         )}
       </div>

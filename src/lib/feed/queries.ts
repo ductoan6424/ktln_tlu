@@ -43,6 +43,7 @@ export type FeedPostDto = {
   authorId: string;
   authorDisplayName: string;
   authorAvatarUrl: string | null;
+  authorCoverUrl: string | null;
   isLiked: boolean;
   likes: number;
   comments: number;
@@ -69,7 +70,7 @@ export const INITIAL_FEED_CURSOR: FeedCursor = {
 
 type RawFeedPost = Prisma.PostGetPayload<{
   include: {
-    author: { select: { displayName: true; avatarUrl: true } };
+    author: { select: { displayName: true; avatarUrl: true; coverUrl: true } };
     likes: { where: { userId: string }; select: { id: true } };
     _count: { select: { likes: true; comments: true } };
     sharedPost: {
@@ -141,6 +142,7 @@ function buildPostInclude(viewerId: string | null) {
       select: {
         displayName: true,
         avatarUrl: true,
+        coverUrl: true,
       },
     },
     likes: viewerId
@@ -212,6 +214,7 @@ async function mapRawPost(
     authorId: post.authorId,
     authorDisplayName: post.author.displayName,
     authorAvatarUrl: post.author.avatarUrl,
+    authorCoverUrl: post.author.coverUrl,
     isLiked: likesArr.length > 0,
     likes: post._count.likes,
     comments: post._count.comments,

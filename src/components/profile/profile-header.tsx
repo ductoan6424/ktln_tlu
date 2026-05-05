@@ -2,11 +2,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { AvatarUploader } from "@/components/profile/avatar-uploader"
+import { CoverUploader } from "@/components/profile/cover-uploader"
 import { FollowButton } from "@/components/profile/follow-button"
 import { MessageButton } from "@/components/messages/message-button"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Pencil, Share2, Camera } from "lucide-react"
+import { Pencil, Share2 } from "lucide-react"
 import Image from "next/image"
 import type { FollowStatus } from "@/lib/follows/queries"
 
@@ -49,7 +50,7 @@ export function ProfileHeader({
 
   return (
     <Card className={className}>
-      <div className="relative h-48 md:h-56 bg-muted">
+      <div className="relative h-48 md:h-56 bg-muted overflow-hidden">
         {coverImage && (
           <Image
             src={coverImage}
@@ -59,20 +60,13 @@ export function ProfileHeader({
           />
         )}
         {isOwnProfile && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="absolute bottom-4 right-4 gap-1.5 bg-card/80 backdrop-blur-md hover:bg-card"
-          >
-            <Camera className="size-3.5" />
-            Sửa ảnh bìa
-          </Button>
+          <CoverUploader currentCoverUrl={coverImage} />
         )}
       </div>
 
       <CardContent className="relative p-6 pt-0">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
-          <div className="-mt-16 z-10">
+          <div className="-mt-20 md:-mt-24 z-10">
             {isOwnProfile ? (
               <AvatarUploader
                 variant="profile"
@@ -85,7 +79,7 @@ export function ProfileHeader({
                 src={avatar}
                 name={name}
                 size="xl"
-                className="size-28 border-4 border-card shadow-lg"
+                className="size-32 md:size-36 border-[6px] border-card shadow-lg ring-1 ring-border/10"
               />
             )}
           </div>
@@ -159,7 +153,7 @@ export function ProfileHeaderSkeleton() {
       <Skeleton className="h-48 w-full md:h-56" />
       <CardContent className="relative p-6 pt-0">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
-          <Skeleton className="-mt-16 size-28 rounded-full" />
+          <Skeleton className="-mt-20 md:-mt-24 size-32 md:size-36 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-7 w-48" />
             <Skeleton className="h-4 w-24" />

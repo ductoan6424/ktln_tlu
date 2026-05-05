@@ -14,6 +14,7 @@ interface PostHeaderProps {
   authorId?: string
   authorName: string
   authorAvatar?: string
+  authorCover?: string
   createdAt: string
   tag?: string
   tagVariant?: "primary" | "accent" | "muted"
@@ -28,6 +29,7 @@ export function PostHeader({
   authorId,
   authorName,
   authorAvatar,
+  authorCover,
   createdAt,
   tag,
   tagVariant = "primary",
@@ -92,6 +94,7 @@ export function PostHeader({
           userId={authorId}
           displayName={authorName}
           avatarUrl={authorAvatar ?? null}
+          coverUrl={authorCover ?? null}
           subtitle={subtitle ?? null}
           currentUserId={currentUserId}
         >

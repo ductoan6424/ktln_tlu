@@ -32,6 +32,7 @@ interface PostCardProps {
   postId?: string
   authorName: string
   authorAvatar?: string
+  authorCover?: string
   createdAt: string
   content: string
   imageUrl?: string
@@ -63,6 +64,7 @@ export function PostCard({
   postId,
   authorName,
   authorAvatar,
+  authorCover,
   createdAt,
   content,
   imageUrl,
@@ -122,6 +124,7 @@ export function PostCard({
             authorId={authorId}
             authorName={authorName}
             authorAvatar={authorAvatar}
+            authorCover={authorCover}
             createdAt={createdAt}
             tag={tag}
             tagVariant={tagVariant}
@@ -222,6 +225,7 @@ export function PostCard({
         postId={postId}
         authorName={authorName}
         authorAvatar={authorAvatar}
+        authorCover={authorCover}
         createdAt={createdAt}
         content={content}
         imageUrl={imageUrl}
