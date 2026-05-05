@@ -212,7 +212,7 @@ describe("getFeedPosts hybrid feed", () => {
     expect(result.nextCursor.freshnessFetched).toBe(1);
   });
 
-  it("does not query rest when freshness and followed cache fill the page", async () => {
+  it("advances fallback and rest cursors when earlier sources fill the page", async () => {
     prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
     fanout.getPersonalizedFeedPostIds.mockResolvedValue(["cached-1"]);
     const freshness = makeCandidate({
@@ -225,10 +225,16 @@ describe("getFeedPosts hybrid feed", () => {
       authorId: FOLLOWED_A,
       createdAt: new Date("2026-04-02T00:00:00.000Z"),
     });
+    const followedFill = makeCandidate({
+      id: "followed-2",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
+    });
     mockHybridPostQueries({
       personalized: [cached],
       freshness: [freshness],
-      rest: [makeCandidate({ id: "rest-1", authorId: RANDOM_C })],
+      fallbackFollowed: [cached, followedFill],
+      rest: [freshness, makeCandidate({ id: "rest-1", authorId: RANDOM_C })],
       full: [
         makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
         makeRawPost({ id: "cached-1", authorId: FOLLOWED_A }),
@@ -241,16 +247,12 @@ describe("getFeedPosts hybrid feed", () => {
       2,
     );
 
-    const restCalls = prisma.post.findMany.mock.calls.filter((call) => {
-      const args = call[0] as { where?: { authorId?: { notIn?: string[] } } };
-      return Boolean(args.where?.authorId?.notIn);
-    });
-    expect(restCalls).toHaveLength(0);
     expect(result.posts.map((post) => post.id)).toEqual([
       "fresh-1",
       "cached-1",
     ]);
-    expect(result.nextCursor.restFetched).toBe(7);
+    expect(result.nextCursor.followedFetched).toBe(1);
+    expect(result.nextCursor.restFetched).toBe(8);
   });
 
   it("advances redis cursor for a cached candidate duplicated by freshness", async () => {
@@ -383,6 +385,66 @@ describe("getFeedPosts hybrid feed", () => {
       "cached-2",
     ]);
     expect(result.nextCursor.redisFetched).toBe(2);
+  });
+
+  it("advances celebrity cursor through a duplicate selected from Redis", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    fanout.getPersonalizedFeedPostIds.mockResolvedValue(["dup-followed"]);
+    fanout.getCelebrityAuthorIds.mockResolvedValue([FOLLOWED_A]);
+    const duplicate = makeCandidate({
+      id: "dup-followed",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-03T00:00:00.000Z"),
+    });
+    mockHybridPostQueries({
+      personalized: [duplicate],
+      celebrity: [duplicate],
+      full: [makeRawPost({ id: "dup-followed", authorId: FOLLOWED_A })],
+    });
+
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 1);
+
+    expect(result.posts.map((post) => post.id)).toEqual(["dup-followed"]);
+    expect(result.nextCursor.redisFetched).toBe(1);
+    expect(result.nextCursor.celebrityFetched).toBe(1);
+  });
+
+  it("fills a partial Redis followed cache from DB followed fallback before rest", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    fanout.getPersonalizedFeedPostIds.mockResolvedValue(["cached-1"]);
+    const cached = makeCandidate({
+      id: "cached-1",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-03T00:00:00.000Z"),
+    });
+    const fallbackFollowed = makeCandidate({
+      id: "followed-2",
+      authorId: FOLLOWED_A,
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+    });
+    const rest = makeCandidate({
+      id: "rest-1",
+      authorId: RANDOM_C,
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
+    });
+    mockHybridPostQueries({
+      personalized: [cached],
+      fallbackFollowed: [cached, fallbackFollowed],
+      rest: [rest],
+      full: [
+        makeRawPost({ id: "cached-1", authorId: FOLLOWED_A }),
+        makeRawPost({ id: "followed-2", authorId: FOLLOWED_A }),
+      ],
+    });
+
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
+
+    expect(result.posts.map((post) => post.id)).toEqual([
+      "cached-1",
+      "followed-2",
+    ]);
+    expect(result.nextCursor.followedFetched).toBe(2);
+    expect(result.nextCursor.restFetched).toBe(0);
   });
 
   it("uses DB followed fallback when personalized and celebrity candidates are empty", async () => {
