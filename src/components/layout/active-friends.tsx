@@ -1,25 +1,49 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { UserAvatar } from "@/components/shared/user-avatar"
+import Link from "next/link"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { MoreHorizontal, Plus, Search, UsersRound, X } from "lucide-react"
+
 import { getChatSessionUser } from "@/actions/chat"
 import { listActiveFriends } from "@/actions/users"
+import type { ContactGroup } from "@/actions/users"
+import { CreateGroupDialog } from "@/components/messages/create-group-dialog"
+import { UserAvatar } from "@/components/shared/user-avatar"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import { cn } from "@/lib/utils"
 import type { ChatSessionUser } from "@/types/chat"
 import type { ActiveFriend } from "./mock-data"
-import { MessageSquare } from "lucide-react"
 
 interface ActiveFriendsProps {
   onFriendClick?: (friend: ActiveFriend) => void
   className?: string
 }
 
+const CONTACTS_TOTAL_LIMIT = 20
+const SOURCE_RANK: Record<NonNullable<ActiveFriend["source"]>, number> = {
+  friend: 0,
+  conversation: 1,
+  follow: 2,
+}
+
+function normalizeSearch(value: string) {
+  return value.trim().toLocaleLowerCase("vi-VN")
+}
+
 export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) {
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
-  const [friends, setFriends] = useState<ActiveFriend[]>([])
+  const [contacts, setContacts] = useState<ActiveFriend[]>([])
+  const [groups, setGroups] = useState<ContactGroup[]>([])
+  const [searchContacts, setSearchContacts] = useState<ActiveFriend[] | null>(null)
+  const [searchGroups, setSearchGroups] = useState<ContactGroup[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSearching, setIsSearching] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { onlineUserIds } = useChatRealtime({
     currentUser: sessionUser,
@@ -27,8 +51,8 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
   })
 
   useEffect(() => {
-    const fetchFriends = async () => {
-      const [sessionResult, friendsResult] = await Promise.all([
+    const fetchContacts = async () => {
+      const [sessionResult, contactsResult] = await Promise.all([
         getChatSessionUser(),
         listActiveFriends(),
       ])
@@ -37,68 +61,249 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
         setSessionUser(sessionResult.data)
       }
 
-      if (!friendsResult.success || !friendsResult.data) {
-        setFriends([])
+      if (!contactsResult.success || !contactsResult.data) {
+        setContacts([])
+        setGroups([])
         setIsLoading(false)
         return
       }
 
-      setFriends(friendsResult.data)
+      setContacts(contactsResult.data.contacts)
+      setGroups(contactsResult.data.groups)
       setIsLoading(false)
     }
 
-    void fetchFriends()
+    void fetchContacts()
   }, [])
 
-  // Gắn status online/offline + sort: online ưu tiên trên, offline ở dưới
-  // Trong cùng nhóm online/offline giữ nguyên thứ tự (bạn bè trước, following sau)
+  useEffect(() => {
+    if (isSearchOpen) {
+      searchInputRef.current?.focus()
+    }
+  }, [isSearchOpen])
+
+  const normalizedQuery = normalizeSearch(query)
+  useEffect(() => {
+    if (!normalizedQuery) {
+      return
+    }
+
+    let isDisposed = false
+    const timeoutId = setTimeout(async () => {
+      setIsSearching(true)
+      const result = await listActiveFriends({ query })
+      if (isDisposed) {
+        return
+      }
+
+      if (result.success && result.data) {
+        setSearchContacts(result.data.contacts)
+        setSearchGroups(result.data.groups)
+      } else {
+        setSearchContacts([])
+        setSearchGroups([])
+      }
+      setIsSearching(false)
+    }, 250)
+
+    return () => {
+      isDisposed = true
+      clearTimeout(timeoutId)
+    }
+  }, [normalizedQuery, query])
+
+  const activeContacts = useMemo(
+    () => (normalizedQuery ? searchContacts ?? [] : contacts),
+    [contacts, normalizedQuery, searchContacts],
+  )
+  const activeGroups = useMemo(
+    () => (normalizedQuery ? searchGroups ?? [] : groups),
+    [groups, normalizedQuery, searchGroups],
+  )
+
   const sortedContacts = useMemo(() => {
-    return friends
-      .map((friend) => ({
-        ...friend,
-        status: onlineUserIds.has(friend.id)
+    return activeContacts
+      .map((contact) => ({
+        ...contact,
+        status: onlineUserIds.has(contact.id)
           ? ("online" as const)
           : ("offline" as const),
       }))
       .sort((a, b) => {
-        if (a.status === "online" && b.status !== "online") return -1
-        if (a.status !== "online" && b.status === "online") return 1
-        return 0
+        const aOnlineRank = a.status === "online" ? 0 : 1
+        const bOnlineRank = b.status === "online" ? 0 : 1
+        if (aOnlineRank !== bOnlineRank) return aOnlineRank - bOnlineRank
+
+        const aSourceRank = a.source ? SOURCE_RANK[a.source] : 3
+        const bSourceRank = b.source ? SOURCE_RANK[b.source] : 3
+        if (aSourceRank !== bSourceRank) return aSourceRank - bSourceRank
+
+        return (a.sourceIndex ?? 0) - (b.sourceIndex ?? 0)
       })
-  }, [friends, onlineUserIds])
+  }, [activeContacts, onlineUserIds])
+
+  const visibleContacts = useMemo(() => {
+    return normalizedQuery
+      ? sortedContacts
+      : sortedContacts.slice(0, CONTACTS_TOTAL_LIMIT)
+  }, [normalizedQuery, sortedContacts])
+
+  const visibleGroups = useMemo(() => {
+    return activeGroups
+  }, [activeGroups])
+
+  const hasNoResults =
+    !isLoading &&
+    !isSearching &&
+    visibleContacts.length === 0 &&
+    visibleGroups.length === 0
+
+  const closeSearch = () => {
+    setQuery("")
+    setSearchContacts(null)
+    setSearchGroups(null)
+    setIsSearching(false)
+    setIsSearchOpen(false)
+  }
 
   return (
-    <Card className={className}>
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <MessageSquare className="size-4 text-primary" />
-          <p className="font-bold text-sm">Người liên hệ</p>
-        </div>
-        <div className="space-y-1">
-          {sortedContacts.map((friend) => (
+    <>
+      <CreateGroupDialog
+        open={isCreateGroupOpen}
+        onOpenChange={setIsCreateGroupOpen}
+        onCreated={(conversation) => {
+          setGroups((prev) => [
+            {
+              id: conversation.id,
+              name: conversation.name,
+              participantCount: conversation.participantCount,
+              lastMessage: conversation.lastMessage,
+              lastMessageAt: conversation.lastMessageAt,
+              unreadCount: conversation.unreadCount,
+            },
+            ...prev.filter((group) => group.id !== conversation.id),
+          ])
+        }}
+      />
+
+      <Card className={cn("border-none bg-transparent shadow-none", className)}>
+        <CardContent className="p-0">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <p className="text-base font-bold text-muted-foreground">Người liên hệ</p>
+          <div className="flex items-center gap-1">
             <Button
-              key={friend.id}
               variant="ghost"
-              className="w-full justify-start gap-3 px-2 py-2 h-auto"
-              onClick={() => onFriendClick?.(friend)}
+              size="icon-sm"
+              className="rounded-full text-muted-foreground"
+              aria-label="Tìm liên hệ"
+              onClick={() => setIsSearchOpen((open) => !open)}
+            >
+              <Search className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-full text-muted-foreground"
+              aria-label="Tùy chọn liên hệ"
+            >
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        {isSearchOpen && (
+          <div className="mb-2 flex items-center gap-2 rounded-full bg-muted px-3 py-1.5">
+            <Search className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              ref={searchInputRef}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Tìm kiếm"
+              className="h-6 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+            {(query || isSearchOpen) && (
+              <button
+                type="button"
+                className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-background hover:text-foreground"
+                aria-label="Đóng tìm kiếm"
+                onClick={closeSearch}
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-0.5">
+          {normalizedQuery && isSearching && (
+            <p className="px-2 py-2 text-sm text-muted-foreground">Đang tìm kiếm...</p>
+          )}
+          {visibleContacts.map((contact) => (
+            <Button
+              key={contact.id}
+              variant="ghost"
+              className="h-11 w-full justify-start gap-3 rounded-md px-2 text-left"
+              onClick={() => onFriendClick?.(contact)}
             >
               <UserAvatar
-                src={friend.avatar}
-                name={friend.name}
-                size="sm"
-                showStatus
-                status={friend.status}
+                src={contact.avatar}
+                name={contact.name}
+                size="md"
+                showStatus={contact.status === "online"}
+                status={contact.status}
               />
-              <p className="text-sm font-medium truncate">{friend.name}</p>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                {contact.name}
+              </span>
             </Button>
           ))}
-          {!isLoading && sortedContacts.length === 0 && (
-            <p className="text-sm text-muted-foreground py-2">
-              Chưa có liên hệ. Theo dõi ai đó để bắt đầu trò chuyện.
-            </p>
-          )}
         </div>
-      </CardContent>
-    </Card>
+
+        {(visibleGroups.length > 0 || !normalizedQuery) && (
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="mb-2 px-1 text-base font-bold text-muted-foreground">Nhóm chat</p>
+            <div className="space-y-0.5">
+              {visibleGroups.map((group) => (
+                <Link
+                  key={group.id}
+                  href={`/messages?conversation=${group.id}`}
+                  className="flex h-11 items-center gap-3 rounded-md px-2 text-sm font-semibold hover:bg-muted"
+                >
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <UsersRound className="size-5" />
+                  </div>
+                  <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                  {group.unreadCount > 0 && (
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                      {group.unreadCount > 9 ? "9+" : group.unreadCount}
+                    </span>
+                  )}
+                </Link>
+              ))}
+
+              {!normalizedQuery && (
+                <button
+                  type="button"
+                  className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm font-semibold hover:bg-muted"
+                  onClick={() => setIsCreateGroupOpen(true)}
+                >
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Plus className="size-5" />
+                  </div>
+                  <span>Tạo nhóm chat</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {hasNoResults && (
+          <p className="px-2 py-3 text-sm text-muted-foreground">
+            Không tìm thấy liên hệ phù hợp.
+          </p>
+        )}
+        </CardContent>
+      </Card>
+    </>
   )
 }
