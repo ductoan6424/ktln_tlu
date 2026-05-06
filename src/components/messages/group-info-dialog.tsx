@@ -358,9 +358,10 @@ export function GroupInfoDialog({
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm lg:hidden"
+        variant="ghost"
+        className="fixed inset-0 z-40 h-auto w-auto rounded-none bg-background/60 p-0 backdrop-blur-sm hover:bg-background/60 lg:hidden"
         aria-label="Đóng thông tin nhóm"
         onClick={() => handleOpenChange(false)}
       />
@@ -390,14 +391,15 @@ export function GroupInfoDialog({
         ) : (
           <div className="flex-1 overflow-y-auto px-3 py-4">
             {details.currentUserIsAdmin && (
-              <button
+              <Button
                 type="button"
-                className="mb-4 flex h-12 w-full items-center gap-4 rounded-lg px-2 text-left hover:bg-muted/70"
+                variant="ghost"
+                className="mb-4 h-12 w-full justify-start gap-4 px-2 text-left hover:bg-muted/70"
                 onClick={() => handleRenameOpenChange(true)}
               >
                 <Pencil className="size-5 text-foreground" />
                 <span className="text-[15px] font-semibold">Đổi tên nhóm</span>
-              </button>
+              </Button>
             )}
 
             <section className="space-y-1">
@@ -506,14 +508,15 @@ export function GroupInfoDialog({
               )}
 
               {details.currentUserIsAdmin && (
-                <button
+                <Button
                   type="button"
-                  className="flex h-14 w-full items-center gap-4 rounded-lg px-2 text-left hover:bg-muted/70"
+                  variant="ghost"
+                  className="h-14 w-full justify-start gap-4 px-2 text-left hover:bg-muted/70"
                   onClick={() => handleAddMembersOpenChange(true)}
                 >
                   <UserPlus className="size-6 text-foreground" />
                   <span className="text-[15px] font-semibold">Thêm người</span>
-                </button>
+                </Button>
               )}
             </section>
           </div>
@@ -590,15 +593,16 @@ export function GroupInfoDialog({
             {selectedUsers.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {selectedUsers.map((user) => (
-                  <button
+                  <Button
                     key={user.userId}
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
+                    variant="ghost"
+                    className="h-auto gap-1.5 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/15 hover:text-primary"
                     onClick={() => setSelectedUsers((prev) => prev.filter((item) => item.userId !== user.userId))}
                   >
                     <span className="max-w-32 truncate">{user.displayName}</span>
                     <X className="size-3" />
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -628,11 +632,12 @@ export function GroupInfoDialog({
                   const isSelected = selectedIds.has(user.userId)
 
                   return (
-                    <button
+                    <Button
                       key={user.userId}
                       type="button"
+                      variant="ghost"
                       className={cn(
-                        "flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-muted",
+                        "h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 text-left",
                         isSelected && "bg-primary/5",
                       )}
                       onClick={() => toggleUser(user)}
@@ -658,7 +663,7 @@ export function GroupInfoDialog({
                       >
                         {isSelected && <Check className="size-3" />}
                       </span>
-                    </button>
+                    </Button>
                   )
                 })
               )}

@@ -1,6 +1,7 @@
 "use client"
 
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -30,13 +31,15 @@ export function ConversationItem({
   onClick,
 }: ConversationItemProps) {
   return (
-    <div
+    <Button
+      type="button"
+      variant="ghost"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-4 px-4 py-4 cursor-pointer transition-colors",
+        "h-auto w-full justify-start gap-4 rounded-none border-0 px-4 py-4 text-left whitespace-normal",
         isActive
-          ? "bg-primary/5 border-r-4 border-primary"
-          : "hover:bg-muted border-b border-border/50"
+          ? "border-r-4 border-primary bg-primary/5 hover:bg-primary/5"
+          : "border-b border-border/50 hover:bg-muted"
       )}
     >
       <UserAvatar
@@ -81,7 +84,7 @@ export function ConversationItem({
           {unreadCount}
         </span>
       )}
-    </div>
+    </Button>
   )
 }
 
