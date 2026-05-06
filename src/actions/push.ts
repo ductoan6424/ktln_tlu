@@ -107,3 +107,73 @@ export async function getMyPushStatus(): Promise<
     return errorResult("Không thể kiểm tra trạng thái thông báo.")
   }
 }
+
+export type PushDeviceItem = {
+  id: string
+  endpoint: string
+  userAgent: string | null
+  createdAt: string
+  lastUsedAt: string
+}
+
+// Lấy danh sách các thiết bị (browser/PWA install) đã đăng ký push của user.
+export async function listMyPushDevices(): Promise<
+  ActionResult<{ devices: PushDeviceItem[] }>
+> {
+  try {
+    const userId = await getCurrentUserId()
+    if (!userId) return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+
+    const rows = await prisma.pushSubscription.findMany({
+      where: { userId },
+      orderBy: { lastUsedAt: "desc" },
+      select: {
+        id: true,
+        endpoint: true,
+        userAgent: true,
+        createdAt: true,
+        lastUsedAt: true,
+      },
+    })
+
+    return successResult({
+      devices: rows.map((row) => ({
+        id: row.id,
+        endpoint: row.endpoint,
+        userAgent: row.userAgent,
+        createdAt: row.createdAt.toISOString(),
+        lastUsedAt: row.lastUsedAt.toISOString(),
+      })),
+    })
+  } catch (error) {
+    console.error("listMyPushDevices error:", error)
+    return errorResult("Không thể tải danh sách thiết bị.")
+  }
+}
+
+// Thu hồi 1 subscription theo id (chỉ xóa được sub của chính user).
+export async function revokePushDevice(
+  id: string,
+): Promise<ActionResult<{ removed: number }>> {
+  try {
+    const userId = await getCurrentUserId()
+    if (!userId) return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+
+    if (typeof id !== "string" || id.trim().length === 0) {
+      return errorResult("ID thiết bị không hợp lệ.", "VALIDATION_ERROR")
+    }
+
+    const result = await prisma.pushSubscription.deleteMany({
+      where: { id: id.trim(), userId },
+    })
+
+    if (result.count === 0) {
+      return errorResult("Không tìm thấy thiết bị.", "NOT_FOUND")
+    }
+
+    return successResult({ removed: result.count })
+  } catch (error) {
+    console.error("revokePushDevice error:", error)
+    return errorResult("Không thể thu hồi thiết bị.")
+  }
+}
