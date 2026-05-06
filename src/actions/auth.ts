@@ -242,6 +242,29 @@ export async function logout(): Promise<void> {
   })
 }
 
+// Đăng xuất khỏi tất cả thiết bị KHÁC (phiên hiện tại được giữ nguyên).
+// Supabase hỗ trợ scope='others' để revoke mọi refresh token khác của user.
+export async function signOutOtherSessions(): Promise<ActionResult> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const { error } = await supabase.auth.signOut({ scope: "others" })
+    if (error) {
+      console.error("signOutOtherSessions error:", error)
+      return errorResult("Không thể đăng xuất khỏi các thiết bị khác.")
+    }
+
+    return successResult({ message: "Đã đăng xuất khỏi các thiết bị khác." })
+  } catch (error) {
+    console.error("signOutOtherSessions error:", error)
+    return errorResult("Đã xảy ra lỗi. Vui lòng thử lại.")
+  }
+}
+
 export async function forgotPassword(email: string): Promise<ActionResult> {
   try {
     const profile = await prisma.userProfile.findUnique({ where: { email } })

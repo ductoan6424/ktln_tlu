@@ -1,6 +1,7 @@
 import type { NotificationType, Prisma } from "@prisma/client"
 
 import { getAblyRestClient } from "@/lib/ably/server"
+import { sendPushToUser } from "@/lib/push/service"
 import {
   NOTIFICATION_AGGREGATION_WINDOW_MS,
   NOTIFICATION_EVENT_CREATED,
@@ -292,6 +293,17 @@ export async function createNotification(
     kind: result.kind,
     notification: item,
     unreadCount,
+  })
+  
+  void sendPushToUser(input.recipientId, {
+    title: item.title,
+    body: item.content,
+    url: item.link ?? "/notifications",
+    icon: item.actor?.avatarUrl ?? "/icons/icon-192.png",
+    badge: "/icons/badge-72.png",
+    tag: input.groupKey,
+  }).catch((error) => {
+    console.error("createNotification → sendPushToUser error:", error)
   })
 
   return item
