@@ -184,7 +184,7 @@ export function PostDetailDialog({
       {likes > 0 && (
         <LikersTooltip postId={postId}>
           <span className="flex items-center gap-1 cursor-default">
-            <Heart className="size-3.5 fill-primary text-primary" />
+            <Heart className="size-3.5 fill-destructive text-destructive" />
             {likes} lượt thích
           </span>
         </LikersTooltip>
@@ -208,7 +208,7 @@ export function PostDetailDialog({
               : "text-muted-foreground hover:text-destructive"
           )}
         >
-          <Heart className={cn("size-5", isLiked && "fill-destructive")} />
+          <Heart className={cn("size-5", isLiked && "fill-destructive text-destructive")} />
           Thích
         </Button>
       ) : (
