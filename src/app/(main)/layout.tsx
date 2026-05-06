@@ -54,7 +54,7 @@ export default async function MainLayout({
   const visibleNavItems = filterNavItemsByFlags(MAIN_NAV_ITEMS, moduleFlags)
 
   return (
-    <div className="h-screen overflow-hidden bg-muted/30">
+    <div className="min-h-dvh bg-muted/30">
       <TopNavbar
         navItems={visibleNavItems}
         user={sessionUser}
@@ -63,7 +63,7 @@ export default async function MainLayout({
         messageCount={5}
         searchPlaceholder="Tìm kiếm trong cộng đồng..."
       />
-      <main className="h-full overflow-y-auto pt-14 pb-14 lg:pt-16 lg:pb-0">{children}</main>
+      <main className="min-h-dvh pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pt-16 lg:pb-0">{children}</main>
       <MobileBottomNav
         user={sessionUser}
         notificationCount={3}
