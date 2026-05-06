@@ -12,7 +12,14 @@ import { UserAvatar } from "@/components/shared/user-avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
-import { subscribeContactsChanged } from "@/lib/contacts/events"
+import { createAblyClient } from "@/lib/ably/client"
+import { getUserInboxChannelName } from "@/lib/config/chat"
+import {
+  CONTACTS_INBOX_EVENT,
+  notifyContactMessageChanged,
+  notifyContactsChanged,
+  subscribeContactsChanged,
+} from "@/lib/contacts/events"
 import { cn } from "@/lib/utils"
 import type { ChatSessionUser } from "@/types/chat"
 import type { ActiveFriend } from "./mock-data"
@@ -116,6 +123,52 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
       unsubscribe()
     }
   }, [normalizedQuery, query])
+
+  useEffect(() => {
+    if (!sessionUser) {
+      return
+    }
+
+    const client = createAblyClient()
+    const inboxChannel = client.channels.get(getUserInboxChannelName(sessionUser.userId))
+    const handleContactsChanged = (message: { data?: unknown }) => {
+      const payload = message.data as Parameters<typeof notifyContactsChanged>[0] | undefined
+
+      if (!payload || typeof payload.action !== "string") {
+        return
+      }
+
+      notifyContactsChanged(payload)
+    }
+    const handleIncomingMessage = (message: { data?: unknown }) => {
+      const payload = message.data as {
+        conversationId?: unknown
+        senderId?: unknown
+      } | undefined
+
+      if (
+        !payload ||
+        typeof payload.senderId !== "string" ||
+        typeof payload.conversationId !== "string"
+      ) {
+        return
+      }
+
+      notifyContactMessageChanged({
+        userId: payload.senderId,
+        conversationId: payload.conversationId,
+        direction: "received",
+      })
+    }
+
+    inboxChannel.subscribe(CONTACTS_INBOX_EVENT, handleContactsChanged)
+    inboxChannel.subscribe("chat.incoming", handleIncomingMessage)
+
+    return () => {
+      inboxChannel.unsubscribe(CONTACTS_INBOX_EVENT, handleContactsChanged)
+      inboxChannel.unsubscribe("chat.incoming", handleIncomingMessage)
+    }
+  }, [sessionUser])
 
   useEffect(() => {
     if (isSearchOpen) {

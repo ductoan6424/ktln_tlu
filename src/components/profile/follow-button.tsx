@@ -6,7 +6,7 @@ import { Check, UserCheck, UserPlus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { followUser, unfollowUser } from "@/actions/follows"
-import { notifyContactsChanged } from "@/lib/contacts/events"
+import { notifyContactFollowChanged } from "@/lib/contacts/events"
 import { cn } from "@/lib/utils"
 import type { FollowStatus } from "@/lib/follows/queries"
 
@@ -89,9 +89,12 @@ export function FollowButton({
         })
       }
 
-      notifyContactsChanged({
-        action: willFollow ? "followed" : "unfollowed",
+      notifyContactFollowChanged({
         userId: targetUserId,
+        isFollowing: willFollow,
+        isMutual: willFollow && result.data && "isMutual" in result.data
+          ? result.data.isMutual
+          : false,
       })
       router.refresh()
     })
