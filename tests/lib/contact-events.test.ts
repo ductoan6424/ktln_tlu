@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
   CONTACTS_CHANGED_EVENT,
+  CONTACTS_INBOX_EVENT,
+  notifyContactFollowChanged,
+  notifyContactGroupChanged,
+  notifyContactMessageChanged,
   notifyContactsChanged,
   subscribeContactsChanged,
 } from "@/lib/contacts/events"
@@ -68,5 +72,51 @@ describe("contact events", () => {
   it("is a no-op outside the browser", () => {
     expect(() => notifyContactsChanged({ action: "followed", userId: "user-2" })).not.toThrow()
     expect(() => subscribeContactsChanged(() => undefined)()).not.toThrow()
+  })
+
+  it("emits semantic events for friendship and messages", () => {
+    installWindowStub()
+    const listener = vi.fn()
+
+    subscribeContactsChanged(listener)
+
+    notifyContactFollowChanged({
+      userId: "user-2",
+      isFollowing: true,
+      isMutual: true,
+    })
+    notifyContactMessageChanged({
+      userId: "user-3",
+      conversationId: "conversation-1",
+      direction: "received",
+    })
+
+    expect(listener).toHaveBeenNthCalledWith(1, {
+      action: "friendship-updated",
+      userId: "user-2",
+    })
+    expect(listener).toHaveBeenNthCalledWith(2, {
+      action: "message-received",
+      userId: "user-3",
+      conversationId: "conversation-1",
+    })
+  })
+
+  it("emits semantic events for group chat changes", () => {
+    installWindowStub()
+    const listener = vi.fn()
+
+    subscribeContactsChanged(listener)
+
+    notifyContactGroupChanged({
+      action: "group-deleted",
+      conversationId: "group-1",
+    })
+
+    expect(listener).toHaveBeenCalledWith({
+      action: "group-deleted",
+      conversationId: "group-1",
+    })
+    expect(CONTACTS_INBOX_EVENT).toBe("contacts.changed")
   })
 })

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
+import { notifyContactGroupChanged } from "@/lib/contacts/events"
 import { cn } from "@/lib/utils"
 import type { ChatConversationItem, ChatUserSearchResult } from "@/types/chat"
 
@@ -118,6 +119,10 @@ export function CreateGroupDialog({
       return
     }
 
+    notifyContactGroupChanged({
+      action: "group-created",
+      conversationId: result.data.id,
+    })
     onCreated(result.data)
     handleOpenChange(false)
   }
