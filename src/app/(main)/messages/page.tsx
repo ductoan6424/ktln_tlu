@@ -23,6 +23,7 @@ import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { Button } from "@/components/ui/button"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/contacts/events"
 import type { ChatConversationItem, ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime, formatRelativeTime } from "@/utils/formatters"
 
@@ -399,6 +400,19 @@ export default function MessagesPage() {
         URL.revokeObjectURL(optimisticAttachment.url)
       }
 
+      if (activeConversation?.peerUserId) {
+        notifyContactMessageChanged({
+          userId: activeConversation.peerUserId,
+          conversationId: currentConversationId,
+          direction: "sent",
+        })
+      } else if (activeConversation?.isGroup) {
+        notifyContactGroupChanged({
+          action: "message-sent",
+          conversationId: currentConversationId,
+        })
+      }
+
       setMessages((prev) => {
         const withoutOptimistic = prev.filter((item) => item.id !== optimisticId)
         if (withoutOptimistic.some((item) => item.id === result.data!.id)) {
@@ -410,7 +424,7 @@ export default function MessagesPage() {
 
       return true
     },
-    [sessionUser],
+    [activeConversation?.isGroup, activeConversation?.peerUserId, sessionUser],
   )
 
   const mappedConversations = useMemo(

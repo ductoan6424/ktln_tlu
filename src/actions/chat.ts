@@ -6,6 +6,7 @@ import { getAblyRestClient } from "@/lib/ably/server"
 import { CHAT_INPUT_MAX_LENGTH, CHAT_PAGE_SIZE, getChatChannelName, getUserInboxChannelName } from "@/lib/config/chat"
 import { mapMessageToItem, sortMessagesAsc } from "@/lib/chat/map"
 import { UploadValidationError, uploadChatAttachment } from "@/lib/cloudinary/upload"
+import { CONTACTS_INBOX_EVENT, type ContactsChangedDetail } from "@/lib/contacts/events"
 import { prisma } from "@/lib/prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
@@ -39,6 +40,37 @@ const createGroupInputSchema = z.object({
     .min(2, "Chọn ít nhất 2 thành viên")
     .max(49, "Nhóm chat tối đa 50 thành viên"),
 })
+
+async function publishContactsChangedToUsers(
+  userIds: string[],
+  payload: ContactsChangedDetail,
+) {
+  const uniqueUserIds = Array.from(new Set(userIds)).filter(Boolean)
+  if (uniqueUserIds.length === 0) {
+    return
+  }
+
+  try {
+    const ably = getAblyRestClient()
+    await Promise.allSettled(
+      uniqueUserIds.map((userId) =>
+        ably.channels
+          .get(getUserInboxChannelName(userId))
+          .publish(CONTACTS_INBOX_EVENT, payload),
+      ),
+    )
+  } catch {
+  }
+}
+
+async function listConversationParticipantIds(conversationId: string) {
+  const participants = await prisma.conversationParticipant.findMany({
+    where: { conversationId },
+    select: { userId: true },
+  })
+
+  return participants.map((participant) => participant.userId)
+}
 
 const searchUsersInputSchema = z.object({
   query: z.string().trim().max(80).default(""),
@@ -500,6 +532,14 @@ export async function createGroupConversation(
       },
     })
 
+    await publishContactsChangedToUsers(
+      created.participants.map((participant) => participant.userId),
+      {
+        action: "group-created",
+        conversationId: created.id,
+      },
+    )
+
     return successResult({
       id: created.id,
       name: created.name ?? groupName,
@@ -538,6 +578,14 @@ export async function getGroupConversationDetails(
       return errorResult("Không tìm thấy nhóm chat", "NOT_FOUND")
     }
 
+    await publishContactsChangedToUsers(
+      details.members.map((member) => member.userId),
+      {
+        action: "group-updated",
+        conversationId: input.conversationId,
+      },
+    )
+
     return successResult(details)
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -569,6 +617,12 @@ export async function renameGroupConversation(
       where: { id: input.conversationId },
       data: { name: input.name },
       select: { id: true, name: true },
+    })
+    const participantIds = await listConversationParticipantIds(input.conversationId)
+
+    await publishContactsChangedToUsers(participantIds, {
+      action: "group-updated",
+      conversationId: input.conversationId,
     })
 
     return successResult({
@@ -658,6 +712,14 @@ export async function addGroupConversationMembers(
       return errorResult("Không tìm thấy nhóm chat", "NOT_FOUND")
     }
 
+    await publishContactsChangedToUsers(
+      details.members.map((member) => member.userId),
+      {
+        action: "group-updated",
+        conversationId: input.conversationId,
+      },
+    )
+
     return successResult(details)
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -723,6 +785,14 @@ export async function removeGroupConversationMember(
       return errorResult("Không tìm thấy nhóm chat", "NOT_FOUND")
     }
 
+    await publishContactsChangedToUsers(
+      [...details.members.map((member) => member.userId), input.memberId],
+      {
+        action: "group-updated",
+        conversationId: input.conversationId,
+      },
+    )
+
     return successResult(details)
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -750,8 +820,15 @@ export async function deleteGroupConversation(
       return errorResult("Bạn không có quyền xoá nhóm", "FORBIDDEN")
     }
 
+    const participantIds = await listConversationParticipantIds(input.conversationId)
+
     await prisma.conversation.delete({
       where: { id: input.conversationId },
+    })
+
+    await publishContactsChangedToUsers(participantIds, {
+      action: "group-deleted",
+      conversationId: input.conversationId,
     })
 
     return successResult({ conversationId: input.conversationId })
@@ -795,6 +872,8 @@ export async function leaveGroupConversation(
       return errorResult("Không tìm thấy nhóm chat", "NOT_FOUND")
     }
 
+    const participantIdsBeforeLeave = await listConversationParticipantIds(input.conversationId)
+
     const result = await prisma.$transaction(async (tx) => {
       await tx.conversationParticipant.delete({
         where: {
@@ -837,6 +916,11 @@ export async function leaveGroupConversation(
       }
 
       return { deleted: false }
+    })
+
+    await publishContactsChangedToUsers(participantIdsBeforeLeave, {
+      action: result.deleted ? "group-deleted" : "group-left",
+      conversationId: input.conversationId,
     })
 
     return successResult({

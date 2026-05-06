@@ -12,6 +12,14 @@ import { UserAvatar } from "@/components/shared/user-avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import { createAblyClient } from "@/lib/ably/client"
+import { getUserInboxChannelName } from "@/lib/config/chat"
+import {
+  CONTACTS_INBOX_EVENT,
+  notifyContactMessageChanged,
+  notifyContactsChanged,
+  subscribeContactsChanged,
+} from "@/lib/contacts/events"
 import { cn } from "@/lib/utils"
 import type { ChatSessionUser } from "@/types/chat"
 import type { ActiveFriend } from "./mock-data"
@@ -43,6 +51,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
   const [query, setQuery] = useState("")
+  const normalizedQuery = normalizeSearch(query)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { onlineUserIds } = useChatRealtime({
@@ -77,12 +86,96 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
   }, [])
 
   useEffect(() => {
+    let isDisposed = false
+
+    const refreshContacts = async () => {
+      const result = await listActiveFriends(normalizedQuery ? { query } : undefined)
+      if (isDisposed) {
+        return
+      }
+
+      if (!result.success || !result.data) {
+        if (normalizedQuery) {
+          setSearchContacts([])
+          setSearchGroups([])
+        } else {
+          setContacts([])
+          setGroups([])
+        }
+        return
+      }
+
+      if (normalizedQuery) {
+        setSearchContacts(result.data.contacts)
+        setSearchGroups(result.data.groups)
+      } else {
+        setContacts(result.data.contacts)
+        setGroups(result.data.groups)
+      }
+    }
+
+    const unsubscribe = subscribeContactsChanged(() => {
+      void refreshContacts()
+    })
+
+    return () => {
+      isDisposed = true
+      unsubscribe()
+    }
+  }, [normalizedQuery, query])
+
+  useEffect(() => {
+    if (!sessionUser) {
+      return
+    }
+
+    const client = createAblyClient()
+    const inboxChannel = client.channels.get(getUserInboxChannelName(sessionUser.userId))
+    const handleContactsChanged = (message: { data?: unknown }) => {
+      const payload = message.data as Parameters<typeof notifyContactsChanged>[0] | undefined
+
+      if (!payload || typeof payload.action !== "string") {
+        return
+      }
+
+      notifyContactsChanged(payload)
+    }
+    const handleIncomingMessage = (message: { data?: unknown }) => {
+      const payload = message.data as {
+        conversationId?: unknown
+        senderId?: unknown
+      } | undefined
+
+      if (
+        !payload ||
+        typeof payload.senderId !== "string" ||
+        typeof payload.conversationId !== "string"
+      ) {
+        return
+      }
+
+      notifyContactMessageChanged({
+        userId: payload.senderId,
+        conversationId: payload.conversationId,
+        direction: "received",
+      })
+    }
+
+    inboxChannel.subscribe(CONTACTS_INBOX_EVENT, handleContactsChanged)
+    inboxChannel.subscribe("chat.incoming", handleIncomingMessage)
+
+    return () => {
+      inboxChannel.unsubscribe(CONTACTS_INBOX_EVENT, handleContactsChanged)
+      inboxChannel.unsubscribe("chat.incoming", handleIncomingMessage)
+    }
+  }, [sessionUser])
+
+  useEffect(() => {
     if (isSearchOpen) {
       searchInputRef.current?.focus()
     }
   }, [isSearchOpen])
 
-  const normalizedQuery = normalizeSearch(query)
   useEffect(() => {
     if (!normalizedQuery) {
       return
