@@ -8,6 +8,7 @@ import { mapMessageToItem, sortMessagesAsc } from "@/lib/chat/map"
 import { UploadValidationError, uploadChatAttachment } from "@/lib/cloudinary/upload"
 import { CONTACTS_INBOX_EVENT, type ContactsChangedDetail } from "@/lib/contacts/events"
 import { prisma } from "@/lib/prisma/client"
+import { sendPushToUser } from "@/lib/push/service"
 import { createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -32,6 +33,8 @@ const sendMessageInputSchema = z.object({
   conversationId: z.string().min(1, "Thiếu hội thoại"),
   content: z.string().max(CHAT_INPUT_MAX_LENGTH).default(""),
 })
+
+const CHAT_PUSH_BODY_MAX_LENGTH = 120
 
 const createGroupInputSchema = z.object({
   name: z.string().trim().max(80, "Tên nhóm tối đa 80 ký tự").optional(),
@@ -149,6 +152,46 @@ function isAttachmentFile(value: unknown): value is File {
     "type" in value &&
     typeof value.type === "string"
   )
+}
+
+type UploadedChatAttachment = Awaited<ReturnType<typeof uploadChatAttachment>>
+
+function truncateChatPushText(value: string) {
+  return value.length > CHAT_PUSH_BODY_MAX_LENGTH
+    ? `${value.slice(0, CHAT_PUSH_BODY_MAX_LENGTH - 1)}…`
+    : value
+}
+
+function formatChatPushBody(
+  content: string,
+  attachment: UploadedChatAttachment | null,
+) {
+  if (content) {
+    return truncateChatPushText(content)
+  }
+
+  if (!attachment) {
+    return "Bạn có tin nhắn mới."
+  }
+
+  if (attachment.type === "image") {
+    return "Đã gửi một hình ảnh."
+  }
+
+  return truncateChatPushText(`Đã gửi tệp ${attachment.name}.`)
+}
+
+function formatChatPushTitle(input: {
+  senderName: string
+  conversationType: "DIRECT" | "GROUP"
+  conversationName: string | null
+}) {
+  if (input.conversationType === "GROUP") {
+    const groupName = input.conversationName?.trim() || "nhóm chat"
+    return truncateChatPushText(`${input.senderName} trong ${groupName}`)
+  }
+
+  return truncateChatPushText(`${input.senderName} đã nhắn tin cho bạn`)
 }
 
 async function getAuthUserId() {
@@ -1185,20 +1228,35 @@ export async function sendConversationMessage(
 
     const payload = mapMessageToItem(message, currentUser.userId)
 
+    let deliveryInfo: {
+      type: "DIRECT" | "GROUP"
+      name: string | null
+      participants: Array<{ userId: string }>
+    } | null = null
+
+    try {
+      deliveryInfo = await prisma.conversation.findUnique({
+        where: { id: input.conversationId },
+        select: {
+          type: true,
+          name: true,
+          participants: {
+            select: { userId: true },
+          },
+        },
+      })
+    } catch {
+    }
+
+    const recipientIds = (deliveryInfo?.participants ?? [])
+      .map((p) => p.userId)
+      .filter((id) => id !== currentUser.userId)
+
     try {
       const ably = getAblyRestClient()
       await ably.channels
         .get(getChatChannelName(input.conversationId))
         .publish("message.new", payload)
-
-      const participants = await prisma.conversationParticipant.findMany({
-        where: { conversationId: input.conversationId },
-        select: { userId: true },
-      })
-
-      const recipientIds = participants
-        .map((p) => p.userId)
-        .filter((id) => id !== currentUser.userId)
 
       await Promise.allSettled(
         recipientIds.map((recipientId) =>
@@ -1214,6 +1272,25 @@ export async function sendConversationMessage(
         ),
       )
     } catch {
+    }
+
+    if (recipientIds.length > 0) {
+      const pushPayload = {
+        title: formatChatPushTitle({
+          senderName: currentUser.displayName,
+          conversationType: deliveryInfo?.type ?? "DIRECT",
+          conversationName: deliveryInfo?.name ?? null,
+        }),
+        body: formatChatPushBody(finalContent, uploadedAttachment),
+        url: `/messages?conversation=${encodeURIComponent(input.conversationId)}`,
+        icon: currentUser.avatarUrl ?? "/icons/icon-192.png",
+        badge: "/icons/badge-72.png",
+        tag: `chat:${input.conversationId}`,
+      }
+
+      await Promise.allSettled(
+        recipientIds.map((recipientId) => sendPushToUser(recipientId, pushPayload)),
+      )
     }
 
     return successResult(payload)
