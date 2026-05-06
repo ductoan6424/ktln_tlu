@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 const createClient = vi.hoisted(() => vi.fn())
 const getAblyRestClient = vi.hoisted(() => vi.fn())
 const publish = vi.hoisted(() => vi.fn())
+const sendPushToUser = vi.hoisted(() => vi.fn())
 const uploadChatAttachment = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
   userProfile: {
@@ -24,6 +25,7 @@ const prisma = vi.hoisted(() => ({
   },
   conversation: {
     create: vi.fn(),
+    findUnique: vi.fn(),
     update: vi.fn(),
   },
   $transaction: vi.fn(),
@@ -32,6 +34,7 @@ const prisma = vi.hoisted(() => ({
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
 vi.mock("@/lib/ably/server", () => ({ getAblyRestClient }))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
+vi.mock("@/lib/push/service", () => ({ sendPushToUser }))
 vi.mock("@/lib/cloudinary/upload", () => ({
   UploadValidationError: class UploadValidationError extends Error {},
   uploadChatAttachment,
@@ -42,6 +45,8 @@ import { getChatSessionUser, sendConversationMessage } from "@/actions/chat"
 beforeEach(() => {
   vi.clearAllMocks()
   uploadChatAttachment.mockReset()
+  sendPushToUser.mockResolvedValue(undefined)
+  prisma.conversation.findUnique.mockResolvedValue(null)
 
   getAblyRestClient.mockReturnValue({
     channels: {
@@ -119,7 +124,7 @@ describe("sendConversationMessage", () => {
     })
   })
 
-  it("creates message and publishes realtime event", async () => {
+  it("creates message, publishes realtime event and sends push to recipients", async () => {
     mockWithSession("user-self")
 
     prisma.userProfile.findUnique.mockResolvedValue({
@@ -133,6 +138,14 @@ describe("sendConversationMessage", () => {
       conversationId: "conv-1",
       userId: "user-self",
       lastReadAt: null,
+    })
+    prisma.conversation.findUnique.mockResolvedValue({
+      type: "DIRECT",
+      name: null,
+      participants: [
+        { userId: "user-self" },
+        { userId: "user-peer" },
+      ],
     })
 
     prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
@@ -174,6 +187,19 @@ describe("sendConversationMessage", () => {
         conversationId: "conv-1",
         content: "Xin chào",
       }),
+    )
+    expect(sendPushToUser).toHaveBeenCalledWith(
+      "user-peer",
+      expect.objectContaining({
+        title: "Bạn đã nhắn tin cho bạn",
+        body: "Xin chào",
+        url: "/messages?conversation=conv-1",
+        tag: "chat:conv-1",
+      }),
+    )
+    expect(sendPushToUser).not.toHaveBeenCalledWith(
+      "user-self",
+      expect.anything(),
     )
 
     expect(result.success).toBe(true)
