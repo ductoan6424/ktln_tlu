@@ -11,6 +11,8 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { SectionHeader } from "@/components/shared/section-header"
+import { PushDevicesManager } from "@/components/pwa/push-devices-manager"
+import { SignOutOthersButton } from "@/components/auth/sign-out-others-button"
 import {
   User,
   Bell,
@@ -204,13 +206,18 @@ function NotificationsSection() {
       <CardContent className="p-6 space-y-6">
         <SectionHeader title="Cài đặt thông báo" />
 
+        <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          Quản lý bật/tắt thông báo đẩy và danh sách thiết bị nhận thông báo trong{" "}
+          <Link
+            href="/settings?section=security"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Bảo mật → Thông báo đẩy
+          </Link>
+          .
+        </p>
+
         <div className="space-y-4">
-          <SettingsToggle
-            title="Thông báo đẩy"
-            description="Nhận thông báo trên trình duyệt khi có hoạt động mới"
-            defaultChecked
-          />
-          <Separator />
           <SettingsToggle
             title="Thông báo qua email"
             description="Nhận email tóm tắt hoạt động hàng tuần"
@@ -275,33 +282,34 @@ function SecuritySection() {
         </CardContent>
       </Card>
 
+      {/* Thông báo đẩy & thiết bị PWA */}
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="space-y-1">
+            <SectionHeader title="Thông báo đẩy" />
+            <p className="text-xs text-muted-foreground">
+              Quản lý bật/tắt và các trình duyệt/PWA đã đăng ký nhận thông báo.
+            </p>
+          </div>
+          <PushDevicesManager />
+        </CardContent>
+      </Card>
+
       {/* Phiên đăng nhập */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <SectionHeader title="Phiên đăng nhập" />
-          <div className="space-y-3">
-            <SessionItem
-              device="Chrome trên Windows"
-              location="Hà Nội, Việt Nam"
-              time="Đang hoạt động"
-              isCurrent
-            />
-            <Separator />
-            <SessionItem
-              device="Safari trên iPhone"
-              location="Hà Nội, Việt Nam"
-              time="2 giờ trước"
-            />
-            <Separator />
-            <SessionItem
-              device="Firefox trên macOS"
-              location="Hà Nội, Việt Nam"
-              time="3 ngày trước"
-            />
+          <div className="space-y-1">
+            <SectionHeader title="Phiên đăng nhập" />
+            <p className="text-xs text-muted-foreground">
+              Thu hồi đăng nhập trên các thiết bị khác. Phiên hiện tại được giữ nguyên.
+            </p>
           </div>
-          <Button variant="outline" className="text-destructive hover:text-destructive">
-            Đăng xuất tất cả thiết bị khác
-          </Button>
+          <p className="text-xs text-muted-foreground">
+            Vì lý do bảo mật, chúng tôi không hiển thị danh sách phiên cụ thể. Bạn có thể đăng xuất khỏi mọi thiết bị khác chỉ bằng một thao tác.
+          </p>
+          <div className="flex justify-start">
+            <SignOutOthersButton />
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -429,41 +437,6 @@ function SettingsToggle({
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <Switch defaultChecked={defaultChecked} />
-    </div>
-  )
-}
-
-function SessionItem({
-  device,
-  location,
-  time,
-  isCurrent = false,
-}: {
-  device: string
-  location: string
-  time: string
-  isCurrent?: boolean
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium flex items-center gap-2">
-          {device}
-          {isCurrent && (
-            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-              Hiện tại
-            </span>
-          )}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {location} • {time}
-        </p>
-      </div>
-      {!isCurrent && (
-        <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive">
-          Đăng xuất
-        </Button>
-      )}
     </div>
   )
 }
