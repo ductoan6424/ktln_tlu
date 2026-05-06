@@ -16,6 +16,7 @@ import { ChatHeader } from "@/components/messages/chat-header"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import { notifyContactMessageChanged } from "@/lib/contacts/events"
 import type { ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime } from "@/utils/formatters"
 import type { ActiveFriend } from "./mock-data"
@@ -252,6 +253,12 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
       setMessages((prev) => prev.filter((item) => item.id !== optimisticId))
       return false
     }
+
+    notifyContactMessageChanged({
+      userId: friend.id,
+      conversationId: currentConversationId,
+      direction: "sent",
+    })
 
     if (optimisticAttachment) {
       URL.revokeObjectURL(optimisticAttachment.url)

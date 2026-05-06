@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
+import { notifyContactGroupChanged } from "@/lib/contacts/events"
 import { cn } from "@/lib/utils"
 import type { ChatGroupDetails, ChatUserSearchResult } from "@/types/chat"
 
@@ -258,6 +259,10 @@ export function GroupInfoDialog({
     }
 
     setDetails({ ...details, name: result.data.name })
+    notifyContactGroupChanged({
+      action: "group-updated",
+      conversationId,
+    })
     onGroupRenamed?.(conversationId, result.data.name)
     setIsRenameOpen(false)
     toast({ description: "Đã đổi tên nhóm." })
@@ -283,6 +288,10 @@ export function GroupInfoDialog({
     }
 
     setDetails(result.data)
+    notifyContactGroupChanged({
+      action: "group-updated",
+      conversationId,
+    })
     onGroupMembersChanged?.(conversationId, result.data.participantCount)
     handleAddMembersOpenChange(false)
   }
@@ -307,6 +316,10 @@ export function GroupInfoDialog({
     }
 
     setDetails(result.data)
+    notifyContactGroupChanged({
+      action: "group-updated",
+      conversationId,
+    })
     onGroupMembersChanged?.(conversationId, result.data.participantCount)
   }
 
@@ -326,6 +339,10 @@ export function GroupInfoDialog({
       return
     }
 
+    notifyContactGroupChanged({
+      action: "group-left",
+      conversationId,
+    })
     onLeftGroup?.(conversationId)
     handleOpenChange(false)
   }
@@ -346,6 +363,10 @@ export function GroupInfoDialog({
       return
     }
 
+    notifyContactGroupChanged({
+      action: "group-deleted",
+      conversationId,
+    })
     onLeftGroup?.(conversationId)
     handleOpenChange(false)
   }
