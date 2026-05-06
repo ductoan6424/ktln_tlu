@@ -143,15 +143,16 @@ export function CreateGroupDialog({
           {selectedUsers.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {selectedUsers.map((user) => (
-                <button
+                <Button
                   key={user.userId}
                   type="button"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
+                  variant="ghost"
+                  className="h-auto gap-1.5 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/15 hover:text-primary"
                   onClick={() => removeSelectedUser(user.userId)}
                 >
                   <span className="max-w-32 truncate">{user.displayName}</span>
                   <X className="size-3" />
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -181,11 +182,12 @@ export function CreateGroupDialog({
                 const isSelected = selectedIds.has(user.userId)
 
                 return (
-                  <button
+                  <Button
                     key={user.userId}
                     type="button"
+                    variant="ghost"
                     className={cn(
-                      "flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-muted",
+                      "h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 text-left",
                       isSelected && "bg-primary/5",
                     )}
                     onClick={() => toggleUser(user)}
@@ -211,7 +213,7 @@ export function CreateGroupDialog({
                     >
                       {isSelected && <Check className="size-3" />}
                     </span>
-                  </button>
+                  </Button>
                 )
               })
             )}
