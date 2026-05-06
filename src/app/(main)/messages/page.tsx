@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { ArrowLeft } from "lucide-react"
 
@@ -15,8 +15,10 @@ import {
 import { ChatBubble } from "@/components/messages/chat-bubble"
 import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { ChatHeader } from "@/components/messages/chat-header"
+import { CreateGroupDialog } from "@/components/messages/create-group-dialog"
 import { ConversationItem } from "@/components/messages/conversation-item"
 import { ConversationList } from "@/components/messages/conversation-list"
+import { GroupInfoDialog } from "@/components/messages/group-info-dialog"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { Button } from "@/components/ui/button"
@@ -50,12 +52,13 @@ const ChatMessageRow = memo(function ChatMessageRow({
 })
 
 export default function MessagesPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const requestedConversationId = searchParams.get("conversation")
 
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
   const [conversations, setConversations] = useState<ChatConversationItem[]>([])
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [optimisticConversationId, setOptimisticConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageItem[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
@@ -63,21 +66,65 @@ export default function MessagesPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [activeFilter, setActiveFilter] = useState("all")
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false)
 
-  const activeConversationIdRef = useRef(activeConversationId)
+  const activeConversationIdRef = useRef<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
   const isPrependingRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
 
-  useEffect(() => {
-    activeConversationIdRef.current = activeConversationId
-  }, [activeConversationId])
+  const routeConversationId = useMemo(() => {
+    if (!requestedConversationId) {
+      return null
+    }
+
+    return conversations.some((conversation) => conversation.id === requestedConversationId)
+      ? requestedConversationId
+      : null
+  }, [conversations, requestedConversationId])
+
+  const activeConversationId = useMemo(() => {
+    if (
+      optimisticConversationId &&
+      conversations.some((conversation) => conversation.id === optimisticConversationId)
+    ) {
+      return optimisticConversationId
+    }
+
+    return routeConversationId
+  }, [conversations, optimisticConversationId, routeConversationId])
 
   const activeConversation = useMemo(
     () => conversations.find((item) => item.id === activeConversationId) ?? null,
     [activeConversationId, conversations],
   )
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId
+  }, [activeConversationId])
+
+  useEffect(() => {
+    if (!optimisticConversationId) {
+      return
+    }
+
+    const optimisticConversationExists = conversations.some(
+      (conversation) => conversation.id === optimisticConversationId,
+    )
+
+    if (!optimisticConversationExists || requestedConversationId === optimisticConversationId) {
+      setOptimisticConversationId(null)
+    }
+  }, [conversations, optimisticConversationId, requestedConversationId])
+
+  useEffect(() => {
+    if (!activeConversation?.isGroup && isGroupInfoOpen) {
+      setIsGroupInfoOpen(false)
+    }
+  }, [activeConversation?.isGroup, isGroupInfoOpen])
 
   const mergeIncomingMessage = useCallback((message: ChatMessageItem) => {
     setMessages((prev) => {
@@ -121,6 +168,15 @@ export default function MessagesPage() {
     onMessage: mergeIncomingMessage,
   })
 
+  const getConversationHref = useCallback((conversationId: string) => {
+    return `/messages?conversation=${encodeURIComponent(conversationId)}`
+  }, [])
+
+  const selectConversation = useCallback((conversationId: string) => {
+    setOptimisticConversationId(conversationId)
+    router.push(getConversationHref(conversationId), { scroll: false })
+  }, [getConversationHref, router])
+
   useEffect(() => {
     const bootstrap = async () => {
       setIsBooting(true)
@@ -138,10 +194,8 @@ export default function MessagesPage() {
 
       if (conversationsResult.success && conversationsResult.data) {
         setConversations(conversationsResult.data)
-        setActiveConversationId(conversationsResult.data[0]?.id ?? null)
       } else {
         setConversations([])
-        setActiveConversationId(null)
       }
 
       setIsBooting(false)
@@ -151,13 +205,23 @@ export default function MessagesPage() {
   }, [])
 
   useEffect(() => {
-    if (!requestedConversationId || conversations.length === 0) return
+    if (isBooting) return
+
+    if (!requestedConversationId) {
+      return
+    }
 
     const matched = conversations.find((item) => item.id === requestedConversationId)
     if (matched) {
-      setActiveConversationId(matched.id)
+      return
     }
-  }, [requestedConversationId, conversations])
+
+    const fallbackConversationId = conversations[0]?.id ?? null
+    router.replace(
+      fallbackConversationId ? getConversationHref(fallbackConversationId) : "/messages",
+      { scroll: false },
+    )
+  }, [conversations, getConversationHref, isBooting, requestedConversationId, router])
 
   const loadMessages = useCallback(async (conversationId: string, cursor?: string) => {
     const result = await getConversationMessages({ conversationId, cursor })
@@ -170,16 +234,28 @@ export default function MessagesPage() {
   }, [])
 
   useEffect(() => {
+    let isDisposed = false
+
     const fetchInitialMessages = async () => {
       if (!activeConversationId) {
         setMessages([])
         setNextCursor(null)
         setHasMore(false)
+        setIsLoadingMessages(false)
         return
       }
 
+      const conversationId = activeConversationId
       setIsLoadingMessages(true)
-      const data = await loadMessages(activeConversationId)
+      setMessages([])
+      setNextCursor(null)
+      setHasMore(false)
+
+      const data = await loadMessages(conversationId)
+
+      if (isDisposed || activeConversationIdRef.current !== conversationId) {
+        return
+      }
 
       if (!data) {
         setMessages([])
@@ -194,10 +270,10 @@ export default function MessagesPage() {
       setHasMore(data.hasMore)
       setIsLoadingMessages(false)
 
-      void markConversationAsRead(activeConversationId)
+      void markConversationAsRead(conversationId)
       setConversations((prev) =>
         prev.map((conversation) =>
-          conversation.id === activeConversationId
+          conversation.id === conversationId
             ? { ...conversation, unreadCount: 0 }
             : conversation,
         ),
@@ -205,6 +281,10 @@ export default function MessagesPage() {
     }
 
     void fetchInitialMessages()
+
+    return () => {
+      isDisposed = true
+    }
   }, [activeConversationId, loadMessages])
 
   useEffect(() => {
@@ -232,10 +312,11 @@ export default function MessagesPage() {
     }
 
     setIsLoadingMore(true)
-    const data = await loadMessages(activeConversationId, nextCursor)
+    const conversationId = activeConversationId
+    const data = await loadMessages(conversationId, nextCursor)
     setIsLoadingMore(false)
 
-    if (!data) {
+    if (!data || activeConversationIdRef.current !== conversationId) {
       isPrependingRef.current = false
       return
     }
@@ -344,12 +425,79 @@ export default function MessagesPage() {
     [conversations, onlineUserIds],
   )
 
+  const visibleConversations = useMemo(() => {
+    if (activeFilter === "groups") {
+      return mappedConversations.filter((conversation) => conversation.isGroup)
+    }
+
+    if (activeFilter === "unread") {
+      return mappedConversations.filter((conversation) => conversation.unreadCount > 0)
+    }
+
+    if (activeFilter === "archived") {
+      return []
+    }
+
+    return mappedConversations
+  }, [activeFilter, mappedConversations])
+
+  const handleGroupRenamed = useCallback((conversationId: string, name: string) => {
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation.id === conversationId
+          ? { ...conversation, name }
+          : conversation,
+      ),
+    )
+  }, [])
+
+  const handleGroupMembersChanged = useCallback((conversationId: string, participantCount: number) => {
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation.id === conversationId
+          ? { ...conversation, participantCount }
+          : conversation,
+      ),
+    )
+  }, [])
+
+  const handleLeftGroup = useCallback((conversationId: string) => {
+    const nextConversations = conversations.filter((conversation) => conversation.id !== conversationId)
+
+    setConversations(nextConversations)
+    if (activeConversationId === conversationId) {
+      const nextConversationId = nextConversations[0]?.id ?? null
+      setOptimisticConversationId(nextConversationId)
+      setMessages([])
+      router.replace(
+        nextConversationId ? getConversationHref(nextConversationId) : "/messages",
+        { scroll: false },
+      )
+    }
+  }, [activeConversationId, conversations, getConversationHref, router])
+
   return (
-    <div className="flex h-[calc(100vh-3.5rem-3.5rem)] lg:h-[calc(100vh-4rem)] overflow-hidden">
+    <>
+      <CreateGroupDialog
+        open={isCreateGroupOpen}
+        onOpenChange={setIsCreateGroupOpen}
+        onCreated={(conversation) => {
+          setConversations((prev) => [conversation, ...prev])
+          setOptimisticConversationId(conversation.id)
+          setActiveFilter("all")
+          router.push(getConversationHref(conversation.id), { scroll: false })
+        }}
+      />
+
+      <div className="flex h-[calc(100vh-3.5rem-3.5rem)] lg:h-[calc(100vh-4rem)] overflow-hidden">
       <div className={activeConversationId ? "hidden lg:flex" : "flex w-full lg:w-auto"}>
-        <ConversationList>
-          {mappedConversations.map((conv) => (
-            <div key={conv.id} onClick={() => setActiveConversationId(conv.id)}>
+        <ConversationList
+          activeTab={activeFilter}
+          onTabChange={setActiveFilter}
+          onCreateGroupClick={() => setIsCreateGroupOpen(true)}
+        >
+          {visibleConversations.map((conv) => (
+            <div key={conv.id} onClick={() => selectConversation(conv.id)}>
               <ConversationItem
                 avatar={conv.avatarUrl ?? undefined}
                 name={conv.name}
@@ -362,7 +510,7 @@ export default function MessagesPage() {
               />
             </div>
           ))}
-          {!isBooting && mappedConversations.length === 0 && (
+          {!isBooting && visibleConversations.length === 0 && (
             <p className="px-4 py-6 text-sm text-muted-foreground">Bạn chưa có hội thoại nào.</p>
           )}
         </ConversationList>
@@ -380,7 +528,10 @@ export default function MessagesPage() {
             variant="ghost"
             size="icon"
             className="size-9 rounded-full"
-            onClick={() => setActiveConversationId(null)}
+            onClick={() => {
+              setOptimisticConversationId(null)
+              router.push("/messages", { scroll: false })
+            }}
             aria-label="Quay lại"
           >
             <ArrowLeft className="size-5" />
@@ -397,6 +548,9 @@ export default function MessagesPage() {
                   ? onlineUserIds.has(activeConversation.peerUserId)
                   : false
               }
+              isGroup={activeConversation.isGroup}
+              participantCount={activeConversation.participantCount}
+              onInfoClick={activeConversation.isGroup ? () => setIsGroupInfoOpen(true) : undefined}
               className="lg:pl-4 pl-12"
             />
 
@@ -477,6 +631,15 @@ export default function MessagesPage() {
           </div>
         )}
       </section>
-    </div>
+      <GroupInfoDialog
+        conversationId={activeConversation?.isGroup ? activeConversation.id : null}
+        open={isGroupInfoOpen}
+        onOpenChange={setIsGroupInfoOpen}
+        onGroupRenamed={handleGroupRenamed}
+        onGroupMembersChanged={handleGroupMembersChanged}
+        onLeftGroup={handleLeftGroup}
+      />
+      </div>
+    </>
   )
 }

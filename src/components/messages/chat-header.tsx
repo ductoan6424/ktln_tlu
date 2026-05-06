@@ -1,7 +1,7 @@
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { IconButton } from "@/components/shared/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Video, Phone, Info, X } from "lucide-react"
+import { Video, Phone, Info, X, Users } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 
@@ -11,9 +11,12 @@ interface ChatHeaderProps {
   role?: string
   avatarSrc?: string
   isOnline?: boolean
+  isGroup?: boolean
+  participantCount?: number
   compact?: boolean
   showClose?: boolean
   onClose?: () => void
+  onInfoClick?: () => void
   className?: string
 }
 
@@ -22,9 +25,12 @@ export function ChatHeader({
   role,
   avatarSrc,
   isOnline = false,
+  isGroup = false,
+  participantCount,
   compact = false,
   showClose = false,
   onClose,
+  onInfoClick,
   className,
 }: ChatHeaderProps) {
   return (
@@ -38,16 +44,22 @@ export function ChatHeader({
           src={avatarSrc}
           name={name}
           size={compact ? "sm" : "md"}
-          showStatus
+          showStatus={!isGroup}
           status={isOnline ? "online" : "offline"}
         />
         <div className="min-w-0">
           <h3 className={cn("font-bold leading-tight truncate", compact ? "text-sm" : "")}>{name}</h3>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
-            {isOnline && (
+            {isGroup ? (
+              <Users className="size-3 shrink-0" />
+            ) : isOnline && (
               <span className="size-1.5 bg-green-500 rounded-full shrink-0" />
             )}
-            <span className="truncate">{isOnline ? "Đang hoạt động" : "Ngoại tuyến"}</span>
+            <span className="truncate">
+              {isGroup
+                ? `${participantCount ?? 0} thành viên`
+                : isOnline ? "Đang hoạt động" : "Ngoại tuyến"}
+            </span>
             {role && <span className="shrink-0">• {role}</span>}
           </p>
         </div>
@@ -63,7 +75,7 @@ export function ChatHeader({
         ) : (
           <>
             <Separator orientation="vertical" className="h-5" />
-            <IconButton icon={Info} ariaLabel="Thông tin" size="sm" />
+            <IconButton icon={Info} ariaLabel="Thông tin" size="sm" onClick={onInfoClick} />
           </>
         )}
       </div>
