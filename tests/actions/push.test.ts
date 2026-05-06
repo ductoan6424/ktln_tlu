@@ -7,6 +7,7 @@ const prisma = vi.hoisted(() => ({
     upsert: vi.fn(),
     deleteMany: vi.fn(),
     count: vi.fn(),
+    findMany: vi.fn(),
   },
 }))
 
@@ -15,6 +16,8 @@ vi.mock("@/lib/prisma/client", () => ({ prisma }))
 
 import {
   getMyPushStatus,
+  listMyPushDevices,
+  revokePushDevice,
   subscribePush,
   unsubscribePush,
 } from "@/actions/push"
@@ -173,5 +176,95 @@ describe("getMyPushStatus", () => {
     const result = await getMyPushStatus()
     expect(result.success).toBe(true)
     expect(result.data?.hasSubscription).toBe(false)
+  })
+})
+
+describe("listMyPushDevices", () => {
+  it("trả UNAUTHORIZED khi chưa login", async () => {
+    mockNoSession()
+    const result = await listMyPushDevices()
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("UNAUTHORIZED")
+    expect(prisma.pushSubscription.findMany).not.toHaveBeenCalled()
+  })
+
+  it("trả devices đã serialize đúng (Date → ISO string), filter theo userId", async () => {
+    mockWithSession("user-a")
+    const createdAt = new Date("2026-05-01T10:00:00Z")
+    const lastUsedAt = new Date("2026-05-05T10:00:00Z")
+    prisma.pushSubscription.findMany.mockResolvedValue([
+      {
+        id: "s1",
+        endpoint: "https://e1",
+        userAgent: "UA1",
+        createdAt,
+        lastUsedAt,
+      },
+    ])
+
+    const result = await listMyPushDevices()
+
+    expect(result.success).toBe(true)
+    expect(prisma.pushSubscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-a" },
+        orderBy: { lastUsedAt: "desc" },
+      }),
+    )
+    expect(result.data?.devices).toEqual([
+      {
+        id: "s1",
+        endpoint: "https://e1",
+        userAgent: "UA1",
+        createdAt: createdAt.toISOString(),
+        lastUsedAt: lastUsedAt.toISOString(),
+      },
+    ])
+  })
+
+  it("trả mảng rỗng khi user chưa có thiết bị", async () => {
+    mockWithSession("user-a")
+    prisma.pushSubscription.findMany.mockResolvedValue([])
+    const result = await listMyPushDevices()
+    expect(result.success).toBe(true)
+    expect(result.data?.devices).toEqual([])
+  })
+})
+
+describe("revokePushDevice", () => {
+  it("trả UNAUTHORIZED khi chưa login", async () => {
+    mockNoSession()
+    const result = await revokePushDevice("some-id")
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("UNAUTHORIZED")
+    expect(prisma.pushSubscription.deleteMany).not.toHaveBeenCalled()
+  })
+
+  it("trả VALIDATION_ERROR khi id rỗng/whitespace", async () => {
+    mockWithSession("user-a")
+    const result = await revokePushDevice("   ")
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("VALIDATION_ERROR")
+  })
+
+  it("trả NOT_FOUND khi không xóa được hàng nào", async () => {
+    mockWithSession("user-a")
+    prisma.pushSubscription.deleteMany.mockResolvedValue({ count: 0 })
+    const result = await revokePushDevice("not-mine")
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("NOT_FOUND")
+  })
+
+  it("xóa đúng theo id + userId, không cho xóa sub của user khác", async () => {
+    mockWithSession("user-a")
+    prisma.pushSubscription.deleteMany.mockResolvedValue({ count: 1 })
+
+    const result = await revokePushDevice("  s1  ")
+
+    expect(result.success).toBe(true)
+    expect(result.data?.removed).toBe(1)
+    expect(prisma.pushSubscription.deleteMany).toHaveBeenCalledWith({
+      where: { id: "s1", userId: "user-a" },
+    })
   })
 })
