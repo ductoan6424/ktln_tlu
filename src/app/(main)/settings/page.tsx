@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { SectionHeader } from "@/components/shared/section-header"
+import { PushToggle } from "@/components/pwa/push-toggle"
 import {
   User,
   Bell,
@@ -205,11 +206,7 @@ function NotificationsSection() {
         <SectionHeader title="Cài đặt thông báo" />
 
         <div className="space-y-4">
-          <SettingsToggle
-            title="Thông báo đẩy"
-            description="Nhận thông báo trên trình duyệt khi có hoạt động mới"
-            defaultChecked
-          />
+          <PushToggle />
           <Separator />
           <SettingsToggle
             title="Thông báo qua email"
