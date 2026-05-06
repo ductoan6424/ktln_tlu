@@ -138,7 +138,25 @@ model UserProfile {
   authoredAnnouncements Announcement[]  @relation("AnnouncementAuthor")
   systemSettingUpdates  SystemSetting[] @relation("SystemSettingUpdater")
 
+  pushSubscriptions PushSubscription[]
+
   @@map("user_profiles")
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid()) @map("id")
+  userId     String   @map("user_id")
+  endpoint   String   @unique @map("endpoint")
+  p256dh     String   @map("p256dh")
+  auth       String   @map("auth")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+
+  user UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model Club {
