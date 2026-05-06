@@ -153,7 +153,7 @@ export function TopNavbar({
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 h-14 lg:h-16 bg-card border-b border-border",
+        "fixed top-0 left-0 right-0 z-50 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-card border-b border-border lg:h-16 lg:pt-0",
         className
       )}
     >
@@ -168,7 +168,7 @@ export function TopNavbar({
       ))}
 
       {mobileSearchOpen && (
-        <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 lg:hidden">
+        <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 pt-[env(safe-area-inset-top)] lg:hidden">
           <SearchInput
             placeholder={searchPlaceholder}
             className="flex-1"
