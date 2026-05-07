@@ -83,7 +83,7 @@ const clubMembership = {
 const groupMembership = {
   userId: SELF_USER_ID,
   groupId: "group-1",
-  role: "MEMBER",
+  role: "MODERATOR",
   joinedAt: new Date("2025-03-01T00:00:00.000Z"),
   group: {
     id: "group-1",
@@ -259,7 +259,7 @@ describe("getProfilePageData", () => {
       {
         userId: SELF_USER_ID,
         groupId: "group-1",
-        role: "MEMBER",
+        role: "MODERATOR",
         joinedAt: "2025-03-01T00:00:00.000Z",
         group: {
           id: "group-1",
