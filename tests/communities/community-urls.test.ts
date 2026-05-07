@@ -26,4 +26,8 @@ describe("community urls", () => {
   it("keeps Vietnamese slugs readable without accents", () => {
     expect(slugifyCommunityName("CLB Tin học")).toBe("clb-tin-hoc")
   })
+
+  it("maps Vietnamese d with stroke to plain d", () => {
+    expect(slugifyCommunityName("Đại học Thủy lợi")).toBe("dai-hoc-thuy-loi")
+  })
 })
