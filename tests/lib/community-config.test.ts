@@ -1,9 +1,23 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 describe("community config", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
   it("uses a 10MB default upload limit", async () => {
     vi.resetModules()
     vi.stubEnv("COMMUNITY_ATTACHMENT_MAX_BYTES", "")
+
+    const config = await import("@/lib/config/community")
+
+    expect(config.COMMUNITY_ATTACHMENT_MAX_BYTES).toBe(10 * 1024 * 1024)
+  })
+
+  it("falls back to 10MB for malformed upload limits", async () => {
+    vi.resetModules()
+    vi.stubEnv("COMMUNITY_ATTACHMENT_MAX_BYTES", "10MB")
 
     const config = await import("@/lib/config/community")
 
