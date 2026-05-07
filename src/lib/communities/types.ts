@@ -1,7 +1,15 @@
-export type CommunityType = "GROUP" | "CLUB" | "COURSE"
-export type CommunityMemberRole = "ADMIN" | "MODERATOR" | "MEMBER"
-export type CommunityChatMode = "OPEN" | "ADMINS_ONLY" | "READ_ONLY"
-export type CommunityVisibility = "PUBLIC" | "PRIVATE"
+import type {
+  CommunityChatMode,
+  CommunityType,
+  CommunityVisibility,
+} from "@/types/database"
+
+export type {
+  CommunityChatMode,
+  CommunityMemberRole,
+  CommunityType,
+  CommunityVisibility,
+} from "@/types/database"
 
 export type CommunityTarget = {
   type: CommunityType
