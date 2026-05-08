@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const requireCourseManagementAccess = vi.hoisted(() => vi.fn())
+const notifyCourseStudentAdded = vi.hoisted(() => vi.fn())
 const revalidatePath = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
   userProfile: { findMany: vi.fn() },
@@ -10,6 +11,9 @@ const prisma = vi.hoisted(() => ({
 vi.mock("@/lib/courses/course-permissions", () => ({
   requireCourseManagementAccess,
 }))
+vi.mock("@/lib/notifications/dispatchers", () => ({
+  notifyCourseStudentAdded,
+}))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("next/cache", () => ({ revalidatePath }))
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }))
@@ -18,7 +22,22 @@ import { addStudentsToCourseByCodes } from "@/actions/courses"
 
 beforeEach(() => {
   vi.clearAllMocks()
-  requireCourseManagementAccess.mockResolvedValue({ course: { id: "course-1" } })
+  notifyCourseStudentAdded.mockResolvedValue(undefined)
+  requireCourseManagementAccess.mockResolvedValue({
+    context: {
+      profile: {
+        userId: "lecturer-1",
+        displayName: "Lecturer",
+        avatarUrl: null,
+      },
+    },
+    course: {
+      id: "course-1",
+      shortId: "c12345",
+      name: "Data Structures",
+      code: "CS201",
+    },
+  })
 })
 
 describe("addStudentsToCourseByCodes", () => {
@@ -44,6 +63,15 @@ describe("addStudentsToCourseByCodes", () => {
       data: [{ courseId: "course-1", userId: "student-1" }],
       skipDuplicates: true,
     })
+    expect(notifyCourseStudentAdded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: "student-1",
+        targetType: "COURSE",
+        targetId: "course-1",
+        targetName: "Data Structures",
+        link: "/courses/cs201-c12345",
+      }),
+    )
     expect(revalidatePath).toHaveBeenCalledWith("/courses/course-1")
   })
 })

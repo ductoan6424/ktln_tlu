@@ -11,6 +11,7 @@ import {
 } from "@/lib/communities/queries"
 import type { CommunityType } from "@/lib/communities/types"
 import { buildCommunityPath } from "@/lib/communities/urls"
+import { notifyCommunityJoinReviewed } from "@/lib/notifications/dispatchers"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -235,7 +236,24 @@ export async function approveJoinRequest(
       })
     })
 
-    revalidatePath(buildCommunityPath(target.type, target.name, target.shortId))
+    const href = buildCommunityPath(target.type, target.name, target.shortId)
+    await notifyCommunityJoinReviewed({
+      recipientId: request.requesterId,
+      actor: {
+        userId: context.profile.userId,
+        displayName: context.profile.displayName,
+        avatarUrl: context.profile.avatarUrl,
+      },
+      targetType: target.type,
+      targetId: target.id,
+      targetName: target.name,
+      link: href,
+      approved: true,
+    }).catch((error) => {
+      console.error("notifyCommunityJoinReviewed error:", error)
+    })
+
+    revalidatePath(href)
     return successResult({ requestId: request.id })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -290,7 +308,25 @@ export async function rejectJoinRequest(
       },
     })
 
-    revalidatePath(buildCommunityPath(target.type, target.name, target.shortId))
+    const href = buildCommunityPath(target.type, target.name, target.shortId)
+    await notifyCommunityJoinReviewed({
+      recipientId: request.requesterId,
+      actor: {
+        userId: context.profile.userId,
+        displayName: context.profile.displayName,
+        avatarUrl: context.profile.avatarUrl,
+      },
+      targetType: target.type,
+      targetId: target.id,
+      targetName: target.name,
+      link: href,
+      approved: false,
+      reason: input.reason?.trim() || null,
+    }).catch((error) => {
+      console.error("notifyCommunityJoinReviewed error:", error)
+    })
+
+    revalidatePath(href)
     return successResult({ requestId: request.id })
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -147,6 +147,14 @@ export function renderNotification(
       title = `${nameSuffix} đã thích bài viết của bạn`
       content = input.postExcerpt ?? "Nhấn để xem bài viết."
       break
+    case "POST":
+      title = "Cập nhật bài viết"
+      content = input.postExcerpt ?? "Nhấn để xem bài viết."
+      break
+    case "CLUB":
+      title = "Cập nhật cộng đồng"
+      content = input.postExcerpt ?? "Nhấn để xem chi tiết."
+      break
     case "POLL_VOTE":
       title = `${nameSuffix} đã bình chọn trong khảo sát của bạn`
       content = input.pollQuestion ?? "Nhấn để xem kết quả."
