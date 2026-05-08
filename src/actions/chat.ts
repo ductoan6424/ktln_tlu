@@ -6,7 +6,11 @@ import { getAblyRestClient } from "@/lib/ably/server"
 import { CHAT_INPUT_MAX_LENGTH, CHAT_PAGE_SIZE, getChatChannelName, getUserInboxChannelName } from "@/lib/config/chat"
 import { mapMessageToItem, sortMessagesAsc } from "@/lib/chat/map"
 import { UploadValidationError, uploadChatAttachment } from "@/lib/cloudinary/upload"
+import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { CONTACTS_INBOX_EVENT, type ContactsChangedDetail } from "@/lib/contacts/events"
+import { getCommunityPermissions } from "@/lib/communities/policy"
+import { getCommunityBySlugId, getViewerMembershipRole } from "@/lib/communities/queries"
+import type { CommunityType } from "@/lib/communities/types"
 import { prisma } from "@/lib/prisma/client"
 import { sendPushToUser } from "@/lib/push/service"
 import { createClient } from "@/lib/supabase/server"
@@ -18,6 +22,7 @@ import type {
   ChatMessagesPage,
   ChatMessageItem,
   ChatOpenConversationResult,
+  CommunityChatConversationResult,
   ChatSessionUser,
   ChatUserSearchResult,
 } from "@/types/chat"
@@ -31,6 +36,12 @@ const conversationMessagesInputSchema = z.object({
 
 const sendMessageInputSchema = z.object({
   conversationId: z.string().min(1, "Thiếu hội thoại"),
+  content: z.string().max(CHAT_INPUT_MAX_LENGTH).default(""),
+})
+
+const communityChatInputSchema = z.object({
+  type: z.enum(["GROUP", "CLUB", "COURSE"]),
+  slugId: z.string().trim().min(1, "Thiếu cộng đồng"),
   content: z.string().max(CHAT_INPUT_MAX_LENGTH).default(""),
 })
 
@@ -130,6 +141,47 @@ function extractSendMessageInput(rawInput: unknown) {
 
   return {
     conversationId: "",
+    content: "",
+    attachmentFile: null,
+  }
+}
+
+function extractCommunityChatInput(rawInput: unknown) {
+  if (rawInput instanceof FormData) {
+    const type = rawInput.get("type")
+    const slugId = rawInput.get("slugId")
+    const content = rawInput.get("content")
+    const attachment = rawInput.get("attachment")
+
+    return {
+      type: typeof type === "string" ? type : "",
+      slugId: typeof slugId === "string" ? slugId : "",
+      content: typeof content === "string" ? content : "",
+      attachmentFile: attachment instanceof File && attachment.size > 0 ? attachment : null,
+    }
+  }
+
+  if (rawInput && typeof rawInput === "object") {
+    const input = rawInput as {
+      type?: unknown
+      slugId?: unknown
+      content?: unknown
+      attachmentFile?: unknown
+    }
+
+    return {
+      type: typeof input.type === "string" ? input.type : "",
+      slugId: typeof input.slugId === "string" ? input.slugId : "",
+      content: typeof input.content === "string" ? input.content : "",
+      attachmentFile: isAttachmentFile(input.attachmentFile) && input.attachmentFile.size > 0
+        ? input.attachmentFile
+        : null,
+    }
+  }
+
+  return {
+    type: "",
+    slugId: "",
     content: "",
     attachmentFile: null,
   }
@@ -249,6 +301,38 @@ async function requireConversationMembership(conversationId: string, userId: str
   return participant
 }
 
+async function getCommunityChatAccess(type: CommunityType, slugId: string) {
+  const context = await getAuthorizationContext()
+
+  if (!context) {
+    return null
+  }
+
+  const target = await getCommunityBySlugId(type, slugId)
+
+  if (!target) {
+    return null
+  }
+
+  const membershipRole = await getViewerMembershipRole(
+    type,
+    target.id,
+    context.profile.userId,
+  )
+  const permissions = getCommunityPermissions({
+    viewerId: context.profile.userId,
+    baseRole: context.baseRole,
+    target,
+    membershipRole,
+  })
+
+  return {
+    context,
+    target,
+    permissions,
+  }
+}
+
 async function requireGroupAdmin(conversationId: string, userId: string) {
   const participant = await prisma.conversationParticipant.findUnique({
     where: {
@@ -324,6 +408,125 @@ async function mapGroupDetails(conversationId: string, currentUserId: string): P
       isAdmin: participant.isAdmin,
       joinedAt: participant.joinedAt.toISOString(),
     })),
+  }
+}
+
+export async function canSendCommunityChatMessage(
+  type: CommunityType,
+  slugId: string,
+): Promise<boolean> {
+  try {
+    const access = await getCommunityChatAccess(type, slugId)
+
+    return Boolean(access?.permissions.canSendChatMessage)
+  } catch {
+    return false
+  }
+}
+
+export async function getOrCreateCommunityConversation(
+  type: CommunityType,
+  slugId: string,
+): Promise<ActionResult<CommunityChatConversationResult>> {
+  try {
+    const access = await getCommunityChatAccess(type, slugId)
+
+    if (!access) {
+      return errorResult("Bạn cần tham gia để xem phòng chat", "FORBIDDEN")
+    }
+
+    if (!access.target.chatEnabled) {
+      return errorResult("Phòng chat chưa được bật", "CHAT_DISABLED")
+    }
+
+    if (!access.permissions.canViewPosts) {
+      return errorResult("Bạn cần tham gia để xem phòng chat", "FORBIDDEN")
+    }
+
+    const existing = await prisma.conversation.findFirst({
+      where: {
+        communityType: access.target.type,
+        communityTargetId: access.target.id,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    const conversationId = existing
+      ? existing.id
+      : (
+          await prisma.conversation.create({
+            data: {
+              type: "GROUP",
+              name: access.target.name,
+              communityType: access.target.type,
+              communityTargetId: access.target.id,
+              ...(access.target.type === "GROUP" ? { groupId: access.target.id } : {}),
+            },
+            select: {
+              id: true,
+            },
+          })
+        ).id
+
+    await prisma.conversationParticipant.upsert({
+      where: {
+        conversationId_userId: {
+          conversationId,
+          userId: access.context.profile.userId,
+        },
+      },
+      update: {
+        isAdmin: access.permissions.canManage,
+      },
+      create: {
+        conversationId,
+        userId: access.context.profile.userId,
+        isAdmin: access.permissions.canManage,
+      },
+    })
+
+    return successResult({ conversationId })
+  } catch {
+    return errorResult("Không thể mở phòng chat", "OPEN_FAILED")
+  }
+}
+
+export async function sendCommunityConversationMessage(
+  rawInput: unknown,
+): Promise<ActionResult<ChatMessageItem>> {
+  try {
+    const extractedInput = extractCommunityChatInput(rawInput)
+    const input = communityChatInputSchema.parse({
+      type: extractedInput.type,
+      slugId: extractedInput.slugId,
+      content: extractedInput.content,
+    })
+
+    const canSend = await canSendCommunityChatMessage(input.type, input.slugId)
+
+    if (!canSend) {
+      return errorResult("Bạn không có quyền gửi tin nhắn trong phòng chat này", "FORBIDDEN")
+    }
+
+    const conversation = await getOrCreateCommunityConversation(input.type, input.slugId)
+
+    if (!conversation.success || !conversation.data) {
+      return errorResult(conversation.error ?? "Không thể mở phòng chat", conversation.code)
+    }
+
+    return sendConversationMessage({
+      conversationId: conversation.data.conversationId,
+      content: input.content,
+      attachmentFile: extractedInput.attachmentFile,
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể gửi tin nhắn", "SEND_FAILED")
   }
 }
 
@@ -439,6 +642,8 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
         peerUserId: isGroup ? null : peer?.userId ?? null,
         avatarUrl: isGroup ? null : peer?.avatarUrl ?? null,
         isGroup,
+        communityType: item.conversation.communityType,
+        communityTargetId: item.conversation.communityTargetId,
         isOnline: false,
         participantCount,
         unreadCount: unreadCountResults[index] ?? 0,

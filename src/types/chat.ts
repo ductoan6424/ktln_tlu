@@ -1,3 +1,5 @@
+import type { CommunityType } from "@/lib/communities/types"
+
 export type UserPresenceStatus = "online" | "offline"
 
 export type ChatAttachment = {
@@ -26,6 +28,8 @@ export type ChatConversationItem = {
   peerUserId: string | null
   avatarUrl: string | null
   isGroup: boolean
+  communityType?: CommunityType | null
+  communityTargetId?: string | null
   isOnline: boolean
   participantCount: number
   unreadCount: number
@@ -70,6 +74,10 @@ export type ChatOpenConversationResult = {
     displayName: string
     avatarUrl: string | null
   }
+}
+
+export type CommunityChatConversationResult = {
+  conversationId: string
 }
 
 export type ChatSessionUser = {

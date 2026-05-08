@@ -497,6 +497,8 @@ model Conversation {
   type      ConversationType @default(DIRECT) @map("type")
   name      String?          @map("name")
   groupId   String?          @map("group_id")
+  communityType     CommunityType? @map("community_type")
+  communityTargetId String?        @map("community_target_id")
   group     Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
   createdAt DateTime         @default(now()) @map("created_at")
   updatedAt DateTime         @updatedAt @map("updated_at")
@@ -506,6 +508,7 @@ model Conversation {
   directMeta   DirectConversation?
 
   @@index([groupId])
+  @@index([communityType, communityTargetId])
   @@map("conversations")
 }
 
