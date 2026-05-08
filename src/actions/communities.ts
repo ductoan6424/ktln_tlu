@@ -15,6 +15,19 @@ import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 
+export {
+  createCommunityRule,
+  deleteCommunityRule,
+  deleteReportedContent,
+  dismissReport,
+  pinCommunityPost,
+  reorderCommunityRules,
+  reportContent,
+  resolveReport,
+  unpinCommunityPost,
+  updateCommunityRule,
+} from "@/actions/community-moderation"
+
 const communityTypeSchema = z.enum(["GROUP", "CLUB", "COURSE"])
 
 const joinCommunitySchema = z.object({
