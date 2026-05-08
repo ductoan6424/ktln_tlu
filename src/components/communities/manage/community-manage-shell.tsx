@@ -15,7 +15,7 @@ type CommunityManageShellProps = {
   backHref: string
   activeTab: string
   tabs: CommunityManageTab[]
-  children: ReactNode
+  children?: ReactNode
 }
 
 export function CommunityManageShell({
