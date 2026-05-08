@@ -5,6 +5,12 @@ import { createNotification, deleteGroupNotification } from "./service"
 import type {
   NotifyCommentPayload,
   NotifyCommentReplyPayload,
+  NotifyCommunityInvitePayload,
+  NotifyCommunityJoinReviewedPayload,
+  NotifyCommunityModerationPayload,
+  NotifyCommunityPostReviewedPayload,
+  NotifyCommunityRoleChangedPayload,
+  NotifyCourseStudentAddedPayload,
   NotifyFollowPayload,
   NotifyFriendshipPayload,
   NotifyLikePayload,
@@ -217,6 +223,233 @@ export async function notifyPollClosed(
         postId: payload.postId,
         pollId: payload.pollId,
       },
+    },
+    client,
+  )
+}
+
+function buildCommunityGroupKey(input: {
+  event: string
+  targetType: string
+  targetId: string
+  recipientId?: string
+  contentId?: string
+}) {
+  return [
+    "COMMUNITY",
+    input.event,
+    input.targetType,
+    input.targetId,
+    input.contentId,
+    input.recipientId,
+  ]
+    .filter(Boolean)
+    .join(":")
+}
+
+function communityMetadata(payload: {
+  event: string
+  targetType: string
+  targetId: string
+  targetName: string
+  link: string
+  extra?: Record<string, unknown>
+}) {
+  return {
+    event: payload.event,
+    targetType: payload.targetType,
+    targetId: payload.targetId,
+    targetName: payload.targetName,
+    link: payload.link,
+    ...(payload.extra ?? {}),
+  }
+}
+
+export async function notifyCommunityInvite(
+  payload: NotifyCommunityInvitePayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: "CLUB",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: "INVITE",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: `${payload.actor.displayName} đã mời bạn tham gia ${payload.targetName}.`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: "INVITE",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCommunityJoinReviewed(
+  payload: NotifyCommunityJoinReviewedPayload,
+  client?: PrismaTx,
+) {
+  const event = payload.approved ? "JOIN_APPROVED" : "JOIN_REJECTED"
+  await createNotification(
+    {
+      type: "CLUB",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event,
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: payload.approved
+        ? `Yêu cầu tham gia ${payload.targetName} đã được duyệt.`
+        : `Yêu cầu tham gia ${payload.targetName} đã bị từ chối.`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event,
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: { reason: payload.reason ?? null },
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCommunityRoleChanged(
+  payload: NotifyCommunityRoleChangedPayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: "CLUB",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: "ROLE_CHANGED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: `Vai trò của bạn trong ${payload.targetName} đã được cập nhật.`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: "ROLE_CHANGED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: { role: payload.role },
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCommunityPostReviewed(
+  payload: NotifyCommunityPostReviewedPayload,
+  client?: PrismaTx,
+) {
+  const event = payload.approved ? "POST_APPROVED" : "POST_REJECTED"
+  await createNotification(
+    {
+      type: "POST",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event,
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        contentId: payload.postId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: payload.approved
+        ? `Bài viết trong ${payload.targetName} đã được duyệt.`
+        : `Bài viết trong ${payload.targetName} đã bị từ chối.`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event,
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: { postId: payload.postId, reason: payload.reason ?? null },
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCommunityModeration(
+  payload: NotifyCommunityModerationPayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: payload.contentType === "POST" ? "POST" : "COMMENT",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: payload.action,
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        contentId: payload.contentId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: `Nội dung của bạn trong ${payload.targetName} đã được xử lý.`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: payload.action,
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: {
+          contentType: payload.contentType,
+          contentId: payload.contentId,
+          reason: payload.reason ?? null,
+        },
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCourseStudentAdded(
+  payload: NotifyCourseStudentAddedPayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: "CLUB",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: "COURSE_STUDENT_ADDED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: `Bạn đã được thêm vào lớp ${payload.targetName}.`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: "COURSE_STUDENT_ADDED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+      }),
     },
     client,
   )

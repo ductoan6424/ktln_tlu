@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
 
+import { buildCommunityPath } from "@/lib/communities/urls"
 import { requireCourseCreator, requireCourseManagementAccess } from "@/lib/courses/course-permissions"
+import { notifyCourseStudentAdded } from "@/lib/notifications/dispatchers"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -77,7 +79,8 @@ export async function addStudentToCourse(
 ): Promise<ActionResult<{ userId: string }>> {
   try {
     const input = addStudentSchema.parse(normalizeFormInput(rawInput))
-    await requireCourseManagementAccess(input.courseId)
+    const management = await requireCourseManagementAccess(input.courseId)
+    const courseId = management.course.id
 
     const student = await prisma.userProfile.findUnique({
       where: { studentId: input.studentId },
@@ -95,7 +98,7 @@ export async function addStudentToCourse(
       where: {
         userId_courseId: {
           userId: student.userId,
-          courseId: input.courseId,
+          courseId,
         },
       },
     })
@@ -106,13 +109,35 @@ export async function addStudentToCourse(
 
     await prisma.courseMember.create({
       data: {
-        courseId: input.courseId,
+        courseId,
         userId: student.userId,
       },
     })
 
+    await notifyCourseStudentAdded({
+      recipientId: student.userId,
+      actor: {
+        userId: management.context.profile.userId,
+        displayName: management.context.profile.displayName,
+        avatarUrl: management.context.profile.avatarUrl,
+      },
+      targetType: "COURSE",
+      targetId: courseId,
+      targetName: management.course.name,
+      link: buildCommunityPath(
+        "COURSE",
+        management.course.code,
+        management.course.shortId,
+      ),
+    }).catch((error) => {
+      console.error("notifyCourseStudentAdded error:", error)
+    })
+
     revalidatePath(`/courses/${input.courseId}`)
     revalidatePath(`/courses/${input.courseId}/manage`)
+    const courseHref = buildCommunityPath("COURSE", management.course.code, management.course.shortId)
+    revalidatePath(courseHref)
+    revalidatePath(`${courseHref}/manage`)
 
     return successResult({ userId: student.userId })
   } catch (error) {
@@ -147,7 +172,8 @@ export async function addStudentsToCourseByCodes(
 }>> {
   try {
     const input = addStudentsByCodesSchema.parse(normalizeFormInput(rawInput))
-    await requireCourseManagementAccess(input.courseId)
+    const management = await requireCourseManagementAccess(input.courseId)
+    const courseId = management.course.id
 
     const codes = parseStudentCodes(input.studentCodesText)
     if (codes.length === 0) {
@@ -174,7 +200,7 @@ export async function addStudentsToCourseByCodes(
     const foundCodes = new Set(validStudents.map((student) => student.studentId))
     const existingMembers = await prisma.courseMember.findMany({
       where: {
-        courseId: input.courseId,
+        courseId,
         userId: { in: validStudents.map((student) => student.userId) },
       },
       select: { userId: true },
@@ -187,11 +213,31 @@ export async function addStudentsToCourseByCodes(
     if (newStudents.length > 0) {
       await prisma.courseMember.createMany({
         data: newStudents.map((student) => ({
-          courseId: input.courseId,
+          courseId,
           userId: student.userId,
         })),
         skipDuplicates: true,
       })
+      await Promise.allSettled(
+        newStudents.map((student) =>
+          notifyCourseStudentAdded({
+            recipientId: student.userId,
+            actor: {
+              userId: management.context.profile.userId,
+              displayName: management.context.profile.displayName,
+              avatarUrl: management.context.profile.avatarUrl,
+            },
+            targetType: "COURSE",
+            targetId: courseId,
+            targetName: management.course.name,
+            link: buildCommunityPath(
+              "COURSE",
+              management.course.code,
+              management.course.shortId,
+            ),
+          }),
+        ),
+      )
     }
 
     const added = newStudents.map((student) => student.studentId)
@@ -202,6 +248,9 @@ export async function addStudentsToCourseByCodes(
 
     revalidatePath(`/courses/${input.courseId}`)
     revalidatePath(`/courses/${input.courseId}/manage`)
+    const courseHref = buildCommunityPath("COURSE", management.course.code, management.course.shortId)
+    revalidatePath(courseHref)
+    revalidatePath(`${courseHref}/manage`)
 
     return successResult({ added, alreadyMember, notFound })
   } catch (error) {

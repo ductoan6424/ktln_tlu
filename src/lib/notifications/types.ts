@@ -1,4 +1,8 @@
 import type { NotificationType } from "@prisma/client"
+import type {
+  CommunityMemberRole,
+  CommunityType,
+} from "@/lib/communities/types"
 
 export type NotificationActorSummary = {
   userId: string
@@ -74,6 +78,45 @@ export type NotifyPollClosedPayload = {
   pollId: string
   pollQuestion: string
 }
+
+export type CommunityNotificationBasePayload = {
+  actor: NotificationActorSummary
+  recipientId: string
+  targetType: CommunityType
+  targetId: string
+  targetName: string
+  link: string
+}
+
+export type NotifyCommunityInvitePayload = CommunityNotificationBasePayload
+
+export type NotifyCommunityJoinReviewedPayload =
+  CommunityNotificationBasePayload & {
+    approved: boolean
+    reason?: string | null
+  }
+
+export type NotifyCommunityRoleChangedPayload =
+  CommunityNotificationBasePayload & {
+    role: CommunityMemberRole
+  }
+
+export type NotifyCommunityPostReviewedPayload =
+  CommunityNotificationBasePayload & {
+    postId: string
+    approved: boolean
+    reason?: string | null
+  }
+
+export type NotifyCommunityModerationPayload =
+  CommunityNotificationBasePayload & {
+    contentType: "POST" | "COMMENT"
+    contentId: string
+    action: string
+    reason?: string | null
+  }
+
+export type NotifyCourseStudentAddedPayload = CommunityNotificationBasePayload
 
 export type NotificationListItem = {
   id: string
