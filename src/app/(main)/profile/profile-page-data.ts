@@ -1,4 +1,4 @@
-import { FriendshipStatus, MemberRole, PostVisibility, type UserRole } from "@prisma/client"
+import { FriendshipStatus, PostVisibility, type CommunityMemberRole, type UserRole } from "@prisma/client"
 import { prisma } from "@/lib/prisma/client"
 import {
   getFollowCounts,
@@ -65,7 +65,7 @@ export type ConnectionPreviewItem = {
 export type ClubMembershipDto = {
   userId: string
   clubId: string
-  role: MemberRole
+  role: CommunityMemberRole
   joinedAt: string
   club: {
     id: string
@@ -83,7 +83,7 @@ export type ClubMembershipDto = {
 export type GroupMembershipDto = {
   userId: string
   groupId: string
-  role: MemberRole
+  role: CommunityMemberRole
   joinedAt: string
   group: {
     id: string
@@ -158,7 +158,7 @@ type FriendshipRecord = {
 type ClubMembershipRecord = {
   userId: string
   clubId: string
-  role: MemberRole
+  role: CommunityMemberRole
   joinedAt: Date
   club: {
     id: string
@@ -176,7 +176,7 @@ type ClubMembershipRecord = {
 type GroupMembershipRecord = {
   userId: string
   groupId: string
-  role: MemberRole
+  role: CommunityMemberRole
   joinedAt: Date
   group: {
     id: string

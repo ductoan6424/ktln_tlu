@@ -28,6 +28,13 @@ interface SharedPostData {
   authorAvatarUrl: string | null
 }
 
+export interface PostCommunityContext {
+  type: "GROUP" | "CLUB" | "COURSE"
+  name: string
+  href: string
+  avatarUrl: string | null
+}
+
 interface PostCardProps {
   postId?: string
   authorName: string
@@ -57,6 +64,7 @@ interface PostCardProps {
   onDeleted?: () => void
   onHidden?: () => void
   sharedPost?: SharedPostData | null
+  communityContext?: PostCommunityContext | null
   poll?: PollView | null
 }
 
@@ -89,6 +97,7 @@ export function PostCard({
   onDeleted,
   onHidden,
   sharedPost,
+  communityContext,
   poll,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
@@ -130,6 +139,7 @@ export function PostCard({
             tagVariant={tagVariant}
             isVerified={isVerified}
             subtitle={subtitle}
+            communityContext={communityContext}
             currentUserId={currentUserId}
             menu={
               permissions && postId ? (
@@ -245,6 +255,7 @@ export function PostCard({
         onDeleted={onDeleted}
         onHidden={onHidden}
         sharedPost={sharedPost}
+        communityContext={communityContext}
         poll={poll}
       />
     </>

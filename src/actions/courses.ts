@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
 
+import { buildCommunityPath } from "@/lib/communities/urls"
 import { requireCourseCreator, requireCourseManagementAccess } from "@/lib/courses/course-permissions"
+import { notifyCourseStudentAdded } from "@/lib/notifications/dispatchers"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -18,6 +20,11 @@ const createCourseSchema = z.object({
 const addStudentSchema = z.object({
   courseId: z.string().min(1, "Thiếu lớp học cần cập nhật"),
   studentId: z.string().min(1, "Mã sinh viên là bắt buộc"),
+})
+
+const addStudentsByCodesSchema = z.object({
+  courseId: z.string().min(1, "Thiếu lớp học cần cập nhật"),
+  studentCodesText: z.string().min(1, "Danh sách mã sinh viên là bắt buộc"),
 })
 
 function slugifyCourseCode(code: string) {
@@ -72,7 +79,8 @@ export async function addStudentToCourse(
 ): Promise<ActionResult<{ userId: string }>> {
   try {
     const input = addStudentSchema.parse(normalizeFormInput(rawInput))
-    await requireCourseManagementAccess(input.courseId)
+    const management = await requireCourseManagementAccess(input.courseId)
+    const courseId = management.course.id
 
     const student = await prisma.userProfile.findUnique({
       where: { studentId: input.studentId },
@@ -90,7 +98,7 @@ export async function addStudentToCourse(
       where: {
         userId_courseId: {
           userId: student.userId,
-          courseId: input.courseId,
+          courseId,
         },
       },
     })
@@ -101,13 +109,35 @@ export async function addStudentToCourse(
 
     await prisma.courseMember.create({
       data: {
-        courseId: input.courseId,
+        courseId,
         userId: student.userId,
       },
     })
 
+    await notifyCourseStudentAdded({
+      recipientId: student.userId,
+      actor: {
+        userId: management.context.profile.userId,
+        displayName: management.context.profile.displayName,
+        avatarUrl: management.context.profile.avatarUrl,
+      },
+      targetType: "COURSE",
+      targetId: courseId,
+      targetName: management.course.name,
+      link: buildCommunityPath(
+        "COURSE",
+        management.course.code,
+        management.course.shortId,
+      ),
+    }).catch((error) => {
+      console.error("notifyCourseStudentAdded error:", error)
+    })
+
     revalidatePath(`/courses/${input.courseId}`)
     revalidatePath(`/courses/${input.courseId}/manage`)
+    const courseHref = buildCommunityPath("COURSE", management.course.code, management.course.shortId)
+    revalidatePath(courseHref)
+    revalidatePath(`${courseHref}/manage`)
 
     return successResult({ userId: student.userId })
   } catch (error) {
@@ -117,6 +147,119 @@ export async function addStudentToCourse(
 
     return errorResult(
       error instanceof Error ? error.message : "Không thể thêm sinh viên vào lớp",
+      "UPDATE_FAILED",
+    )
+  }
+}
+
+function parseStudentCodes(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/[\s,;]+/g)
+        .map((code) => code.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  )
+}
+
+export async function addStudentsToCourseByCodes(
+  rawInput: unknown,
+): Promise<ActionResult<{
+  added: string[]
+  alreadyMember: string[]
+  notFound: string[]
+}>> {
+  try {
+    const input = addStudentsByCodesSchema.parse(normalizeFormInput(rawInput))
+    const management = await requireCourseManagementAccess(input.courseId)
+    const courseId = management.course.id
+
+    const codes = parseStudentCodes(input.studentCodesText)
+    if (codes.length === 0) {
+      return errorResult("Danh sách mã sinh viên không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    const students = await prisma.userProfile.findMany({
+      where: {
+        studentId: { in: codes },
+        role: "STUDENT",
+        deletedAt: null,
+      },
+      select: {
+        userId: true,
+        studentId: true,
+        role: true,
+      },
+    })
+
+    const validStudents = students.filter(
+      (student): student is typeof student & { studentId: string } =>
+        Boolean(student.studentId),
+    )
+    const foundCodes = new Set(validStudents.map((student) => student.studentId))
+    const existingMembers = await prisma.courseMember.findMany({
+      where: {
+        courseId,
+        userId: { in: validStudents.map((student) => student.userId) },
+      },
+      select: { userId: true },
+    })
+    const existingUserIds = new Set(existingMembers.map((member) => member.userId))
+    const newStudents = validStudents.filter(
+      (student) => !existingUserIds.has(student.userId),
+    )
+
+    if (newStudents.length > 0) {
+      await prisma.courseMember.createMany({
+        data: newStudents.map((student) => ({
+          courseId,
+          userId: student.userId,
+        })),
+        skipDuplicates: true,
+      })
+      await Promise.allSettled(
+        newStudents.map((student) =>
+          notifyCourseStudentAdded({
+            recipientId: student.userId,
+            actor: {
+              userId: management.context.profile.userId,
+              displayName: management.context.profile.displayName,
+              avatarUrl: management.context.profile.avatarUrl,
+            },
+            targetType: "COURSE",
+            targetId: courseId,
+            targetName: management.course.name,
+            link: buildCommunityPath(
+              "COURSE",
+              management.course.code,
+              management.course.shortId,
+            ),
+          }),
+        ),
+      )
+    }
+
+    const added = newStudents.map((student) => student.studentId)
+    const alreadyMember = validStudents
+      .filter((student) => existingUserIds.has(student.userId))
+      .map((student) => student.studentId)
+    const notFound = codes.filter((code) => !foundCodes.has(code))
+
+    revalidatePath(`/courses/${input.courseId}`)
+    revalidatePath(`/courses/${input.courseId}/manage`)
+    const courseHref = buildCommunityPath("COURSE", management.course.code, management.course.shortId)
+    revalidatePath(courseHref)
+    revalidatePath(`${courseHref}/manage`)
+
+    return successResult({ added, alreadyMember, notFound })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult(
+      error instanceof Error ? error.message : "Không thể thêm danh sách sinh viên vào lớp",
       "UPDATE_FAILED",
     )
   }
