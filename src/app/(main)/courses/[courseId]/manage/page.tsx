@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation"
+
+import { buildCommunityPath } from "@/lib/communities/urls"
 import { requireCourseManagementAccess } from "@/lib/courses/course-permissions"
 
 import { CourseManageTabs } from "./course-manage-tabs"
@@ -11,6 +14,11 @@ export default async function ManageCoursePage({
 }) {
   const { courseId } = await params
   const { course } = await requireCourseManagementAccess(courseId)
+  const canonicalPath = buildCommunityPath("COURSE", course.code, course.shortId, "manage")
+
+  if (canonicalPath !== `/courses/${courseId}/manage`) {
+    redirect(canonicalPath)
+  }
 
   return (
     <CourseManageTabs
