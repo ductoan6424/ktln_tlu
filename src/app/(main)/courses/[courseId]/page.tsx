@@ -1,9 +1,16 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
+import { CommunityDetailShell } from "@/components/communities/community-detail-shell"
 import { getAuthorizationContext } from "@/lib/auth/authorization"
+import { getCommunityPermissions } from "@/lib/communities/policy"
+import {
+  getCommunityBySlugId,
+  getViewerMembershipRole,
+} from "@/lib/communities/queries"
+import type { CommunityContext } from "@/lib/communities/types"
+import { buildCommunityPath } from "@/lib/communities/urls"
 import { getCourseDetail } from "@/lib/courses/course-queries"
-
-import { CourseDetailClient } from "./course-detail-client"
+import { prisma } from "@/lib/prisma/client"
 
 export const dynamic = "force-dynamic"
 
@@ -13,52 +20,59 @@ export default async function CourseDetailPage({
   params: Promise<{ courseId: string }>
 }) {
   const { courseId } = await params
-  const [course, context] = await Promise.all([
-    getCourseDetail(courseId),
-    getAuthorizationContext().catch(() => null),
-  ])
+  const resolvedTarget = await getCommunityBySlugId("COURSE", courseId)
+  const course = await getCourseDetail(resolvedTarget?.id ?? courseId)
 
-  if (!course) {
+  if (!course || course.deletedAt) {
     notFound()
   }
 
-  const canManage = Boolean(
-    context &&
-      (context.baseRole === "ADMIN" || course.lecturer.userId === context.profile.userId),
-  )
+  const target: CommunityContext =
+    resolvedTarget ?? {
+      type: "COURSE",
+      id: course.id,
+      shortId: course.shortId,
+      name: course.name,
+      visibility: null,
+      requirePostApproval: course.requirePostApproval,
+      chatEnabled: course.chatEnabled,
+      chatMode: course.chatMode,
+      memberInviteEnabled: false,
+      lecturerId: course.lecturerId,
+    }
+
+  const href = buildCommunityPath("COURSE", course.code, course.shortId)
+  if (href !== `/courses/${courseId}`) redirect(href)
+
+  const context = await getAuthorizationContext().catch(() => null)
+  const userId = context?.profile.userId ?? null
+  const [membershipRole, rules] = await Promise.all([
+    getViewerMembershipRole("COURSE", course.id, userId),
+    prisma.communityRule.findMany({
+      where: { targetType: "COURSE", targetId: course.id },
+      orderBy: { position: "asc" },
+      select: { id: true, title: true, description: true },
+    }),
+  ])
+
+  const permissions = getCommunityPermissions({
+    viewerId: userId,
+    baseRole: context?.baseRole ?? null,
+    target,
+    membershipRole,
+  })
 
   return (
-    <CourseDetailClient
-      currentUser={
-        context
-          ? {
-              displayName: context.profile.displayName,
-              avatarUrl: context.profile.avatarUrl,
-            }
-          : null
-      }
-      course={{
-        id: course.id,
-        name: course.name,
-        subject: course.code,
-        description: course.description,
-        studentCount: course.members.length,
-        lecturer: course.lecturer.displayName,
-        coverImage:
-          course.coverUrl ??
-          "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=1200&h=400&fit=crop",
-        members: [
-          {
-            name: course.lecturer.displayName,
-            role: "Giảng viên",
-          },
-          ...course.members.map((member) => ({
-            name: member.user.displayName,
-            role: member.user.studentId ? `Sinh viên • ${member.user.studentId}` : "Sinh viên",
-          })),
-        ],
-      }}
-      canManage={canManage}
+    <CommunityDetailShell
+      target={target}
+      href={href}
+      manageHref={buildCommunityPath("COURSE", course.code, course.shortId, "manage")}
+      description={course.description}
+      memberCount={course.members.length}
+      canViewPosts={permissions.canViewPosts}
+      canManage={permissions.canManage}
+      joinMode={permissions.joinMode}
+      rules={rules}
     />
   )
 }
