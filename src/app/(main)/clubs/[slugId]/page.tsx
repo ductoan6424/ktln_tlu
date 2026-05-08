@@ -59,8 +59,18 @@ export default async function ClubDetailPage({
       description={club.description}
       memberCount={club._count.members}
       canViewPosts={permissions.canViewPosts}
+      canPost={permissions.canPost}
       canManage={permissions.canManage}
       joinMode={permissions.joinMode}
+      slugId={slugId}
+      viewer={
+        context
+          ? {
+              displayName: context.profile.displayName,
+              avatarUrl: context.profile.avatarUrl,
+            }
+          : null
+      }
       rules={rules}
     />
   )

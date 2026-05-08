@@ -9,6 +9,7 @@ import {
   getCelebrityAuthorIds,
   getPersonalizedFeedPostIds,
 } from "@/lib/feed/fanout";
+import { buildCommunityPath } from "@/lib/communities/urls";
 
 export type FeedCursor = {
   redisFetched: number;
@@ -33,6 +34,22 @@ export type FeedSharedPost = {
   authorAvatarUrl: string | null;
 };
 
+export type FeedPostCommunityContext = {
+  type: "GROUP" | "CLUB" | "COURSE";
+  name: string;
+  href: string;
+  avatarUrl: string | null;
+};
+
+export type FeedPostAttachment = {
+  id: string;
+  url: string;
+  type: "IMAGE" | "FILE";
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 export type FeedPostDto = {
   id: string;
   content: string;
@@ -50,6 +67,8 @@ export type FeedPostDto = {
   isFromFollowed: boolean;
   permissions: FeedPostPermissions;
   sharedPost: FeedSharedPost | null;
+  communityContext: FeedPostCommunityContext | null;
+  attachments: FeedPostAttachment[];
   poll: PollView | null;
 };
 
@@ -80,6 +99,26 @@ type RawFeedPost = Prisma.PostGetPayload<{
         imageUrl: true;
         deletedAt: true;
         author: { select: { displayName: true; avatarUrl: true } };
+      };
+    };
+    group: { select: { name: true; shortId: true; coverUrl: true } };
+    club: {
+      select: {
+        name: true;
+        shortId: true;
+        logoUrl: true;
+        coverUrl: true;
+      };
+    };
+    course: { select: { code: true; name: true; shortId: true; coverUrl: true } };
+    attachments: {
+      select: {
+        id: true;
+        url: true;
+        type: true;
+        name: true;
+        mimeType: true;
+        sizeBytes: true;
       };
     };
   };
@@ -160,6 +199,26 @@ function buildPostInclude(viewerId: string | null) {
         author: { select: { displayName: true, avatarUrl: true } },
       },
     },
+    group: {
+      select: { name: true, shortId: true, coverUrl: true },
+    },
+    club: {
+      select: { name: true, shortId: true, logoUrl: true, coverUrl: true },
+    },
+    course: {
+      select: { code: true, name: true, shortId: true, coverUrl: true },
+    },
+    attachments: {
+      select: {
+        id: true,
+        url: true,
+        type: true,
+        name: true,
+        mimeType: true,
+        sizeBytes: true,
+      },
+      orderBy: { createdAt: "asc" },
+    },
   } as const;
 }
 
@@ -203,6 +262,28 @@ async function mapRawPost(
       : null;
 
   const likesArr = Array.isArray(post.likes) ? post.likes : [];
+  const communityContext: FeedPostCommunityContext | null = post.group
+    ? {
+        type: "GROUP",
+        name: post.group.name,
+        href: buildCommunityPath("GROUP", post.group.name, post.group.shortId),
+        avatarUrl: post.group.coverUrl,
+      }
+    : post.club
+      ? {
+          type: "CLUB",
+          name: post.club.name,
+          href: buildCommunityPath("CLUB", post.club.name, post.club.shortId),
+          avatarUrl: post.club.logoUrl ?? post.club.coverUrl,
+        }
+      : post.course
+        ? {
+            type: "COURSE",
+            name: post.course.name,
+            href: buildCommunityPath("COURSE", post.course.code, post.course.shortId),
+            avatarUrl: post.course.coverUrl,
+          }
+        : null;
 
   return {
     id: post.id,
@@ -221,29 +302,103 @@ async function mapRawPost(
     isFromFollowed,
     permissions,
     sharedPost,
+    communityContext,
+    attachments: post.attachments.map((attachment) => ({
+      id: attachment.id,
+      url: attachment.url,
+      type: attachment.type,
+      name: attachment.name,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+    })),
     poll,
   };
 }
 
-function buildBaseWhere(hiddenIds: string[]): Prisma.PostWhereInput {
+export type CommunityFeedWhereInput = {
+  viewerId: string | null;
+  joinedGroupIds: string[];
+  joinedClubIds: string[];
+  joinedCourseIds: string[];
+  hiddenIds: string[];
+};
+
+export function buildCommunityFeedWhere({
+  joinedGroupIds,
+  joinedClubIds,
+  joinedCourseIds,
+  hiddenIds,
+}: CommunityFeedWhereInput): Prisma.PostWhereInput {
   return {
     visibility: "PUBLIC",
     deletedAt: null,
+    communityStatus: "PUBLISHED",
+    OR: [
+      { groupId: null, clubId: null, courseId: null },
+      ...(joinedGroupIds.length > 0
+        ? [{ groupId: { in: joinedGroupIds } }]
+        : []),
+      ...(joinedClubIds.length > 0
+        ? [{ clubId: { in: joinedClubIds } }]
+        : []),
+      ...(joinedCourseIds.length > 0
+        ? [{ courseId: { in: joinedCourseIds } }]
+        : []),
+    ],
     ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
+  };
+}
+
+export async function getJoinedCommunityIds(viewerId: string | null): Promise<{
+  joinedGroupIds: string[];
+  joinedClubIds: string[];
+  joinedCourseIds: string[];
+}> {
+  if (!viewerId) {
+    return {
+      joinedGroupIds: [],
+      joinedClubIds: [],
+      joinedCourseIds: [],
+    };
+  }
+
+  const [groups, clubs, courseMembers, teachingCourses] = await Promise.all([
+    prisma.groupMember.findMany({
+      where: { userId: viewerId },
+      select: { groupId: true },
+    }),
+    prisma.clubMember.findMany({
+      where: { userId: viewerId },
+      select: { clubId: true },
+    }),
+    prisma.courseMember.findMany({
+      where: { userId: viewerId },
+      select: { courseId: true },
+    }),
+    prisma.course.findMany({
+      where: { lecturerId: viewerId, deletedAt: null },
+      select: { id: true },
+    }),
+  ]);
+
+  return {
+    joinedGroupIds: groups.map((row) => row.groupId),
+    joinedClubIds: clubs.map((row) => row.clubId),
+    joinedCourseIds: Array.from(
+      new Set([
+        ...courseMembers.map((row) => row.courseId),
+        ...teachingCourses.map((row) => row.id),
+      ]),
+    ),
   };
 }
 
 function buildIdWhere(
   ids: string[],
-  hiddenIds: string[],
+  baseWhere: Prisma.PostWhereInput,
 ): Prisma.PostWhereInput {
   return {
-    visibility: "PUBLIC",
-    deletedAt: null,
-    id: {
-      in: ids,
-      ...(hiddenIds.length > 0 ? { notIn: hiddenIds } : {}),
-    },
+    AND: [baseWhere, { id: { in: ids } }],
   };
 }
 
@@ -365,9 +520,14 @@ export async function getFeedPosts(
   pageSize: number,
 ): Promise<FeedPage> {
   const hiddenIds = await getHiddenPostIds(viewerId);
+  const joinedCommunityIds = await getJoinedCommunityIds(viewerId);
   const followingIds = viewerId ? await getFollowingIds(viewerId) : [];
   const config = await getFeedFanoutConfig();
-  const baseWhere = buildBaseWhere(hiddenIds);
+  const baseWhere = buildCommunityFeedWhere({
+    viewerId,
+    ...joinedCommunityIds,
+    hiddenIds,
+  });
   const followingSet = new Set(followingIds);
   const noFollowing = followingIds.length === 0;
   const freshnessQuota = Math.min(
@@ -422,7 +582,7 @@ export async function getFeedPosts(
 
     if (personalizedIds.length > 0) {
       const rows = (await prisma.post.findMany({
-        where: buildIdWhere(personalizedIds, hiddenIds),
+        where: buildIdWhere(personalizedIds, baseWhere),
         select: candidateSelect,
         orderBy: { createdAt: "desc" },
       })) as FeedCandidatePost[];
@@ -580,7 +740,7 @@ export async function getFeedPosts(
   const fullPosts =
     selectedIds.length > 0
       ? ((await prisma.post.findMany({
-          where: buildIdWhere(selectedIds, hiddenIds),
+          where: buildIdWhere(selectedIds, baseWhere),
           include: buildPostInclude(viewerId),
         })) as RawFeedPost[])
       : [];

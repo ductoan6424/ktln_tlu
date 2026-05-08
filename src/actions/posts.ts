@@ -1,8 +1,14 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
-import { UploadValidationError, uploadPostImage } from "@/lib/cloudinary/upload"
+import {
+  UploadValidationError,
+  uploadCommunityAttachment,
+  uploadPostImage,
+  type UploadedCommunityAttachment,
+} from "@/lib/cloudinary/upload"
 import { prisma } from "@/lib/prisma/client"
 import {
   postSchema,
@@ -19,9 +25,22 @@ import { successResult, errorResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import { resolveDeleteRole, canHidePost } from "@/lib/auth/post-permissions"
 import { FEED_PAGE_SIZE, POST_SHARE_REPOST_MAX } from "@/lib/config/posts"
-import { getFeedPosts, type FeedCursor, type FeedPage } from "@/lib/feed/queries"
+import {
+  getFeedPosts,
+  type FeedCursor,
+  type FeedPage,
+  type FeedPostCommunityContext,
+} from "@/lib/feed/queries"
 import { distributePostToFeeds } from "@/lib/feed/fanout"
 import type { PostModerationAction } from "@prisma/client"
+import { getAuthorizationContext } from "@/lib/auth/authorization"
+import { getCommunityPermissions } from "@/lib/communities/policy"
+import {
+  getCommunityBySlugId,
+  getViewerMembershipRole,
+} from "@/lib/communities/queries"
+import type { CommunityType } from "@/lib/communities/types"
+import { buildCommunityPath } from "@/lib/communities/urls"
 import {
   notifyComment,
   notifyCommentReply,
@@ -106,6 +125,80 @@ function extractCreatePostInput(rawInput: unknown) {
     imageFile: null,
     poll: undefined,
   }
+}
+
+const communityTypeSchema = z.enum(["GROUP", "CLUB", "COURSE"])
+
+function getFormDataString(formData: FormData, key: string) {
+  const value = formData.get(key)
+  return typeof value === "string" ? value : ""
+}
+
+function extractFiles(values: FormDataEntryValue[]) {
+  return values.filter(
+    (value): value is File => value instanceof File && value.size > 0,
+  )
+}
+
+function extractCreateCommunityPostInput(rawInput: unknown) {
+  if (rawInput instanceof FormData) {
+    const imageValue = rawInput.get("image")
+    const attachments = extractFiles(rawInput.getAll("attachments"))
+
+    if (imageValue instanceof File && imageValue.size > 0) {
+      attachments.unshift(imageValue)
+    }
+
+    return {
+      type: getFormDataString(rawInput, "type"),
+      slugId: getFormDataString(rawInput, "slugId"),
+      content: getFormDataString(rawInput, "content"),
+      imageUrl: getFormDataString(rawInput, "imageUrl") || undefined,
+      attachments,
+    }
+  }
+
+  if (rawInput && typeof rawInput === "object") {
+    const input = rawInput as {
+      type?: unknown
+      slugId?: unknown
+      content?: unknown
+      imageUrl?: unknown
+      attachments?: unknown
+      imageFile?: unknown
+    }
+    const attachments = Array.isArray(input.attachments)
+      ? input.attachments.filter(
+          (value): value is File => value instanceof File && value.size > 0,
+        )
+      : []
+
+    if (input.imageFile instanceof File && input.imageFile.size > 0) {
+      attachments.unshift(input.imageFile)
+    }
+
+    return {
+      type: typeof input.type === "string" ? input.type : "",
+      slugId: typeof input.slugId === "string" ? input.slugId : "",
+      content: typeof input.content === "string" ? input.content : "",
+      imageUrl: typeof input.imageUrl === "string" ? input.imageUrl : undefined,
+      attachments,
+    }
+  }
+
+  return {
+    type: "",
+    slugId: "",
+    content: "",
+    imageUrl: undefined,
+    attachments: [] as File[],
+  }
+}
+
+function getCommunityPostTargetData(type: CommunityType, targetId: string) {
+  if (type === "GROUP") return { groupId: targetId }
+  if (type === "CLUB") return { clubId: targetId }
+  return { courseId: targetId }
 }
 
 // Quy đổi durationPreset thành thời điểm đóng poll (null = không giới hạn)
@@ -226,6 +319,134 @@ export async function createPost(
   }
 }
 
+export async function createCommunityPost(
+  rawInput: unknown,
+): Promise<
+  ActionResult<
+    CreatePostData & { communityStatus: "PUBLISHED" | "PENDING_APPROVAL" }
+  >
+> {
+  const context = await getAuthorizationContext()
+  if (!context) {
+    return errorResult("Bạn cần đăng nhập để thực hiện", "UNAUTHORIZED")
+  }
+
+  const input = extractCreateCommunityPostInput(rawInput)
+  const parsedType = communityTypeSchema.safeParse(input.type)
+  if (!parsedType.success || !input.slugId.trim()) {
+    return errorResult("Không gian đăng bài không hợp lệ", "VALIDATION_ERROR")
+  }
+
+  const validated = postSchema.safeParse({
+    content: input.content,
+    imageUrl: input.imageUrl,
+  })
+
+  if (!validated.success) {
+    return errorResult(
+      validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
+      "VALIDATION_ERROR",
+    )
+  }
+
+  const target = await getCommunityBySlugId(parsedType.data, input.slugId)
+  if (!target) {
+    return errorResult("Không tìm thấy không gian này", "NOT_FOUND")
+  }
+
+  const membershipRole = await getViewerMembershipRole(
+    target.type,
+    target.id,
+    context.profile.userId,
+  )
+  const permissions = getCommunityPermissions({
+    viewerId: context.profile.userId,
+    baseRole: context.baseRole,
+    target,
+    membershipRole,
+  })
+
+  if (!permissions.canPost) {
+    return errorResult("Bạn không có quyền đăng bài trong không gian này", "FORBIDDEN")
+  }
+
+  try {
+    const uploadedAttachments: UploadedCommunityAttachment[] = []
+    for (const file of input.attachments) {
+      uploadedAttachments.push(await uploadCommunityAttachment(file))
+    }
+
+    const firstImageAttachment = uploadedAttachments.find(
+      (attachment) => attachment.type === "IMAGE",
+    )
+    const finalImageUrl =
+      validated.data.imageUrl?.trim() || firstImageAttachment?.url || null
+    const communityStatus =
+      target.requirePostApproval && !permissions.canApprovePost
+        ? "PENDING_APPROVAL"
+        : "PUBLISHED"
+
+    const post = await prisma.$transaction(async (tx) => {
+      const created = await tx.post.create({
+        data: {
+          content: validated.data.content,
+          authorId: context.profile.userId,
+          visibility: "PUBLIC",
+          imageUrl: finalImageUrl,
+          communityStatus,
+          ...getCommunityPostTargetData(target.type, target.id),
+        },
+      })
+
+      if (uploadedAttachments.length > 0) {
+        await tx.postAttachment.createMany({
+          data: uploadedAttachments.map((attachment) => ({
+            postId: created.id,
+            url: attachment.url,
+            type: attachment.type,
+            name: attachment.name,
+            mimeType: attachment.mimeType,
+            sizeBytes: attachment.sizeBytes,
+          })),
+        })
+      }
+
+      return created
+    })
+
+    if (communityStatus === "PUBLISHED") {
+      await distributePostToFeeds({
+        postId: post.id,
+        authorId: post.authorId,
+        createdAt: post.createdAt,
+      })
+      revalidatePath("/feed")
+    }
+
+    revalidatePath(
+      target.type === "COURSE"
+        ? `/courses/${input.slugId}`
+        : buildCommunityPath(target.type, target.name, target.shortId),
+    )
+
+    return successResult({
+      id: post.id,
+      content: post.content,
+      imageUrl: post.imageUrl,
+      createdAt: post.createdAt,
+      authorId: post.authorId,
+      communityStatus,
+    })
+  } catch (error) {
+    if (error instanceof UploadValidationError) {
+      return errorResult(error.message, "UPLOAD_VALIDATION_ERROR")
+    }
+
+    console.error("createCommunityPost error:", error)
+    return errorResult("Không thể tạo bài viết. Vui lòng thử lại.")
+  }
+}
+
 // ─── Post Types ─────────────────────────────────────────────────────────────
 
 interface PostPermissions {
@@ -258,6 +479,7 @@ interface PostWithAuthorFlat {
   comments: number
   permissions: PostPermissions
   sharedPost: SharedPostData | null
+  communityContext: FeedPostCommunityContext | null
   poll: PollView | null
 }
 
@@ -400,6 +622,15 @@ export async function getPostById(
             author: { select: { displayName: true, avatarUrl: true } },
           },
         },
+        group: {
+          select: { name: true, shortId: true, coverUrl: true },
+        },
+        club: {
+          select: { name: true, shortId: true, logoUrl: true, coverUrl: true },
+        },
+        course: {
+          select: { code: true, name: true, shortId: true, coverUrl: true },
+        },
       },
     })
 
@@ -438,6 +669,28 @@ export async function getPostById(
             authorAvatarUrl: post.sharedPost.author.avatarUrl,
           }
         : null
+    const communityContext: FeedPostCommunityContext | null = post.group
+      ? {
+          type: "GROUP",
+          name: post.group.name,
+          href: buildCommunityPath("GROUP", post.group.name, post.group.shortId),
+          avatarUrl: post.group.coverUrl,
+        }
+      : post.club
+        ? {
+            type: "CLUB",
+            name: post.club.name,
+            href: buildCommunityPath("CLUB", post.club.name, post.club.shortId),
+            avatarUrl: post.club.logoUrl ?? post.club.coverUrl,
+          }
+        : post.course
+          ? {
+              type: "COURSE",
+              name: post.course.name,
+              href: buildCommunityPath("COURSE", post.course.code, post.course.shortId),
+              avatarUrl: post.course.coverUrl,
+            }
+          : null
 
     const poll = await getPollForPost(post.id, currentUserId)
 
@@ -457,6 +710,7 @@ export async function getPostById(
       comments: post._count.comments,
       permissions,
       sharedPost,
+      communityContext,
       poll,
     })
   } catch (error) {
