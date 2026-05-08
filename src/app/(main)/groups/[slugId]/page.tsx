@@ -59,8 +59,18 @@ export default async function GroupDetailPage({
       description={group.description}
       memberCount={group._count.members}
       canViewPosts={permissions.canViewPosts}
+      canPost={permissions.canPost}
       canManage={permissions.canManage}
       joinMode={permissions.joinMode}
+      slugId={slugId}
+      viewer={
+        context
+          ? {
+              displayName: context.profile.displayName,
+              avatarUrl: context.profile.avatarUrl,
+            }
+          : null
+      }
       rules={rules}
     />
   )

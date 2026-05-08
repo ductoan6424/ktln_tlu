@@ -6,15 +6,28 @@ import {
   CHAT_MAX_FILE_SIZE,
   CHAT_MAX_IMAGE_SIZE,
 } from "@/lib/config/chat"
+import {
+  COMMUNITY_ALLOWED_FILE_MIME_TYPES,
+  COMMUNITY_ATTACHMENT_MAX_BYTES,
+} from "@/lib/config/community"
 
 const DEFAULT_POST_IMAGE_FOLDER = "uniconnect/posts"
 const DEFAULT_AVATAR_IMAGE_FOLDER = "uniconnect/avatars"
 const DEFAULT_COVER_IMAGE_FOLDER = "uniconnect/covers"
 const DEFAULT_CHAT_ATTACHMENT_FOLDER = "uniconnect/chat"
+const DEFAULT_COMMUNITY_ATTACHMENT_FOLDER = "uniconnect/community-attachments"
 
 export type UploadedChatAttachment = {
   url: string
   type: "image" | "file"
+  name: string
+  mimeType: string
+  sizeBytes: number
+}
+
+export type UploadedCommunityAttachment = {
+  url: string
+  type: "IMAGE" | "FILE"
   name: string
   mimeType: string
   sizeBytes: number
@@ -101,6 +114,28 @@ function assertValidChatAttachment(file: File) {
   }
 }
 
+function assertValidCommunityAttachment(file: File) {
+  if (file.size <= 0) {
+    throw new UploadValidationError("Tệp đính kèm không hợp lệ.")
+  }
+
+  if (file.size > COMMUNITY_ATTACHMENT_MAX_BYTES) {
+    throw new UploadValidationError("Tệp vượt quá dung lượng tối đa cho bài viết.")
+  }
+
+  if (isImageFile(file)) {
+    return
+  }
+
+  const isAllowed = COMMUNITY_ALLOWED_FILE_MIME_TYPES.includes(
+    getMimeType(file) as (typeof COMMUNITY_ALLOWED_FILE_MIME_TYPES)[number],
+  )
+
+  if (!isAllowed) {
+    throw new UploadValidationError("Định dạng tệp chưa được hỗ trợ.")
+  }
+}
+
 export async function uploadChatAttachment(file: File): Promise<UploadedChatAttachment> {
   assertValidChatAttachment(file)
 
@@ -120,6 +155,36 @@ export async function uploadChatAttachment(file: File): Promise<UploadedChatAtta
   return {
     url: result.secure_url,
     type: isImageFile(file) ? "image" : "file",
+    name: getFileName(file),
+    mimeType,
+    sizeBytes: file.size,
+  }
+}
+
+export async function uploadCommunityAttachment(
+  file: File,
+): Promise<UploadedCommunityAttachment> {
+  assertValidCommunityAttachment(file)
+
+  const fileBuffer = Buffer.from(await file.arrayBuffer())
+  const base64 = fileBuffer.toString("base64")
+  const mimeType = getMimeType(file)
+  const dataUri = `data:${mimeType};base64,${base64}`
+  const isImage = isImageFile(file)
+
+  const result = await cloudinary.uploader.upload(dataUri, {
+    folder:
+      process.env.CLOUDINARY_COMMUNITY_ATTACHMENTS_FOLDER ??
+      DEFAULT_COMMUNITY_ATTACHMENT_FOLDER,
+    resource_type: isImage ? "image" : "raw",
+    use_filename: true,
+    unique_filename: true,
+    filename_override: getFileName(file),
+  })
+
+  return {
+    url: result.secure_url,
+    type: isImage ? "IMAGE" : "FILE",
     name: getFileName(file),
     mimeType,
     sizeBytes: file.size,

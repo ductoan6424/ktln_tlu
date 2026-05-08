@@ -70,8 +70,18 @@ export default async function CourseDetailPage({
       description={course.description}
       memberCount={course.members.length}
       canViewPosts={permissions.canViewPosts}
+      canPost={permissions.canPost}
       canManage={permissions.canManage}
       joinMode={permissions.joinMode}
+      slugId={courseId}
+      viewer={
+        context
+          ? {
+              displayName: context.profile.displayName,
+              avatarUrl: context.profile.avatarUrl,
+            }
+          : null
+      }
       rules={rules}
     />
   )

@@ -25,7 +25,7 @@ import type { ActiveFriend } from "@/components/layout/mock-data"
 import { listMyConversations } from "@/actions/chat"
 import { loadFeedPosts, togglePostLike, getPostById } from "@/actions/posts"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
-import type { FeedCursor } from "@/lib/feed/queries"
+import type { FeedCursor, FeedPostCommunityContext } from "@/lib/feed/queries"
 import type { PollView } from "@/lib/polls/types"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { useToast } from "@/components/ui/use-toast"
@@ -80,6 +80,7 @@ interface FeedPost {
     canHide: boolean
     deleteRole: "AUTHOR" | "MODERATOR" | null
   }
+  communityContext?: FeedPostCommunityContext | null
   sharedPost?: SharedPostData | null
   isFromFollowed?: boolean
   poll?: PollView | null
@@ -98,6 +99,7 @@ interface DeepLinkPost {
   authorId: string
   currentUserId: string | null
   permissions?: FeedPost["permissions"]
+  communityContext?: FeedPostCommunityContext | null
   sharedPost?: SharedPostData | null
 }
 
@@ -163,6 +165,7 @@ export function FeedPageClient({
         authorId: existingPost.authorId,
         currentUserId: currentUser?.userId ?? null,
         permissions: existingPost.permissions,
+        communityContext: existingPost.communityContext ?? null,
         sharedPost: existingPost.sharedPost ?? null,
       })
       setIsDeepLinkOpen(true)
@@ -188,6 +191,7 @@ export function FeedPageClient({
         authorId: p.authorId,
         currentUserId: currentUser?.userId ?? null,
         permissions: p.permissions,
+        communityContext: p.communityContext ?? null,
         sharedPost: p.sharedPost ?? null,
       })
       setIsDeepLinkOpen(true)
@@ -255,6 +259,7 @@ export function FeedPageClient({
         isLiked: post.isLiked,
         likes: post.likes,
         permissions: post.permissions,
+        communityContext: post.communityContext ?? null,
         sharedPost: post.sharedPost ?? null,
         isFromFollowed: post.isFromFollowed,
         poll: post.poll ?? null,
@@ -479,6 +484,7 @@ export function FeedPageClient({
                       authorId={post.authorId}
                       onLike={() => handleLike(post.id)}
                       permissions={post.permissions}
+                      communityContext={post.communityContext ?? null}
                       onDeleted={() =>
                         setPosts((prev) => prev.filter((p) => p.id !== post.id))
                       }
@@ -583,6 +589,7 @@ export function FeedPageClient({
           authorId={deepLinkData.authorId}
           onLike={() => handleLike(deepLinkData.postId)}
           permissions={deepLinkData.permissions}
+          communityContext={deepLinkData.communityContext ?? null}
           onDeleted={() => {
             setIsDeepLinkOpen(false)
             setPosts((prev) => prev.filter((p) => p.id !== deepLinkData.postId))

@@ -52,6 +52,10 @@ const prisma = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/authorization", () => ({ getAuthorizationContext }))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
+vi.mock("@/components/communities/community-post-composer", () => ({
+  CommunityPostComposer: () =>
+    createElement("div", { "data-testid": "community-post-composer" }),
+}))
 vi.mock("next/link", () => ({
   default: ({
     children,

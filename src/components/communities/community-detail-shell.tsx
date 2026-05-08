@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import { CommunityCard } from "@/components/communities/community-card"
+import { CommunityPostComposer } from "@/components/communities/community-post-composer"
 import { PageContainer } from "@/components/layout/page-container"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,8 +14,11 @@ type CommunityDetailShellProps = {
   description: string | null
   memberCount: number
   canViewPosts: boolean
+  canPost: boolean
   canManage: boolean
   joinMode: "NONE" | "JOIN_NOW" | "REQUEST"
+  slugId: string
+  viewer: { displayName: string; avatarUrl: string | null } | null
   rules: Array<{ id: string; title: string; description: string }>
 }
 
@@ -25,8 +29,11 @@ export function CommunityDetailShell({
   description,
   memberCount,
   canViewPosts,
+  canPost,
   canManage,
   joinMode,
+  slugId,
+  viewer,
   rules,
 }: CommunityDetailShellProps) {
   return (
@@ -97,6 +104,15 @@ export function CommunityDetailShell({
         </div>
       ) : (
         <div className="space-y-4">
+          {canPost && viewer ? (
+            <CommunityPostComposer
+              type={target.type}
+              slugId={slugId}
+              targetName={target.name}
+              userName={viewer.displayName}
+              userAvatar={viewer.avatarUrl}
+            />
+          ) : null}
           <nav className="flex gap-2 overflow-x-auto border-b border-border pb-3">
             {["Bảng tin", "Thành viên", "Giới thiệu", ...(target.chatEnabled ? ["Chat"] : [])].map((label) => (
               <Button key={label} variant="ghost" size="sm">
