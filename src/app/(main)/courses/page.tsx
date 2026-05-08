@@ -1,68 +1,152 @@
-import Link from "next/link"
-
+import type { CommunityCardItem } from "@/components/communities/community-card"
+import { CommunityListPage } from "@/components/communities/community-list-page"
 import { getAuthorizationContext } from "@/lib/auth/authorization"
-import { listCourses } from "@/lib/courses/course-queries"
-import { PageContainer } from "@/components/layout/page-container"
-import { SearchInput } from "@/components/shared/search-input"
-import { Button } from "@/components/ui/button"
+import { buildCommunityPath } from "@/lib/communities/urls"
+import { prisma } from "@/lib/prisma/client"
 
 export const dynamic = "force-dynamic"
 
-export default async function CoursesPage() {
-  const [courses, context] = await Promise.all([
-    listCourses(),
-    getAuthorizationContext().catch(() => null),
-  ])
+const TABS = [
+  { label: "Của tôi", value: "my" },
+  { label: "Khám phá", value: "explore" },
+  { label: "Đang chờ duyệt", value: "pending" },
+  { label: "Được mời", value: "invited" },
+] as const
+
+type SearchParams = Record<string, string | string[] | undefined>
+type TabValue = (typeof TABS)[number]["value"]
+
+function getParam(params: SearchParams, key: string) {
+  const value = params[key]
+  return Array.isArray(value) ? value[0] ?? "" : value ?? ""
+}
+
+function normalizeTab(value: string): TabValue {
+  return TABS.some((tab) => tab.value === value) ? (value as TabValue) : "my"
+}
+
+function buildTabHref(tab: string, query: string) {
+  const search = new URLSearchParams({ tab })
+  if (query) search.set("q", query)
+  return `/courses?${search.toString()}`
+}
+
+export default async function CoursesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>
+}) {
+  const params = (await searchParams) ?? {}
+  const activeTab = normalizeTab(getParam(params, "tab"))
+  const query = getParam(params, "q").trim()
+  const context = await getAuthorizationContext().catch(() => null)
+  const userId = context?.profile.userId ?? null
   const canCreateCourse = Boolean(
     context && (context.baseRole === "LECTURER" || context.baseRole === "ADMIN"),
   )
 
+  const [pendingRequests, invites] = userId
+    ? await Promise.all([
+        prisma.communityJoinRequest.findMany({
+          where: { targetType: "COURSE", requesterId: userId, status: "PENDING" },
+          select: { targetId: true },
+        }),
+        prisma.communityInvite.findMany({
+          where: { targetType: "COURSE", inviteeId: userId, status: "PENDING" },
+          select: { targetId: true },
+        }),
+      ])
+    : [[], []]
+
+  const pendingIds = new Set(pendingRequests.map((request) => request.targetId))
+  const invitedIds = new Set(invites.map((invite) => invite.targetId))
+  const filterIds =
+    activeTab === "pending"
+      ? Array.from(pendingIds)
+      : activeTab === "invited"
+        ? Array.from(invitedIds)
+        : null
+
+  const courses =
+    activeTab !== "explore" && !userId
+      ? []
+      : await prisma.course.findMany({
+          where: {
+            deletedAt: null,
+            AND: [
+              ...(query
+                ? [
+                    {
+                      OR: [
+                        { name: { contains: query, mode: "insensitive" as const } },
+                        { code: { contains: query, mode: "insensitive" as const } },
+                      ],
+                    },
+                  ]
+                : []),
+              ...(activeTab === "my" && userId
+                ? [
+                    {
+                      OR: [
+                        { members: { some: { userId } } },
+                        { lecturerId: userId },
+                      ],
+                    },
+                  ]
+                : []),
+              ...(filterIds ? [{ id: { in: filterIds } }] : []),
+            ],
+          },
+          include: {
+            lecturer: {
+              select: { userId: true, displayName: true },
+            },
+            members: userId
+              ? { where: { userId }, select: { userId: true }, take: 1 }
+              : false,
+            _count: { select: { members: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+
+  const items: CommunityCardItem[] = courses.map((course) => {
+    const href = buildCommunityPath("COURSE", course.code, course.shortId)
+    const joined =
+      course.lecturer.userId === userId ||
+      (Array.isArray(course.members) && course.members.length > 0)
+
+    return {
+      type: "COURSE",
+      name: course.name,
+      description: course.description ?? `${course.code} - ${course.lecturer.displayName}`,
+      href,
+      visibility: null,
+      memberCount: course._count.members,
+      status: joined
+        ? "JOINED"
+        : pendingIds.has(course.id)
+          ? "PENDING"
+          : invitedIds.has(course.id)
+            ? "INVITED"
+            : "AVAILABLE",
+    }
+  })
+
   return (
-    <PageContainer variant="centered">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Môn học</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Danh sách lớp học do giảng viên quản lý trong hệ thống.
-            </p>
-          </div>
-          {canCreateCourse ? (
-            <Link href="/courses/new">
-              <Button>Tạo lớp học</Button>
-            </Link>
-          ) : null}
-        </div>
-
-        <SearchInput placeholder="Tìm kiếm môn học..." className="max-w-sm" />
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {courses.length === 0 ? (
-            <p className="col-span-full rounded-xl border border-dashed py-10 text-center text-muted-foreground">
-              Chưa có lớp học nào được tạo.
-            </p>
-          ) : (
-            courses.map((course) => (
-              <Link
-                key={course.id}
-                href={`/courses/${course.id}`}
-                className="rounded-xl border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-md"
-              >
-                <div className="space-y-3">
-                  <div>
-                    <h2 className="font-semibold">{course.name}</h2>
-                    <p className="text-xs text-muted-foreground">{course.code}</p>
-                  </div>
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>{course._count.members} sinh viên</p>
-                    <p>{course.lecturer.displayName}</p>
-                  </div>
-                </div>
-              </Link>
-            ))
-          )}
-        </div>
-      </div>
-    </PageContainer>
+    <CommunityListPage
+      title="Lớp học"
+      description="Tìm lớp học theo mã hoặc tên lớp và theo dõi thông báo nội bộ."
+      searchPlaceholder="Tìm theo mã hoặc tên lớp..."
+      createHref={canCreateCourse ? "/courses/new" : undefined}
+      createLabel={canCreateCourse ? "Tạo lớp học" : undefined}
+      tabs={TABS.map((tab) => ({
+        ...tab,
+        href: buildTabHref(tab.value, query),
+      }))}
+      activeTab={activeTab}
+      query={query}
+      items={items}
+      emptyText="Chưa có lớp học phù hợp."
+    />
   )
 }
