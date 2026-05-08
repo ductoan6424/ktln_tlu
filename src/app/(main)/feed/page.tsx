@@ -62,6 +62,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     likes: post.likes,
     permissions: post.permissions,
     sharedPost: post.sharedPost,
+    communityContext: post.communityContext,
     isFromFollowed: post.isFromFollowed,
     poll: post.poll,
   }))

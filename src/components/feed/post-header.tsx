@@ -21,9 +21,20 @@ interface PostHeaderProps {
   isVerified?: boolean
   subtitle?: string
   currentUserId?: string | null
+  communityContext?: {
+    type: "GROUP" | "CLUB" | "COURSE"
+    name: string
+    href: string
+  } | null
   onMore?: () => void
   menu?: ReactNode
 }
+
+const COMMUNITY_LABELS = {
+  GROUP: "Nhóm",
+  CLUB: "CLB",
+  COURSE: "Lớp học",
+} as const
 
 export function PostHeader({
   authorId,
@@ -36,6 +47,7 @@ export function PostHeader({
   isVerified = false,
   subtitle,
   currentUserId,
+  communityContext,
   onMore,
   menu,
 }: PostHeaderProps) {
@@ -60,23 +72,44 @@ export function PostHeader({
       ) : (
         avatarNode
       )}
-      <span className="block">
-        <span className="flex items-center gap-1.5">
-          {profileHref ? (
-            <Link href={profileHref}>{nameNode}</Link>
-          ) : (
-            nameNode
-          )}
-          {isVerified && (
-            <BadgeCheck className="size-4 text-primary fill-primary stroke-primary-foreground" />
-          )}
-        </span>
-        <span className="block text-xs text-muted-foreground">
-          {subtitle && <>{subtitle} • </>}
-          <RelativeTime date={createdAt} fallback={createdAt} />
-          {tag && (
-            <>
-              {" • "}
+        <span className="block">
+          <span className="flex items-center gap-1.5">
+            {profileHref ? (
+              <Link href={profileHref}>{nameNode}</Link>
+            ) : (
+              nameNode
+            )}
+            {communityContext ? (
+              <>
+                <span className="text-sm font-normal text-muted-foreground">
+                  · trong
+                </span>
+                <Link
+                  href={communityContext.href}
+                  className="text-sm font-semibold hover:underline"
+                >
+                  {communityContext.name}
+                </Link>
+              </>
+            ) : null}
+            {isVerified && (
+              <BadgeCheck className="size-4 text-primary fill-primary stroke-primary-foreground" />
+            )}
+          </span>
+          <span className="block text-xs text-muted-foreground">
+            {subtitle && <>{subtitle} • </>}
+            <RelativeTime date={createdAt} fallback={createdAt} />
+            {communityContext ? (
+              <>
+                {" • "}
+                <StatusBadge variant="muted" size="sm">
+                  {COMMUNITY_LABELS[communityContext.type]}
+                </StatusBadge>
+              </>
+            ) : null}
+            {tag && (
+              <>
+                {" • "}
               <StatusBadge variant={tagVariant} size="sm">
                 {tag}
               </StatusBadge>

@@ -36,6 +36,60 @@ enum MemberRole {
   ADMIN
 }
 
+enum CommunityType {
+  GROUP
+  CLUB
+  COURSE
+}
+
+enum CommunityVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum CommunityMemberRole {
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum CommunityRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum CommunityInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+}
+
+enum CommunityPostStatus {
+  PUBLISHED
+  PENDING_APPROVAL
+  REJECTED
+}
+
+enum CommunityChatMode {
+  OPEN
+  ADMINS_ONLY
+  READ_ONLY
+}
+
+enum CommunityReportTargetType {
+  POST
+  COMMENT
+}
+
+enum CommunityReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
 enum ConversationType {
   DIRECT
   GROUP
@@ -111,15 +165,16 @@ model UserProfile {
   notifications        Notification[]
   notificationsAsActor Notification[] @relation("NotificationActor")
   clubMemberships      ClubMember[]
-  groupMemberships  GroupMember[]
-  courseMemberships CourseMember[]
-  ownedCourses      Course[]        @relation("CourseLecturer")
-  userAdminRoles    UserAdminRole[]
-  grantedAdminRoles UserAdminRole[] @relation("AdminRoleGrantor")
+  groupMemberships     GroupMember[]
+  courseMemberships    CourseMember[]
+  ownedCourses         Course[]        @relation("CourseLecturer")
+  userAdminRoles       UserAdminRole[]
+  grantedAdminRoles    UserAdminRole[] @relation("AdminRoleGrantor")
 
-  hiddenPosts       HiddenPost[]
-  deletedPosts      Post[]              @relation("PostDeletedBy")
-  moderationActions PostModerationLog[] @relation("ModerationActor")
+  hiddenPosts            HiddenPost[]
+  deletedPosts           Post[]              @relation("PostDeletedBy")
+  reviewedCommunityPosts Post[]              @relation("PostCommunityReviewer")
+  moderationActions      PostModerationLog[] @relation("ModerationActor")
 
   initiatedFriendships Friendship[] @relation("FriendshipRequester")
   receivedFriendships  Friendship[] @relation("FriendshipAddressee")
@@ -139,6 +194,15 @@ model UserProfile {
   systemSettingUpdates  SystemSetting[] @relation("SystemSettingUpdater")
 
   pushSubscriptions PushSubscription[]
+
+  communityJoinRequests       CommunityJoinRequest[]  @relation("CommunityJoinRequester")
+  reviewedCommunityRequests   CommunityJoinRequest[]  @relation("CommunityJoinReviewer")
+  sentCommunityInvites        CommunityInvite[]       @relation("CommunityInviteSender")
+  receivedCommunityInvites    CommunityInvite[]       @relation("CommunityInviteRecipient")
+  pinnedCommunityPosts        PinnedPost[]            @relation("PinnedPostActor")
+  communityReports            CommunityReport[]       @relation("CommunityReportReporter")
+  resolvedCommunityReports    CommunityReport[]       @relation("CommunityReportResolver")
+  communityModerationActions  CommunityModerationLog[] @relation("CommunityModerationActor")
 
   @@map("user_profiles")
 }
@@ -160,50 +224,64 @@ model PushSubscription {
 }
 
 model Club {
-  id          String         @id @default(cuid()) @map("club_id")
-  name        String         @map("name")
-  slug        String         @unique @map("slug")
-  description String?        @map("description")
-  coverUrl    String?        @map("cover_url")
-  logoUrl     String?        @map("logo_url")
-  category    String?        @map("category")
-  visibility  PostVisibility @default(PUBLIC) @map("visibility")
-  foundedAt   DateTime?      @map("founded_at")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-  deletedAt   DateTime?      @map("deleted_at")
+  id                  String              @id @default(cuid()) @map("club_id")
+  shortId             String              @unique @default(cuid()) @map("short_id")
+  name                String              @map("name")
+  slug                String              @unique @map("slug")
+  description         String?             @map("description")
+  coverUrl            String?             @map("cover_url")
+  logoUrl             String?             @map("logo_url")
+  category            String?             @map("category")
+  visibility          PostVisibility      @default(PUBLIC) @map("visibility")
+  communityVisibility CommunityVisibility @default(PUBLIC) @map("community_visibility")
+  requirePostApproval Boolean             @default(false) @map("require_post_approval")
+  chatEnabled         Boolean             @default(true) @map("chat_enabled")
+  chatMode            CommunityChatMode   @default(OPEN) @map("chat_mode")
+  memberInviteEnabled Boolean             @default(true) @map("member_invite_enabled")
+  foundedAt           DateTime?           @map("founded_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  deletedAt           DateTime?           @map("deleted_at")
 
   members ClubMember[]
   posts   Post[]
 
   @@index([visibility])
+  @@index([communityVisibility])
   @@map("clubs")
 }
 
 model Group {
-  id          String         @id @default(cuid()) @map("group_id")
-  name        String         @map("name")
-  slug        String         @unique @map("slug")
-  description String?        @map("description")
-  coverUrl    String?        @map("cover_url")
-  visibility  PostVisibility @default(PUBLIC) @map("visibility")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-  deletedAt   DateTime?      @map("deleted_at")
+  id                  String              @id @default(cuid()) @map("group_id")
+  shortId             String              @unique @default(cuid()) @map("short_id")
+  name                String              @map("name")
+  slug                String              @unique @map("slug")
+  description         String?             @map("description")
+  coverUrl            String?             @map("cover_url")
+  visibility          PostVisibility      @default(PUBLIC) @map("visibility")
+  communityVisibility CommunityVisibility @default(PUBLIC) @map("community_visibility")
+  requirePostApproval Boolean             @default(false) @map("require_post_approval")
+  chatEnabled         Boolean             @default(true) @map("chat_enabled")
+  chatMode            CommunityChatMode   @default(OPEN) @map("chat_mode")
+  memberInviteEnabled Boolean             @default(true) @map("member_invite_enabled")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  deletedAt           DateTime?           @map("deleted_at")
 
   members       GroupMember[]
   posts         Post[]
   conversations Conversation[]
 
   @@index([visibility])
+  @@index([communityVisibility])
   @@map("groups")
 }
 
 model ClubMember {
-  userId   String     @map("user_id")
-  clubId   String     @map("club_id")
-  role     MemberRole @default(MEMBER) @map("role")
-  joinedAt DateTime   @default(now()) @map("joined_at")
+  userId   String              @map("user_id")
+  clubId   String              @map("club_id")
+  role     CommunityMemberRole @default(MEMBER) @map("role")
+  joinedAt DateTime            @default(now()) @map("joined_at")
 
   user UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
   club Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -214,10 +292,10 @@ model ClubMember {
 }
 
 model GroupMember {
-  userId   String     @map("user_id")
-  groupId  String     @map("group_id")
-  role     MemberRole @default(MEMBER) @map("role")
-  joinedAt DateTime   @default(now()) @map("joined_at")
+  userId   String              @map("user_id")
+  groupId  String              @map("group_id")
+  role     CommunityMemberRole @default(MEMBER) @map("role")
+  joinedAt DateTime            @default(now()) @map("joined_at")
 
   user  UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
   group Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -228,19 +306,24 @@ model GroupMember {
 }
 
 model Course {
-  id          String    @id @default(cuid()) @map("course_id")
-  code        String    @unique @map("code")
-  name        String    @map("name")
-  slug        String    @unique @map("slug")
-  description String?   @map("description")
-  coverUrl    String?   @map("cover_url")
-  lecturerId  String    @map("lecturer_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
+  id                  String            @id @default(cuid()) @map("course_id")
+  shortId             String            @unique @default(cuid()) @map("short_id")
+  code                String            @unique @map("code")
+  name                String            @map("name")
+  slug                String            @unique @map("slug")
+  description         String?           @map("description")
+  coverUrl            String?           @map("cover_url")
+  lecturerId          String            @map("lecturer_id")
+  requirePostApproval Boolean           @default(false) @map("require_post_approval")
+  chatEnabled         Boolean           @default(true) @map("chat_enabled")
+  chatMode            CommunityChatMode @default(OPEN) @map("chat_mode")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  deletedAt           DateTime?         @map("deleted_at")
 
-  lecturer UserProfile    @relation("CourseLecturer", fields: [lecturerId], references: [userId], onDelete: Restrict)
-  members  CourseMember[]
+  lecturer    UserProfile    @relation("CourseLecturer", fields: [lecturerId], references: [userId], onDelete: Restrict)
+  members     CourseMember[]
+  coursePosts Post[]         @relation("CoursePosts")
 
   @@index([lecturerId])
   @@index([createdAt(sort: Desc)])
@@ -261,27 +344,35 @@ model CourseMember {
 }
 
 model Post {
-  id            String         @id @default(cuid()) @map("post_id")
-  content       String         @map("content")
-  imageUrl      String?        @map("image_url")
-  mediaUrls     Json?          @map("media_urls")
-  visibility    PostVisibility @default(PUBLIC) @map("visibility")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  deletedAt     DateTime?      @map("deleted_at")
-  deletedBy     String?        @map("deleted_by")
-  deletedReason String?        @map("deleted_reason")
+  id              String              @id @default(cuid()) @map("post_id")
+  content         String              @map("content")
+  imageUrl        String?             @map("image_url")
+  mediaUrls       Json?               @map("media_urls")
+  visibility      PostVisibility      @default(PUBLIC) @map("visibility")
+  communityStatus CommunityPostStatus @default(PUBLISHED) @map("community_status")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  deletedAt       DateTime?           @map("deleted_at")
+  deletedBy       String?             @map("deleted_by")
+  deletedReason   String?             @map("deleted_reason")
+  reviewedBy      String?             @map("reviewed_by")
+  reviewedAt      DateTime?           @map("reviewed_at")
+  reviewReason    String?             @map("review_reason")
 
   authorId String      @map("author_id")
   author   UserProfile @relation(fields: [authorId], references: [userId], onDelete: Cascade)
 
   deletedByUser UserProfile? @relation("PostDeletedBy", fields: [deletedBy], references: [userId], onDelete: SetNull)
+  reviewer      UserProfile? @relation("PostCommunityReviewer", fields: [reviewedBy], references: [userId], onDelete: SetNull)
 
   clubId String? @map("club_id")
   club   Club?   @relation(fields: [clubId], references: [id], onDelete: SetNull)
 
   groupId String? @map("group_id")
   group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  courseId String? @map("course_id")
+  course   Course? @relation("CoursePosts", fields: [courseId], references: [id], onDelete: SetNull)
 
   sharedPostId String? @map("shared_post_id")
   sharedPost   Post?   @relation("PostReposts", fields: [sharedPostId], references: [id], onDelete: SetNull)
@@ -291,13 +382,18 @@ model Post {
   likes          Like[]
   hiddenBy       HiddenPost[]
   moderationLogs PostModerationLog[]
+  attachments    PostAttachment[]
+  pinnedIn       PinnedPost[]
 
   poll Poll?
 
   @@index([authorId])
   @@index([visibility])
+  @@index([communityStatus])
   @@index([clubId])
   @@index([groupId])
+  @@index([courseId])
+  @@index([reviewedBy])
   @@index([sharedPostId])
   @@index([createdAt(sort: Desc)])
   @@map("posts")
@@ -401,6 +497,8 @@ model Conversation {
   type      ConversationType @default(DIRECT) @map("type")
   name      String?          @map("name")
   groupId   String?          @map("group_id")
+  communityType     CommunityType? @map("community_type")
+  communityTargetId String?        @map("community_target_id")
   group     Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
   createdAt DateTime         @default(now()) @map("created_at")
   updatedAt DateTime         @updatedAt @map("updated_at")
@@ -410,6 +508,7 @@ model Conversation {
   directMeta   DirectConversation?
 
   @@index([groupId])
+  @@index([communityType, communityTargetId])
   @@map("conversations")
 }
 
@@ -633,6 +732,136 @@ model PostModerationLog {
   @@index([postId])
   @@index([actorId, createdAt(sort: Desc)])
   @@map("post_moderation_logs")
+}
+
+model CommunityJoinRequest {
+  id          String                 @id @default(cuid()) @map("request_id")
+  targetType  CommunityType          @map("target_type")
+  targetId    String                 @map("target_id")
+  requesterId String                 @map("requester_id")
+  status      CommunityRequestStatus @default(PENDING) @map("status")
+  agreedRules Boolean                @default(false) @map("agreed_rules")
+  message     String?                @map("message")
+  reviewedBy  String?                @map("reviewed_by")
+  reviewedAt  DateTime?              @map("reviewed_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  requester UserProfile  @relation("CommunityJoinRequester", fields: [requesterId], references: [userId], onDelete: Cascade)
+  reviewer  UserProfile? @relation("CommunityJoinReviewer", fields: [reviewedBy], references: [userId], onDelete: SetNull)
+
+  @@unique([targetType, targetId, requesterId, status])
+  @@index([targetType, targetId, status])
+  @@map("community_join_requests")
+}
+
+model CommunityInvite {
+  id         String                @id @default(cuid()) @map("invite_id")
+  targetType CommunityType         @map("target_type")
+  targetId   String                @map("target_id")
+  inviterId  String                @map("inviter_id")
+  inviteeId  String                @map("invitee_id")
+  status     CommunityInviteStatus @default(PENDING) @map("status")
+  token      String                @unique @map("token")
+  expiresAt  DateTime              @map("expires_at")
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+
+  inviter UserProfile @relation("CommunityInviteSender", fields: [inviterId], references: [userId], onDelete: Cascade)
+  invitee UserProfile @relation("CommunityInviteRecipient", fields: [inviteeId], references: [userId], onDelete: Cascade)
+
+  @@index([targetType, targetId, status])
+  @@index([inviteeId, status])
+  @@map("community_invites")
+}
+
+model CommunityRule {
+  id          String        @id @default(cuid()) @map("rule_id")
+  targetType  CommunityType @map("target_type")
+  targetId    String        @map("target_id")
+  title       String        @map("title")
+  description String        @map("description")
+  position    Int           @map("position")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@index([targetType, targetId, position])
+  @@map("community_rules")
+}
+
+model PinnedPost {
+  id         String        @id @default(cuid()) @map("pinned_post_id")
+  targetType CommunityType @map("target_type")
+  targetId   String        @map("target_id")
+  postId     String        @map("post_id")
+  pinnedBy   String        @map("pinned_by")
+  position   Int           @default(0) @map("position")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  post  Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  actor UserProfile @relation("PinnedPostActor", fields: [pinnedBy], references: [userId], onDelete: Cascade)
+
+  @@unique([targetType, targetId, postId])
+  @@index([targetType, targetId, position])
+  @@map("pinned_posts")
+}
+
+model CommunityReport {
+  id          String                    @id @default(cuid()) @map("report_id")
+  targetType  CommunityType             @map("target_type")
+  targetId    String                    @map("target_id")
+  contentType CommunityReportTargetType @map("content_type")
+  contentId   String                    @map("content_id")
+  reporterId  String                    @map("reporter_id")
+  reason      String                    @map("reason")
+  note        String?                   @map("note")
+  status      CommunityReportStatus     @default(OPEN) @map("status")
+  resolvedBy  String?                   @map("resolved_by")
+  resolvedAt  DateTime?                 @map("resolved_at")
+  resolution  String?                   @map("resolution")
+  createdAt   DateTime                  @default(now()) @map("created_at")
+  updatedAt   DateTime                  @updatedAt @map("updated_at")
+
+  reporter UserProfile  @relation("CommunityReportReporter", fields: [reporterId], references: [userId], onDelete: Cascade)
+  resolver UserProfile? @relation("CommunityReportResolver", fields: [resolvedBy], references: [userId], onDelete: SetNull)
+
+  @@index([targetType, targetId, status])
+  @@index([contentType, contentId])
+  @@map("community_reports")
+}
+
+model CommunityModerationLog {
+  id         String        @id @default(cuid()) @map("log_id")
+  targetType CommunityType @map("target_type")
+  targetId   String        @map("target_id")
+  actorId    String        @map("actor_id")
+  action     String        @map("action")
+  subjectId  String?       @map("subject_id")
+  reason     String?       @map("reason")
+  metadata   Json?         @map("metadata")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  actor UserProfile @relation("CommunityModerationActor", fields: [actorId], references: [userId], onDelete: Cascade)
+
+  @@index([targetType, targetId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("community_moderation_logs")
+}
+
+model PostAttachment {
+  id        String                @id @default(cuid()) @map("attachment_id")
+  postId    String                @map("post_id")
+  url       String                @map("url")
+  type      MessageAttachmentType @map("type")
+  name      String                @map("name")
+  mimeType  String                @map("mime_type")
+  sizeBytes Int                   @map("size_bytes")
+  createdAt DateTime              @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_attachments")
 }
 
 model Announcement {

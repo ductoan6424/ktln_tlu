@@ -1,15 +1,22 @@
 "use client"
 
 import { useState } from "react"
+import { MessageSquare, Pin, Settings, ShieldAlert, UserPlus, Users } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { TabNavigation } from "@/components/shared/tab-navigation"
-import { Settings, Users } from "lucide-react"
 
 import { AddStudentForm } from "./add-student-form"
 
 const MANAGE_TABS = [
   { label: "Thành viên", value: "members", icon: Users },
+  { label: "Yêu cầu tham gia", value: "requests", icon: UserPlus },
+  { label: "Lời mời", value: "invites", icon: UserPlus },
+  { label: "Bài chờ duyệt", value: "pending-posts", icon: ShieldAlert },
+  { label: "Bài ghim", value: "pinned", icon: Pin },
+  { label: "Báo cáo", value: "reports", icon: ShieldAlert },
+  { label: "Quy định", value: "rules", icon: ShieldAlert },
+  { label: "Chat", value: "chat", icon: MessageSquare },
   { label: "Cài đặt", value: "settings", icon: Settings },
 ]
 
@@ -31,13 +38,15 @@ interface CourseManageTabsProps {
 
 export function CourseManageTabs({ course }: CourseManageTabsProps) {
   const [activeTab, setActiveTab] = useState("members")
+  const activeLabel =
+    MANAGE_TABS.find((tab) => tab.value === activeTab)?.label ?? "Quản lý"
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Quản lý lớp học</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {course.name} • {course.code}
+          {course.name} · {course.code}
         </p>
       </div>
 
@@ -54,7 +63,7 @@ export function CourseManageTabs({ course }: CourseManageTabsProps) {
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold">Thêm sinh viên</h2>
                 <p className="text-sm text-muted-foreground">
-                  Thêm sinh viên vào lớp bằng mã sinh viên trong hệ thống.
+                  Thêm một hoặc nhiều sinh viên vào lớp bằng mã sinh viên.
                 </p>
               </div>
               <AddStudentForm courseId={course.id} />
@@ -88,13 +97,19 @@ export function CourseManageTabs({ course }: CourseManageTabsProps) {
             </CardContent>
           </Card>
         </div>
-      ) : (
+      ) : activeTab === "settings" ? (
         <Card>
           <CardContent className="space-y-2 p-5">
             <h2 className="text-lg font-semibold">Thông tin lớp học</h2>
             <p className="text-sm text-muted-foreground">
               {course.description ?? "Giảng viên chưa cập nhật mô tả cho lớp học này."}
             </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-5 text-sm text-muted-foreground">
+            {activeLabel} sẽ được thao tác trong bảng quản lý lớp học này.
           </CardContent>
         </Card>
       )}

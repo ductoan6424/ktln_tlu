@@ -71,6 +71,12 @@ interface PostDetailDialogProps {
     authorDisplayName: string
     authorAvatarUrl: string | null
   } | null
+  communityContext?: {
+    type: "GROUP" | "CLUB" | "COURSE"
+    name: string
+    href: string
+    avatarUrl: string | null
+  } | null
   poll?: PollView | null
 }
 
@@ -101,6 +107,7 @@ export function PostDetailDialog({
   onHidden,
   onShared,
   sharedPost,
+  communityContext,
   poll,
 }: PostDetailDialogProps) {
   const { toast } = useToast()
@@ -307,6 +314,7 @@ export function PostDetailDialog({
                 tagVariant={tagVariant}
                 isVerified={isVerified}
                 subtitle={subtitle}
+                communityContext={communityContext}
                 currentUserId={resolvedCurrentUser?.id ?? null}
                 menu={
                   permissions && postId ? (
@@ -421,6 +429,7 @@ export function PostDetailDialog({
                 tagVariant={tagVariant}
                 isVerified={isVerified}
                 subtitle={subtitle}
+                communityContext={communityContext}
                 currentUserId={resolvedCurrentUser?.id ?? null}
                 menu={
                   permissions && postId ? (

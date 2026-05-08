@@ -4,7 +4,10 @@
 export type {
   UserRole,
   PostVisibility,
-  MemberRole,
+  CommunityType,
+  CommunityMemberRole,
+  CommunityChatMode,
+  CommunityVisibility,
   ConversationType,
   FriendshipStatus,
   NotificationType,
