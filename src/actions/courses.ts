@@ -20,6 +20,11 @@ const addStudentSchema = z.object({
   studentId: z.string().min(1, "Mã sinh viên là bắt buộc"),
 })
 
+const addStudentsByCodesSchema = z.object({
+  courseId: z.string().min(1, "Thiếu lớp học cần cập nhật"),
+  studentCodesText: z.string().min(1, "Danh sách mã sinh viên là bắt buộc"),
+})
+
 function slugifyCourseCode(code: string) {
   return code
     .trim()
@@ -117,6 +122,95 @@ export async function addStudentToCourse(
 
     return errorResult(
       error instanceof Error ? error.message : "Không thể thêm sinh viên vào lớp",
+      "UPDATE_FAILED",
+    )
+  }
+}
+
+function parseStudentCodes(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/[\s,;]+/g)
+        .map((code) => code.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  )
+}
+
+export async function addStudentsToCourseByCodes(
+  rawInput: unknown,
+): Promise<ActionResult<{
+  added: string[]
+  alreadyMember: string[]
+  notFound: string[]
+}>> {
+  try {
+    const input = addStudentsByCodesSchema.parse(normalizeFormInput(rawInput))
+    await requireCourseManagementAccess(input.courseId)
+
+    const codes = parseStudentCodes(input.studentCodesText)
+    if (codes.length === 0) {
+      return errorResult("Danh sách mã sinh viên không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    const students = await prisma.userProfile.findMany({
+      where: {
+        studentId: { in: codes },
+        role: "STUDENT",
+        deletedAt: null,
+      },
+      select: {
+        userId: true,
+        studentId: true,
+        role: true,
+      },
+    })
+
+    const validStudents = students.filter(
+      (student): student is typeof student & { studentId: string } =>
+        Boolean(student.studentId),
+    )
+    const foundCodes = new Set(validStudents.map((student) => student.studentId))
+    const existingMembers = await prisma.courseMember.findMany({
+      where: {
+        courseId: input.courseId,
+        userId: { in: validStudents.map((student) => student.userId) },
+      },
+      select: { userId: true },
+    })
+    const existingUserIds = new Set(existingMembers.map((member) => member.userId))
+    const newStudents = validStudents.filter(
+      (student) => !existingUserIds.has(student.userId),
+    )
+
+    if (newStudents.length > 0) {
+      await prisma.courseMember.createMany({
+        data: newStudents.map((student) => ({
+          courseId: input.courseId,
+          userId: student.userId,
+        })),
+        skipDuplicates: true,
+      })
+    }
+
+    const added = newStudents.map((student) => student.studentId)
+    const alreadyMember = validStudents
+      .filter((student) => existingUserIds.has(student.userId))
+      .map((student) => student.studentId)
+    const notFound = codes.filter((code) => !foundCodes.has(code))
+
+    revalidatePath(`/courses/${input.courseId}`)
+    revalidatePath(`/courses/${input.courseId}/manage`)
+
+    return successResult({ added, alreadyMember, notFound })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult(
+      error instanceof Error ? error.message : "Không thể thêm danh sách sinh viên vào lớp",
       "UPDATE_FAILED",
     )
   }
