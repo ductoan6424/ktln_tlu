@@ -4,6 +4,9 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const getAuthorizationContext = vi.hoisted(() => vi.fn())
+const getOrCreateCommunityConversation = vi.hoisted(() => vi.fn())
+const getConversationMessages = vi.hoisted(() => vi.fn())
+const sendConversationMessage = vi.hoisted(() => vi.fn())
 const notFound = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND")
@@ -52,6 +55,11 @@ const prisma = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/authorization", () => ({ getAuthorizationContext }))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
+vi.mock("@/actions/chat", () => ({
+  getOrCreateCommunityConversation,
+  getConversationMessages,
+  sendConversationMessage,
+}))
 vi.mock("@/components/communities/community-post-composer", () => ({
   CommunityPostComposer: () =>
     createElement("div", { "data-testid": "community-post-composer" }),
@@ -78,6 +86,14 @@ beforeEach(() => {
       displayName: "Viewer",
       avatarUrl: null,
     },
+  })
+  getOrCreateCommunityConversation.mockResolvedValue({
+    success: false,
+    error: "Chat disabled",
+  })
+  getConversationMessages.mockResolvedValue({
+    success: true,
+    data: { items: [], nextCursor: null, hasMore: false },
   })
   prisma.communityJoinRequest.findMany.mockResolvedValue([])
   prisma.communityInvite.findMany.mockResolvedValue([])
@@ -151,5 +167,65 @@ describe("community routes", () => {
     expect(markup).toContain("Official student club")
     expect(markup).toContain("Rule 1")
     expect(markup).not.toContain("internal-feed")
+  })
+
+  it("renders community chat for joined group members", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: true,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "MEMBER" })
+    prisma.group.findUnique.mockResolvedValue({
+      description: "Practice together",
+      _count: { members: 12 },
+    })
+    prisma.communityRule.findMany.mockResolvedValue([])
+    getOrCreateCommunityConversation.mockResolvedValue({
+      success: true,
+      data: { conversationId: "conv-1" },
+    })
+    getConversationMessages.mockResolvedValue({
+      success: true,
+      data: {
+        items: [
+          {
+            id: "msg-1",
+            conversationId: "conv-1",
+            content: "Hello chat",
+            senderId: "viewer-1",
+            senderName: "Viewer",
+            senderAvatarUrl: null,
+            createdAt: "2026-05-08T08:00:00.000Z",
+            isOwn: true,
+            attachment: null,
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      },
+    })
+
+    const page = await import("@/app/(main)/groups/[slugId]/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+      }),
+    )
+
+    expect(getOrCreateCommunityConversation).toHaveBeenCalledWith(
+      "GROUP",
+      "python-group-abc123",
+    )
+    expect(getConversationMessages).toHaveBeenCalledWith({
+      conversationId: "conv-1",
+      limit: 20,
+    })
+    expect(markup).toContain("Hello chat")
   })
 })

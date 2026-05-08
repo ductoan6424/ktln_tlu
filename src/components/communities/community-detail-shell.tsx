@@ -1,11 +1,13 @@
 import Link from "next/link"
 
 import { CommunityCard } from "@/components/communities/community-card"
+import { CommunityChatPanel } from "@/components/communities/community-chat-panel"
 import { CommunityPostComposer } from "@/components/communities/community-post-composer"
 import { PageContainer } from "@/components/layout/page-container"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { CommunityContext } from "@/lib/communities/types"
+import type { ChatMessageItem } from "@/types/chat"
 
 type CommunityDetailShellProps = {
   target: CommunityContext
@@ -20,6 +22,12 @@ type CommunityDetailShellProps = {
   slugId: string
   viewer: { displayName: string; avatarUrl: string | null } | null
   rules: Array<{ id: string; title: string; description: string }>
+  chat?: {
+    conversationId: string
+    canSend: boolean
+    readonlyLabel?: string
+    messages: ChatMessageItem[]
+  } | null
 }
 
 export function CommunityDetailShell({
@@ -35,6 +43,7 @@ export function CommunityDetailShell({
   slugId,
   viewer,
   rules,
+  chat,
 }: CommunityDetailShellProps) {
   return (
     <PageContainer variant="centered" className="space-y-6">
@@ -120,6 +129,14 @@ export function CommunityDetailShell({
               </Button>
             ))}
           </nav>
+          {chat ? (
+            <CommunityChatPanel
+              conversationId={chat.conversationId}
+              canSend={chat.canSend}
+              readonlyLabel={chat.readonlyLabel}
+              messages={chat.messages}
+            />
+          ) : null}
           <div
             id="internal-feed"
             className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground"
