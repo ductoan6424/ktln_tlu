@@ -31,14 +31,13 @@ const STATUS_LABELS: Record<CommunityCardStatus, string> = {
   AVAILABLE: "Xem",
 }
 
-function getTypeIcon(type: CommunityType) {
-  if (type === "COURSE") return BookOpen
-  if (type === "CLUB") return Shield
-  return Users
+function CommunityTypeIcon({ type }: { type: CommunityType }) {
+  if (type === "COURSE") return <BookOpen className="size-5" />
+  if (type === "CLUB") return <Shield className="size-5" />
+  return <Users className="size-5" />
 }
 
 export function CommunityCard({ item }: { item: CommunityCardItem }) {
-  const TypeIcon = getTypeIcon(item.type)
   const isPrivate = item.visibility === "PRIVATE"
 
   return (
@@ -46,7 +45,7 @@ export function CommunityCard({ item }: { item: CommunityCardItem }) {
       <CardContent className="space-y-4 p-4">
         <div className="flex items-start gap-3">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <TypeIcon className="size-5" />
+            <CommunityTypeIcon type={item.type} />
           </div>
           <div className="min-w-0 flex-1">
             <Link href={item.href} className="font-semibold hover:text-primary">
