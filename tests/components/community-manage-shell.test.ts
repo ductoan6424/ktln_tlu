@@ -31,8 +31,8 @@ describe("CommunityManageShell", () => {
             { value: "requests", label: "Yêu cầu tham gia", href: "?tab=requests" },
             { value: "rules", label: "Quy định", href: "?tab=rules" },
           ],
-          children: createElement("section", null, "Rules content"),
         },
+        createElement("section", null, "Rules content"),
       ),
     )
 
