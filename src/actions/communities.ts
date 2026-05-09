@@ -16,25 +16,18 @@ import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 
-export {
-  createCommunityRule,
-  deleteCommunityRule,
-  deleteReportedContent,
-  dismissReport,
-  pinCommunityPost,
-  reorderCommunityRules,
-  reportContent,
-  resolveReport,
-  unpinCommunityPost,
-  updateCommunityRule,
-} from "@/actions/community-moderation"
-
 const communityTypeSchema = z.enum(["GROUP", "CLUB", "COURSE"])
+
+const booleanFormValueSchema = z.preprocess((value) => {
+  if (typeof value === "boolean") return value
+  if (typeof value === "string") return value === "true" || value === "on"
+  return value
+}, z.boolean())
 
 const joinCommunitySchema = z.object({
   type: communityTypeSchema,
   slugId: z.string().min(1, "Thiếu cộng đồng cần tham gia"),
-  agreedRules: z.boolean(),
+  agreedRules: booleanFormValueSchema,
   message: z.string().max(500).optional(),
 })
 
@@ -53,6 +46,14 @@ const removeMemberSchema = z.object({
   slugId: z.string().min(1, "Thiếu cộng đồng cần cập nhật"),
   memberId: z.string().min(1, "Thiếu thành viên"),
 })
+
+function normalizeFormInput(rawInput: unknown) {
+  if (rawInput instanceof FormData) {
+    return Object.fromEntries(rawInput.entries())
+  }
+
+  return rawInput
+}
 
 async function resolveRequestTarget(input: { targetType: CommunityType; targetId: string }) {
   if (input.targetType === "GROUP") {
@@ -115,7 +116,7 @@ export async function joinCommunity(
     const context = await getAuthorizationContext()
     if (!context) return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
 
-    const input = joinCommunitySchema.parse(rawInput)
+    const input = joinCommunitySchema.parse(normalizeFormInput(rawInput))
     if (!input.agreedRules) {
       return errorResult("Bạn cần đồng ý quy định trước khi tham gia", "VALIDATION_ERROR")
     }

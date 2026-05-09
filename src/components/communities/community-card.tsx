@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { BookOpen, Lock, Shield, Users } from "lucide-react"
 
+import { CommunityJoinButton } from "@/components/communities/community-join-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import type { JoinMode } from "@/lib/communities/policy"
 import type { CommunityType, CommunityVisibility } from "@/lib/communities/types"
 
 export type CommunityCardStatus = "JOINED" | "PENDING" | "INVITED" | "AVAILABLE"
@@ -13,6 +15,7 @@ export type CommunityCardItem = {
   name: string
   description: string | null
   href: string
+  slugId: string
   visibility: CommunityVisibility | null
   memberCount: number
   status: CommunityCardStatus
@@ -35,6 +38,11 @@ function CommunityTypeIcon({ type }: { type: CommunityType }) {
   if (type === "COURSE") return <BookOpen className="size-5" />
   if (type === "CLUB") return <Shield className="size-5" />
   return <Users className="size-5" />
+}
+
+function getAvailableJoinMode(item: CommunityCardItem): Exclude<JoinMode, "NONE"> {
+  if (item.type === "COURSE" || item.visibility === "PRIVATE") return "REQUEST"
+  return "JOIN_NOW"
 }
 
 export function CommunityCard({ item }: { item: CommunityCardItem }) {
@@ -69,11 +77,20 @@ export function CommunityCard({ item }: { item: CommunityCardItem }) {
 
         <div className="flex items-center justify-between gap-3 border-t border-border pt-3 text-sm">
           <span className="text-muted-foreground">{item.memberCount} thành viên</span>
-          <Link href={item.href}>
-            <Button variant={item.status === "AVAILABLE" ? "default" : "outline"} size="sm">
-              {STATUS_LABELS[item.status]}
-            </Button>
-          </Link>
+          {item.status === "AVAILABLE" ? (
+            <CommunityJoinButton
+              type={item.type}
+              slugId={item.slugId}
+              mode={getAvailableJoinMode(item)}
+              size="sm"
+            />
+          ) : (
+            <Link href={item.href}>
+              <Button variant="outline" size="sm">
+                {STATUS_LABELS[item.status]}
+              </Button>
+            </Link>
+          )}
         </div>
       </CardContent>
     </Card>

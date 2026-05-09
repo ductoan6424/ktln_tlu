@@ -120,6 +120,7 @@ export default async function CoursesPage({
       name: course.name,
       description: course.description ?? `${course.code} - ${course.lecturer.displayName}`,
       href,
+      slugId: href.split("/").at(-1) ?? course.shortId,
       visibility: null,
       memberCount: course._count.members,
       status: joined
