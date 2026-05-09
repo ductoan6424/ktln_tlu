@@ -30,7 +30,7 @@ export default async function GroupDetailPage({
 
   const context = await getAuthorizationContext().catch(() => null)
   const userId = context?.profile.userId ?? null
-  const [membershipRole, group, rules] = await Promise.all([
+  const [membershipRole, group, rules, pendingInvite] = await Promise.all([
     getViewerMembershipRole("GROUP", target.id, userId),
     prisma.group.findUnique({
       where: { id: target.id },
@@ -44,6 +44,18 @@ export default async function GroupDetailPage({
       orderBy: { position: "asc" },
       select: { id: true, title: true, description: true },
     }),
+    userId
+      ? prisma.communityInvite.findFirst({
+          where: {
+            targetType: "GROUP",
+            targetId: target.id,
+            inviteeId: userId,
+            status: "PENDING",
+            expiresAt: { gt: new Date() },
+          },
+          select: { id: true },
+        })
+      : null,
   ])
 
   if (!group) notFound()
@@ -92,6 +104,7 @@ export default async function GroupDetailPage({
       canPost={permissions.canPost}
       canManage={permissions.canManage}
       joinMode={permissions.joinMode}
+      hasPendingInvite={Boolean(pendingInvite) && !membershipRole}
       slugId={slugId}
       viewer={
         context

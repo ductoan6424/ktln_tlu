@@ -1,9 +1,13 @@
 import { notFound, redirect } from "next/navigation"
 
+import { CommunityInvitesPanel } from "@/components/communities/manage/community-invites-panel"
 import { CommunityManageShell } from "@/components/communities/manage/community-manage-shell"
+import { CommunityMembersPanel } from "@/components/communities/manage/community-members-panel"
+import { CommunityPostsPanel } from "@/components/communities/manage/community-posts-panel"
 import { CommunityReportsTable } from "@/components/communities/manage/community-reports-table"
 import { CommunityRequestsTable } from "@/components/communities/manage/community-requests-table"
 import { CommunityRulesPanel } from "@/components/communities/manage/community-rules-panel"
+import { CommunitySettingsPanel } from "@/components/communities/manage/community-settings-panel"
 import { Card, CardContent } from "@/components/ui/card"
 import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { getCommunityPermissions } from "@/lib/communities/policy"
@@ -83,23 +87,71 @@ export default async function ClubManagePage({
   if (!permissions.canManage) notFound()
 
   const activeTab = normalizeTab(getParam(queryParams ?? {}, "tab"))
-  const [rules, requests, reports] = await Promise.all([
-    prisma.communityRule.findMany({
-      where: { targetType: "CLUB", targetId: target.id },
-      orderBy: { position: "asc" },
-      select: { id: true, title: true, description: true, position: true },
-    }),
-    prisma.communityJoinRequest.findMany({
-      where: { targetType: "CLUB", targetId: target.id, status: "PENDING" },
-      orderBy: { createdAt: "asc" },
-      include: { requester: { select: { displayName: true } } },
-    }),
-    prisma.communityReport.findMany({
-      where: { targetType: "CLUB", targetId: target.id, status: "OPEN" },
-      orderBy: { createdAt: "desc" },
-      include: { reporter: { select: { displayName: true } } },
-    }),
-  ])
+  const [members, rules, requests, reports, invites, pendingPosts, pinnedPosts] =
+    await Promise.all([
+      prisma.clubMember.findMany({
+        where: { clubId: target.id },
+        orderBy: { joinedAt: "asc" },
+        include: {
+          user: {
+            select: {
+              userId: true,
+              displayName: true,
+              avatarUrl: true,
+              email: true,
+              studentId: true,
+            },
+          },
+        },
+      }),
+      prisma.communityRule.findMany({
+        where: { targetType: "CLUB", targetId: target.id },
+        orderBy: { position: "asc" },
+        select: { id: true, title: true, description: true, position: true },
+      }),
+      prisma.communityJoinRequest.findMany({
+        where: { targetType: "CLUB", targetId: target.id, status: "PENDING" },
+        orderBy: { createdAt: "asc" },
+        include: { requester: { select: { displayName: true } } },
+      }),
+      prisma.communityReport.findMany({
+        where: { targetType: "CLUB", targetId: target.id, status: "OPEN" },
+        orderBy: { createdAt: "desc" },
+        include: { reporter: { select: { displayName: true } } },
+      }),
+      prisma.communityInvite.findMany({
+        where: { targetType: "CLUB", targetId: target.id, status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+        include: {
+          invitee: { select: { displayName: true } },
+          inviter: { select: { displayName: true } },
+        },
+      }),
+      prisma.post.findMany({
+        where: {
+          clubId: target.id,
+          communityStatus: "PENDING_APPROVAL",
+          deletedAt: null,
+        },
+        orderBy: { createdAt: "desc" },
+        include: { author: { select: { displayName: true } } },
+      }),
+      prisma.pinnedPost.findMany({
+        where: { targetType: "CLUB", targetId: target.id },
+        orderBy: { position: "asc" },
+        include: {
+          post: {
+            select: {
+              id: true,
+              content: true,
+              imageUrl: true,
+              createdAt: true,
+              author: { select: { displayName: true } },
+            },
+          },
+        },
+      }),
+    ])
 
   const tabs = MANAGE_TABS.map((tab) => ({
     ...tab,
@@ -113,7 +165,19 @@ export default async function ClubManagePage({
       activeTab={activeTab}
       tabs={tabs}
     >
-      {activeTab === "rules" ? (
+      {activeTab === "members" ? (
+        <CommunityMembersPanel
+          members={members.map((member) => ({
+            userId: member.user.userId,
+            displayName: member.user.displayName,
+            avatarUrl: member.user.avatarUrl,
+            email: member.user.email,
+            studentId: member.user.studentId,
+            role: member.role,
+            joinedAt: member.joinedAt,
+          }))}
+        />
+      ) : activeTab === "rules" ? (
         <CommunityRulesPanel rules={rules} />
       ) : activeTab === "requests" ? (
         <CommunityRequestsTable
@@ -133,6 +197,60 @@ export default async function ClubManagePage({
             note: report.note,
             createdAt: report.createdAt,
           }))}
+        />
+      ) : activeTab === "invites" ? (
+        <CommunityInvitesPanel
+          type="CLUB"
+          slugId={slugId}
+          invites={invites.map((invite) => ({
+            id: invite.id,
+            inviteeName: invite.invitee.displayName,
+            inviterName: invite.inviter.displayName,
+            expiresAt: invite.expiresAt,
+            createdAt: invite.createdAt,
+          }))}
+        />
+      ) : activeTab === "pending-posts" ? (
+        <CommunityPostsPanel
+          title="Bài chờ duyệt"
+          description="Các bài viết đang chờ quản trị viên kiểm tra trước khi hiển thị."
+          emptyLabel="Không có bài viết nào đang chờ duyệt."
+          posts={pendingPosts.map((post) => ({
+            id: post.id,
+            content: post.content,
+            authorName: post.author.displayName,
+            imageUrl: post.imageUrl,
+            createdAt: post.createdAt,
+            badgeLabel: "Chờ duyệt",
+          }))}
+        />
+      ) : activeTab === "pinned" ? (
+        <CommunityPostsPanel
+          title="Bài ghim"
+          description="Các bài viết đang được ghim trong không gian này."
+          emptyLabel="Chưa có bài viết nào được ghim."
+          posts={pinnedPosts.map((pinnedPost) => ({
+            id: pinnedPost.post.id,
+            content: pinnedPost.post.content,
+            authorName: pinnedPost.post.author.displayName,
+            imageUrl: pinnedPost.post.imageUrl,
+            createdAt: pinnedPost.post.createdAt,
+            badgeLabel: `#${pinnedPost.position + 1}`,
+          }))}
+        />
+      ) : activeTab === "chat" || activeTab === "settings" ? (
+        <CommunitySettingsPanel
+          type="CLUB"
+          slugId={slugId}
+          visibility={target.visibility}
+          requirePostApproval={target.requirePostApproval}
+          chatEnabled={target.chatEnabled}
+          chatMode={target.chatMode}
+          memberInviteEnabled={target.memberInviteEnabled}
+          memberCount={members.length}
+          requestCount={requests.length}
+          pendingPostCount={pendingPosts.length}
+          reportCount={reports.length}
         />
       ) : (
         <PlaceholderPanel title={tabs.find((tab) => tab.value === activeTab)?.label ?? "Quản lý"} />

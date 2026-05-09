@@ -7,6 +7,9 @@ const getAuthorizationContext = vi.hoisted(() => vi.fn())
 const getOrCreateCommunityConversation = vi.hoisted(() => vi.fn())
 const getConversationMessages = vi.hoisted(() => vi.fn())
 const sendConversationMessage = vi.hoisted(() => vi.fn())
+const acceptCommunityInvite = vi.hoisted(() => vi.fn())
+const inviteCommunityMember = vi.hoisted(() => vi.fn())
+const updateCommunitySettings = vi.hoisted(() => vi.fn())
 const notFound = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND")
@@ -25,6 +28,7 @@ const prisma = vi.hoisted(() => ({
   },
   groupMember: {
     findUnique: vi.fn(),
+    findMany: vi.fn(),
   },
   club: {
     findMany: vi.fn(),
@@ -33,6 +37,7 @@ const prisma = vi.hoisted(() => ({
   },
   clubMember: {
     findUnique: vi.fn(),
+    findMany: vi.fn(),
   },
   course: {
     findMany: vi.fn(),
@@ -47,8 +52,18 @@ const prisma = vi.hoisted(() => ({
   },
   communityInvite: {
     findMany: vi.fn(),
+    findFirst: vi.fn(),
   },
   communityRule: {
+    findMany: vi.fn(),
+  },
+  communityReport: {
+    findMany: vi.fn(),
+  },
+  post: {
+    findMany: vi.fn(),
+  },
+  pinnedPost: {
     findMany: vi.fn(),
   },
 }))
@@ -59,6 +74,11 @@ vi.mock("@/actions/chat", () => ({
   getOrCreateCommunityConversation,
   getConversationMessages,
   sendConversationMessage,
+}))
+vi.mock("@/actions/community-management", () => ({
+  acceptCommunityInvite,
+  inviteCommunityMember,
+  updateCommunitySettings,
 }))
 vi.mock("@/components/communities/community-post-composer", () => ({
   CommunityPostComposer: () =>
@@ -97,6 +117,11 @@ beforeEach(() => {
   })
   prisma.communityJoinRequest.findMany.mockResolvedValue([])
   prisma.communityInvite.findMany.mockResolvedValue([])
+  prisma.communityInvite.findFirst.mockResolvedValue(null)
+  prisma.communityRule.findMany.mockResolvedValue([])
+  prisma.communityReport.findMany.mockResolvedValue([])
+  prisma.post.findMany.mockResolvedValue([])
+  prisma.pinnedPost.findMany.mockResolvedValue([])
 })
 
 describe("community routes", () => {
@@ -169,6 +194,44 @@ describe("community routes", () => {
     expect(markup).not.toContain("internal-feed")
   })
 
+  it("renders an accept invite action for invited group viewers", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PRIVATE",
+      requirePostApproval: false,
+      chatEnabled: false,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue(null)
+    prisma.group.findUnique.mockResolvedValue({
+      description: "Practice together",
+      _count: { members: 12 },
+    })
+    prisma.communityInvite.findFirst.mockResolvedValue({ id: "invite-1" })
+
+    const page = await import("@/app/(main)/groups/[slugId]/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+      }),
+    )
+
+    expect(markup).toContain('data-testid="accept-community-invite"')
+    expect(prisma.communityInvite.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          targetType: "GROUP",
+          targetId: "group-1",
+          inviteeId: "viewer-1",
+          status: "PENDING",
+        }),
+      }),
+    )
+  })
+
   it("renders community chat for joined group members", async () => {
     prisma.group.findFirst.mockResolvedValue({
       id: "group-1",
@@ -227,5 +290,120 @@ describe("community routes", () => {
       limit: 20,
     })
     expect(markup).toContain("Hello chat")
+  })
+
+  it("renders group manage members with real member data", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: true,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "ADMIN" })
+    prisma.groupMember.findMany.mockResolvedValue([
+      {
+        role: "ADMIN",
+        joinedAt: new Date("2026-05-01T08:00:00.000Z"),
+        user: {
+          userId: "viewer-1",
+          displayName: "An Admin",
+          avatarUrl: null,
+          email: "admin@example.edu",
+          studentId: "SV001",
+        },
+      },
+      {
+        role: "MEMBER",
+        joinedAt: new Date("2026-05-02T08:00:00.000Z"),
+        user: {
+          userId: "member-1",
+          displayName: "Thanh Member",
+          avatarUrl: null,
+          email: "member@example.edu",
+          studentId: "SV002",
+        },
+      },
+    ])
+
+    const page = await import("@/app/(main)/groups/[slugId]/manage/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+        searchParams: Promise.resolve({}),
+      }),
+    )
+
+    expect(markup).toContain("Danh sách thành viên")
+    expect(markup).toContain("An Admin")
+    expect(markup).toContain("Thanh Member")
+    expect(markup).toContain("SV002")
+  })
+
+  it("renders invite form in group manage invites tab", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: true,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "ADMIN" })
+    prisma.groupMember.findMany.mockResolvedValue([])
+    prisma.communityInvite.findMany.mockResolvedValue([
+      {
+        id: "invite-1",
+        createdAt: new Date("2026-05-02T08:00:00.000Z"),
+        expiresAt: new Date("2026-05-09T08:00:00.000Z"),
+        invitee: { displayName: "Student Two" },
+        inviter: { displayName: "An Admin" },
+      },
+    ])
+
+    const page = await import("@/app/(main)/groups/[slugId]/manage/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+        searchParams: Promise.resolve({ tab: "invites" }),
+      }),
+    )
+
+    expect(markup).toContain("Mời thành viên")
+    expect(markup).toContain('name="identifier"')
+    expect(markup).toContain("Student Two")
+  })
+
+  it("renders editable settings in group manage settings tab", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PRIVATE",
+      requirePostApproval: true,
+      chatEnabled: true,
+      chatMode: "ADMINS_ONLY",
+      memberInviteEnabled: false,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "ADMIN" })
+    prisma.groupMember.findMany.mockResolvedValue([])
+
+    const page = await import("@/app/(main)/groups/[slugId]/manage/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+        searchParams: Promise.resolve({ tab: "settings" }),
+      }),
+    )
+
+    expect(markup).toContain("Cập nhật cài đặt")
+    expect(markup).toContain('name="visibility"')
+    expect(markup).toContain('name="chatMode"')
+    expect(markup).toContain('name="memberInviteEnabled"')
   })
 })
