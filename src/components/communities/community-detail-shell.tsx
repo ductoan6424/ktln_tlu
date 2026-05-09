@@ -3,6 +3,7 @@ import Link from "next/link"
 import { CommunityCard } from "@/components/communities/community-card"
 import { CommunityChatPanel } from "@/components/communities/community-chat-panel"
 import { CommunityInviteAcceptButton } from "@/components/communities/community-invite-accept-button"
+import { CommunityJoinButton } from "@/components/communities/community-join-button"
 import { CommunityPostComposer } from "@/components/communities/community-post-composer"
 import { PageContainer } from "@/components/layout/page-container"
 import { Badge } from "@/components/ui/badge"
@@ -72,7 +73,7 @@ export function CommunityDetailShell({
             {hasPendingInvite && (target.type === "GROUP" || target.type === "CLUB") ? (
               <CommunityInviteAcceptButton type={target.type} slugId={slugId} />
             ) : joinMode !== "NONE" ? (
-              <Button>{joinMode === "JOIN_NOW" ? "Tham gia" : "Gửi yêu cầu"}</Button>
+              <CommunityJoinButton type={target.type} slugId={slugId} mode={joinMode} />
             ) : null}
             {canManage ? (
               <Link href={manageHref}>
@@ -109,6 +110,7 @@ export function CommunityDetailShell({
                 name: target.name,
                 description,
                 href,
+                slugId,
                 visibility: target.visibility,
                 memberCount,
                 status: joinMode === "NONE" ? "JOINED" : "AVAILABLE",

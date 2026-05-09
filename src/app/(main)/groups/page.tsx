@@ -101,6 +101,7 @@ export default async function GroupsPage({
       name: group.name,
       description: group.description,
       href,
+      slugId: href.split("/").at(-1) ?? group.shortId,
       visibility: group.communityVisibility,
       memberCount: group._count.members,
       status: joined

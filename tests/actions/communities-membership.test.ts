@@ -61,6 +61,33 @@ describe("joinCommunity", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/groups/nhom-python-abc123")
   })
 
+  it("joins a public group from the UI form payload", async () => {
+    getCommunityBySlugId.mockResolvedValue({
+      type: "GROUP",
+      id: "group-1",
+      shortId: "abc123",
+      name: "NhÃ³m Python",
+      visibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: true,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+      lecturerId: null,
+    })
+
+    const formData = new FormData()
+    formData.set("type", "GROUP")
+    formData.set("slugId", "nhom-python-abc123")
+    formData.set("agreedRules", "true")
+
+    const result = await joinCommunity(formData)
+
+    expect(result.success).toBe(true)
+    expect(prisma.groupMember.create).toHaveBeenCalledWith({
+      data: { groupId: "group-1", userId: "user-1", role: "MEMBER" },
+    })
+  })
+
   it("creates a request for a private club", async () => {
     getCommunityBySlugId.mockResolvedValue({
       type: "CLUB",
