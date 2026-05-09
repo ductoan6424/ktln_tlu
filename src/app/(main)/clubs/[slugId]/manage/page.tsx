@@ -215,6 +215,7 @@ export default async function ClubManagePage({
           title="Bài chờ duyệt"
           description="Các bài viết đang chờ quản trị viên kiểm tra trước khi hiển thị."
           emptyLabel="Không có bài viết nào đang chờ duyệt."
+          reviewTarget={{ targetType: "CLUB", targetId: target.id }}
           posts={pendingPosts.map((post) => ({
             id: post.id,
             content: post.content,

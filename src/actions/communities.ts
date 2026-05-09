@@ -183,7 +183,7 @@ export async function approveJoinRequest(
     const context = await getAuthorizationContext()
     if (!context) return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
 
-    const input = requestReviewSchema.parse(rawInput)
+    const input = requestReviewSchema.parse(normalizeFormInput(rawInput))
     const request = await prisma.communityJoinRequest.findUnique({
       where: { id: input.requestId },
     })
@@ -271,7 +271,7 @@ export async function rejectJoinRequest(
     const context = await getAuthorizationContext()
     if (!context) return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
 
-    const input = requestReviewSchema.parse(rawInput)
+    const input = requestReviewSchema.parse(normalizeFormInput(rawInput))
     const request = await prisma.communityJoinRequest.findUnique({
       where: { id: input.requestId },
     })

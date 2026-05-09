@@ -1,7 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma/client";
 import { formatRelativeTime } from "@/utils/formatters";
-import { canHidePost, resolveDeleteRole } from "@/lib/auth/post-permissions";
+import {
+  canHidePost,
+  loadViewerPostPermissionsCtx,
+  resolveDeleteRoleFromCtx,
+  type ViewerPostPermissionsCtx,
+} from "@/lib/auth/post-permissions";
 import { getPollsForPosts } from "@/lib/polls/queries";
 import type { PollView } from "@/lib/polls/types";
 import { getFeedFanoutConfig } from "@/lib/feed/config";
@@ -175,7 +180,7 @@ async function getHiddenPostIds(viewerId: string | null): Promise<string[]> {
   return rows.map((r) => r.postId);
 }
 
-function buildPostInclude(viewerId: string | null) {
+export function buildPostInclude(viewerId: string | null) {
   return {
     author: {
       select: {
@@ -222,29 +227,29 @@ function buildPostInclude(viewerId: string | null) {
   } as const;
 }
 
-async function mapRawPost(
+export function mapRawPost(
   post: RawFeedPost,
-  viewerId: string | null,
+  ctx: ViewerPostPermissionsCtx,
   isFromFollowed: boolean,
   poll: PollView | null,
-): Promise<FeedPostDto> {
+): FeedPostDto {
   let permissions: FeedPostPermissions = {
     canDelete: false,
     canHide: false,
     deleteRole: null,
   };
 
-  if (viewerId) {
-    const ctx = {
+  if (ctx.viewerId) {
+    const postCtx = {
       postId: post.id,
       authorId: post.authorId,
       clubId: post.clubId,
       groupId: post.groupId,
     };
-    const role = await resolveDeleteRole(viewerId, ctx);
+    const role = resolveDeleteRoleFromCtx(ctx, postCtx);
     permissions = {
       canDelete: role !== null,
-      canHide: canHidePost(viewerId, ctx),
+      canHide: canHidePost(ctx.viewerId, postCtx),
       deleteRole:
         role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
     };
@@ -391,6 +396,43 @@ export async function getJoinedCommunityIds(viewerId: string | null): Promise<{
       ]),
     ),
   };
+}
+
+export async function getCommunityPosts(
+  targetType: "GROUP" | "CLUB" | "COURSE",
+  targetId: string,
+  viewerId: string | null,
+  limit = 30,
+): Promise<FeedPostDto[]> {
+  const whereField =
+    targetType === "GROUP"
+      ? "groupId"
+      : targetType === "CLUB"
+        ? "clubId"
+        : "courseId";
+
+  const rawPosts = await prisma.post.findMany({
+    where: {
+      [whereField]: targetId,
+      visibility: "PUBLIC",
+      communityStatus: "PUBLISHED",
+      deletedAt: null,
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: buildPostInclude(viewerId),
+  });
+
+  const postIds = rawPosts.map((post) => post.id);
+  const [pollMap, viewerCtx] = await Promise.all([
+    getPollsForPosts(postIds, viewerId),
+    loadViewerPostPermissionsCtx(viewerId),
+  ]);
+
+  return rawPosts.map((post) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mapRawPost(post as any, viewerCtx, false, pollMap.get(post.id) ?? null),
+  );
 }
 
 function buildIdWhere(
@@ -748,16 +790,17 @@ export async function getFeedPosts(
   const orderedFullPosts = selectedIds
     .map((id) => fullPostById.get(id))
     .filter((post): post is RawFeedPost => Boolean(post));
-  const pollMap = await getPollsForPosts(selectedIds, viewerId);
+  const [pollMap, viewerCtx] = await Promise.all([
+    getPollsForPosts(selectedIds, viewerId),
+    loadViewerPostPermissionsCtx(viewerId),
+  ]);
 
-  const posts = await Promise.all(
-    orderedFullPosts.map((post) =>
-      mapRawPost(
-        post,
-        viewerId,
-        selectedById.get(post.id)?.isFromFollowed ?? false,
-        pollMap.get(post.id) ?? null,
-      ),
+  const posts = orderedFullPosts.map((post) =>
+    mapRawPost(
+      post,
+      viewerCtx,
+      selectedById.get(post.id)?.isFromFollowed ?? false,
+      pollMap.get(post.id) ?? null,
     ),
   );
 

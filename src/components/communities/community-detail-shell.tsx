@@ -1,15 +1,16 @@
 import Link from "next/link"
 
 import { CommunityCard } from "@/components/communities/community-card"
-import { CommunityChatPanel } from "@/components/communities/community-chat-panel"
 import { CommunityInviteAcceptButton } from "@/components/communities/community-invite-accept-button"
 import { CommunityJoinButton } from "@/components/communities/community-join-button"
 import { CommunityPostComposer } from "@/components/communities/community-post-composer"
+import { CommunityPostFeed } from "@/components/communities/community-post-feed"
 import { PageContainer } from "@/components/layout/page-container"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import type { CommunityContext } from "@/lib/communities/types"
-import type { ChatMessageItem } from "@/types/chat"
+import type { FeedPostDto } from "@/lib/feed/queries"
 
 type CommunityDetailShellProps = {
   target: CommunityContext
@@ -25,11 +26,12 @@ type CommunityDetailShellProps = {
   slugId: string
   viewer: { displayName: string; avatarUrl: string | null } | null
   rules: Array<{ id: string; title: string; description: string }>
+  posts?: FeedPostDto[]
+  currentUser?: { userId: string; displayName: string; avatarUrl: string | null } | null
   chat?: {
     conversationId: string
     canSend: boolean
     readonlyLabel?: string
-    messages: ChatMessageItem[]
   } | null
 }
 
@@ -47,6 +49,8 @@ export function CommunityDetailShell({
   slugId,
   viewer,
   rules,
+  posts = [],
+  currentUser = null,
   chat,
 }: CommunityDetailShellProps) {
   return (
@@ -130,26 +134,35 @@ export function CommunityDetailShell({
             />
           ) : null}
           <nav className="flex gap-2 overflow-x-auto border-b border-border pb-3">
-            {["Bảng tin", "Thành viên", "Giới thiệu", ...(target.chatEnabled ? ["Chat"] : [])].map((label) => (
+            {["Bảng tin", "Thành viên", "Giới thiệu"].map((label) => (
               <Button key={label} variant="ghost" size="sm">
                 {label}
               </Button>
             ))}
           </nav>
           {chat ? (
-            <CommunityChatPanel
-              conversationId={chat.conversationId}
-              canSend={chat.canSend}
-              readonlyLabel={chat.readonlyLabel}
-              messages={chat.messages}
-            />
+            <Card>
+              <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="font-semibold">Chat nhóm</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Tin nhắn của nhóm được mở trong trang Nhắn tin để bạn theo dõi thuận tiện hơn.
+                  </p>
+                  {!chat.canSend && chat.readonlyLabel ? (
+                    <p className="mt-1 text-xs text-muted-foreground">{chat.readonlyLabel}</p>
+                  ) : null}
+                </div>
+                <Link href={`/messages?conversation=${encodeURIComponent(chat.conversationId)}`}>
+                  <Button>Mở trong tin nhắn</Button>
+                </Link>
+              </CardContent>
+            </Card>
           ) : null}
-          <div
-            id="internal-feed"
-            className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground"
-          >
-            Bảng tin nội bộ sẽ hiển thị ở bước bài viết community.
-          </div>
+          <CommunityPostFeed
+            initialPosts={posts}
+            currentUser={currentUser}
+            emptyLabel="Chưa có bài viết nào."
+          />
         </div>
       )}
     </PageContainer>

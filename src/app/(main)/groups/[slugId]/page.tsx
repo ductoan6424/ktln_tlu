@@ -1,17 +1,17 @@
 import { notFound, redirect } from "next/navigation"
 
 import {
-  getConversationMessages,
   getOrCreateCommunityConversation,
 } from "@/actions/chat"
 import { CommunityDetailShell } from "@/components/communities/community-detail-shell"
 import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { getCommunityPermissions } from "@/lib/communities/policy"
 import {
-  getCommunityBySlugId,
+  getCommunityWithCounts,
   getViewerMembershipRole,
 } from "@/lib/communities/queries"
 import { buildCommunityPath } from "@/lib/communities/urls"
+import { getCommunityPosts } from "@/lib/feed/queries"
 import { prisma } from "@/lib/prisma/client"
 
 export const dynamic = "force-dynamic"
@@ -22,7 +22,7 @@ export default async function GroupDetailPage({
   params: Promise<{ slugId: string }>
 }) {
   const { slugId } = await params
-  const target = await getCommunityBySlugId("GROUP", slugId)
+  const target = await getCommunityWithCounts("GROUP", slugId)
   if (!target) notFound()
 
   const href = buildCommunityPath("GROUP", target.name, target.shortId)
@@ -30,15 +30,8 @@ export default async function GroupDetailPage({
 
   const context = await getAuthorizationContext().catch(() => null)
   const userId = context?.profile.userId ?? null
-  const [membershipRole, group, rules, pendingInvite] = await Promise.all([
+  const [membershipRole, rules, pendingInvite] = await Promise.all([
     getViewerMembershipRole("GROUP", target.id, userId),
-    prisma.group.findUnique({
-      where: { id: target.id },
-      select: {
-        description: true,
-        _count: { select: { members: true } },
-      },
-    }),
     prisma.communityRule.findMany({
       where: { targetType: "GROUP", targetId: target.id },
       orderBy: { position: "asc" },
@@ -58,25 +51,20 @@ export default async function GroupDetailPage({
       : null,
   ])
 
-  if (!group) notFound()
-
   const permissions = getCommunityPermissions({
     viewerId: userId,
     baseRole: context?.baseRole ?? null,
     target,
     membershipRole,
   })
-  const chatConversation =
+  const [chatConversation, posts] = await Promise.all([
     permissions.canViewPosts && target.chatEnabled
-      ? await getOrCreateCommunityConversation("GROUP", slugId)
-      : null
-  const chatMessages =
-    chatConversation?.success && chatConversation.data
-      ? await getConversationMessages({
-          conversationId: chatConversation.data.conversationId,
-          limit: 20,
-        })
-      : null
+      ? getOrCreateCommunityConversation("GROUP", slugId)
+      : Promise.resolve(null),
+    permissions.canViewPosts
+      ? getCommunityPosts("GROUP", target.id, userId)
+      : Promise.resolve([]),
+  ])
   const chat =
     chatConversation?.success && chatConversation.data
       ? {
@@ -86,10 +74,6 @@ export default async function GroupDetailPage({
             target.chatMode === "ADMINS_ONLY"
               ? "Chỉ quản trị viên có thể gửi tin nhắn."
               : "Phòng chat đang ở chế độ chỉ đọc.",
-          messages:
-            chatMessages?.success && chatMessages.data
-              ? chatMessages.data.items
-              : [],
         }
       : null
 
@@ -98,8 +82,8 @@ export default async function GroupDetailPage({
       target={target}
       href={href}
       manageHref={buildCommunityPath("GROUP", target.name, target.shortId, "manage")}
-      description={group.description}
-      memberCount={group._count.members}
+      description={target.description}
+      memberCount={target.memberCount}
       canViewPosts={permissions.canViewPosts}
       canPost={permissions.canPost}
       canManage={permissions.canManage}
@@ -115,6 +99,16 @@ export default async function GroupDetailPage({
           : null
       }
       rules={rules}
+      posts={posts}
+      currentUser={
+        context
+          ? {
+              userId: context.profile.userId,
+              displayName: context.profile.displayName,
+              avatarUrl: context.profile.avatarUrl,
+            }
+          : null
+      }
       chat={chat}
     />
   )

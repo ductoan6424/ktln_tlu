@@ -69,6 +69,83 @@ export async function getCommunityBySlugId(
   }
 }
 
+export type CommunityContextWithCounts = CommunityContext & {
+  description: string | null
+  memberCount: number
+}
+
+export async function getCommunityWithCounts(
+  type: CommunityType,
+  slugId: string,
+): Promise<CommunityContextWithCounts | null> {
+  const shortId = extractShortIdFromSlugId(slugId)
+  if (!shortId) return null
+
+  if (type === "GROUP") {
+    const group = await prisma.group.findFirst({
+      where: { shortId, deletedAt: null },
+      include: { _count: { select: { members: true } } },
+    })
+    if (!group) return null
+    return {
+      type,
+      id: group.id,
+      shortId: group.shortId,
+      name: group.name,
+      visibility: group.communityVisibility,
+      requirePostApproval: group.requirePostApproval,
+      chatEnabled: group.chatEnabled,
+      chatMode: group.chatMode,
+      memberInviteEnabled: group.memberInviteEnabled,
+      lecturerId: null,
+      description: group.description,
+      memberCount: group._count.members,
+    }
+  }
+
+  if (type === "CLUB") {
+    const club = await prisma.club.findFirst({
+      where: { shortId, deletedAt: null },
+      include: { _count: { select: { members: true } } },
+    })
+    if (!club) return null
+    return {
+      type,
+      id: club.id,
+      shortId: club.shortId,
+      name: club.name,
+      visibility: club.communityVisibility,
+      requirePostApproval: club.requirePostApproval,
+      chatEnabled: club.chatEnabled,
+      chatMode: club.chatMode,
+      memberInviteEnabled: club.memberInviteEnabled,
+      lecturerId: null,
+      description: club.description,
+      memberCount: club._count.members,
+    }
+  }
+
+  const course = await prisma.course.findFirst({
+    where: { shortId, deletedAt: null },
+    include: { _count: { select: { members: true } } },
+  })
+  if (!course) return null
+  return {
+    type,
+    id: course.id,
+    shortId: course.shortId,
+    name: course.name,
+    visibility: null,
+    requirePostApproval: course.requirePostApproval,
+    chatEnabled: course.chatEnabled,
+    chatMode: course.chatMode,
+    memberInviteEnabled: false,
+    lecturerId: course.lecturerId,
+    description: course.description,
+    memberCount: course._count.members,
+  }
+}
+
 export async function getViewerMembershipRole(
   type: CommunityType,
   targetId: string,

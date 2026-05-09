@@ -8,6 +8,7 @@ const getOrCreateCommunityConversation = vi.hoisted(() => vi.fn())
 const getConversationMessages = vi.hoisted(() => vi.fn())
 const sendConversationMessage = vi.hoisted(() => vi.fn())
 const joinCommunity = vi.hoisted(() => vi.fn())
+const getCommunityPosts = vi.hoisted(() => vi.fn())
 const acceptCommunityInvite = vi.hoisted(() => vi.fn())
 const inviteCommunityMember = vi.hoisted(() => vi.fn())
 const updateCommunitySettings = vi.hoisted(() => vi.fn())
@@ -79,6 +80,9 @@ vi.mock("@/actions/chat", () => ({
 vi.mock("@/actions/communities", () => ({
   joinCommunity,
 }))
+vi.mock("@/lib/feed/queries", () => ({
+  getCommunityPosts,
+}))
 vi.mock("@/actions/community-management", () => ({
   acceptCommunityInvite,
   inviteCommunityMember,
@@ -99,7 +103,17 @@ vi.mock("next/link", () => ({
     className?: string
   }) => createElement("a", { href, className }, children),
 }))
-vi.mock("next/navigation", () => ({ notFound, redirect }))
+vi.mock("next/image", () => ({
+  default: (props: Record<string, unknown>) => createElement("img", props),
+}))
+vi.mock("next/navigation", () => ({
+  notFound,
+  redirect,
+  useRouter: () => ({
+    refresh: vi.fn(),
+    push: vi.fn(),
+  }),
+}))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -119,6 +133,7 @@ beforeEach(() => {
     success: true,
     data: { items: [], nextCursor: null, hasMore: false },
   })
+  getCommunityPosts.mockResolvedValue([])
   prisma.communityJoinRequest.findMany.mockResolvedValue([])
   prisma.communityInvite.findMany.mockResolvedValue([])
   prisma.communityInvite.findFirst.mockResolvedValue(null)
@@ -273,7 +288,7 @@ describe("community routes", () => {
     )
   })
 
-  it("renders community chat for joined group members", async () => {
+  it("renders community posts and chat link for joined group members", async () => {
     prisma.group.findFirst.mockResolvedValue({
       id: "group-1",
       shortId: "abc123",
@@ -314,6 +329,34 @@ describe("community routes", () => {
         hasMore: false,
       },
     })
+    getCommunityPosts.mockResolvedValue([
+      {
+        id: "post-1",
+        content: "Hello group post",
+        imageUrl: null,
+        createdAt: "2026-05-08T08:00:00.000Z",
+        createdAtRelative: "Vừa xong",
+        visibility: "PUBLIC",
+        authorId: "author-1",
+        authorDisplayName: "Author One",
+        authorAvatarUrl: null,
+        authorCoverUrl: null,
+        isLiked: false,
+        likes: 0,
+        comments: 0,
+        isFromFollowed: false,
+        permissions: { canDelete: false, canHide: false, deleteRole: null },
+        sharedPost: null,
+        communityContext: {
+          type: "GROUP",
+          name: "Python Group",
+          href: "/groups/python-group-abc123",
+          avatarUrl: null,
+        },
+        attachments: [],
+        poll: null,
+      },
+    ])
 
     const page = await import("@/app/(main)/groups/[slugId]/page")
     const markup = renderToStaticMarkup(
@@ -326,11 +369,9 @@ describe("community routes", () => {
       "GROUP",
       "python-group-abc123",
     )
-    expect(getConversationMessages).toHaveBeenCalledWith({
-      conversationId: "conv-1",
-      limit: 20,
-    })
-    expect(markup).toContain("Hello chat")
+    expect(getCommunityPosts).toHaveBeenCalledWith("GROUP", "group-1", "viewer-1")
+    expect(markup).toContain("Hello group post")
+    expect(markup).toContain("/messages?conversation=conv-1")
   })
 
   it("renders group manage members with real member data", async () => {

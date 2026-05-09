@@ -8,6 +8,7 @@ import { getCommunityPermissions } from "@/lib/communities/policy"
 import { getViewerMembershipRole } from "@/lib/communities/queries"
 import type { CommunityType } from "@/lib/communities/types"
 import { buildCommunityPath } from "@/lib/communities/urls"
+import { distributePostToFeeds } from "@/lib/feed/fanout"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -37,6 +38,10 @@ const ruleReorderSchema = targetRefSchema.extend({
 const pinPostSchema = targetRefSchema.extend({
   postId: z.string().min(1, "Thiếu bài viết"),
   position: z.number().int().min(0).default(0),
+})
+const reviewPostSchema = targetRefSchema.extend({
+  postId: z.string().min(1, "Thiếu bài viết"),
+  reason: z.string().trim().max(500).optional(),
 })
 const contentTypeSchema = z.enum(["POST", "COMMENT"])
 const reportContentSchema = targetRefSchema.extend({
@@ -150,6 +155,14 @@ function revalidateCommunityTarget(target: { type: CommunityType; name: string; 
 
 function validationError<T>(error: z.ZodError): ActionResult<T> {
   return errorResult<T>(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+}
+
+function normalizeFormInput(rawInput: unknown) {
+  if (rawInput instanceof FormData) {
+    return Object.fromEntries(rawInput.entries())
+  }
+
+  return rawInput
 }
 
 export async function createCommunityRule(rawInput: unknown): Promise<ActionResult<{ id: string }>> {
@@ -290,6 +303,101 @@ export async function unpinCommunityPost(
   } catch (error) {
     if (error instanceof z.ZodError) return validationError(error)
     return errorResult("Không thể bỏ ghim bài viết", "UPDATE_FAILED")
+  }
+}
+
+export async function approveCommunityPost(
+  rawInput: unknown,
+): Promise<ActionResult<{ postId: string }>> {
+  try {
+    const input = reviewPostSchema.parse(normalizeFormInput(rawInput))
+    const auth = await getTargetAuthorization(input)
+    if (auth.error) return auth.error
+    if (!auth.permissions?.canApprovePost || !auth.context || !auth.target) {
+      return errorResult("Bạn không có quyền duyệt bài viết", "FORBIDDEN")
+    }
+
+    const post = await prisma.post.update({
+      where: {
+        id: input.postId,
+        communityStatus: "PENDING_APPROVAL",
+        deletedAt: null,
+        ...(input.targetType === "GROUP"
+          ? { groupId: input.targetId }
+          : input.targetType === "CLUB"
+            ? { clubId: input.targetId }
+            : { courseId: input.targetId }),
+      },
+      data: { communityStatus: "PUBLISHED" },
+      select: { id: true, authorId: true, createdAt: true },
+    })
+
+    await prisma.communityModerationLog.create({
+      data: {
+        targetType: input.targetType,
+        targetId: input.targetId,
+        actorId: auth.context.profile.userId,
+        action: "POST_APPROVED",
+        subjectId: post.id,
+      },
+    })
+
+    await distributePostToFeeds({
+      postId: post.id,
+      authorId: post.authorId,
+      createdAt: post.createdAt,
+    })
+    revalidateCommunityTarget(auth.target)
+    revalidatePath("/feed")
+    return successResult({ postId: post.id })
+  } catch (error) {
+    if (error instanceof z.ZodError) return validationError(error)
+    return errorResult("Không thể duyệt bài viết", "UPDATE_FAILED")
+  }
+}
+
+export async function rejectCommunityPost(
+  rawInput: unknown,
+): Promise<ActionResult<{ postId: string }>> {
+  try {
+    const input = reviewPostSchema.parse(normalizeFormInput(rawInput))
+    const auth = await getTargetAuthorization(input)
+    if (auth.error) return auth.error
+    if (!auth.permissions?.canApprovePost || !auth.context || !auth.target) {
+      return errorResult("Bạn không có quyền từ chối bài viết", "FORBIDDEN")
+    }
+
+    const post = await prisma.post.update({
+      where: {
+        id: input.postId,
+        communityStatus: "PENDING_APPROVAL",
+        deletedAt: null,
+        ...(input.targetType === "GROUP"
+          ? { groupId: input.targetId }
+          : input.targetType === "CLUB"
+            ? { clubId: input.targetId }
+            : { courseId: input.targetId }),
+      },
+      data: { communityStatus: "REJECTED" },
+      select: { id: true },
+    })
+
+    await prisma.communityModerationLog.create({
+      data: {
+        targetType: input.targetType,
+        targetId: input.targetId,
+        actorId: auth.context.profile.userId,
+        action: "POST_REJECTED",
+        subjectId: post.id,
+        reason: input.reason?.trim() || null,
+      },
+    })
+
+    revalidateCommunityTarget(auth.target)
+    return successResult({ postId: post.id })
+  } catch (error) {
+    if (error instanceof z.ZodError) return validationError(error)
+    return errorResult("Không thể từ chối bài viết", "UPDATE_FAILED")
   }
 }
 
