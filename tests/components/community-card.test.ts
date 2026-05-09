@@ -13,6 +13,7 @@ describe("CommunityCard", () => {
           name: "Nhóm Python",
           description: "Trao đổi bài tập",
           href: "/groups/nhom-python-abc123",
+          slugId: "nhom-python-abc123",
           visibility: "PUBLIC",
           memberCount: 12,
           status: "JOINED",
