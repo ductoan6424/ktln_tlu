@@ -100,6 +100,7 @@ export default async function ClubsPage({
       name: club.name,
       description: club.description,
       href,
+      slugId: href.split("/").at(-1) ?? club.shortId,
       visibility: club.communityVisibility,
       memberCount: club._count.members,
       status: joined

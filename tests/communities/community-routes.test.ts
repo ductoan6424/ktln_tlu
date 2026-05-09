@@ -7,6 +7,7 @@ const getAuthorizationContext = vi.hoisted(() => vi.fn())
 const getOrCreateCommunityConversation = vi.hoisted(() => vi.fn())
 const getConversationMessages = vi.hoisted(() => vi.fn())
 const sendConversationMessage = vi.hoisted(() => vi.fn())
+const joinCommunity = vi.hoisted(() => vi.fn())
 const acceptCommunityInvite = vi.hoisted(() => vi.fn())
 const inviteCommunityMember = vi.hoisted(() => vi.fn())
 const updateCommunitySettings = vi.hoisted(() => vi.fn())
@@ -74,6 +75,9 @@ vi.mock("@/actions/chat", () => ({
   getOrCreateCommunityConversation,
   getConversationMessages,
   sendConversationMessage,
+}))
+vi.mock("@/actions/communities", () => ({
+  joinCommunity,
 }))
 vi.mock("@/actions/community-management", () => ({
   acceptCommunityInvite,
@@ -192,6 +196,43 @@ describe("community routes", () => {
     expect(markup).toContain("Official student club")
     expect(markup).toContain("Rule 1")
     expect(markup).not.toContain("internal-feed")
+  })
+
+  it("renders working join and request actions for available groups", async () => {
+    prisma.group.findMany.mockResolvedValue([
+      {
+        id: "group-public",
+        shortId: "pub123",
+        name: "Public Group",
+        description: "Open for students",
+        communityVisibility: "PUBLIC",
+        members: [],
+        _count: { members: 2 },
+      },
+      {
+        id: "group-private",
+        shortId: "pri123",
+        name: "Private Group",
+        description: "Needs approval",
+        communityVisibility: "PRIVATE",
+        members: [],
+        _count: { members: 3 },
+      },
+    ])
+
+    const page = await import("@/app/(main)/groups/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        searchParams: Promise.resolve({ tab: "explore", q: "" }),
+      }),
+    )
+
+    expect(markup).toContain('data-testid="community-join-button"')
+    expect(markup).toContain('data-testid="community-request-button"')
+    expect(markup).toContain('name="type" value="GROUP"')
+    expect(markup).toContain('name="slugId" value="public-group-pub123"')
+    expect(markup).toContain('name="slugId" value="private-group-pri123"')
+    expect(markup).toContain('name="agreedRules" value="true"')
   })
 
   it("renders an accept invite action for invited group viewers", async () => {
