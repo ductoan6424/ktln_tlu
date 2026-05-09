@@ -30,7 +30,7 @@ export default async function ClubDetailPage({
 
   const context = await getAuthorizationContext().catch(() => null)
   const userId = context?.profile.userId ?? null
-  const [membershipRole, club, rules] = await Promise.all([
+  const [membershipRole, club, rules, pendingInvite] = await Promise.all([
     getViewerMembershipRole("CLUB", target.id, userId),
     prisma.club.findUnique({
       where: { id: target.id },
@@ -44,6 +44,18 @@ export default async function ClubDetailPage({
       orderBy: { position: "asc" },
       select: { id: true, title: true, description: true },
     }),
+    userId
+      ? prisma.communityInvite.findFirst({
+          where: {
+            targetType: "CLUB",
+            targetId: target.id,
+            inviteeId: userId,
+            status: "PENDING",
+            expiresAt: { gt: new Date() },
+          },
+          select: { id: true },
+        })
+      : null,
   ])
 
   if (!club) notFound()
@@ -92,6 +104,7 @@ export default async function ClubDetailPage({
       canPost={permissions.canPost}
       canManage={permissions.canManage}
       joinMode={permissions.joinMode}
+      hasPendingInvite={Boolean(pendingInvite) && !membershipRole}
       slugId={slugId}
       viewer={
         context

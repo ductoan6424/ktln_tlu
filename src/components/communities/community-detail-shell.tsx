@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { CommunityCard } from "@/components/communities/community-card"
 import { CommunityChatPanel } from "@/components/communities/community-chat-panel"
+import { CommunityInviteAcceptButton } from "@/components/communities/community-invite-accept-button"
 import { CommunityPostComposer } from "@/components/communities/community-post-composer"
 import { PageContainer } from "@/components/layout/page-container"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +20,7 @@ type CommunityDetailShellProps = {
   canPost: boolean
   canManage: boolean
   joinMode: "NONE" | "JOIN_NOW" | "REQUEST"
+  hasPendingInvite?: boolean
   slugId: string
   viewer: { displayName: string; avatarUrl: string | null } | null
   rules: Array<{ id: string; title: string; description: string }>
@@ -40,6 +42,7 @@ export function CommunityDetailShell({
   canPost,
   canManage,
   joinMode,
+  hasPendingInvite = false,
   slugId,
   viewer,
   rules,
@@ -65,8 +68,10 @@ export function CommunityDetailShell({
             </p>
             <p className="text-sm text-muted-foreground">{memberCount} thành viên</p>
           </div>
-          <div className="flex gap-2">
-            {joinMode !== "NONE" ? (
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            {hasPendingInvite && (target.type === "GROUP" || target.type === "CLUB") ? (
+              <CommunityInviteAcceptButton type={target.type} slugId={slugId} />
+            ) : joinMode !== "NONE" ? (
               <Button>{joinMode === "JOIN_NOW" ? "Tham gia" : "Gửi yêu cầu"}</Button>
             ) : null}
             {canManage ? (
