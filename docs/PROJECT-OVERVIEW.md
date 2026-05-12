@@ -1,7 +1,7 @@
 # Tổng quan dự án — UniConnect
 
 > **Mã nguồn:** Khóa luận tốt nghiệp
-> **Đối tượng:** Sinh viên Đại học Thủy Lợi
+> **Đối tượng:** Sinh viên Đại học Thăng Long
 > **Trạng thái:** Đang phát triển (2026)
 
 ---
