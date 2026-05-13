@@ -33,3 +33,20 @@ export function buildCommunityPath(
   const base = `/${ROUTE_SEGMENTS[type]}/${slug}-${shortId}`
   return suffix ? `${base}/${suffix}` : base
 }
+
+export function buildCommunityTargetPath(
+  target: {
+    type: CommunityType
+    name: string
+    shortId: string
+    routeLabel?: string
+  },
+  suffix?: "manage",
+) {
+  return buildCommunityPath(
+    target.type,
+    target.routeLabel ?? target.name,
+    target.shortId,
+    suffix,
+  )
+}

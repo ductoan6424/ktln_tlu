@@ -60,6 +60,7 @@ export async function getCommunityBySlugId(
     id: course.id,
     shortId: course.shortId,
     name: course.name,
+    routeLabel: course.code,
     visibility: null,
     requirePostApproval: course.requirePostApproval,
     chatEnabled: course.chatEnabled,
