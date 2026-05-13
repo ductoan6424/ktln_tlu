@@ -13,6 +13,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import {
+  facebookPrimaryButton,
+  manageHeader,
+  manageInput,
+  manageSurface,
+} from "@/components/communities/manage/manage-ui"
 
 type CommunityInviteFormProps = {
   type: "GROUP" | "CLUB"
@@ -26,17 +32,19 @@ export function CommunityInviteForm({ type, slugId }: CommunityInviteFormProps) 
   const [error, setError] = useState<string | null>(null)
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Mời thành viên</CardTitle>
-        <CardDescription>
+    <Card className={`${manageSurface} gap-0 py-0`}>
+      <CardHeader className={manageHeader}>
+        <CardTitle className="text-lg font-bold text-[#050505]">
+          Mời thành viên
+        </CardTitle>
+        <CardDescription className="text-[#65676b]">
           Nhập email hoặc mã sinh viên để gửi lời mời tham gia.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4 sm:p-5">
         <form
           ref={formRef}
-          className="flex flex-col gap-3 sm:flex-row"
+          className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
           action={(formData) => {
             startTransition(async () => {
               setError(null)
@@ -55,17 +63,22 @@ export function CommunityInviteForm({ type, slugId }: CommunityInviteFormProps) 
         >
           <input type="hidden" name="type" value={type} />
           <input type="hidden" name="slugId" value={slugId} />
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex min-w-0 flex-col gap-2">
             <Input
               name="identifier"
               required
               placeholder="Email hoặc mã sinh viên"
               autoComplete="off"
+              className={manageInput}
             />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+            {message ? <p className="text-sm text-[#65676b]">{message}</p> : null}
           </div>
-          <Button type="submit" disabled={pending} className="self-start">
+          <Button
+            type="submit"
+            disabled={pending}
+            className={`${facebookPrimaryButton} h-10 self-start`}
+          >
             <UserPlus data-icon="inline-start" />
             {pending ? "Đang gửi..." : "Gửi lời mời"}
           </Button>

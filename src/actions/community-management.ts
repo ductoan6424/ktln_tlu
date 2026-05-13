@@ -19,6 +19,11 @@ import type { ActionResult } from "@/types/api"
 const manageableCommunityTypeSchema = z.enum(["GROUP", "CLUB"])
 const communityVisibilitySchema = z.enum(["PUBLIC", "PRIVATE"])
 const communityChatModeSchema = z.enum(["OPEN", "ADMINS_ONLY", "READ_ONLY"])
+const cancelCommunityInviteSchema = z.object({
+  type: manageableCommunityTypeSchema,
+  slugId: z.string().min(1),
+  inviteId: z.string().min(1),
+})
 
 const booleanFormValueSchema = z.preprocess((value) => {
   if (typeof value === "boolean") return value
@@ -237,6 +242,49 @@ export async function updateCommunitySettings(
   } catch (error) {
     if (error instanceof z.ZodError) return validationError(error)
     return errorResult("Không thể cập nhật cài đặt", "UPDATE_FAILED")
+  }
+}
+
+export async function cancelCommunityInvite(
+  rawInput: unknown,
+): Promise<ActionResult<{ inviteId: string }>> {
+  try {
+    const input = cancelCommunityInviteSchema.parse(normalizeFormInput(rawInput))
+    const auth = await getAuthorizedCommunity(input)
+    if (auth.error) return auth.error
+    if (!auth.target || !auth.permissions?.canManage) {
+      return errorResult("Báº¡n khÃ´ng cÃ³ quyá»n huá»· lá»i má»i", "FORBIDDEN")
+    }
+
+    const invite = await prisma.communityInvite.findFirst({
+      where: {
+        id: input.inviteId,
+        targetType: input.type,
+        targetId: auth.target.id,
+        status: "PENDING",
+      },
+      select: { id: true },
+    })
+    if (!invite) {
+      return errorResult("KhÃ´ng tÃ¬m tháº¥y lá»i má»i Ä‘ang chá»", "NOT_FOUND")
+    }
+
+    await prisma.communityInvite.update({
+      where: { id: invite.id },
+      data: { status: "REVOKED" },
+    })
+
+    const href = getCommunityHref({
+      type: input.type,
+      name: auth.target.name,
+      shortId: auth.target.shortId,
+    })
+    revalidatePath(href)
+    revalidatePath(`${href}/manage`)
+    return successResult({ inviteId: invite.id })
+  } catch (error) {
+    if (error instanceof z.ZodError) return validationError(error)
+    return errorResult("KhÃ´ng thá»ƒ huá»· lá»i má»i", "UPDATE_FAILED")
   }
 }
 

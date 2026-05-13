@@ -4,13 +4,14 @@ const getAuthorizationContext = vi.hoisted(() => vi.fn())
 const getCommunityBySlugId = vi.hoisted(() => vi.fn())
 const getViewerMembershipRole = vi.hoisted(() => vi.fn())
 const notifyCommunityInvite = vi.hoisted(() => vi.fn())
+const notifyCommunityRoleChanged = vi.hoisted(() => vi.fn())
 const revalidatePath = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
   $transaction: vi.fn(),
   userProfile: { findFirst: vi.fn() },
   group: { update: vi.fn() },
   club: { update: vi.fn() },
-  groupMember: { findUnique: vi.fn(), create: vi.fn() },
+  groupMember: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   clubMember: { findUnique: vi.fn(), create: vi.fn() },
   communityInvite: {
     findFirst: vi.fn(),
@@ -24,12 +25,17 @@ vi.mock("@/lib/communities/queries", () => ({
   getCommunityBySlugId,
   getViewerMembershipRole,
 }))
-vi.mock("@/lib/notifications/dispatchers", () => ({ notifyCommunityInvite }))
+vi.mock("@/lib/notifications/dispatchers", () => ({
+  notifyCommunityInvite,
+  notifyCommunityRoleChanged,
+}))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("next/cache", () => ({ revalidatePath }))
 
+import { updateCommunityMemberRole } from "@/actions/communities"
 import {
   acceptCommunityInvite,
+  cancelCommunityInvite,
   inviteCommunityMember,
   updateCommunitySettings,
 } from "@/actions/community-management"
@@ -161,5 +167,56 @@ describe("acceptCommunityInvite", () => {
       data: { status: "ACCEPTED" },
     })
     expect(revalidatePath).toHaveBeenCalledWith("/groups/python-group-abc123")
+  })
+})
+
+describe("updateCommunityMemberRole", () => {
+  it("updates a group member role and notifies the member", async () => {
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "MEMBER" })
+    prisma.groupMember.update.mockResolvedValue({ userId: "user-2", role: "MODERATOR" })
+
+    const result = await updateCommunityMemberRole({
+      type: "GROUP",
+      slugId: "python-group-abc123",
+      memberId: "user-2",
+      role: "MODERATOR",
+    })
+
+    expect(result.success).toBe(true)
+    expect(prisma.groupMember.update).toHaveBeenCalledWith({
+      where: { userId_groupId: { userId: "user-2", groupId: "group-1" } },
+      data: { role: "MODERATOR" },
+    })
+    expect(notifyCommunityRoleChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: "user-2",
+        targetType: "GROUP",
+        targetId: "group-1",
+        targetName: "Python Group",
+        role: "MODERATOR",
+        link: "/groups/python-group-abc123",
+      }),
+    )
+    expect(revalidatePath).toHaveBeenCalledWith("/groups/python-group-abc123/manage")
+  })
+})
+
+describe("cancelCommunityInvite", () => {
+  it("revokes a pending invite from the manage page", async () => {
+    prisma.communityInvite.findFirst.mockResolvedValue({ id: "invite-1" })
+    prisma.communityInvite.update.mockResolvedValue({ id: "invite-1" })
+
+    const result = await cancelCommunityInvite({
+      type: "GROUP",
+      slugId: "python-group-abc123",
+      inviteId: "invite-1",
+    })
+
+    expect(result.success).toBe(true)
+    expect(prisma.communityInvite.update).toHaveBeenCalledWith({
+      where: { id: "invite-1" },
+      data: { status: "REVOKED" },
+    })
+    expect(revalidatePath).toHaveBeenCalledWith("/groups/python-group-abc123/manage")
   })
 })

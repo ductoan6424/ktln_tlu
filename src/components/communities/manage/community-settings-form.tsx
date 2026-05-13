@@ -13,6 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  facebookPrimaryButton,
+  manageHeader,
+  manageInput,
+  manageSoftItem,
+  manageSurface,
+} from "@/components/communities/manage/manage-ui"
 
 type CommunitySettingsFormProps = {
   type: "GROUP" | "CLUB"
@@ -38,10 +45,12 @@ export function CommunitySettingsForm({
   const [error, setError] = useState<string | null>(null)
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Cập nhật cài đặt</CardTitle>
-        <CardDescription>
+    <Card className={`${manageSurface} gap-0 py-0`}>
+      <CardHeader className={manageHeader}>
+        <CardTitle className="text-lg font-bold text-[#050505]">
+          Cập nhật cài đặt
+        </CardTitle>
+        <CardDescription className="text-[#65676b]">
           Điều chỉnh cách thành viên tham gia, đăng bài và sử dụng chat.
         </CardDescription>
       </CardHeader>
@@ -61,16 +70,18 @@ export function CommunitySettingsForm({
           })
         }}
       >
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
           <input type="hidden" name="type" value={type} />
           <input type="hidden" name="slugId" value={slugId} />
 
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Chế độ hiển thị</span>
+            <span className="text-sm font-semibold text-[#050505]">
+              Chế độ hiển thị
+            </span>
             <select
               name="visibility"
               defaultValue={visibility ?? "PUBLIC"}
-              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className={`${manageInput} h-10 px-3 text-sm`}
             >
               <option value="PUBLIC">Công khai</option>
               <option value="PRIVATE">Riêng tư</option>
@@ -78,11 +89,13 @@ export function CommunitySettingsForm({
           </label>
 
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Chế độ chat</span>
+            <span className="text-sm font-semibold text-[#050505]">
+              Chế độ chat
+            </span>
             <select
               name="chatMode"
               defaultValue={chatMode}
-              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className={`${manageInput} h-10 px-3 text-sm`}
             >
               <option value="OPEN">Mọi thành viên</option>
               <option value="ADMINS_ONLY">Chỉ quản trị viên</option>
@@ -91,51 +104,57 @@ export function CommunitySettingsForm({
           </label>
 
           <input type="hidden" name="requirePostApproval" value="false" />
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3">
+          <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
             <input
-              className="mt-1"
+              className="mt-1 accent-[#1877f2]"
               type="checkbox"
               name="requirePostApproval"
               value="true"
               defaultChecked={requirePostApproval}
             />
             <span className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Yêu cầu duyệt bài</span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-sm font-semibold text-[#050505]">
+                Yêu cầu duyệt bài
+              </span>
+              <span className="text-xs leading-5 text-[#65676b]">
                 Bài viết của thành viên cần được duyệt trước khi hiển thị.
               </span>
             </span>
           </label>
 
           <input type="hidden" name="chatEnabled" value="false" />
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3">
+          <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
             <input
-              className="mt-1"
+              className="mt-1 accent-[#1877f2]"
               type="checkbox"
               name="chatEnabled"
               value="true"
               defaultChecked={chatEnabled}
             />
             <span className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Bật chat</span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-sm font-semibold text-[#050505]">
+                Bật chat
+              </span>
+              <span className="text-xs leading-5 text-[#65676b]">
                 Khi tắt, thành viên không thể gửi tin nhắn vào chat.
               </span>
             </span>
           </label>
 
           <input type="hidden" name="memberInviteEnabled" value="false" />
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 sm:col-span-2">
+          <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3 sm:col-span-2`}>
             <input
-              className="mt-1"
+              className="mt-1 accent-[#1877f2]"
               type="checkbox"
               name="memberInviteEnabled"
               value="true"
               defaultChecked={memberInviteEnabled}
             />
             <span className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Cho phép thành viên mời người khác</span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-sm font-semibold text-[#050505]">
+                Cho phép thành viên mời người khác
+              </span>
+              <span className="text-xs leading-5 text-[#65676b]">
                 Nếu tắt, chỉ quản trị viên và kiểm duyệt viên mới có quyền mời.
               </span>
             </span>
@@ -143,12 +162,16 @@ export function CommunitySettingsForm({
 
           {error ? <p className="text-sm text-destructive sm:col-span-2">{error}</p> : null}
           {message ? (
-            <p className="text-sm text-muted-foreground sm:col-span-2">{message}</p>
+            <p className="text-sm text-[#65676b] sm:col-span-2">{message}</p>
           ) : null}
         </CardContent>
 
-        <CardFooter className="justify-end">
-          <Button type="submit" disabled={pending}>
+        <CardFooter className="justify-end border-t border-[#dddfe2] bg-[#f7f8fa]">
+          <Button
+            type="submit"
+            disabled={pending}
+            className={facebookPrimaryButton}
+          >
             <Save data-icon="inline-start" />
             {pending ? "Đang lưu..." : "Lưu cài đặt"}
           </Button>
