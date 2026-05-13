@@ -43,6 +43,8 @@ export async function requireCourseManagementAccess(courseId: string) {
           select: {
             userId: true,
             displayName: true,
+            avatarUrl: true,
+            email: true,
             studentId: true,
           },
         },

@@ -8,14 +8,26 @@ const getOrCreateCommunityConversation = vi.hoisted(() => vi.fn())
 const getConversationMessages = vi.hoisted(() => vi.fn())
 const sendConversationMessage = vi.hoisted(() => vi.fn())
 const joinCommunity = vi.hoisted(() => vi.fn())
+const approveJoinRequest = vi.hoisted(() => vi.fn())
+const rejectJoinRequest = vi.hoisted(() => vi.fn())
+const removeCommunityMember = vi.hoisted(() => vi.fn())
+const updateCommunityMemberRole = vi.hoisted(() => vi.fn())
 const acceptCommunityInvite = vi.hoisted(() => vi.fn())
+const cancelCommunityInvite = vi.hoisted(() => vi.fn())
 const inviteCommunityMember = vi.hoisted(() => vi.fn())
 const updateCommunitySettings = vi.hoisted(() => vi.fn())
+const approveCommunityPost = vi.hoisted(() => vi.fn())
+const rejectCommunityPost = vi.hoisted(() => vi.fn())
+const unpinCommunityPost = vi.hoisted(() => vi.fn())
+const resolveReport = vi.hoisted(() => vi.fn())
+const dismissReport = vi.hoisted(() => vi.fn())
+const deleteReportedContent = vi.hoisted(() => vi.fn())
 const notFound = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND")
   }),
 )
+const useRouter = vi.hoisted(() => vi.fn(() => ({ refresh: vi.fn() })))
 const redirect = vi.hoisted(() =>
   vi.fn((href: string) => {
     throw new Error(`REDIRECT:${href}`)
@@ -78,11 +90,24 @@ vi.mock("@/actions/chat", () => ({
 }))
 vi.mock("@/actions/communities", () => ({
   joinCommunity,
+  approveJoinRequest,
+  rejectJoinRequest,
+  removeCommunityMember,
+  updateCommunityMemberRole,
 }))
 vi.mock("@/actions/community-management", () => ({
   acceptCommunityInvite,
+  cancelCommunityInvite,
   inviteCommunityMember,
   updateCommunitySettings,
+}))
+vi.mock("@/actions/community-moderation", () => ({
+  approveCommunityPost,
+  rejectCommunityPost,
+  unpinCommunityPost,
+  resolveReport,
+  dismissReport,
+  deleteReportedContent,
 }))
 vi.mock("@/components/communities/community-post-composer", () => ({
   CommunityPostComposer: () =>
@@ -99,7 +124,7 @@ vi.mock("next/link", () => ({
     className?: string
   }) => createElement("a", { href, className }, children),
 }))
-vi.mock("next/navigation", () => ({ notFound, redirect }))
+vi.mock("next/navigation", () => ({ notFound, redirect, useRouter }))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -382,6 +407,8 @@ describe("community routes", () => {
     expect(markup).toContain("An Admin")
     expect(markup).toContain("Thanh Member")
     expect(markup).toContain("SV002")
+    expect(markup).toContain('name="memberId" value="member-1"')
+    expect(markup).toContain("Xoá")
   })
 
   it("renders invite form in group manage invites tab", async () => {
@@ -418,6 +445,42 @@ describe("community routes", () => {
     expect(markup).toContain("Mời thành viên")
     expect(markup).toContain('name="identifier"')
     expect(markup).toContain("Student Two")
+  })
+
+  it("renders pending post moderation actions in group manage", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: true,
+      chatEnabled: true,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "ADMIN" })
+    prisma.groupMember.findMany.mockResolvedValue([])
+    prisma.post.findMany.mockResolvedValue([
+      {
+        id: "post-1",
+        content: "Pending content",
+        imageUrl: null,
+        createdAt: new Date("2026-05-02T08:00:00.000Z"),
+        author: { displayName: "Student One" },
+      },
+    ])
+
+    const page = await import("@/app/(main)/groups/[slugId]/manage/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+        searchParams: Promise.resolve({ tab: "pending-posts" }),
+      }),
+    )
+
+    expect(markup).toContain("Pending content")
+    expect(markup).toContain('name="postId" value="post-1"')
+    expect(markup).toContain('name="reason"')
   })
 
   it("renders editable settings in group manage settings tab", async () => {

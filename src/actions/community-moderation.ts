@@ -7,12 +7,19 @@ import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { getCommunityPermissions } from "@/lib/communities/policy"
 import { getViewerMembershipRole } from "@/lib/communities/queries"
 import type { CommunityType } from "@/lib/communities/types"
-import { buildCommunityPath } from "@/lib/communities/urls"
+import { buildCommunityTargetPath } from "@/lib/communities/urls"
+import { distributePostToFeeds } from "@/lib/feed/fanout"
+import { notifyCommunityPostReviewed } from "@/lib/notifications/dispatchers"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 
 const communityTypeSchema = z.enum(["GROUP", "CLUB", "COURSE"])
+const numberFormValueSchema = z.preprocess((value) => {
+  if (typeof value === "number") return value
+  if (typeof value === "string" && value.trim() !== "") return Number(value)
+  return value
+}, z.number().int().min(0))
 const targetRefSchema = z.object({
   targetType: communityTypeSchema,
   targetId: z.string().min(1, "Thiếu không gian cần xử lý"),
@@ -21,7 +28,7 @@ const targetRefSchema = z.object({
 const ruleCreateSchema = targetRefSchema.extend({
   title: z.string().trim().min(1, "Thiếu tiêu đề quy định").max(120),
   description: z.string().trim().min(1, "Thiếu mô tả quy định").max(1000),
-  position: z.number().int().min(0).default(0),
+  position: numberFormValueSchema.default(0),
 })
 const ruleUpdateSchema = targetRefSchema.extend({
   ruleId: z.string().min(1, "Thiếu quy định"),
@@ -36,7 +43,11 @@ const ruleReorderSchema = targetRefSchema.extend({
 })
 const pinPostSchema = targetRefSchema.extend({
   postId: z.string().min(1, "Thiếu bài viết"),
-  position: z.number().int().min(0).default(0),
+  position: numberFormValueSchema.default(0),
+})
+const postReviewSchema = targetRefSchema.extend({
+  postId: z.string().min(1),
+  reason: z.string().trim().max(1000).optional(),
 })
 const contentTypeSchema = z.enum(["POST", "COMMENT"])
 const reportContentSchema = targetRefSchema.extend({
@@ -53,6 +64,14 @@ const deleteReportedContentSchema = reportReviewSchema.extend({
   contentType: contentTypeSchema,
   contentId: z.string().min(1, "Thiếu nội dung cần xử lý"),
 })
+
+function normalizeFormInput(rawInput: unknown) {
+  if (rawInput instanceof FormData) {
+    return Object.fromEntries(rawInput.entries())
+  }
+
+  return rawInput
+}
 
 async function resolveTarget(input: { targetType: CommunityType; targetId: string }) {
   if (input.targetType === "GROUP") {
@@ -98,6 +117,7 @@ async function resolveTarget(input: { targetType: CommunityType; targetId: strin
         id: course.id,
         shortId: course.shortId,
         name: course.name,
+        routeLabel: course.code,
         visibility: null,
         requirePostApproval: course.requirePostApproval,
         chatEnabled: course.chatEnabled,
@@ -144,8 +164,15 @@ async function getTargetAuthorization(input: { targetType: CommunityType; target
   return { error: null, context, target, permissions }
 }
 
-function revalidateCommunityTarget(target: { type: CommunityType; name: string; shortId: string }) {
-  revalidatePath(buildCommunityPath(target.type, target.name, target.shortId))
+function revalidateCommunityTarget(target: {
+  type: CommunityType
+  name: string
+  shortId: string
+  routeLabel?: string
+}) {
+  const href = buildCommunityTargetPath(target)
+  revalidatePath(href)
+  revalidatePath(`${href}/manage`)
 }
 
 function validationError<T>(error: z.ZodError): ActionResult<T> {
@@ -154,7 +181,7 @@ function validationError<T>(error: z.ZodError): ActionResult<T> {
 
 export async function createCommunityRule(rawInput: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const input = ruleCreateSchema.parse(rawInput)
+    const input = ruleCreateSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canManage || !auth.target) {
@@ -181,7 +208,7 @@ export async function createCommunityRule(rawInput: unknown): Promise<ActionResu
 
 export async function updateCommunityRule(rawInput: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const input = ruleUpdateSchema.parse(rawInput)
+    const input = ruleUpdateSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canManage || !auth.target) {
@@ -202,7 +229,7 @@ export async function updateCommunityRule(rawInput: unknown): Promise<ActionResu
 
 export async function deleteCommunityRule(rawInput: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const input = ruleDeleteSchema.parse(rawInput)
+    const input = ruleDeleteSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canManage || !auth.target) {
@@ -222,7 +249,7 @@ export async function reorderCommunityRules(
   rawInput: unknown,
 ): Promise<ActionResult<{ count: number }>> {
   try {
-    const input = ruleReorderSchema.parse(rawInput)
+    const input = ruleReorderSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canManage || !auth.target) {
@@ -247,7 +274,7 @@ export async function reorderCommunityRules(
 
 export async function pinCommunityPost(rawInput: unknown): Promise<ActionResult<{ postId: string }>> {
   try {
-    const input = pinPostSchema.parse(rawInput)
+    const input = pinPostSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canApprovePost || !auth.target || !auth.context) {
@@ -275,7 +302,7 @@ export async function unpinCommunityPost(
   rawInput: unknown,
 ): Promise<ActionResult<{ postId: string }>> {
   try {
-    const input = pinPostSchema.parse(rawInput)
+    const input = pinPostSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canApprovePost || !auth.target) {
@@ -293,9 +320,96 @@ export async function unpinCommunityPost(
   }
 }
 
+function getPostTargetWhere(input: { targetType: CommunityType; targetId: string }) {
+  if (input.targetType === "GROUP") return { groupId: input.targetId }
+  if (input.targetType === "CLUB") return { clubId: input.targetId }
+  return { courseId: input.targetId }
+}
+
+async function reviewCommunityPost(
+  rawInput: unknown,
+  approved: boolean,
+): Promise<ActionResult<{ postId: string }>> {
+  try {
+    const input = postReviewSchema.parse(normalizeFormInput(rawInput))
+    const auth = await getTargetAuthorization(input)
+    if (auth.error) return auth.error
+    if (!auth.permissions?.canApprovePost || !auth.context || !auth.target) {
+      return errorResult("Báº¡n khÃ´ng cÃ³ quyá»n duyá»‡t bÃ i viáº¿t", "FORBIDDEN")
+    }
+
+    const post = await prisma.post.findFirst({
+      where: {
+        id: input.postId,
+        deletedAt: null,
+        communityStatus: "PENDING_APPROVAL",
+        ...getPostTargetWhere(input),
+      },
+      select: { id: true, authorId: true, createdAt: true },
+    })
+    if (!post) {
+      return errorResult("KhÃ´ng tÃ¬m tháº¥y bÃ i viáº¿t Ä‘ang chá» duyá»‡t", "NOT_FOUND")
+    }
+
+    await prisma.post.update({
+      where: { id: post.id },
+      data: {
+        communityStatus: approved ? "PUBLISHED" : "REJECTED",
+        reviewedBy: auth.context.profile.userId,
+        reviewedAt: new Date(),
+        reviewReason: approved ? null : input.reason?.trim() || null,
+      },
+    })
+
+    if (approved) {
+      await distributePostToFeeds({
+        postId: post.id,
+        authorId: post.authorId,
+        createdAt: post.createdAt,
+      })
+      revalidatePath("/feed")
+    }
+
+    const href = buildCommunityTargetPath(auth.target)
+    await Promise.resolve(
+      notifyCommunityPostReviewed({
+        recipientId: post.authorId,
+        actor: {
+          userId: auth.context.profile.userId,
+          displayName: auth.context.profile.displayName,
+          avatarUrl: auth.context.profile.avatarUrl,
+        },
+        targetType: auth.target.type,
+        targetId: auth.target.id,
+        targetName: auth.target.name,
+        link: href,
+        postId: post.id,
+        approved,
+        reason: input.reason?.trim() || null,
+      }),
+    ).catch((error) => {
+      console.error("notifyCommunityPostReviewed error:", error)
+    })
+
+    revalidateCommunityTarget(auth.target)
+    return successResult({ postId: post.id })
+  } catch (error) {
+    if (error instanceof z.ZodError) return validationError(error)
+    return errorResult("KhÃ´ng thá»ƒ duyá»‡t bÃ i viáº¿t", "UPDATE_FAILED")
+  }
+}
+
+export async function approveCommunityPost(rawInput: unknown) {
+  return reviewCommunityPost(rawInput, true)
+}
+
+export async function rejectCommunityPost(rawInput: unknown) {
+  return reviewCommunityPost(rawInput, false)
+}
+
 export async function reportContent(rawInput: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const input = reportContentSchema.parse(rawInput)
+    const input = reportContentSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canViewPosts || !auth.context) {
@@ -327,7 +441,7 @@ async function reviewReport(
   status: "RESOLVED" | "DISMISSED",
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const input = reportReviewSchema.parse(rawInput)
+    const input = reportReviewSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canModerateReports || !auth.context || !auth.target) {
@@ -373,7 +487,7 @@ export async function deleteReportedContent(
   rawInput: unknown,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const input = deleteReportedContentSchema.parse(rawInput)
+    const input = deleteReportedContentSchema.parse(normalizeFormInput(rawInput))
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canModerateReports || !auth.context || !auth.target) {

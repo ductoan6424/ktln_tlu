@@ -10,13 +10,25 @@ import {
   getViewerMembershipRole,
 } from "@/lib/communities/queries"
 import type { CommunityType } from "@/lib/communities/types"
-import { buildCommunityPath } from "@/lib/communities/urls"
-import { notifyCommunityJoinReviewed } from "@/lib/notifications/dispatchers"
+import { buildCommunityTargetPath } from "@/lib/communities/urls"
+import {
+  notifyCommunityJoinReviewed,
+  notifyCommunityRoleChanged,
+} from "@/lib/notifications/dispatchers"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 
 const communityTypeSchema = z.enum(["GROUP", "CLUB", "COURSE"])
+const manageableMemberTypeSchema = z.enum(["GROUP", "CLUB"])
+const communityMemberRoleSchema = z.enum(["ADMIN", "MODERATOR", "MEMBER"])
+
+const updateMemberRoleSchema = z.object({
+  type: manageableMemberTypeSchema,
+  slugId: z.string().min(1),
+  memberId: z.string().min(1),
+  role: communityMemberRoleSchema,
+})
 
 const booleanFormValueSchema = z.preprocess((value) => {
   if (typeof value === "boolean") return value
@@ -99,6 +111,7 @@ async function resolveRequestTarget(input: { targetType: CommunityType; targetId
         id: course.id,
         shortId: course.shortId,
         name: course.name,
+        routeLabel: course.code,
         visibility: null,
         requirePostApproval: course.requirePostApproval,
         chatEnabled: course.chatEnabled,
@@ -151,7 +164,7 @@ export async function joinCommunity(
         })
       }
 
-      revalidatePath(buildCommunityPath(target.type, target.name, target.shortId))
+      revalidatePath(buildCommunityTargetPath(target))
       return successResult({ mode: "JOINED" })
     }
 
@@ -166,7 +179,7 @@ export async function joinCommunity(
       select: { id: true },
     })
 
-    revalidatePath(buildCommunityPath(target.type, target.name, target.shortId))
+    revalidatePath(buildCommunityTargetPath(target))
     return successResult({ mode: "REQUESTED", requestId: request.id })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -237,7 +250,7 @@ export async function approveJoinRequest(
       })
     })
 
-    const href = buildCommunityPath(target.type, target.name, target.shortId)
+    const href = buildCommunityTargetPath(target)
     await notifyCommunityJoinReviewed({
       recipientId: request.requesterId,
       actor: {
@@ -309,7 +322,7 @@ export async function rejectJoinRequest(
       },
     })
 
-    const href = buildCommunityPath(target.type, target.name, target.shortId)
+    const href = buildCommunityTargetPath(target)
     await notifyCommunityJoinReviewed({
       recipientId: request.requesterId,
       actor: {
@@ -373,7 +386,7 @@ export async function leaveCommunity(
       })
     }
 
-    revalidatePath(buildCommunityPath(target.type, target.name, target.shortId))
+    revalidatePath(buildCommunityTargetPath(target))
     return successResult({ targetId: target.id })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -423,12 +436,90 @@ export async function removeCommunityMember(
       })
     }
 
-    revalidatePath(buildCommunityPath(target.type, target.name, target.shortId))
+    revalidatePath(buildCommunityTargetPath(target))
+    revalidatePath(buildCommunityTargetPath(target, "manage"))
     return successResult({ targetId: target.id, memberId: input.memberId })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
     }
     return errorResult("Không thể xoá thành viên", "UPDATE_FAILED")
+  }
+}
+
+export async function updateCommunityMemberRole(
+  rawInput: unknown,
+): Promise<
+  ActionResult<{
+    targetId: string
+    memberId: string
+    role: "ADMIN" | "MODERATOR" | "MEMBER"
+  }>
+> {
+  try {
+    const context = await getAuthorizationContext()
+    if (!context) return errorResult("Báº¡n cáº§n Ä‘Äƒng nháº­p", "UNAUTHORIZED")
+
+    const input = updateMemberRoleSchema.parse(normalizeFormInput(rawInput))
+    const target = await getCommunityBySlugId(input.type, input.slugId)
+    if (!target) return errorResult("KhÃ´ng tÃ¬m tháº¥y khÃ´ng gian nÃ y", "NOT_FOUND")
+
+    const membershipRole = await getViewerMembershipRole(
+      target.type,
+      target.id,
+      context.profile.userId,
+    )
+    const permissions = getCommunityPermissions({
+      viewerId: context.profile.userId,
+      baseRole: context.baseRole,
+      target,
+      membershipRole,
+    })
+    if (!permissions.canManage) {
+      return errorResult("Báº¡n khÃ´ng cÃ³ quyá»n cáº­p nháº­t vai trÃ²", "FORBIDDEN")
+    }
+    if (input.memberId === context.profile.userId && input.role !== "ADMIN") {
+      return errorResult("Báº¡n khÃ´ng thá»ƒ tá»± háº¡ quyá»n cá»§a mÃ¬nh", "FORBIDDEN")
+    }
+
+    if (input.type === "GROUP") {
+      await prisma.groupMember.update({
+        where: { userId_groupId: { userId: input.memberId, groupId: target.id } },
+        data: { role: input.role },
+      })
+    } else {
+      await prisma.clubMember.update({
+        where: { userId_clubId: { userId: input.memberId, clubId: target.id } },
+        data: { role: input.role },
+      })
+    }
+
+    const href = buildCommunityTargetPath(target)
+    await Promise.resolve(
+      notifyCommunityRoleChanged({
+        recipientId: input.memberId,
+        actor: {
+          userId: context.profile.userId,
+          displayName: context.profile.displayName,
+          avatarUrl: context.profile.avatarUrl,
+        },
+        targetType: target.type,
+        targetId: target.id,
+        targetName: target.name,
+        link: href,
+        role: input.role,
+      }),
+    ).catch((error) => {
+      console.error("notifyCommunityRoleChanged error:", error)
+    })
+
+    revalidatePath(href)
+    revalidatePath(`${href}/manage`)
+    return successResult({ targetId: target.id, memberId: input.memberId, role: input.role })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡", "VALIDATION_ERROR")
+    }
+    return errorResult("KhÃ´ng thá»ƒ cáº­p nháº­t vai trÃ²", "UPDATE_FAILED")
   }
 }

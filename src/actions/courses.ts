@@ -27,6 +27,24 @@ const addStudentsByCodesSchema = z.object({
   studentCodesText: z.string().min(1, "Danh sách mã sinh viên là bắt buộc"),
 })
 
+const booleanFormValueSchema = z.preprocess((value) => {
+  if (typeof value === "boolean") return value
+  if (typeof value === "string") return value === "true" || value === "on"
+  return value
+}, z.boolean())
+
+const courseChatModeSchema = z.enum(["OPEN", "ADMINS_ONLY", "READ_ONLY"])
+
+const updateCourseSettingsSchema = z.object({
+  courseId: z.string().min(1),
+  name: z.string().trim().min(2),
+  code: z.string().trim().min(2),
+  description: z.string().optional(),
+  requirePostApproval: booleanFormValueSchema.default(false),
+  chatEnabled: booleanFormValueSchema.default(false),
+  chatMode: courseChatModeSchema.default("OPEN"),
+})
+
 function slugifyCourseCode(code: string) {
   return code
     .trim()
@@ -260,6 +278,52 @@ export async function addStudentsToCourseByCodes(
 
     return errorResult(
       error instanceof Error ? error.message : "Không thể thêm danh sách sinh viên vào lớp",
+      "UPDATE_FAILED",
+    )
+  }
+}
+
+export async function updateCourseSettings(
+  rawInput: unknown,
+): Promise<ActionResult<{ courseId: string; href: string }>> {
+  try {
+    const input = updateCourseSettingsSchema.parse(normalizeFormInput(rawInput))
+    const management = await requireCourseManagementAccess(input.courseId)
+    const oldHref = buildCommunityPath(
+      "COURSE",
+      management.course.code,
+      management.course.shortId,
+    )
+    const code = input.code.trim().toUpperCase()
+    const updated = await prisma.course.update({
+      where: { id: management.course.id },
+      data: {
+        name: input.name.trim(),
+        code,
+        slug: slugifyCourseCode(code),
+        description: input.description?.trim() || null,
+        requirePostApproval: input.requirePostApproval,
+        chatEnabled: input.chatEnabled,
+        chatMode: input.chatEnabled ? input.chatMode : "READ_ONLY",
+      },
+      select: { id: true, shortId: true, name: true, code: true },
+    })
+    const newHref = buildCommunityPath("COURSE", updated.code, updated.shortId)
+
+    revalidatePath(oldHref)
+    revalidatePath(`${oldHref}/manage`)
+    revalidatePath(newHref)
+    revalidatePath(`${newHref}/manage`)
+    revalidatePath("/courses")
+
+    return successResult({ courseId: updated.id, href: newHref })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡", "VALIDATION_ERROR")
+    }
+
+    return errorResult(
+      error instanceof Error ? error.message : "KhÃ´ng thá»ƒ cáº­p nháº­t lá»›p há»c",
       "UPDATE_FAILED",
     )
   }
