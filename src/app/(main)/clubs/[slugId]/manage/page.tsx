@@ -167,6 +167,9 @@ export default async function ClubManagePage({
     >
       {activeTab === "members" ? (
         <CommunityMembersPanel
+          targetType="CLUB"
+          slugId={slugId}
+          managerId={context?.profile.userId ?? null}
           members={members.map((member) => ({
             userId: member.user.userId,
             displayName: member.user.displayName,
@@ -178,7 +181,7 @@ export default async function ClubManagePage({
           }))}
         />
       ) : activeTab === "rules" ? (
-        <CommunityRulesPanel rules={rules} />
+        <CommunityRulesPanel rules={rules} targetType="CLUB" targetId={target.id} />
       ) : activeTab === "requests" ? (
         <CommunityRequestsTable
           requests={requests.map((request) => ({
@@ -190,11 +193,15 @@ export default async function ClubManagePage({
         />
       ) : activeTab === "reports" ? (
         <CommunityReportsTable
+          targetType="CLUB"
+          targetId={target.id}
           reports={reports.map((report) => ({
             id: report.id,
             reporterName: report.reporter.displayName,
             reason: report.reason,
             note: report.note,
+            contentType: report.contentType,
+            contentId: report.contentId,
             createdAt: report.createdAt,
           }))}
         />
@@ -215,6 +222,9 @@ export default async function ClubManagePage({
           title="Bài chờ duyệt"
           description="Các bài viết đang chờ quản trị viên kiểm tra trước khi hiển thị."
           emptyLabel="Không có bài viết nào đang chờ duyệt."
+          targetType="CLUB"
+          targetId={target.id}
+          mode="pending"
           posts={pendingPosts.map((post) => ({
             id: post.id,
             content: post.content,
@@ -229,6 +239,9 @@ export default async function ClubManagePage({
           title="Bài ghim"
           description="Các bài viết đang được ghim trong không gian này."
           emptyLabel="Chưa có bài viết nào được ghim."
+          targetType="CLUB"
+          targetId={target.id}
+          mode="pinned"
           posts={pinnedPosts.map((pinnedPost) => ({
             id: pinnedPost.post.id,
             content: pinnedPost.post.content,

@@ -16,6 +16,7 @@ export type CommunityTarget = {
   id: string
   shortId: string
   name: string
+  routeLabel?: string
 }
 
 export type CommunityContext = CommunityTarget & {
