@@ -390,9 +390,12 @@ export function FeedPageClient({
         />
       ))}
 
-      <PageContainer variant="full" className="h-full py-0">
-        <div className="flex h-full gap-5 lg:gap-6">
-          <aside className="hidden lg:block lg:w-[280px] xl:w-[300px] shrink-0 overflow-y-auto">
+      <PageContainer
+        variant="full"
+        className="h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] overflow-hidden py-0 lg:h-[calc(100dvh_-_4rem)]"
+      >
+        <div className="flex h-full min-h-0 gap-5 lg:gap-6">
+          <aside className="hidden min-h-0 overscroll-contain lg:block lg:w-[280px] xl:w-[300px] shrink-0 overflow-y-auto">
             <div className="py-6 flex flex-col gap-2 w-full">
               <Card>
                 <CardContent className="p-4">
@@ -437,7 +440,7 @@ export function FeedPageClient({
             </div>
           </aside>
 
-          <section className="flex-1 min-w-0 overflow-y-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <section className="min-h-0 flex-1 min-w-0 overscroll-contain overflow-y-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="py-6 max-w-[640px] mx-auto flex flex-col gap-3">
               <PostComposer
                 userName={currentUser?.displayName ?? ""}
@@ -511,7 +514,7 @@ export function FeedPageClient({
             </div>
           </section>
 
-          <aside className="hidden xl:block xl:w-[280px] shrink-0 overflow-y-auto">
+          <aside className="hidden min-h-0 overscroll-contain xl:block xl:w-[280px] shrink-0 overflow-y-auto">
             <div className="py-6 flex flex-col gap-4 w-full">
               <Card>
                 <CardContent className="p-5">
