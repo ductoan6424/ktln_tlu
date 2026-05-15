@@ -8,6 +8,8 @@ import type {
   NotifyCommunityInvitePayload,
   NotifyCommunityJoinReviewedPayload,
   NotifyCommunityModerationPayload,
+  NotifyCommunityPostPendingReviewPayload,
+  NotifyCommunityPostPublishedPayload,
   NotifyCommunityPostReviewedPayload,
   NotifyCommunityRoleChangedPayload,
   NotifyCourseStudentAddedPayload,
@@ -385,6 +387,68 @@ export async function notifyCommunityPostReviewed(
         targetName: payload.targetName,
         link: payload.link,
         extra: { postId: payload.postId, reason: payload.reason ?? null },
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCommunityPostPublished(
+  payload: NotifyCommunityPostPublishedPayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: "POST",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: "POST_PUBLISHED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        contentId: payload.postId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: `${payload.actor.displayName} đã đăng bài mới trong ${payload.targetName}: ${payload.excerpt}`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: "POST_PUBLISHED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: { postId: payload.postId, excerpt: payload.excerpt },
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCommunityPostPendingReview(
+  payload: NotifyCommunityPostPendingReviewPayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: "POST",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: "POST_PENDING_REVIEW",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        contentId: payload.postId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: `${payload.actor.displayName} có bài viết chờ duyệt trong ${payload.targetName}: ${payload.excerpt}`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: "POST_PENDING_REVIEW",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: { postId: payload.postId, excerpt: payload.excerpt },
       }),
     },
     client,

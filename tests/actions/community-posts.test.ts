@@ -5,6 +5,8 @@ const getCommunityBySlugId = vi.hoisted(() => vi.fn())
 const getViewerMembershipRole = vi.hoisted(() => vi.fn())
 const revalidatePath = vi.hoisted(() => vi.fn())
 const distributePostToFeeds = vi.hoisted(() => vi.fn())
+const notifyCommunityPostPublishedToRecipients = vi.hoisted(() => vi.fn())
+const notifyCommunityPostPendingReviewToManagers = vi.hoisted(() => vi.fn())
 const uploadCommunityAttachment = vi.hoisted(() => vi.fn())
 const tx = vi.hoisted(() => ({
   post: { create: vi.fn() },
@@ -25,6 +27,10 @@ vi.mock("@/lib/feed/fanout", () => ({
   distributePostToFeeds,
   getCelebrityAuthorIds: vi.fn(),
   getPersonalizedFeedPostIds: vi.fn(),
+}))
+vi.mock("@/lib/communities/post-notifications", () => ({
+  notifyCommunityPostPublishedToRecipients,
+  notifyCommunityPostPendingReviewToManagers,
 }))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
@@ -50,7 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   getAuthorizationContext.mockResolvedValue({
     baseRole: "STUDENT",
-    profile: { userId: "user-1" },
+    profile: { userId: "user-1", displayName: "Student One", avatarUrl: null },
   })
   getViewerMembershipRole.mockResolvedValue("MEMBER")
   tx.post.create.mockResolvedValue({
@@ -92,12 +98,24 @@ describe("createCommunityPost", () => {
       }),
     })
     expect(distributePostToFeeds).not.toHaveBeenCalled()
+    expect(notifyCommunityPostPendingReviewToManagers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: expect.objectContaining({ userId: "user-1" }),
+        target: expect.objectContaining({
+          type: "GROUP",
+          id: "group-1",
+          name: "Python Group",
+        }),
+        postId: "post-1",
+        excerpt: "Hello class",
+      }),
+    )
   })
 
   it("uploads attachments for a published course post", async () => {
     getAuthorizationContext.mockResolvedValue({
       baseRole: "LECTURER",
-      profile: { userId: "lecturer-1" },
+      profile: { userId: "lecturer-1", displayName: "Lecturer One", avatarUrl: null },
     })
     getViewerMembershipRole.mockResolvedValue(null)
     getCommunityBySlugId.mockResolvedValue({
@@ -161,6 +179,18 @@ describe("createCommunityPost", () => {
       authorId: "lecturer-1",
       createdAt: new Date("2026-05-08T00:00:00.000Z"),
     })
+    expect(notifyCommunityPostPublishedToRecipients).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: expect.objectContaining({ userId: "lecturer-1" }),
+        target: expect.objectContaining({
+          type: "COURSE",
+          id: "course-1",
+          name: "Algorithms",
+        }),
+        postId: "post-1",
+        excerpt: "Slides for week 1",
+      }),
+    )
     expect(revalidatePath).toHaveBeenCalledWith("/courses/algorithms-course123")
   })
 })

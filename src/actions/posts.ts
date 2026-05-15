@@ -39,6 +39,10 @@ import {
   getCommunityBySlugId,
   getViewerMembershipRole,
 } from "@/lib/communities/queries"
+import {
+  notifyCommunityPostPendingReviewToManagers,
+  notifyCommunityPostPublishedToRecipients,
+} from "@/lib/communities/post-notifications"
 import type { CommunityType } from "@/lib/communities/types"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import {
@@ -420,7 +424,36 @@ export async function createCommunityPost(
         authorId: post.authorId,
         createdAt: post.createdAt,
       })
+      await Promise.resolve(
+        notifyCommunityPostPublishedToRecipients({
+          target,
+          actor: {
+            userId: context.profile.userId,
+            displayName: context.profile.displayName,
+            avatarUrl: context.profile.avatarUrl,
+          },
+          postId: post.id,
+          excerpt: truncateText(post.content, NOTIFICATION_EXCERPT_LENGTH),
+        }),
+      ).catch((error) => {
+        console.error("notifyCommunityPostPublishedToRecipients error:", error)
+      })
       revalidatePath("/feed")
+    } else {
+      await Promise.resolve(
+        notifyCommunityPostPendingReviewToManagers({
+          target,
+          actor: {
+            userId: context.profile.userId,
+            displayName: context.profile.displayName,
+            avatarUrl: context.profile.avatarUrl,
+          },
+          postId: post.id,
+          excerpt: truncateText(post.content, NOTIFICATION_EXCERPT_LENGTH),
+        }),
+      ).catch((error) => {
+        console.error("notifyCommunityPostPendingReviewToManagers error:", error)
+      })
     }
 
     revalidatePath(

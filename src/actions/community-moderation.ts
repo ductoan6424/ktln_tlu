@@ -6,6 +6,7 @@ import { z } from "zod"
 import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { getCommunityPermissions } from "@/lib/communities/policy"
 import { getViewerMembershipRole } from "@/lib/communities/queries"
+import { notifyCommunityPostPublishedToRecipients } from "@/lib/communities/post-notifications"
 import type { CommunityType } from "@/lib/communities/types"
 import { buildCommunityTargetPath } from "@/lib/communities/urls"
 import { distributePostToFeeds } from "@/lib/feed/fanout"
@@ -13,6 +14,7 @@ import { notifyCommunityPostReviewed } from "@/lib/notifications/dispatchers"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
+import { truncateText } from "@/utils/formatters"
 
 const communityTypeSchema = z.enum(["GROUP", "CLUB", "COURSE"])
 const numberFormValueSchema = z.preprocess((value) => {
@@ -345,7 +347,13 @@ async function reviewCommunityPost(
         communityStatus: "PENDING_APPROVAL",
         ...getPostTargetWhere(input),
       },
-      select: { id: true, authorId: true, createdAt: true },
+      select: {
+        id: true,
+        authorId: true,
+        content: true,
+        createdAt: true,
+        author: { select: { displayName: true, avatarUrl: true } },
+      },
     })
     if (!post) {
       return errorResult("KhÃ´ng tÃ¬m tháº¥y bÃ i viáº¿t Ä‘ang chá» duyá»‡t", "NOT_FOUND")
@@ -366,6 +374,20 @@ async function reviewCommunityPost(
         postId: post.id,
         authorId: post.authorId,
         createdAt: post.createdAt,
+      })
+      await Promise.resolve(
+        notifyCommunityPostPublishedToRecipients({
+          target: auth.target,
+          actor: {
+            userId: post.authorId,
+            displayName: post.author.displayName,
+            avatarUrl: post.author.avatarUrl,
+          },
+          postId: post.id,
+          excerpt: truncateText(post.content, 120),
+        }),
+      ).catch((error) => {
+        console.error("notifyCommunityPostPublishedToRecipients error:", error)
       })
       revalidatePath("/feed")
     }

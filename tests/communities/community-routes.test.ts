@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const getAuthorizationContext = vi.hoisted(() => vi.fn())
 const getOrCreateCommunityConversation = vi.hoisted(() => vi.fn())
 const getConversationMessages = vi.hoisted(() => vi.fn())
+const getCommunityDetailPosts = vi.hoisted(() => vi.fn())
 const sendConversationMessage = vi.hoisted(() => vi.fn())
 const joinCommunity = vi.hoisted(() => vi.fn())
 const approveJoinRequest = vi.hoisted(() => vi.fn())
@@ -83,6 +84,9 @@ const prisma = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/authorization", () => ({ getAuthorizationContext }))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
+vi.mock("@/lib/feed/queries", () => ({
+  getCommunityDetailPosts,
+}))
 vi.mock("@/actions/chat", () => ({
   getOrCreateCommunityConversation,
   getConversationMessages,
@@ -112,6 +116,18 @@ vi.mock("@/actions/community-moderation", () => ({
 vi.mock("@/components/communities/community-post-composer", () => ({
   CommunityPostComposer: () =>
     createElement("div", { "data-testid": "community-post-composer" }),
+}))
+vi.mock("@/components/communities/community-feed-client", () => ({
+  CommunityFeedClient: ({
+    posts,
+  }: {
+    posts: Array<{ content: string }>
+  }) =>
+    createElement(
+      "div",
+      { "data-testid": "community-feed" },
+      posts.map((post) => createElement("article", { key: post.content }, post.content)),
+    ),
 }))
 vi.mock("next/link", () => ({
   default: ({
@@ -144,6 +160,7 @@ beforeEach(() => {
     success: true,
     data: { items: [], nextCursor: null, hasMore: false },
   })
+  getCommunityDetailPosts.mockResolvedValue([])
   prisma.communityJoinRequest.findMany.mockResolvedValue([])
   prisma.communityInvite.findMany.mockResolvedValue([])
   prisma.communityInvite.findFirst.mockResolvedValue(null)
@@ -298,7 +315,7 @@ describe("community routes", () => {
     )
   })
 
-  it("renders community chat for joined group members", async () => {
+  it("renders community posts and links group chat to messages", async () => {
     prisma.group.findFirst.mockResolvedValue({
       id: "group-1",
       shortId: "abc123",
@@ -339,6 +356,33 @@ describe("community routes", () => {
         hasMore: false,
       },
     })
+    getCommunityDetailPosts.mockResolvedValue([
+      {
+        id: "post-1",
+        content: "Published group update",
+        imageUrl: null,
+        createdAt: "2026-05-08T08:00:00.000Z",
+        visibility: "PUBLIC",
+        authorId: "student-1",
+        authorDisplayName: "Student One",
+        authorAvatarUrl: null,
+        authorCoverUrl: null,
+        isLiked: false,
+        likes: 0,
+        comments: 0,
+        isFromFollowed: false,
+        permissions: { canDelete: false, canHide: true, deleteRole: null },
+        sharedPost: null,
+        communityContext: {
+          type: "GROUP",
+          name: "Python Group",
+          href: "/groups/python-group-abc123",
+          avatarUrl: null,
+        },
+        attachments: [],
+        poll: null,
+      },
+    ])
 
     const page = await import("@/app/(main)/groups/[slugId]/page")
     const markup = renderToStaticMarkup(
@@ -351,11 +395,16 @@ describe("community routes", () => {
       "GROUP",
       "python-group-abc123",
     )
-    expect(getConversationMessages).toHaveBeenCalledWith({
-      conversationId: "conv-1",
-      limit: 20,
+    expect(getConversationMessages).not.toHaveBeenCalled()
+    expect(getCommunityDetailPosts).toHaveBeenCalledWith({
+      type: "GROUP",
+      targetId: "group-1",
+      viewerId: "viewer-1",
+      pageSize: 20,
     })
-    expect(markup).toContain("Hello chat")
+    expect(markup).toContain("Published group update")
+    expect(markup).toContain("/messages?conversation=conv-1")
+    expect(markup).not.toContain("Hello chat")
   })
 
   it("renders group manage members with real member data", async () => {

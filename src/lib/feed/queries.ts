@@ -349,6 +349,52 @@ export function buildCommunityFeedWhere({
   };
 }
 
+export function buildCommunityDetailPostWhere(
+  type: FeedPostCommunityContext["type"],
+  targetId: string,
+  hiddenIds: string[] = [],
+): Prisma.PostWhereInput {
+  const targetWhere =
+    type === "GROUP"
+      ? { groupId: targetId }
+      : type === "CLUB"
+        ? { clubId: targetId }
+        : { courseId: targetId };
+
+  return {
+    visibility: "PUBLIC",
+    deletedAt: null,
+    communityStatus: "PUBLISHED",
+    ...targetWhere,
+    ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
+  };
+}
+
+export async function getCommunityDetailPosts(input: {
+  type: FeedPostCommunityContext["type"];
+  targetId: string;
+  viewerId: string | null;
+  pageSize?: number;
+}): Promise<FeedPostDto[]> {
+  const hiddenIds = await getHiddenPostIds(input.viewerId);
+  const posts = (await prisma.post.findMany({
+    where: buildCommunityDetailPostWhere(input.type, input.targetId, hiddenIds),
+    include: buildPostInclude(input.viewerId),
+    orderBy: { createdAt: "desc" },
+    take: input.pageSize ?? 20,
+  })) as RawFeedPost[];
+  const pollMap = await getPollsForPosts(
+    posts.map((post) => post.id),
+    input.viewerId,
+  );
+
+  return Promise.all(
+    posts.map((post) =>
+      mapRawPost(post, input.viewerId, false, pollMap.get(post.id) ?? null),
+    ),
+  );
+}
+
 export async function getJoinedCommunityIds(viewerId: string | null): Promise<{
   joinedGroupIds: string[];
   joinedClubIds: string[];
