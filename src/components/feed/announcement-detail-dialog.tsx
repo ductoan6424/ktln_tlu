@@ -6,7 +6,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { RelativeTime } from "@/components/shared/relative-time"
 import { UserAvatar } from "@/components/shared/user-avatar"
@@ -72,8 +71,8 @@ export function AnnouncementDetailDialog({
           <span className="font-semibold text-sm ml-1">Thông báo</span>
         </div>
 
-        {/* Nội dung chính — dùng ScrollArea */}
-        <ScrollArea className="flex-1">
+        {/* Nội dung chính */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-6 md:p-8 space-y-5">
 
             {/* Header: avatar + tên + thời gian — dùng UserAvatar */}
@@ -131,7 +130,7 @@ export function AnnouncementDetailDialog({
             </p>
 
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Thanh đỏ bên trái cho bài ghim (desktop) */}
         {pinToTop && (
