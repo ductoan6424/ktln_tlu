@@ -62,6 +62,7 @@ export type FeedPostDto = {
   authorAvatarUrl: string | null;
   authorCoverUrl: string | null;
   isLiked: boolean;
+  isSaved: boolean;
   likes: number;
   comments: number;
   isFromFollowed: boolean;
@@ -187,6 +188,9 @@ function buildPostInclude(viewerId: string | null) {
     likes: viewerId
       ? { where: { userId: viewerId }, select: { id: true } }
       : false,
+    savedBy: viewerId
+      ? { where: { userId: viewerId }, select: { userId: true } }
+      : false,
     _count: {
       select: { likes: true, comments: true },
     },
@@ -262,6 +266,7 @@ async function mapRawPost(
       : null;
 
   const likesArr = Array.isArray(post.likes) ? post.likes : [];
+  const savedArr = Array.isArray(post.savedBy) ? post.savedBy : [];
   const communityContext: FeedPostCommunityContext | null = post.group
     ? {
         type: "GROUP",
@@ -297,6 +302,7 @@ async function mapRawPost(
     authorAvatarUrl: post.author.avatarUrl,
     authorCoverUrl: post.author.coverUrl,
     isLiked: likesArr.length > 0,
+    isSaved: savedArr.length > 0,
     likes: post._count.likes,
     comments: post._count.comments,
     isFromFollowed,

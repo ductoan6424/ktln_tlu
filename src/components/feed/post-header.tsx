@@ -138,14 +138,14 @@ export function PostHeader({
       )}
       {menu !== undefined ? (
         <div className="shrink-0">{menu}</div>
-      ) : (
+      ) : onMore ? (
         <IconButton
           icon={MoreHorizontal}
           size="sm"
           onClick={onMore}
           ariaLabel="Thêm tùy chọn"
         />
-      )}
+      ) : null}
     </div>
   )
 }
