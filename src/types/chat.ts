@@ -44,7 +44,7 @@ export type ChatConversationBubble = Pick<
 
 export type ChatInboxNotification = {
   conversationId: string
-  conversationName: string
+  conversationName: string | null
   conversationType: "DIRECT" | "GROUP"
   peerUserId: string | null
   participantCount: number

@@ -205,7 +205,7 @@ describe("sendConversationMessage", () => {
       "chat.incoming",
       {
         conversationId: "conv-1",
-        conversationName: "Bạn",
+        conversationName: null,
         conversationType: "DIRECT",
         peerUserId: "user-self",
         participantCount: 2,

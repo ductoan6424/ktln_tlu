@@ -1464,7 +1464,7 @@ export async function sendConversationMessage(
       conversationId: input.conversationId,
       conversationName:
         conversationType === "DIRECT"
-          ? currentUser.displayName
+          ? null
           : deliveryInfo?.name?.trim() || "Nhóm chat",
       conversationType,
       peerUserId: conversationType === "DIRECT" ? currentUser.userId : null,
