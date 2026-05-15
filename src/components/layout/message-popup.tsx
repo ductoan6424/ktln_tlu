@@ -17,32 +17,38 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import type { ChatConversationBubble, ChatConversationItem } from "@/types/chat"
 import type { ActiveFriend } from "./mock-data"
 
 interface MessagePopupProps {
+  onOpenConversation?: (conversation: ChatConversationBubble) => void
   onOpenChat?: (friend: ActiveFriend) => void
   className?: string
 }
 
+export function toMessagePopupConversation(
+  conversation: ChatConversationItem,
+): ChatConversationBubble {
+  return {
+    id: conversation.id,
+    name: conversation.name,
+    avatarUrl: conversation.avatarUrl,
+    isGroup: conversation.isGroup,
+    peerUserId: conversation.peerUserId,
+    participantCount: conversation.participantCount,
+    communityType: conversation.communityType ?? null,
+  }
+}
+
 export function MessagePopup({
+  onOpenConversation,
   onOpenChat,
   className,
 }: MessagePopupProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
-  const [conversations, setConversations] = useState<
-    Array<{
-      id: string
-      peerUserId: string
-      name: string
-      avatarUrl: string | null
-      lastMessage: string
-      lastMessageAt: string | null
-      unreadCount: number
-      isOnline: boolean
-    }>
-  >([])
+  const [conversations, setConversations] = useState<ChatConversationItem[]>([])
 
   const unreadCount = useMemo(
     () => conversations.reduce((acc, conversation) => acc + conversation.unreadCount, 0),
@@ -59,20 +65,7 @@ export function MessagePopup({
         return
       }
 
-      setConversations(
-        result.data
-          .filter((conversation) => Boolean(conversation.peerUserId))
-          .map((conversation) => ({
-            id: conversation.id,
-            peerUserId: conversation.peerUserId!,
-            name: conversation.name,
-            avatarUrl: conversation.avatarUrl,
-            lastMessage: conversation.lastMessage,
-            lastMessageAt: conversation.lastMessageAt,
-            unreadCount: conversation.unreadCount,
-            isOnline: conversation.isOnline,
-          })),
-      )
+      setConversations(result.data)
     } finally {
       setIsLoading(false)
       setHasLoadedOnce(true)
@@ -162,12 +155,16 @@ export function MessagePopup({
                   className="block"
                   onClick={() => {
                     setIsOpen(false)
-                    onOpenChat?.({
-                      id: conversation.peerUserId,
-                      name: conversation.name,
-                      avatar: conversation.avatarUrl ?? undefined,
-                      status: conversation.isOnline ? "online" : "offline",
-                    })
+                    onOpenConversation?.(toMessagePopupConversation(conversation))
+
+                    if (conversation.peerUserId) {
+                      onOpenChat?.({
+                        id: conversation.peerUserId,
+                        name: conversation.name,
+                        avatar: conversation.avatarUrl ?? undefined,
+                        status: conversation.isOnline ? "online" : "offline",
+                      })
+                    }
                   }}
                 >
                   <ConversationItem
@@ -177,7 +174,7 @@ export function MessagePopup({
                     time={conversation.lastMessageAt ?? ""}
                     unreadCount={conversation.unreadCount}
                     status={conversation.isOnline ? "online" : "offline"}
-                    isGroup={false}
+                    isGroup={conversation.isGroup}
                   />
                 </div>
               ))
