@@ -63,6 +63,7 @@ interface PostCardProps {
   permissions?: PostPermissions
   onDeleted?: () => void
   onHidden?: () => void
+  isSaved?: boolean
   sharedPost?: SharedPostData | null
   communityContext?: PostCommunityContext | null
   poll?: PollView | null
@@ -96,6 +97,7 @@ export function PostCard({
   permissions,
   onDeleted,
   onHidden,
+  isSaved,
   sharedPost,
   communityContext,
   poll,
@@ -148,6 +150,7 @@ export function PostCard({
                   canDelete={permissions.canDelete}
                   canHide={permissions.canHide}
                   deleteRole={permissions.deleteRole}
+                  isSaved={isSaved}
                   onDeleted={onDeleted}
                   onHidden={onHidden}
                 />

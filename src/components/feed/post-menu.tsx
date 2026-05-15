@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,10 +9,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, EyeOff, Trash2 } from "lucide-react"
+import { MoreHorizontal, EyeOff, Trash2, Bookmark, BookmarkCheck } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { deletePost } from "@/actions/posts"
 import { hidePost } from "@/actions/hidden-posts"
+import { toggleSavePost } from "@/actions/saved-posts"
 import { DeletePostDialog } from "@/components/feed/delete-post-dialog"
 
 interface PostMenuProps {
@@ -19,6 +21,7 @@ interface PostMenuProps {
   canDelete: boolean
   canHide: boolean
   deleteRole: "AUTHOR" | "MODERATOR" | null
+  isSaved?: boolean
   onDeleted?: () => void
   onHidden?: () => void
 }
@@ -28,11 +31,13 @@ export function PostMenu({
   canDelete,
   canHide,
   deleteRole,
+  isSaved = false,
   onDeleted,
   onHidden,
 }: PostMenuProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [saved, setSaved] = useState(isSaved)
   const [pending, startTransition] = useTransition()
 
   if (!canDelete && !canHide) return null
@@ -49,7 +54,41 @@ export function PostMenu({
         return
       }
       toast({
-        description: "Đã ẩn bài viết. Vào /settings/hidden-posts để bỏ ẩn.",
+        description: "Đã ẩn bài viết.",
+        action: (
+          <Link
+            href="/settings/hidden-posts"
+            className="text-xs font-medium underline underline-offset-2 hover:opacity-80"
+          >
+            Bài viết đã ẩn
+          </Link>
+        ),
+      })
+    })
+  }
+
+  const handleSaveToggle = () => {
+    startTransition(async () => {
+      const res = await toggleSavePost(postId)
+      if (!res.success) {
+        toast({
+          description: res.error ?? "Không thể lưu bài viết",
+          variant: "destructive",
+        })
+        return
+      }
+      const nowSaved = res.data.saved
+      setSaved(nowSaved)
+      toast({
+        description: nowSaved ? "Đã lưu bài viết." : "Đã bỏ lưu bài viết.",
+        action: nowSaved ? (
+          <Link
+            href="/saved"
+            className="text-xs font-medium underline underline-offset-2 hover:opacity-80"
+          >
+            Bài viết đã lưu
+          </Link>
+        ) : undefined,
       })
     })
   }
@@ -84,9 +123,17 @@ export function PostMenu({
             </Button>
           }
         />
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="min-w-40">
+          <DropdownMenuItem onClick={handleSaveToggle} disabled={pending} className="whitespace-nowrap">
+            {saved ? (
+              <BookmarkCheck className="size-4 mr-2" />
+            ) : (
+              <Bookmark className="size-4 mr-2" />
+            )}
+            {saved ? "Bỏ lưu bài viết" : "Lưu bài viết"}
+          </DropdownMenuItem>
           {canHide && (
-            <DropdownMenuItem onClick={handleHide} disabled={pending}>
+            <DropdownMenuItem onClick={handleHide} disabled={pending} className="whitespace-nowrap">
               <EyeOff className="size-4 mr-2" />
               Ẩn bài viết
             </DropdownMenuItem>
@@ -95,7 +142,8 @@ export function PostMenu({
             <DropdownMenuItem
               onClick={() => setDialogOpen(true)}
               disabled={pending}
-              className="text-destructive focus:text-destructive"
+              variant="destructive"
+              className="whitespace-nowrap"
             >
               <Trash2 className="size-4 mr-2" />
               {deleteRole === "AUTHOR" ? "Xoá bài viết" : "Gỡ bài viết"}

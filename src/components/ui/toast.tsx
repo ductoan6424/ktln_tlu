@@ -18,6 +18,7 @@ export function Toaster() {
         >
           {t.title && <p className="font-semibold">{t.title}</p>}
           {t.description && <p className="opacity-90">{t.description}</p>}
+          {t.action && <div className="mt-1">{t.action}</div>}
         </div>
       ))}
     </div>

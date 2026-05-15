@@ -16,6 +16,7 @@ import {
   OFFICIAL_SCHOOL_DISPLAY_NAME,
 } from "@/lib/config/announcements"
 import { cn } from "@/lib/utils"
+import { AnnouncementMenu } from "@/components/feed/announcement-menu"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +30,7 @@ export interface AnnouncementDetailDialogProps {
   content: string
   publishedAt: string
   pinToTop?: boolean
+  isSaved?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -38,10 +40,12 @@ export interface AnnouncementDetailDialogProps {
 export function AnnouncementDetailDialog({
   open,
   onOpenChange,
+  id,
   title,
   content,
   publishedAt,
   pinToTop = false,
+  isSaved = false,
 }: AnnouncementDetailDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,6 +62,13 @@ export function AnnouncementDetailDialog({
         )}
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
+
+        {/* Menu 3 chấm — góc trên phải, bên trái nút X */}
+        {id && (
+          <div className="absolute top-2 right-10 z-10">
+            <AnnouncementMenu announcementId={id} isSaved={isSaved} />
+          </div>
+        )}
 
         {/* Mobile header — dùng IconButton */}
         <div className="shrink-0 h-12 flex items-center px-2 border-b border-border md:hidden">

@@ -74,6 +74,7 @@ interface FeedPost {
     coverUrl: string | null
   }
   isLiked: boolean
+  isSaved: boolean
   likes: number
   permissions?: {
     canDelete: boolean
@@ -257,6 +258,7 @@ export function FeedPageClient({
           coverUrl: post.authorCoverUrl,
         },
         isLiked: post.isLiked,
+        isSaved: post.isSaved,
         likes: post.likes,
         permissions: post.permissions,
         communityContext: post.communityContext ?? null,
@@ -471,6 +473,7 @@ export function FeedPageClient({
                       likes={post.likes}
                       comments={undefined}
                       isLiked={post.isLiked}
+                      isSaved={post.isSaved}
                       currentUser={currentUser}
                       currentUserId={currentUser?.userId ?? null}
                       authorId={post.authorId}

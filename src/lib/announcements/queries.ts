@@ -41,6 +41,7 @@ export type AnnouncementFeedItem = {
   authorAvatarUrl: string
   authorUserId: string
   isOfficial: true
+  isSaved: boolean
 }
 
 export const OFFICIAL_AUTHOR = {
@@ -60,6 +61,7 @@ function audiencesForViewer(role: ViewerRole | null): AnnouncementAudience[] {
 export async function listActiveAnnouncementsForViewer(
   viewerRole: ViewerRole | null,
   take = 10,
+  viewerId: string | null = null,
 ): Promise<AnnouncementFeedItem[]> {
   const now = new Date()
   const audiences = audiencesForViewer(viewerRole)
@@ -71,6 +73,9 @@ export async function listActiveAnnouncementsForViewer(
       audience: { in: audiences },
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
+    include: viewerId
+      ? { savedBy: { where: { userId: viewerId }, select: { userId: true } } }
+      : undefined,
     orderBy: [
       { pinToTop: "desc" },
       { publishedAt: "desc" },
@@ -91,6 +96,10 @@ export async function listActiveAnnouncementsForViewer(
     authorAvatarUrl: OFFICIAL_SCHOOL_AVATAR_URL,
     authorUserId: OFFICIAL_SCHOOL_AUTHOR_ID,
     isOfficial: true,
+    isSaved: viewerId
+      ? (Array.isArray((row as { savedBy?: { userId: string }[] }).savedBy) &&
+         ((row as { savedBy?: { userId: string }[] }).savedBy?.length ?? 0) > 0)
+      : false,
   }))
 }
 

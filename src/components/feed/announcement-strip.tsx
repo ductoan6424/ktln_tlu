@@ -25,6 +25,7 @@ export interface AnnouncementStripItem {
   content: string
   publishedAt: string
   pinToTop?: boolean
+  isSaved?: boolean
 }
 
 interface AnnouncementStripProps {
@@ -145,6 +146,7 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
           content={selected.content}
           publishedAt={selected.publishedAt}
           pinToTop={selected.pinToTop}
+          isSaved={selected.isSaved}
         />
       )}
     </>
