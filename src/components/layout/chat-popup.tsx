@@ -60,6 +60,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
   const isPrependingRef = useRef(false)
@@ -92,9 +93,11 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   useEffect(() => {
     const init = async () => {
       setIsLoading(true)
+      setLoadError(null)
 
       const sessionResult = await getChatSessionUser()
       if (!sessionResult.success || !sessionResult.data) {
+        setLoadError("Không thể tải hội thoại.")
         setIsLoading(false)
         return
       }
@@ -111,6 +114,8 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
         setNextCursor(messagesResult.data.nextCursor)
         setHasMore(messagesResult.data.hasMore)
         void markConversationAsRead(conversation.id)
+      } else {
+        setLoadError("Không thể tải hội thoại.")
       }
 
       setIsLoading(false)
@@ -190,6 +195,10 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
     message: string
     attachmentFile?: File | null
   }): Promise<boolean> => {
+    if (isLoading || loadError) {
+      return false
+    }
+
     const currentConversationId = conversationId ?? conversation.id
 
     const optimisticId = `temp-${Date.now()}`
@@ -304,6 +313,8 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Đang tải hội thoại...</p>
+        ) : loadError ? (
+          <p className="text-sm text-muted-foreground" role="alert">{loadError}</p>
         ) : (
           <div
             style={{
@@ -350,7 +361,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
         <MessageInput
           recipientName={conversation.name}
           compact
-          disabled={isSending}
+          disabled={isLoading || Boolean(loadError) || isSending}
           isSending={isSending}
           onTypingChange={(isTyping) => {
             void publishTyping(isTyping)
