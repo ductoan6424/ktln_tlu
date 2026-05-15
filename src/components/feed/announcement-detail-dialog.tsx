@@ -1,0 +1,153 @@
+"use client"
+
+import Image from "next/image"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { StatusBadge } from "@/components/shared/status-badge"
+import { RelativeTime } from "@/components/shared/relative-time"
+import { BadgeCheck, Megaphone, Pin, ArrowLeft } from "lucide-react"
+import {
+  OFFICIAL_SCHOOL_AVATAR_URL,
+  OFFICIAL_SCHOOL_DISPLAY_NAME,
+} from "@/lib/config/announcements"
+import { cn } from "@/lib/utils"
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface AnnouncementDetailDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  id?: string
+  title: string
+  content: string
+  publishedAt: string
+  pinToTop?: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function AnnouncementDetailDialog({
+  open,
+  onOpenChange,
+  title,
+  content,
+  publishedAt,
+  pinToTop = false,
+}: AnnouncementDetailDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showCloseButton
+        className={cn(
+          "!flex !flex-col p-0 !gap-0 overflow-hidden",
+          /* Mobile: full-screen */
+          "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 w-full h-full max-w-none max-h-none rounded-none",
+          /* Desktop: modal lớn giống PostDetailDialog */
+          "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2",
+          "md:!w-[min(94vw,600px)] md:!h-[min(88vh,600px)]",
+          "md:!max-w-none md:!max-h-none md:rounded-xl",
+        )}
+      >
+        <DialogTitle className="sr-only">
+          {title}
+        </DialogTitle>
+
+        {/* ── Mobile header ── */}
+        <div className="shrink-0 h-12 flex items-center px-2 border-b border-border md:hidden">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9 rounded-full"
+            onClick={() => onOpenChange(false)}
+          >
+            <ArrowLeft className="size-5" />
+          </Button>
+          <span className="font-semibold text-sm ml-1">Thông báo</span>
+        </div>
+
+        {/* ── Nội dung chính ── */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 md:p-8 space-y-5">
+
+            {/* Header: avatar + tên + thời gian */}
+            <div className="flex items-start gap-3">
+              <div className="size-12 shrink-0 rounded-full overflow-hidden border border-border bg-white flex items-center justify-center shadow-sm">
+                <Image
+                  src={OFFICIAL_SCHOOL_AVATAR_URL}
+                  alt={OFFICIAL_SCHOOL_DISPLAY_NAME}
+                  width={48}
+                  height={48}
+                  className="object-contain p-1"
+                />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[15px] font-bold leading-tight">
+                    {OFFICIAL_SCHOOL_DISPLAY_NAME}
+                  </span>
+                  <BadgeCheck
+                    className="size-4 shrink-0 text-primary fill-primary stroke-primary-foreground"
+                    aria-label="Tài khoản chính thức"
+                  />
+                </div>
+                <p className="text-[13px] text-muted-foreground mt-0.5">
+                  <RelativeTime date={publishedAt} fallback={publishedAt} />
+                  {" · "}
+                  Tài khoản chính thức
+                </p>
+              </div>
+
+              {pinToTop && (
+                <Pin className="size-4 shrink-0 text-destructive mt-1" aria-label="Đã ghim" />
+              )}
+            </div>
+
+            {/* Badges */}
+            <div className="flex gap-2 flex-wrap">
+              <StatusBadge variant="accent" size="sm">
+                <Megaphone className="size-3 mr-1 inline-block" />
+                THÔNG BÁO
+              </StatusBadge>
+              {pinToTop && (
+                <StatusBadge variant="warning" size="sm">
+                  GHIM
+                </StatusBadge>
+              )}
+            </div>
+
+            {/* Đường kẻ phân cách */}
+            <div className="border-t border-border" />
+
+            {/* Tiêu đề */}
+            <h2 className="text-[20px] font-bold leading-snug text-foreground">
+              {title}
+            </h2>
+
+            {/* Nội dung đầy đủ */}
+            <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-wrap break-words">
+              {content}
+            </p>
+
+          </div>
+        </div>
+
+        {/* ── Thanh đỏ bên trái cho bài ghim (desktop) ── */}
+        {pinToTop && (
+          <div
+            className="hidden md:block absolute inset-y-0 left-0 w-1 bg-destructive rounded-l-xl"
+            aria-hidden="true"
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
