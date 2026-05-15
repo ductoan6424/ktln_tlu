@@ -1,7 +1,8 @@
 import Link from "next/link"
+import { MessageCircle } from "lucide-react"
 
 import { CommunityCard } from "@/components/communities/community-card"
-import { CommunityChatPanel } from "@/components/communities/community-chat-panel"
+import { CommunityFeedClient } from "@/components/communities/community-feed-client"
 import { CommunityInviteAcceptButton } from "@/components/communities/community-invite-accept-button"
 import { CommunityJoinButton } from "@/components/communities/community-join-button"
 import { CommunityPostComposer } from "@/components/communities/community-post-composer"
@@ -9,7 +10,7 @@ import { PageContainer } from "@/components/layout/page-container"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { CommunityContext } from "@/lib/communities/types"
-import type { ChatMessageItem } from "@/types/chat"
+import type { FeedPostDto } from "@/lib/feed/queries"
 
 type CommunityDetailShellProps = {
   target: CommunityContext
@@ -23,13 +24,13 @@ type CommunityDetailShellProps = {
   joinMode: "NONE" | "JOIN_NOW" | "REQUEST"
   hasPendingInvite?: boolean
   slugId: string
-  viewer: { displayName: string; avatarUrl: string | null } | null
+  viewer: { userId: string; displayName: string; avatarUrl: string | null } | null
   rules: Array<{ id: string; title: string; description: string }>
+  posts: FeedPostDto[]
   chat?: {
     conversationId: string
     canSend: boolean
     readonlyLabel?: string
-    messages: ChatMessageItem[]
   } | null
 }
 
@@ -47,6 +48,7 @@ export function CommunityDetailShell({
   slugId,
   viewer,
   rules,
+  posts,
   chat,
 }: CommunityDetailShellProps) {
   return (
@@ -130,26 +132,38 @@ export function CommunityDetailShell({
             />
           ) : null}
           <nav className="flex gap-2 overflow-x-auto border-b border-border pb-3">
-            {["Bảng tin", "Thành viên", "Giới thiệu", ...(target.chatEnabled ? ["Chat"] : [])].map((label) => (
+            {["Bảng tin", "Thành viên", "Giới thiệu", ...(target.chatEnabled ? ["Tin nhắn"] : [])].map((label) => (
               <Button key={label} variant="ghost" size="sm">
                 {label}
               </Button>
             ))}
           </nav>
           {chat ? (
-            <CommunityChatPanel
-              conversationId={chat.conversationId}
-              canSend={chat.canSend}
-              readonlyLabel={chat.readonlyLabel}
-              messages={chat.messages}
-            />
+            <section className="rounded-lg border bg-card p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <MessageCircle className="size-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold">Tin nhắn cộng đồng</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {chat.canSend
+                        ? "Tiếp tục trao đổi trong trang Tin nhắn."
+                        : chat.readonlyLabel ?? "Phòng chat hiện ở chế độ chỉ đọc."}
+                    </p>
+                  </div>
+                </div>
+                <Link href={`/messages?conversation=${encodeURIComponent(chat.conversationId)}`}>
+                  <Button className="w-full gap-2 sm:w-auto">
+                    <MessageCircle className="size-4" />
+                    Mở trong Tin nhắn
+                  </Button>
+                </Link>
+              </div>
+            </section>
           ) : null}
-          <div
-            id="internal-feed"
-            className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground"
-          >
-            Bảng tin nội bộ sẽ hiển thị ở bước bài viết community.
-          </div>
+          <CommunityFeedClient posts={posts} currentUser={viewer} />
         </div>
       )}
     </PageContainer>

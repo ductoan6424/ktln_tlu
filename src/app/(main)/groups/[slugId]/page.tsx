@@ -1,9 +1,6 @@
 import { notFound, redirect } from "next/navigation"
 
-import {
-  getConversationMessages,
-  getOrCreateCommunityConversation,
-} from "@/actions/chat"
+import { getOrCreateCommunityConversation } from "@/actions/chat"
 import { CommunityDetailShell } from "@/components/communities/community-detail-shell"
 import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { getCommunityPermissions } from "@/lib/communities/policy"
@@ -12,6 +9,7 @@ import {
   getViewerMembershipRole,
 } from "@/lib/communities/queries"
 import { buildCommunityPath } from "@/lib/communities/urls"
+import { getCommunityDetailPosts } from "@/lib/feed/queries"
 import { prisma } from "@/lib/prisma/client"
 
 export const dynamic = "force-dynamic"
@@ -66,17 +64,19 @@ export default async function GroupDetailPage({
     target,
     membershipRole,
   })
-  const chatConversation =
+  const [chatConversation, posts] = await Promise.all([
     permissions.canViewPosts && target.chatEnabled
-      ? await getOrCreateCommunityConversation("GROUP", slugId)
-      : null
-  const chatMessages =
-    chatConversation?.success && chatConversation.data
-      ? await getConversationMessages({
-          conversationId: chatConversation.data.conversationId,
-          limit: 20,
+      ? getOrCreateCommunityConversation("GROUP", slugId)
+      : null,
+    permissions.canViewPosts
+      ? getCommunityDetailPosts({
+          type: "GROUP",
+          targetId: target.id,
+          viewerId: userId,
+          pageSize: 20,
         })
-      : null
+      : [],
+  ])
   const chat =
     chatConversation?.success && chatConversation.data
       ? {
@@ -86,10 +86,6 @@ export default async function GroupDetailPage({
             target.chatMode === "ADMINS_ONLY"
               ? "Chỉ quản trị viên có thể gửi tin nhắn."
               : "Phòng chat đang ở chế độ chỉ đọc.",
-          messages:
-            chatMessages?.success && chatMessages.data
-              ? chatMessages.data.items
-              : [],
         }
       : null
 
@@ -109,12 +105,14 @@ export default async function GroupDetailPage({
       viewer={
         context
           ? {
+              userId: context.profile.userId,
               displayName: context.profile.displayName,
               avatarUrl: context.profile.avatarUrl,
             }
           : null
       }
       rules={rules}
+      posts={posts}
       chat={chat}
     />
   )

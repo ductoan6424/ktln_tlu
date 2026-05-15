@@ -108,6 +108,18 @@ export type NotifyCommunityPostReviewedPayload =
     reason?: string | null
   }
 
+export type NotifyCommunityPostPublishedPayload =
+  CommunityNotificationBasePayload & {
+    postId: string
+    excerpt: string
+  }
+
+export type NotifyCommunityPostPendingReviewPayload =
+  CommunityNotificationBasePayload & {
+    postId: string
+    excerpt: string
+  }
+
 export type NotifyCommunityModerationPayload =
   CommunityNotificationBasePayload & {
     contentType: "POST" | "COMMENT"

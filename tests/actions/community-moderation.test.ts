@@ -4,6 +4,7 @@ const getAuthorizationContext = vi.hoisted(() => vi.fn())
 const getViewerMembershipRole = vi.hoisted(() => vi.fn())
 const distributePostToFeeds = vi.hoisted(() => vi.fn())
 const notifyCommunityPostReviewed = vi.hoisted(() => vi.fn())
+const notifyCommunityPostPublishedToRecipients = vi.hoisted(() => vi.fn())
 const revalidatePath = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
   group: { findUnique: vi.fn() },
@@ -29,6 +30,9 @@ vi.mock("@/lib/communities/queries", () => ({
 }))
 vi.mock("@/lib/feed/fanout", () => ({ distributePostToFeeds }))
 vi.mock("@/lib/notifications/dispatchers", () => ({ notifyCommunityPostReviewed }))
+vi.mock("@/lib/communities/post-notifications", () => ({
+  notifyCommunityPostPublishedToRecipients,
+}))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("next/cache", () => ({ revalidatePath }))
 
@@ -42,7 +46,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   getAuthorizationContext.mockResolvedValue({
     baseRole: "STUDENT",
-    profile: { userId: "user-1" },
+    profile: { userId: "user-1", displayName: "Admin User", avatarUrl: null },
   })
   getViewerMembershipRole.mockResolvedValue("MEMBER")
   prisma.group.findUnique.mockResolvedValue({
@@ -90,7 +94,9 @@ describe("community post review", () => {
     prisma.post.findFirst.mockResolvedValue({
       id: "post-1",
       authorId: "student-1",
+      content: "Pending content",
       createdAt,
+      author: { displayName: "Student One", avatarUrl: null },
     })
     prisma.post.update.mockResolvedValue({ id: "post-1" })
 
@@ -124,6 +130,17 @@ describe("community post review", () => {
         approved: true,
       }),
     )
+    expect(notifyCommunityPostPublishedToRecipients).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: expect.objectContaining({ userId: "student-1" }),
+        target: expect.objectContaining({
+          type: "GROUP",
+          id: "group-1",
+          name: "Python Group",
+        }),
+        postId: "post-1",
+      }),
+    )
     expect(revalidatePath).toHaveBeenCalledWith("/groups/python-group-abc123")
     expect(revalidatePath).toHaveBeenCalledWith("/feed")
   })
@@ -133,7 +150,9 @@ describe("community post review", () => {
     prisma.post.findFirst.mockResolvedValue({
       id: "post-1",
       authorId: "student-1",
+      content: "Pending content",
       createdAt: new Date("2026-05-09T08:00:00.000Z"),
+      author: { displayName: "Student One", avatarUrl: null },
     })
     prisma.post.update.mockResolvedValue({ id: "post-1" })
 

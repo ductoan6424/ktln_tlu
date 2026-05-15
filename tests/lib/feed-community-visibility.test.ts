@@ -12,11 +12,11 @@ vi.mock("@/lib/feed/fanout", () => ({
   getPersonalizedFeedPostIds: vi.fn(),
 }))
 
-import { buildCommunityFeedWhere } from "@/lib/feed/queries"
+import * as feedQueries from "@/lib/feed/queries"
 
 describe("community feed visibility", () => {
   it("allows only joined group, club and course posts", () => {
-    const where = buildCommunityFeedWhere({
+    const where = feedQueries.buildCommunityFeedWhere({
       viewerId: "user-1",
       joinedGroupIds: ["group-1"],
       joinedClubIds: ["club-1"],
@@ -32,5 +32,32 @@ describe("community feed visibility", () => {
       ]),
     )
     expect(where.communityStatus).toBe("PUBLISHED")
+  })
+
+  it("limits community detail feed to published posts for the requested target", () => {
+    const buildCommunityDetailPostWhere = (
+      feedQueries as typeof feedQueries & {
+        buildCommunityDetailPostWhere: (
+          type: "GROUP" | "CLUB" | "COURSE",
+          targetId: string,
+          hiddenIds?: string[],
+        ) => unknown
+      }
+    ).buildCommunityDetailPostWhere
+
+    expect(buildCommunityDetailPostWhere("GROUP", "group-1", ["hidden-1"])).toEqual({
+      visibility: "PUBLIC",
+      deletedAt: null,
+      communityStatus: "PUBLISHED",
+      groupId: "group-1",
+      id: { notIn: ["hidden-1"] },
+    })
+
+    expect(buildCommunityDetailPostWhere("CLUB", "club-1")).toEqual(
+      expect.objectContaining({ clubId: "club-1" }),
+    )
+    expect(buildCommunityDetailPostWhere("COURSE", "course-1")).toEqual(
+      expect.objectContaining({ courseId: "course-1" }),
+    )
   })
 })
