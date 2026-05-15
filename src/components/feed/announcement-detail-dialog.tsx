@@ -1,14 +1,16 @@
 "use client"
 
-import Image from "next/image"
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { RelativeTime } from "@/components/shared/relative-time"
+import { UserAvatar } from "@/components/shared/user-avatar"
+import { IconButton } from "@/components/shared/icon-button"
 import { BadgeCheck, Megaphone, Pin, ArrowLeft } from "lucide-react"
 import {
   OFFICIAL_SCHOOL_AVATAR_URL,
@@ -50,45 +52,37 @@ export function AnnouncementDetailDialog({
           "!flex !flex-col p-0 !gap-0 overflow-hidden",
           /* Mobile: full-screen */
           "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 w-full h-full max-w-none max-h-none rounded-none",
-          /* Desktop: modal lớn giống PostDetailDialog */
+          /* Desktop: modal giữa màn hình */
           "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2",
           "md:!w-[min(94vw,600px)] md:!h-[min(88vh,600px)]",
           "md:!max-w-none md:!max-h-none md:rounded-xl",
         )}
       >
-        <DialogTitle className="sr-only">
-          {title}
-        </DialogTitle>
+        <DialogTitle className="sr-only">{title}</DialogTitle>
 
-        {/* ── Mobile header ── */}
+        {/* Mobile header — dùng IconButton */}
         <div className="shrink-0 h-12 flex items-center px-2 border-b border-border md:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-9 rounded-full"
+          <IconButton
+            icon={ArrowLeft}
+            size="md"
+            ariaLabel="Quay lại"
             onClick={() => onOpenChange(false)}
-          >
-            <ArrowLeft className="size-5" />
-          </Button>
+            className="rounded-full"
+          />
           <span className="font-semibold text-sm ml-1">Thông báo</span>
         </div>
 
-        {/* ── Nội dung chính ── */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Nội dung chính — dùng ScrollArea */}
+        <ScrollArea className="flex-1">
           <div className="p-6 md:p-8 space-y-5">
 
-            {/* Header: avatar + tên + thời gian */}
+            {/* Header: avatar + tên + thời gian — dùng UserAvatar */}
             <div className="flex items-start gap-3">
-              <div className="size-12 shrink-0 rounded-full overflow-hidden border border-border bg-white flex items-center justify-center shadow-sm">
-                <Image
-                  src={OFFICIAL_SCHOOL_AVATAR_URL}
-                  alt={OFFICIAL_SCHOOL_DISPLAY_NAME}
-                  width={48}
-                  height={48}
-                  className="object-contain p-1"
-                />
-              </div>
-
+              <UserAvatar
+                src={OFFICIAL_SCHOOL_AVATAR_URL}
+                name={OFFICIAL_SCHOOL_DISPLAY_NAME}
+                size="lg"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[15px] font-bold leading-tight">
@@ -105,7 +99,6 @@ export function AnnouncementDetailDialog({
                   Tài khoản chính thức
                 </p>
               </div>
-
               {pinToTop && (
                 <Pin className="size-4 shrink-0 text-destructive mt-1" aria-label="Đã ghim" />
               )}
@@ -124,8 +117,8 @@ export function AnnouncementDetailDialog({
               )}
             </div>
 
-            {/* Đường kẻ phân cách */}
-            <div className="border-t border-border" />
+            {/* Đường kẻ phân cách — dùng Separator */}
+            <Separator />
 
             {/* Tiêu đề */}
             <h2 className="text-[20px] font-bold leading-snug text-foreground">
@@ -138,9 +131,9 @@ export function AnnouncementDetailDialog({
             </p>
 
           </div>
-        </div>
+        </ScrollArea>
 
-        {/* ── Thanh đỏ bên trái cho bài ghim (desktop) ── */}
+        {/* Thanh đỏ bên trái cho bài ghim (desktop) */}
         {pinToTop && (
           <div
             className="hidden md:block absolute inset-y-0 left-0 w-1 bg-destructive rounded-l-xl"
