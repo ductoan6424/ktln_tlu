@@ -1,20 +1,19 @@
 "use client"
 
 import { useRef, useState, useCallback, useEffect } from "react"
-import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
-import { StatusBadge } from "@/components/shared/status-badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { StatusBadge } from "@/components/shared/status-badge"
 import { RelativeTime } from "@/components/shared/relative-time"
+import { UserAvatar } from "@/components/shared/user-avatar"
+import { IconButton } from "@/components/shared/icon-button"
 import { BadgeCheck, Megaphone, Pin, ChevronLeft, ChevronRight } from "lucide-react"
 import {
   OFFICIAL_SCHOOL_AVATAR_URL,
   OFFICIAL_SCHOOL_DISPLAY_NAME,
 } from "@/lib/config/announcements"
 import { cn } from "@/lib/utils"
-import {
-  AnnouncementDetailDialog,
-} from "@/components/feed/announcement-detail-dialog"
+import { AnnouncementDetailDialog } from "@/components/feed/announcement-detail-dialog"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,38 +91,31 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
 
           {/* Scrollable row + nút scroll nổi */}
           <div className="relative">
-            {/* Nút TRÁI */}
+
+            {/* Nút TRÁI — dùng IconButton, chỉ hiện khi không ở đầu */}
             {canLeft && (
-              <button
-                onClick={() => scroll("left")}
-                aria-label="Xem trước"
-                className={cn(
-                  "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10",
-                  "size-9 rounded-full bg-white dark:bg-card",
-                  "shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-border/60",
-                  "flex items-center justify-center",
-                  "hover:bg-accent transition-colors duration-150",
-                )}
-              >
-                <ChevronLeft className="size-5" />
-              </button>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10">
+                <IconButton
+                  icon={ChevronLeft}
+                  size="md"
+                  ariaLabel="Xem trước"
+                  onClick={() => scroll("left")}
+                  className="rounded-full bg-white dark:bg-card shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-border/60 hover:bg-accent"
+                />
+              </div>
             )}
 
-            {/* Nút PHẢI */}
+            {/* Nút PHẢI — dùng IconButton, chỉ hiện khi không ở cuối */}
             {canRight && (
-              <button
-                onClick={() => scroll("right")}
-                aria-label="Xem sau"
-                className={cn(
-                  "absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10",
-                  "size-9 rounded-full bg-white dark:bg-card",
-                  "shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-border/60",
-                  "flex items-center justify-center",
-                  "hover:bg-accent transition-colors duration-150",
-                )}
-              >
-                <ChevronRight className="size-5" />
-              </button>
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10">
+                <IconButton
+                  icon={ChevronRight}
+                  size="md"
+                  ariaLabel="Xem sau"
+                  onClick={() => scroll("right")}
+                  className="rounded-full bg-white dark:bg-card shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-border/60 hover:bg-accent"
+                />
+              </div>
             )}
 
             <div
@@ -192,17 +184,13 @@ function AnnouncementCard({
 
       <div className={cn("p-3 flex flex-col gap-2 h-full", pinToTop && "pl-4")}>
 
-        {/* Header */}
+        {/* Header — dùng UserAvatar */}
         <div className="flex items-start gap-2 shrink-0">
-          <div className="size-9 shrink-0 rounded-full overflow-hidden border border-border bg-white flex items-center justify-center">
-            <Image
-              src={OFFICIAL_SCHOOL_AVATAR_URL}
-              alt={OFFICIAL_SCHOOL_DISPLAY_NAME}
-              width={36}
-              height={36}
-              className="object-contain p-0.5"
-            />
-          </div>
+          <UserAvatar
+            src={OFFICIAL_SCHOOL_AVATAR_URL}
+            name={OFFICIAL_SCHOOL_DISPLAY_NAME}
+            size="sm"
+          />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1">
               <span className="text-[13px] font-semibold leading-tight truncate">
@@ -235,7 +223,7 @@ function AnnouncementCard({
           )}
         </div>
 
-        {/* Title + content — flex-1, overflow hidden, text clamp */}
+        {/* Title + content */}
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1">
           <p className="text-[13px] font-bold leading-snug text-foreground shrink-0 line-clamp-2">
             {title}
@@ -269,7 +257,7 @@ export function AnnouncementStripSkeleton() {
               className="flex-none w-[260px] h-[260px] rounded-xl border border-border p-3 space-y-2"
             >
               <div className="flex items-center gap-2">
-                <Skeleton className="size-9 rounded-full" />
+                <Skeleton className="size-8 rounded-full" />
                 <div className="space-y-1.5 flex-1">
                   <Skeleton className="h-3 w-28 rounded" />
                   <Skeleton className="h-2.5 w-16 rounded" />
