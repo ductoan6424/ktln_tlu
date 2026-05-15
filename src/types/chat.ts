@@ -37,6 +37,24 @@ export type ChatConversationItem = {
   lastMessageAt: string | null
 }
 
+export type ChatConversationBubble = Pick<
+  ChatConversationItem,
+  "id" | "name" | "avatarUrl" | "isGroup" | "peerUserId" | "participantCount" | "communityType"
+>
+
+export type ChatInboxNotification = {
+  conversationId: string
+  conversationName: string
+  conversationType: "DIRECT" | "GROUP"
+  peerUserId: string | null
+  participantCount: number
+  communityType: CommunityType | null
+  senderId: string
+  senderName: string
+  senderAvatarUrl: string | null
+  content: string
+}
+
 export type ChatUserSearchResult = {
   userId: string
   displayName: string
