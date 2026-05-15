@@ -15,6 +15,7 @@ const openDirectConversation = vi.hoisted(() => vi.fn())
 const sendConversationMessage = vi.hoisted(() => vi.fn())
 const notifyContactGroupChanged = vi.hoisted(() => vi.fn())
 const notifyContactMessageChanged = vi.hoisted(() => vi.fn())
+const useChatRealtime = vi.hoisted(() => vi.fn())
 
 vi.mock("@/actions/chat", () => ({
   getChatSessionUser,
@@ -30,11 +31,7 @@ vi.mock("@/lib/contacts/events", () => ({
 }))
 
 vi.mock("@/hooks/use-chat-realtime", () => ({
-  useChatRealtime: () => ({
-    typingUsers: [],
-    onlineUserIds: new Set<string>(),
-    publishTyping: vi.fn(),
-  }),
+  useChatRealtime,
 }))
 
 vi.mock("@tanstack/react-virtual", () => ({
@@ -179,6 +176,11 @@ describe("ChatPopup", () => {
       success: true,
       data: sentMessage,
     })
+    useChatRealtime.mockReturnValue({
+      typingUsers: [],
+      onlineUserIds: new Set<string>(),
+      publishTyping: vi.fn(),
+    })
   })
 
   afterEach(async () => {
@@ -249,6 +251,22 @@ describe("ChatPopup", () => {
 
     expect(container.textContent).toContain("Không thể tải hội thoại.")
     expect(container.querySelector('[data-testid="composer"]')).toHaveProperty("disabled", true)
+  })
+
+  it("keeps realtime unsubscribed when initial messages cannot load", async () => {
+    getConversationMessages.mockResolvedValue({
+      success: false,
+      error: "FORBIDDEN",
+    })
+    const { root } = renderPopup(groupConversation)
+    roots.push(root)
+
+    await flushEffects()
+
+    expect(useChatRealtime).toHaveBeenCalled()
+    expect(
+      useChatRealtime.mock.calls.every(([input]) => input.conversationId === null),
+    ).toBe(true)
   })
 })
 
