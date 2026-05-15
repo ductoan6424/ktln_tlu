@@ -94,6 +94,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
     const init = async () => {
       setIsLoading(true)
       setLoadError(null)
+      setConversationId(null)
 
       const sessionResult = await getChatSessionUser()
       if (!sessionResult.success || !sessionResult.data) {
@@ -103,7 +104,6 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
       }
 
       setSessionUser(sessionResult.data)
-      setConversationId(conversation.id)
 
       const messagesResult = await getConversationMessages({
         conversationId: conversation.id,
@@ -113,6 +113,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
         setMessages(messagesResult.data.items)
         setNextCursor(messagesResult.data.nextCursor)
         setHasMore(messagesResult.data.hasMore)
+        setConversationId(conversation.id)
         void markConversationAsRead(conversation.id)
       } else {
         setLoadError("Không thể tải hội thoại.")
