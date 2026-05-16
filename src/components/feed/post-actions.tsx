@@ -1,11 +1,10 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Heart, MessageCircle, Bookmark, BookmarkCheck } from "lucide-react"
+import { Heart, MessageCircle, BookmarkCheck } from "lucide-react"
 import { ShareDropdown } from "@/components/feed/share-dropdown"
 import { LikersTooltip } from "@/components/feed/likers-tooltip"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
 
 interface PostActionsProps {
   postId?: string
@@ -24,7 +23,6 @@ interface PostActionsProps {
   onLike?: () => void
   onComment?: () => void
   onCommentClick?: () => void
-  onSave?: () => void
   onUnsave?: () => void
   onRegister?: () => void
   onShared?: () => void
@@ -51,7 +49,6 @@ export function PostActions({
   onLike,
   onComment,
   onCommentClick,
-  onSave,
   onUnsave,
   onRegister,
   onShared,
@@ -60,18 +57,11 @@ export function PostActions({
   currentUserId,
   authorId,
 }: PostActionsProps) {
-  const [isSaved, setIsSaved] = useState(false)
-
   const canLike = Boolean(currentUserId && authorId && currentUserId !== authorId)
   const hasStats = likes > 0 || comments > 0 || shares > 0
 
-  const handleSave = () => {
-    if (isSaved) {
-      onUnsave?.()
-    } else {
-      onSave?.()
-    }
-    setIsSaved((prev) => !prev)
+  const handleUnsave = () => {
+    onUnsave?.()
   }
 
   const handleCommentClick = () => {
@@ -176,18 +166,11 @@ export function PostActions({
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleSave}
-              className={cn(
-                "gap-1.5 text-muted-foreground",
-                isSaved && "text-primary"
-              )}
+              onClick={handleUnsave}
+              className="gap-1.5 text-primary whitespace-nowrap"
             >
-              {isSaved ? (
-                <BookmarkCheck className="size-4" />
-              ) : (
-                <Bookmark className="size-4" />
-              )}
-              <span className="text-[13px]">{isSaved ? "Đã lưu" : "Lưu lại"}</span>
+              <BookmarkCheck className="size-4" />
+              <span className="text-[13px]">Đã lưu</span>
             </Button>
           )}
           {showRegister && (

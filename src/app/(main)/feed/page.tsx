@@ -43,7 +43,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
 
   const [initialFeed, announcements] = await Promise.all([
     getFeedPosts(currentUserId, INITIAL_FEED_CURSOR, FEED_PAGE_SIZE),
-    listActiveAnnouncementsForViewer(currentUser?.role ?? null, 5),
+    listActiveAnnouncementsForViewer(currentUser?.role ?? null, 5, currentUserId),
   ])
 
   const initialPosts = initialFeed.posts.map((post) => ({
@@ -59,6 +59,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
       coverUrl: post.authorCoverUrl,
     },
     isLiked: post.isLiked,
+    isSaved: post.isSaved,
     likes: post.likes,
     permissions: post.permissions,
     sharedPost: post.sharedPost,
@@ -88,6 +89,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         content: a.content,
         publishedAt: a.publishedAt,
         pinToTop: a.pinToTop,
+        isSaved: a.isSaved,
       }))}
     />
   )
