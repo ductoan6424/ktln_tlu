@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { SearchInput } from "@/components/shared/search-input"
+import { FilterSearchInput } from "@/components/shared/filter-search-input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,7 +54,7 @@ export function EventManageList() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <SearchInput
+        <FilterSearchInput
           placeholder="Tìm sự kiện..."
           value={search}
           onChange={setSearch}

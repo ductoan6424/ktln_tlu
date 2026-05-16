@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { SearchInput } from "@/components/shared/search-input"
+import { FilterSearchInput } from "@/components/shared/filter-search-input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,7 +56,7 @@ export function PostManageList() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <SearchInput
+        <FilterSearchInput
           placeholder="Tìm bài viết..."
           value={search}
           onChange={setSearch}
