@@ -4,13 +4,25 @@ import { useEffect, useRef } from "react"
 
 import { createAblyClient } from "@/lib/ably/client"
 import { getUserInboxChannelName } from "@/lib/config/chat"
-import type { ChatInboxNotification } from "@/types/chat"
+import type { ChatInboxEvent } from "@/types/chat"
 
-export type { ChatInboxNotification } from "@/types/chat"
+export type { ChatInboxEvent } from "@/types/chat"
 
 type UseInboxNotificationInput = {
   userId: string | null
-  onIncoming?: (notification: ChatInboxNotification) => void
+  onIncoming?: (notification: ChatInboxEvent) => void
+}
+
+export function parseChatInboxEvent(value: unknown): ChatInboxEvent | null {
+  if (!value || typeof value !== "object") {
+    return null
+  }
+
+  const candidate = value as { conversationId?: unknown }
+
+  return typeof candidate.conversationId === "string" && candidate.conversationId.length > 0
+    ? (value as ChatInboxEvent)
+    : null
 }
 
 export function useInboxNotification({
@@ -32,7 +44,7 @@ export function useInboxNotification({
     const channel = client.channels.get(getUserInboxChannelName(userId))
 
     const handleIncoming = (message: { data?: unknown }) => {
-      const payload = message.data as ChatInboxNotification | undefined
+      const payload = parseChatInboxEvent(message.data)
       if (!payload) {
         return
       }

@@ -55,6 +55,19 @@ export type ChatInboxNotification = {
   content: string
 }
 
+export type ChatInboxEvent = {
+  conversationId: string
+  conversationName?: string | null
+  conversationType?: "DIRECT" | "GROUP"
+  peerUserId?: string | null
+  participantCount?: number
+  communityType?: CommunityType | null
+  senderId?: string
+  senderName?: string
+  senderAvatarUrl?: string | null
+  content?: string
+}
+
 export type ChatUserSearchResult = {
   userId: string
   displayName: string

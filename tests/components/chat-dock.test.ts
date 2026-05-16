@@ -8,9 +8,14 @@ import type { ChatConversationBubble, ChatInboxNotification } from "@/types/chat
 
 const useInboxNotification = vi.hoisted(() => vi.fn())
 const usePathname = vi.hoisted(() => vi.fn())
+const listMyConversations = vi.hoisted(() => vi.fn())
 
 vi.mock("@/hooks/use-inbox-notification", () => ({
   useInboxNotification,
+}))
+
+vi.mock("@/actions/chat", () => ({
+  listMyConversations,
 }))
 
 vi.mock("next/navigation", () => ({
@@ -156,6 +161,10 @@ describe("ChatDock", () => {
     vi.clearAllMocks()
     ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
     usePathname.mockReturnValue("/feed")
+    listMyConversations.mockResolvedValue({
+      success: true,
+      data: [],
+    })
     roots = []
   })
 
@@ -227,7 +236,7 @@ describe("ChatDock", () => {
       })
       incoming?.({
         conversationId: "group-inbox",
-        conversationName: null,
+        conversationName: "Lop React",
         conversationType: "GROUP",
         peerUserId: null,
         participantCount: 12,
@@ -249,12 +258,100 @@ describe("ChatDock", () => {
     expect(direct).toHaveProperty("dataset.peerUserId", "user-lan")
     expect(direct).toHaveProperty("dataset.participantCount", "2")
     expect(direct).toHaveProperty("dataset.communityType", "")
-    expect(group?.textContent).toBe("Nhóm chat")
+    expect(group?.textContent).toBe("Lop React")
     expect(group).toHaveProperty("dataset.avatar", "")
     expect(group).toHaveProperty("dataset.group", "true")
     expect(group).toHaveProperty("dataset.peerUserId", "")
     expect(group).toHaveProperty("dataset.participantCount", "12")
     expect(group).toHaveProperty("dataset.communityType", "COURSE")
+  })
+
+  it("hydrates legacy notifications from the canonical conversation list", async () => {
+    listMyConversations.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: "legacy-direct",
+          name: "Lan",
+          peerUserId: "user-lan",
+          avatarUrl: "/lan.png",
+          isGroup: false,
+          communityType: null,
+          communityTargetId: null,
+          isOnline: false,
+          participantCount: 2,
+          unreadCount: 1,
+          lastMessage: "Xin chao",
+          lastMessageAt: null,
+        },
+      ],
+    })
+    const { container, root } = await renderDock()
+    roots.push(root)
+
+    const incoming = useInboxNotification.mock.calls.at(-1)?.[0]?.onIncoming as
+      | ((notification: { conversationId: string }) => void)
+      | undefined
+
+    await act(async () => {
+      incoming?.({
+        conversationId: "legacy-direct",
+      })
+    })
+
+    expect(listMyConversations).toHaveBeenCalledTimes(1)
+    const legacyBubble = container.querySelector('[data-testid="chat-popup-legacy-direct"]')
+    expect(legacyBubble?.textContent).toBe("Lan")
+    expect(legacyBubble).toHaveProperty("dataset.group", "false")
+    expect(legacyBubble).toHaveProperty("dataset.peerUserId", "user-lan")
+  })
+
+  it("hydrates incomplete group notifications instead of fabricating fallback metadata", async () => {
+    listMyConversations.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: "group-inbox",
+          name: "Khoa hoc Next.js",
+          peerUserId: null,
+          avatarUrl: null,
+          isGroup: true,
+          communityType: "COURSE",
+          communityTargetId: "course-1",
+          isOnline: false,
+          participantCount: 18,
+          unreadCount: 3,
+          lastMessage: "Thong bao",
+          lastMessageAt: null,
+        },
+      ],
+    })
+    const { container, root } = await renderDock()
+    roots.push(root)
+
+    const incoming = useInboxNotification.mock.calls.at(-1)?.[0]?.onIncoming as
+      | ((notification: ChatInboxNotification) => void)
+      | undefined
+
+    await act(async () => {
+      incoming?.({
+        conversationId: "group-inbox",
+        conversationName: null,
+        conversationType: "GROUP",
+        peerUserId: null,
+        participantCount: 12,
+        communityType: "COURSE",
+        senderId: "user-minh",
+        senderName: "Minh",
+        senderAvatarUrl: "/minh.png",
+        content: "Thong bao",
+      })
+    })
+
+    expect(listMyConversations).toHaveBeenCalledTimes(1)
+    const group = container.querySelector('[data-testid="chat-popup-group-inbox"]')
+    expect(group?.textContent).toBe("Khoa hoc Next.js")
+    expect(group).toHaveProperty("dataset.participantCount", "18")
   })
 
   it("does not auto-open incoming inbox notifications on the messages route", async () => {
