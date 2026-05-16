@@ -7,7 +7,6 @@ import {
   getChatSessionUser,
   getConversationMessages,
   markConversationAsRead,
-  openDirectConversation,
   sendConversationMessage,
 } from "@/actions/chat"
 import { ChatBubble } from "@/components/messages/chat-bubble"
@@ -16,10 +15,9 @@ import { ChatHeader } from "@/components/messages/chat-header"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
-import { notifyContactMessageChanged } from "@/lib/contacts/events"
-import type { ChatMessageItem, ChatSessionUser } from "@/types/chat"
+import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/contacts/events"
+import type { ChatConversationBubble, ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime } from "@/utils/formatters"
-import type { ActiveFriend } from "./mock-data"
 
 const ChatMessageRow = memo(function ChatMessageRow({
   message,
@@ -47,13 +45,13 @@ const ChatMessageRow = memo(function ChatMessageRow({
 })
 
 interface ChatPopupProps {
-  friend: ActiveFriend
+  conversation: ChatConversationBubble
   onClose: () => void
   onFocus: () => void
   index: number
 }
 
-export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
+export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupProps) {
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageItem[]>([])
@@ -62,6 +60,7 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
   const isPrependingRef = useRef(false)
@@ -94,39 +93,37 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
   useEffect(() => {
     const init = async () => {
       setIsLoading(true)
+      setLoadError(null)
+      setConversationId(null)
 
       const sessionResult = await getChatSessionUser()
       if (!sessionResult.success || !sessionResult.data) {
+        setLoadError("Không thể tải hội thoại.")
         setIsLoading(false)
         return
       }
 
       setSessionUser(sessionResult.data)
 
-      const openResult = await openDirectConversation(friend.id)
-      if (!openResult.success || !openResult.data) {
-        setIsLoading(false)
-        return
-      }
-
-      setConversationId(openResult.data.conversationId)
-
       const messagesResult = await getConversationMessages({
-        conversationId: openResult.data.conversationId,
+        conversationId: conversation.id,
       })
 
       if (messagesResult.success && messagesResult.data) {
         setMessages(messagesResult.data.items)
         setNextCursor(messagesResult.data.nextCursor)
         setHasMore(messagesResult.data.hasMore)
-        void markConversationAsRead(openResult.data.conversationId)
+        setConversationId(conversation.id)
+        void markConversationAsRead(conversation.id)
+      } else {
+        setLoadError("Không thể tải hội thoại.")
       }
 
       setIsLoading(false)
     }
 
     void init()
-  }, [friend.id])
+  }, [conversation.id])
 
   const handleLoadMore = useCallback(async () => {
     if (!conversationId || !nextCursor || isLoadingMore) {
@@ -199,16 +196,11 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
     message: string
     attachmentFile?: File | null
   }): Promise<boolean> => {
-    let currentConversationId = conversationId
-
-    if (!currentConversationId) {
-      const openResult = await openDirectConversation(friend.id)
-      if (!openResult.success || !openResult.data) {
-        return false
-      }
-      currentConversationId = openResult.data.conversationId
-      setConversationId(currentConversationId)
+    if (isLoading || loadError) {
+      return false
     }
+
+    const currentConversationId = conversationId ?? conversation.id
 
     const optimisticId = `temp-${Date.now()}`
     const optimisticAttachment = attachmentFile
@@ -254,11 +246,18 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
       return false
     }
 
-    notifyContactMessageChanged({
-      userId: friend.id,
-      conversationId: currentConversationId,
-      direction: "sent",
-    })
+    if (conversation.peerUserId) {
+      notifyContactMessageChanged({
+        userId: conversation.peerUserId,
+        conversationId: currentConversationId,
+        direction: "sent",
+      })
+    } else if (conversation.isGroup) {
+      notifyContactGroupChanged({
+        action: "message-sent",
+        conversationId: currentConversationId,
+      })
+    }
 
     if (optimisticAttachment) {
       URL.revokeObjectURL(optimisticAttachment.url)
@@ -275,7 +274,10 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
     return true
   }
 
-  const isOnline = useMemo(() => onlineUserIds.has(friend.id), [friend.id, onlineUserIds])
+  const isOnline = useMemo(
+    () => Boolean(conversation.peerUserId && onlineUserIds.has(conversation.peerUserId)),
+    [conversation.peerUserId, onlineUserIds],
+  )
 
   return (
     <div
@@ -291,9 +293,11 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
     >
       <div className="shrink-0">
         <ChatHeader
-          name={friend.name}
-          avatarSrc={friend.avatar}
+          name={conversation.name}
+          avatarSrc={conversation.avatarUrl ?? undefined}
           isOnline={isOnline}
+          isGroup={conversation.isGroup}
+          participantCount={conversation.participantCount}
           compact
           showClose
           onClose={onClose}
@@ -310,6 +314,8 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Đang tải hội thoại...</p>
+        ) : loadError ? (
+          <p className="text-sm text-muted-foreground" role="alert">{loadError}</p>
         ) : (
           <div
             style={{
@@ -349,14 +355,14 @@ export function ChatPopup({ friend, onClose, onFocus, index }: ChatPopupProps) {
           </div>
         )}
 
-        {typingUsers.length > 0 && <TypingIndicator userName={typingUsers[0] ?? friend.name} />}
+        {typingUsers.length > 0 && <TypingIndicator userName={typingUsers[0] ?? conversation.name} />}
         <div ref={bottomAnchorRef} />
       </div>
       <div className="shrink-0 border-t border-border">
         <MessageInput
-          recipientName={friend.name}
+          recipientName={conversation.name}
           compact
-          disabled={isSending}
+          disabled={isLoading || Boolean(loadError) || isSending}
           isSending={isSending}
           onTypingChange={(isTyping) => {
             void publishTyping(isTyping)
