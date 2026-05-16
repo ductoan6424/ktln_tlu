@@ -1,5 +1,6 @@
 import { MAIN_NAV_ITEMS, type MainNavItem } from "@/app/(main)/main-nav-items"
 import { buildSessionUser } from "@/app/(main)/session-user"
+import { ChatDock } from "@/components/layout/chat-dock"
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
 import { TopNavbar } from "@/components/layout/top-navbar"
 import type { ModuleFlagKey } from "@/lib/config/system-settings"
@@ -55,20 +56,21 @@ export default async function MainLayout({
 
   return (
     <div className="min-h-dvh bg-muted/30">
-      <TopNavbar
-        navItems={visibleNavItems}
-        user={sessionUser}
-        userId={authUser?.id}
-        notificationCount={3}
-        messageCount={5}
-        searchPlaceholder="Tìm kiếm trong cộng đồng..."
-      />
-      <main className="min-h-dvh pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pt-16 lg:pb-0">{children}</main>
-      <MobileBottomNav
-        user={sessionUser}
-        notificationCount={3}
-        messageCount={5}
-      />
+      <ChatDock userId={authUser?.id ?? null}>
+        <TopNavbar
+          navItems={visibleNavItems}
+          user={sessionUser}
+          notificationCount={3}
+          messageCount={5}
+          searchPlaceholder="Tìm kiếm trong cộng đồng..."
+        />
+        <main className="min-h-dvh pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pt-16 lg:pb-0">{children}</main>
+        <MobileBottomNav
+          user={sessionUser}
+          notificationCount={3}
+          messageCount={5}
+        />
+      </ChatDock>
     </div>
   )
 }
