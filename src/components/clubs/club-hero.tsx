@@ -15,6 +15,7 @@ export function ClubHero({ coverImage, title, className }: ClubHeroProps) {
         src={coverImage}
         alt={title}
         fill
+        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 80vw, 1200px"
         className="object-cover"
         priority
       />

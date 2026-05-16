@@ -1,3 +1,5 @@
+import { Suspense } from "react"
+
 import { requireAdminPermission } from "@/lib/auth/authorization"
 import { getAnalyticsOverview } from "@/lib/admin/stats-queries"
 
@@ -19,5 +21,9 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
 
   const overview = await getAnalyticsOverview(range)
 
-  return <AdminAnalyticsClient overview={overview} />
+  return (
+    <Suspense fallback={null}>
+      <AdminAnalyticsClient overview={overview} />
+    </Suspense>
+  )
 }

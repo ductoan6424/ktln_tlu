@@ -45,6 +45,8 @@ const NAV_ICONS: Record<MainNavIcon, LucideIcon> = {
   "users-round": UsersRound,
 }
 
+const EMPTY_NAV_ITEMS: MainNavItem[] = []
+
 interface TopNavbarProps {
   navItems?: MainNavItem[]
   user?: {
@@ -60,7 +62,7 @@ interface TopNavbarProps {
 }
 
 export function TopNavbar({
-  navItems = [],
+  navItems = EMPTY_NAV_ITEMS,
   user,
   userId,
   notificationCount,

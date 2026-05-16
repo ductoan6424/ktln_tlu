@@ -8,8 +8,10 @@ export default async function AdminUserDetailPage({
 }: {
   params: Promise<{ userId: string }>
 }) {
-  const { userId } = await params
-  const usersModule = await getUsersAdminModule()
+  const [{ userId }, usersModule] = await Promise.all([
+    params,
+    getUsersAdminModule(),
+  ])
 
   if (!usersModule.getRecord(userId)) {
     notFound()
