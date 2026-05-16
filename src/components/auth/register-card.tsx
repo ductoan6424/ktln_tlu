@@ -203,7 +203,7 @@ function StepAccount({
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
-                  key={i}
+                  key={`bar-${i}`}
                   className={cn(
                     "h-1 flex-1 rounded-full transition-all duration-300",
                     i <= strength.score ? strength.color : "bg-border"

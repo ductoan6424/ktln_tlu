@@ -307,7 +307,7 @@ function DeviceListSkeleton() {
   return (
     <ul className="divide-y rounded-md border">
       {[0, 1].map((i) => (
-        <li key={i} className="flex items-center gap-3 px-4 py-3">
+        <li key={`device-${i}`} className="flex items-center gap-3 px-4 py-3">
           <span className="size-9 flex-shrink-0 rounded-md bg-muted animate-pulse" />
           <div className="flex-1 space-y-2">
             <span className="block h-3.5 w-1/2 rounded bg-muted animate-pulse" />
