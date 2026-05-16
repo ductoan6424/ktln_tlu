@@ -1438,7 +1438,12 @@ export async function sendConversationMessage(
       type: "DIRECT" | "GROUP"
       name: string | null
       communityType: CommunityType | null
-      participants: Array<{ userId: string }>
+      participants: Array<{
+        userId: string
+        user: {
+          deletedAt: Date | null
+        }
+      }>
     } | null = null
 
     try {
@@ -1449,14 +1454,24 @@ export async function sendConversationMessage(
           name: true,
           communityType: true,
           participants: {
-            select: { userId: true },
+            select: {
+              userId: true,
+              user: {
+                select: {
+                  deletedAt: true,
+                },
+              },
+            },
           },
         },
       })
     } catch {
     }
 
-    const recipientIds = (deliveryInfo?.participants ?? [])
+    const activeParticipants = (deliveryInfo?.participants ?? []).filter(
+      (participant) => !participant.user.deletedAt,
+    )
+    const recipientIds = activeParticipants
       .map((p) => p.userId)
       .filter((id) => id !== currentUser.userId)
     const conversationType = deliveryInfo?.type ?? "DIRECT"
@@ -1468,7 +1483,7 @@ export async function sendConversationMessage(
           : deliveryInfo?.name?.trim() || "Nhóm chat",
       conversationType,
       peerUserId: conversationType === "DIRECT" ? currentUser.userId : null,
-      participantCount: deliveryInfo?.participants.length ?? 0,
+      participantCount: activeParticipants.length,
       communityType: deliveryInfo?.communityType ?? null,
       senderId: currentUser.userId,
       senderName: currentUser.displayName,

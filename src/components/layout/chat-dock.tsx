@@ -10,9 +10,15 @@ import {
 } from "react"
 import { usePathname } from "next/navigation"
 
+import { listMyConversations } from "@/actions/chat"
 import { ChatPopup } from "@/components/layout/chat-popup"
 import { useInboxNotification } from "@/hooks/use-inbox-notification"
-import type { ChatConversationBubble, ChatInboxNotification } from "@/types/chat"
+import type {
+  ChatConversationBubble,
+  ChatConversationItem,
+  ChatInboxEvent,
+  ChatInboxNotification,
+} from "@/types/chat"
 
 type ChatDockContextValue = {
   openConversation: (conversation: ChatConversationBubble) => void
@@ -55,6 +61,73 @@ export function notificationToConversation(
   }
 }
 
+export function conversationItemToBubble(
+  conversation: ChatConversationItem,
+): ChatConversationBubble {
+  return {
+    id: conversation.id,
+    name: conversation.name,
+    avatarUrl: conversation.avatarUrl,
+    isGroup: conversation.isGroup,
+    peerUserId: conversation.peerUserId,
+    participantCount: conversation.participantCount,
+    communityType: conversation.communityType,
+  }
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string"
+}
+
+export function isCompleteInboxNotification(
+  notification: ChatInboxEvent,
+): notification is ChatInboxNotification {
+  const hasCommonFields =
+    typeof notification.senderId === "string" &&
+    typeof notification.senderName === "string" &&
+    isNullableString(notification.senderAvatarUrl) &&
+    typeof notification.content === "string" &&
+    Number.isInteger(notification.participantCount) &&
+    (notification.communityType === null ||
+      notification.communityType === "GROUP" ||
+      notification.communityType === "CLUB" ||
+      notification.communityType === "COURSE")
+
+  if (!hasCommonFields) {
+    return false
+  }
+
+  if (notification.conversationType === "DIRECT") {
+    return (
+      notification.conversationName === null &&
+      typeof notification.peerUserId === "string" &&
+      notification.peerUserId.length > 0
+    )
+  }
+
+  if (notification.conversationType === "GROUP") {
+    return (
+      typeof notification.conversationName === "string" &&
+      notification.conversationName.trim().length > 0 &&
+      notification.peerUserId === null
+    )
+  }
+
+  return false
+}
+
+async function hydrateConversation(conversationId: string) {
+  const result = await listMyConversations()
+
+  if (!result.success || !result.data) {
+    return null
+  }
+
+  const conversation = result.data.find((item) => item.id === conversationId)
+
+  return conversation ? conversationItemToBubble(conversation) : null
+}
+
 export function ChatDock({ children, userId }: ChatDockProps) {
   const pathname = usePathname()
   const [conversations, setConversations] = useState<ChatConversationBubble[]>([])
@@ -79,12 +152,18 @@ export function ChatDock({ children, userId }: ChatDockProps) {
   }, [])
 
   const handleIncoming = useCallback(
-    (notification: ChatInboxNotification) => {
+    async (notification: ChatInboxEvent) => {
       if (pathname === "/messages") {
         return
       }
 
-      openConversation(notificationToConversation(notification))
+      const conversation = isCompleteInboxNotification(notification)
+        ? notificationToConversation(notification)
+        : await hydrateConversation(notification.conversationId)
+
+      if (conversation) {
+        openConversation(conversation)
+      }
     },
     [openConversation, pathname],
   )
