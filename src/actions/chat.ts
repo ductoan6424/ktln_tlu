@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import type {
+  ChatInboxNotification,
   ChatConversationItem,
   ChatGroupDetails,
   ChatMessagesPage,
@@ -1436,7 +1437,13 @@ export async function sendConversationMessage(
     let deliveryInfo: {
       type: "DIRECT" | "GROUP"
       name: string | null
-      participants: Array<{ userId: string }>
+      communityType: CommunityType | null
+      participants: Array<{
+        userId: string
+        user: {
+          deletedAt: Date | null
+        }
+      }>
     } | null = null
 
     try {
@@ -1445,17 +1452,44 @@ export async function sendConversationMessage(
         select: {
           type: true,
           name: true,
+          communityType: true,
           participants: {
-            select: { userId: true },
+            select: {
+              userId: true,
+              user: {
+                select: {
+                  deletedAt: true,
+                },
+              },
+            },
           },
         },
       })
     } catch {
     }
 
-    const recipientIds = (deliveryInfo?.participants ?? [])
+    const activeParticipants = (deliveryInfo?.participants ?? []).filter(
+      (participant) => !participant.user.deletedAt,
+    )
+    const recipientIds = activeParticipants
       .map((p) => p.userId)
       .filter((id) => id !== currentUser.userId)
+    const conversationType = deliveryInfo?.type ?? "DIRECT"
+    const inboxNotification: ChatInboxNotification = {
+      conversationId: input.conversationId,
+      conversationName:
+        conversationType === "DIRECT"
+          ? null
+          : deliveryInfo?.name?.trim() || "Nhóm chat",
+      conversationType,
+      peerUserId: conversationType === "DIRECT" ? currentUser.userId : null,
+      participantCount: activeParticipants.length,
+      communityType: deliveryInfo?.communityType ?? null,
+      senderId: currentUser.userId,
+      senderName: currentUser.displayName,
+      senderAvatarUrl: currentUser.avatarUrl,
+      content: finalContent,
+    }
 
     try {
       const ably = getAblyRestClient()
@@ -1467,13 +1501,7 @@ export async function sendConversationMessage(
         recipientIds.map((recipientId) =>
           ably.channels
             .get(getUserInboxChannelName(recipientId))
-            .publish("chat.incoming", {
-              conversationId: input.conversationId,
-              senderId: currentUser.userId,
-              senderName: currentUser.displayName,
-              senderAvatarUrl: currentUser.avatarUrl,
-              content: finalContent,
-            }),
+            .publish("chat.incoming", inboxNotification),
         ),
       )
     } catch {

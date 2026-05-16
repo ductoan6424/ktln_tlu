@@ -143,8 +143,8 @@ describe("sendConversationMessage", () => {
       type: "DIRECT",
       name: null,
       participants: [
-        { userId: "user-self" },
-        { userId: "user-peer" },
+        { userId: "user-self", user: { deletedAt: null } },
+        { userId: "user-peer", user: { deletedAt: null } },
       ],
     })
 
@@ -201,6 +201,21 @@ describe("sendConversationMessage", () => {
       "user-self",
       expect.anything(),
     )
+    expect(publish).toHaveBeenCalledWith(
+      "chat.incoming",
+      {
+        conversationId: "conv-1",
+        conversationName: null,
+        conversationType: "DIRECT",
+        peerUserId: "user-self",
+        participantCount: 2,
+        communityType: null,
+        senderId: "user-self",
+        senderName: "Bạn",
+        senderAvatarUrl: null,
+        content: "Xin chào",
+      },
+    )
 
     expect(result.success).toBe(true)
     expect(result.data).toEqual(
@@ -210,6 +225,148 @@ describe("sendConversationMessage", () => {
         content: "Xin chào",
         isOwn: true,
         attachment: null,
+      }),
+    )
+  })
+
+  it("publishes group inbox notifications with conversation metadata", async () => {
+    mockWithSession("user-self")
+
+    prisma.userProfile.findUnique.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Bạn",
+      avatarUrl: "https://cdn.example.com/users/self.png",
+      deletedAt: null,
+    })
+
+    prisma.conversationParticipant.findUnique.mockResolvedValue({
+      conversationId: "conv-group",
+      userId: "user-self",
+      lastReadAt: null,
+    })
+    prisma.conversation.findUnique.mockResolvedValue({
+      type: "GROUP",
+      name: "CLB Cờ vua",
+      communityType: "CLUB",
+      participants: [
+        { userId: "user-self", user: { deletedAt: null } },
+        { userId: "user-peer", user: { deletedAt: null } },
+        { userId: "user-third", user: { deletedAt: null } },
+      ],
+    })
+
+    prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+      return fn({
+        message: {
+          create: vi.fn().mockResolvedValue({
+            id: "msg-group",
+            conversationId: "conv-group",
+            content: "Họp lúc 19h",
+            attachmentUrl: null,
+            attachmentType: null,
+            attachmentName: null,
+            attachmentMimeType: null,
+            attachmentSizeBytes: null,
+            senderId: "user-self",
+            createdAt: new Date("2026-04-24T12:30:00.000Z"),
+            sender: {
+              userId: "user-self",
+              displayName: "Bạn",
+              avatarUrl: "https://cdn.example.com/users/self.png",
+            },
+          }),
+        },
+        conversation: {
+          update: vi.fn().mockResolvedValue({ id: "conv-group" }),
+        },
+      })
+    })
+
+    await sendConversationMessage({
+      conversationId: "conv-group",
+      content: "Họp lúc 19h",
+    })
+
+    expect(publish).toHaveBeenCalledWith(
+      "chat.incoming",
+      {
+        conversationId: "conv-group",
+        conversationName: "CLB Cờ vua",
+        conversationType: "GROUP",
+        peerUserId: null,
+        participantCount: 3,
+        communityType: "CLUB",
+        senderId: "user-self",
+        senderName: "Bạn",
+        senderAvatarUrl: "https://cdn.example.com/users/self.png",
+        content: "Họp lúc 19h",
+      },
+    )
+  })
+
+  it("excludes deleted participants from published group participant counts", async () => {
+    mockWithSession("user-self")
+
+    prisma.userProfile.findUnique.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Bạn",
+      avatarUrl: null,
+      deletedAt: null,
+    })
+
+    prisma.conversationParticipant.findUnique.mockResolvedValue({
+      conversationId: "conv-group",
+      userId: "user-self",
+      lastReadAt: null,
+    })
+    prisma.conversation.findUnique.mockResolvedValue({
+      type: "GROUP",
+      name: "CLB Cờ vua",
+      communityType: "CLUB",
+      participants: [
+        { userId: "user-self", user: { deletedAt: null } },
+        { userId: "user-peer", user: { deletedAt: null } },
+        { userId: "user-deleted", user: { deletedAt: new Date("2026-05-01T00:00:00.000Z") } },
+      ],
+    })
+
+    prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+      return fn({
+        message: {
+          create: vi.fn().mockResolvedValue({
+            id: "msg-group",
+            conversationId: "conv-group",
+            content: "Họp lúc 19h",
+            attachmentUrl: null,
+            attachmentType: null,
+            attachmentName: null,
+            attachmentMimeType: null,
+            attachmentSizeBytes: null,
+            senderId: "user-self",
+            createdAt: new Date("2026-04-24T12:30:00.000Z"),
+            sender: {
+              userId: "user-self",
+              displayName: "Bạn",
+              avatarUrl: null,
+            },
+          }),
+        },
+        conversation: {
+          update: vi.fn().mockResolvedValue({ id: "conv-group" }),
+        },
+      })
+    })
+
+    await sendConversationMessage({
+      conversationId: "conv-group",
+      content: "Họp lúc 19h",
+    })
+
+    expect(publish).toHaveBeenCalledWith(
+      "chat.incoming",
+      expect.objectContaining({
+        conversationId: "conv-group",
+        participantCount: 2,
       }),
     )
   })

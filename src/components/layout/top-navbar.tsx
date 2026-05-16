@@ -1,12 +1,12 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { logout } from "@/actions/auth"
 import type { MainNavIcon, MainNavItem } from "@/app/(main)/main-nav-items"
 import { AppLogo } from "@/components/layout/app-logo"
-import { ChatPopup } from "@/components/layout/chat-popup"
+import { useChatDock } from "@/components/layout/chat-dock"
 import { MessagePopup } from "@/components/layout/message-popup"
 import { NavbarLink } from "@/components/layout/navbar-link"
 import { NotificationPopup } from "@/components/layout/notification-popup"
@@ -21,7 +21,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
-import { useInboxNotification } from "@/hooks/use-inbox-notification"
 import { cn } from "@/lib/utils"
 import {
   CalendarDays,
@@ -36,7 +35,6 @@ import {
   X,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import type { ActiveFriend } from "./mock-data"
 
 const NAV_ICONS: Record<MainNavIcon, LucideIcon> = {
   home: Home,
@@ -54,7 +52,6 @@ interface TopNavbarProps {
     subtitle?: string
     avatarSrc?: string
   }
-  userId?: string
   notificationCount?: number
   messageCount?: number
   searchPlaceholder?: string
@@ -64,7 +61,6 @@ interface TopNavbarProps {
 export function TopNavbar({
   navItems = EMPTY_NAV_ITEMS,
   user,
-  userId,
   notificationCount,
   messageCount,
   searchPlaceholder = "Tìm kiếm...",
@@ -74,36 +70,10 @@ export function TopNavbar({
   const [darkMode, setDarkMode] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [openPopups, setOpenPopups] = useState<ActiveFriend[]>([])
+  const { openConversation } = useChatDock()
 
   void notificationCount
   void messageCount
-
-  const handleInboxNotification = useCallback(
-    (notification: { senderId: string; senderName: string; senderAvatarUrl: string | null }) => {
-      if (pathname === "/messages") return
-
-      setOpenPopups((prev) => {
-        const alreadyOpen = prev.find((item) => item.id === notification.senderId)
-        if (alreadyOpen) return prev
-
-        const friend: ActiveFriend = {
-          id: notification.senderId,
-          name: notification.senderName,
-          avatar: notification.senderAvatarUrl ?? undefined,
-          status: "online",
-        }
-
-        return [friend, ...prev].slice(0, 3)
-      })
-    },
-    [pathname],
-  )
-
-  useInboxNotification({
-    userId: userId ?? null,
-    onIncoming: handleInboxNotification,
-  })
 
   const handleDarkModeToggle = (checked: boolean) => {
     setDarkMode(checked)
@@ -116,42 +86,6 @@ export function TopNavbar({
     window.location.href = "/login"
   }
 
-  const handleOpenChat = (friend: ActiveFriend) => {
-    setOpenPopups((prev) => {
-      const existed = prev.find((item) => item.id === friend.id)
-
-      if (existed) {
-        const next = prev.filter((item) => item.id !== friend.id)
-        next.unshift(existed)
-        return next
-      }
-
-      const next = [friend, ...prev]
-      return next.slice(0, 3)
-    })
-  }
-
-  const handleCloseChat = (friendId: string) => {
-    setOpenPopups((prev) => prev.filter((item) => item.id !== friendId))
-  }
-
-  const handleFocusChat = (friendId: string) => {
-    setOpenPopups((prev) => {
-      const index = prev.findIndex((item) => item.id === friendId)
-      if (index <= 0) {
-        return prev
-      }
-
-      const next = [...prev]
-      const item = next.splice(index, 1)[0]
-      if (!item) {
-        return prev
-      }
-      next.unshift(item)
-      return next
-    })
-  }
-
   return (
     <header
       className={cn(
@@ -159,16 +93,6 @@ export function TopNavbar({
         className
       )}
     >
-      {openPopups.map((friend, index) => (
-        <ChatPopup
-          key={friend.id}
-          friend={friend}
-          index={index}
-          onClose={() => handleCloseChat(friend.id)}
-          onFocus={() => handleFocusChat(friend.id)}
-        />
-      ))}
-
       {mobileSearchOpen && (
         <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 pt-[env(safe-area-inset-top)] lg:hidden">
           <SearchInput
@@ -228,7 +152,7 @@ export function TopNavbar({
             <NotificationPopup />
           </div>
           <div className="hidden lg:block">
-            <MessagePopup onOpenChat={handleOpenChat} />
+            <MessagePopup onOpenConversation={openConversation} />
           </div>
 
           {user && (
