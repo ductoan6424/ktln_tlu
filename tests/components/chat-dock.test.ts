@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ReactNode } from "react"
+import { act, createElement, type ComponentType, type ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ChatDock, useChatDock } from "@/components/layout/chat-dock"
@@ -86,6 +86,11 @@ const conversations: Record<string, ChatConversationBubble> = {
   },
 }
 
+const TestChatDock = ChatDock as ComponentType<{
+  children?: ReactNode
+  userId: string | null
+}>
+
 function getRenderedIds(container: HTMLElement) {
   return [...container.querySelectorAll("[data-testid^='chat-popup-']")].map((element) =>
     element.getAttribute("data-testid")?.replace("chat-popup-", ""),
@@ -125,10 +130,13 @@ async function renderDock() {
 
   await act(async () => {
     root.render(
-      createElement(ChatDock, {
-        userId: "user-self",
-        children: createElement(DockHarness),
-      }),
+      createElement(
+        TestChatDock,
+        {
+          userId: "user-self",
+        },
+        createElement(DockHarness),
+      ),
     )
   })
 
