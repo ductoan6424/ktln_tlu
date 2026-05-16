@@ -172,6 +172,8 @@ model UserProfile {
   grantedAdminRoles    UserAdminRole[] @relation("AdminRoleGrantor")
 
   hiddenPosts            HiddenPost[]
+  savedPosts             SavedPost[]
+  savedAnnouncements     SavedAnnouncement[]
   deletedPosts           Post[]              @relation("PostDeletedBy")
   reviewedCommunityPosts Post[]              @relation("PostCommunityReviewer")
   moderationActions      PostModerationLog[] @relation("ModerationActor")
@@ -381,6 +383,7 @@ model Post {
   comments       Comment[]
   likes          Like[]
   hiddenBy       HiddenPost[]
+  savedBy        SavedPost[]
   moderationLogs PostModerationLog[]
   attachments    PostAttachment[]
   pinnedIn       PinnedPost[]
@@ -718,6 +721,32 @@ model HiddenPost {
   @@map("hidden_posts")
 }
 
+model SavedAnnouncement {
+  userId         String   @map("user_id")
+  announcementId String   @map("announcement_id")
+  savedAt        DateTime @default(now()) @map("saved_at")
+
+  user         UserProfile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, announcementId])
+  @@index([userId, savedAt(sort: Desc)])
+  @@map("saved_announcements")
+}
+
+model SavedPost {
+  userId  String   @map("user_id")
+  postId  String   @map("post_id")
+  savedAt DateTime @default(now()) @map("saved_at")
+
+  user UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  post Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([userId, savedAt(sort: Desc)])
+  @@map("saved_posts")
+}
+
 model PostModerationLog {
   id        String               @id @default(cuid()) @map("log_id")
   postId    String               @map("post_id")
@@ -880,6 +909,8 @@ model Announcement {
 
   authorId String      @map("author_id")
   author   UserProfile @relation("AnnouncementAuthor", fields: [authorId], references: [userId], onDelete: Cascade)
+
+  savedBy SavedAnnouncement[]
 
   @@index([status, publishedAt(sort: Desc)])
   @@index([authorId])

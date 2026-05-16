@@ -1,5 +1,6 @@
 export const POST_DELETE_REASON_MAX = 500
 export const HIDDEN_POSTS_PAGE_SIZE = 20
+export const SAVED_POSTS_PAGE_SIZE = 20
 export const CLUB_ADMIN_CACHE_TTL_SECONDS = 60
 
 export const POST_SHARE_PATH_PREFIX = "/feed"

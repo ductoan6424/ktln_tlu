@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useSyncExternalStore } from "react"
+import type { ReactNode } from "react"
 
 type ToastVariant = "default" | "destructive" | null
 
@@ -9,6 +10,7 @@ export interface Toast {
   title?: string
   description?: string
   variant?: ToastVariant
+  action?: ReactNode
 }
 
 type ToastInput = Omit<Toast, "id">
@@ -33,10 +35,10 @@ export function getToastSnapshot() {
   return toasts
 }
 
-export function addToast({ title, description, variant = "default" }: ToastInput) {
+export function addToast({ title, description, variant = "default", action }: ToastInput) {
   const id = Math.random().toString(36).slice(2)
 
-  toasts = [...toasts, { id, title, description, variant }]
+  toasts = [...toasts, { id, title, description, variant, action }]
   emitToastChange()
 
   setTimeout(() => {

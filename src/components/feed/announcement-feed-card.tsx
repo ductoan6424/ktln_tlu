@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { RelativeTime } from "@/components/shared/relative-time"
-import { BadgeCheck, Megaphone, ChevronDown, ChevronUp } from "lucide-react"
+import { BadgeCheck, Megaphone, ChevronDown, ChevronUp, BookmarkCheck } from "lucide-react"
 import {
   OFFICIAL_SCHOOL_AVATAR_URL,
   OFFICIAL_SCHOOL_DISPLAY_NAME,
@@ -19,16 +19,21 @@ export interface AnnouncementFeedCardProps {
   content: string
   publishedAt: string
   pinToTop?: boolean
+  isSaved?: boolean
+  onUnsave?: () => void
   className?: string
 }
 
 const EXPAND_THRESHOLD = 280
 
 export function AnnouncementFeedCard({
+  id: _id,
   title,
   content,
   publishedAt,
   pinToTop = false,
+  isSaved = false,
+  onUnsave,
   className,
 }: AnnouncementFeedCardProps) {
   const [expanded, setExpanded] = useState(false)
@@ -113,6 +118,21 @@ export function AnnouncementFeedCard({
             </Button>
           )}
         </div>
+
+        {/* Nút bỏ lưu — chỉ hiện ở trang /saved */}
+        {isSaved && onUnsave && (
+          <div className="flex justify-end mt-2 pt-2 border-t border-border">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onUnsave}
+              className="gap-1.5 text-primary whitespace-nowrap"
+            >
+              <BookmarkCheck className="size-4" />
+              <span className="text-[13px]">Đã lưu</span>
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
