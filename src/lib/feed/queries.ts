@@ -265,8 +265,8 @@ async function mapRawPost(
         }
       : null;
 
-  const likesArr = Array.isArray(post.likes) ? post.likes : [];
-  const savedArr = Array.isArray(post.savedBy) ? post.savedBy : [];
+  const likesArr = Array.isArray((post as any).likes) ? (post as any).likes : [];
+  const savedArr = Array.isArray((post as any).savedBy) ? (post as any).savedBy : [];
   const communityContext: FeedPostCommunityContext | null = post.group
     ? {
         type: "GROUP",
@@ -571,10 +571,12 @@ export async function getFeedPosts(
   cursor: FeedCursor,
   pageSize: number,
 ): Promise<FeedPage> {
-  const hiddenIds = await getHiddenPostIds(viewerId);
-  const joinedCommunityIds = await getJoinedCommunityIds(viewerId);
-  const followingIds = viewerId ? await getFollowingIds(viewerId) : [];
-  const config = await getFeedFanoutConfig();
+  const [hiddenIds, joinedCommunityIds, followingIds, config] = await Promise.all([
+    getHiddenPostIds(viewerId),
+    getJoinedCommunityIds(viewerId),
+    viewerId ? getFollowingIds(viewerId) : Promise.resolve<string[]>([]),
+    getFeedFanoutConfig(),
+  ]);
   const baseWhere = buildCommunityFeedWhere({
     viewerId,
     ...joinedCommunityIds,

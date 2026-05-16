@@ -72,7 +72,7 @@ export function PriorityAlert({
           {imageUrl && (
             <div className="w-40 h-28 rounded-lg overflow-hidden shrink-0 hidden md:block">
               <div className="relative w-full h-full">
-                <Image src={imageUrl} alt="" fill className="object-cover" />
+                <Image src={imageUrl} alt="" fill sizes="160px" className="object-cover" />
               </div>
             </div>
           )}

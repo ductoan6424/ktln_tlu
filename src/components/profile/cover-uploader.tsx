@@ -138,6 +138,7 @@ export function CoverUploader({ currentCoverUrl, className }: CoverUploaderProps
           src={previewUrl}
           alt="Xem trước ảnh bìa"
           fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 80vw, 1200px"
           className="object-cover"
           unoptimized
         />

@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { ArrowLeft } from "lucide-react"
@@ -52,7 +52,7 @@ const ChatMessageRow = memo(function ChatMessageRow({
   )
 })
 
-export default function MessagesPage() {
+function MessagesPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedConversationId = searchParams.get("conversation")
@@ -655,5 +655,13 @@ export default function MessagesPage() {
       />
       </div>
     </>
+  )
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <MessagesPageInner />
+    </Suspense>
   )
 }

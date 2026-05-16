@@ -32,7 +32,7 @@ export function ClubProfileHeader({
       {/* Logo */}
       {logo && (
         <div className="size-16 rounded-xl bg-muted border border-border overflow-hidden relative -mt-10 z-10 shadow-lg">
-          <Image src={logo} alt={name} fill className="object-cover" />
+          <Image src={logo} alt={name} fill sizes="64px" className="object-cover" />
         </div>
       )}
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -201,27 +201,27 @@ function LoadingState() {
   )
 }
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageInner() {
   const searchParams = useSearchParams()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <LoadingState />
-      </div>
-    )
-  }
-
   const token = searchParams.get("token")
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       {token ? <ResetPasswordForm token={token} /> : <InvalidTokenState />}
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <LoadingState />
+        </div>
+      }
+    >
+      <ResetPasswordPageInner />
+    </Suspense>
   )
 }

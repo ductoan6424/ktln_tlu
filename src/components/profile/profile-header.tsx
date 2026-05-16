@@ -11,6 +11,8 @@ import { Pencil, Share2 } from "lucide-react"
 import Image from "next/image"
 import type { FollowStatus } from "@/lib/follows/queries"
 
+const EMPTY_CLUBS: string[] = []
+
 interface ProfileHeaderProps {
   coverImage?: string
   avatar?: string
@@ -36,7 +38,7 @@ export function ProfileHeader({
   major,
   classYear,
   studentId,
-  clubs = [],
+  clubs = EMPTY_CLUBS,
   isOwnProfile = false,
   targetUserId,
   followStatus,
@@ -56,6 +58,7 @@ export function ProfileHeader({
             src={coverImage}
             alt="Ảnh bìa"
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 80vw, 1200px"
             className="object-cover"
           />
         )}
