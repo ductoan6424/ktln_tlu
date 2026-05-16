@@ -68,13 +68,13 @@ export function ConversationListSkeleton() {
         <Skeleton className="h-6 w-24" />
         <div className="flex gap-2">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-7 w-16 rounded-full" />
+            <Skeleton key={`tab-${i}`} className="h-7 w-16 rounded-full" />
           ))}
         </div>
       </div>
       <div className="flex-1 space-y-0">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex gap-4 px-4 py-4">
+          <div key={`item-${i}`} className="flex gap-4 px-4 py-4">
             <Skeleton className="size-12 rounded-full" />
             <div className="flex-1 space-y-1.5">
               <Skeleton className="h-3.5 w-28" />

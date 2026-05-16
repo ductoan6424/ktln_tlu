@@ -143,7 +143,7 @@ export default function SettingsClient({
               <label className="text-sm font-medium">Tên hệ thống</label>
               <Input
                 value={settings.name}
-                onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                onChange={(e) => setSettings((prev) => ({ ...prev, name: e.target.value }))}
                 maxLength={100}
               />
             </div>
@@ -151,7 +151,7 @@ export default function SettingsClient({
               <label className="text-sm font-medium">Mô tả ngắn</label>
               <Textarea
                 value={settings.description}
-                onChange={(e) => setSettings({ ...settings, description: e.target.value })}
+                onChange={(e) => setSettings((prev) => ({ ...prev, description: e.target.value }))}
                 rows={3}
                 maxLength={500}
               />
@@ -164,7 +164,7 @@ export default function SettingsClient({
               <Input
                 type="url"
                 value={settings.url}
-                onChange={(e) => setSettings({ ...settings, url: e.target.value })}
+                onChange={(e) => setSettings((prev) => ({ ...prev, url: e.target.value }))}
                 placeholder="https://..."
               />
             </div>
@@ -173,7 +173,7 @@ export default function SettingsClient({
               <Input
                 type="email"
                 value={settings.contactEmail}
-                onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
+                onChange={(e) => setSettings((prev) => ({ ...prev, contactEmail: e.target.value }))}
                 placeholder="support@..."
               />
               <p className="text-xs text-muted-foreground">

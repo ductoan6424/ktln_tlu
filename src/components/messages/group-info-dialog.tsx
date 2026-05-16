@@ -258,7 +258,8 @@ export function GroupInfoDialog({
       return
     }
 
-    setDetails({ ...details, name: result.data.name })
+    const updatedName = result.data.name
+    setDetails((prev) => (prev ? { ...prev, name: updatedName } : prev))
     notifyContactGroupChanged({
       action: "group-updated",
       conversationId,
