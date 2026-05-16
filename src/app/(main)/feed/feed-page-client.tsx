@@ -127,6 +127,7 @@ export function FeedPageClient({
   const [cursor, setCursor] = useState<FeedCursor>(initialCursor)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const rollbackRef = useRef<FeedPost[] | null>(null)
+  const openingDirectConversationsRef = useRef(new Set<string>())
   const { toast } = useToast()
   const { openConversation } = useChatDock()
 
@@ -296,21 +297,31 @@ export function FeedPageClient({
 
   const openChat = useCallback(
     async (friend: ActiveFriend) => {
-      const result = await openDirectConversation(friend.id)
-
-      if (!result.success || !result.data) {
+      if (openingDirectConversationsRef.current.has(friend.id)) {
         return
       }
 
-      openConversation({
-        id: result.data.conversationId,
-        name: result.data.peer.displayName,
-        avatarUrl: result.data.peer.avatarUrl,
-        isGroup: false,
-        peerUserId: result.data.peer.userId,
-        participantCount: 2,
-        communityType: null,
-      })
+      openingDirectConversationsRef.current.add(friend.id)
+
+      try {
+        const result = await openDirectConversation(friend.id)
+
+        if (!result.success || !result.data) {
+          return
+        }
+
+        openConversation({
+          id: result.data.conversationId,
+          name: result.data.peer.displayName,
+          avatarUrl: result.data.peer.avatarUrl,
+          isGroup: false,
+          peerUserId: result.data.peer.userId,
+          participantCount: 2,
+          communityType: null,
+        })
+      } finally {
+        openingDirectConversationsRef.current.delete(friend.id)
+      }
     },
     [openConversation],
   )
