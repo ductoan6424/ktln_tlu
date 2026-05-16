@@ -171,7 +171,7 @@ describe("FeedPageClient chat dock migration", () => {
       observe() {}
       disconnect() {}
       unobserve() {}
-    } as typeof IntersectionObserver
+    } as unknown as typeof IntersectionObserver
   })
 
   afterEach(async () => {
