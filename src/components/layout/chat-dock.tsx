@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -132,8 +133,11 @@ async function hydrateConversation(conversationId: string) {
 export function ChatDock({ children, userId }: ChatDockProps) {
   const pathname = usePathname()
   const pathnameRef = useRef(pathname)
-  pathnameRef.current = pathname
   const [conversations, setConversations] = useState<ChatConversationBubble[]>([])
+
+  useLayoutEffect(() => {
+    pathnameRef.current = pathname
+  }, [pathname])
 
   const openConversation = useCallback((conversation: ChatConversationBubble) => {
     setConversations((current) => prioritizeConversation(current, conversation))
