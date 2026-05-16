@@ -19,19 +19,16 @@ import { EventItem } from "@/components/dashboard/event-item"
 import { PageContainer } from "@/components/layout/page-container"
 import { SidebarGroupItem } from "@/components/layout/sidebar-group-item"
 import { ActiveFriends } from "@/components/layout/active-friends"
-import { ChatPopup } from "@/components/layout/chat-popup"
+import { useChatDock } from "@/components/layout/chat-dock"
 import { mockGroups } from "@/components/layout/mock-data"
 import type { ActiveFriend } from "@/components/layout/mock-data"
-import { listMyConversations } from "@/actions/chat"
+import { openDirectConversation } from "@/actions/chat"
 import { loadFeedPosts, togglePostLike, getPostById } from "@/actions/posts"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
 import type { FeedCursor, FeedPostCommunityContext } from "@/lib/feed/queries"
 import type { PollView } from "@/lib/polls/types"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { useToast } from "@/components/ui/use-toast"
-import { createAblyClient } from "@/lib/ably/client"
-import { getChatChannelName } from "@/lib/config/chat"
-import type { ChatMessageItem } from "@/types/chat"
 import { LayoutGrid, BookOpen, Users, Bookmark } from "lucide-react"
 import Link from "next/link"
 
@@ -131,6 +128,7 @@ export function FeedPageClient({
   const sentinelRef = useRef<HTMLDivElement>(null)
   const rollbackRef = useRef<FeedPost[] | null>(null)
   const { toast } = useToast()
+  const { openConversation } = useChatDock()
 
   // Sync lại state khi server revalidate `/feed` (vd: sau khi đăng bài mới)
   // → Next.js truyền `initialPosts` mới, nhưng useState chỉ init 1 lần nên cần effect này
@@ -296,100 +294,29 @@ export function FeedPageClient({
     return () => observer.disconnect()
   }, [loadMore])
 
-  const [openPopups, setOpenPopups] = useState<ActiveFriend[]>([])
+  const openChat = useCallback(
+    async (friend: ActiveFriend) => {
+      const result = await openDirectConversation(friend.id)
 
-  const openChat = useCallback((friend: ActiveFriend) => {
-    setOpenPopups((prev) => {
-      const alreadyOpen = prev.find((p) => p.id === friend.id)
-      if (alreadyOpen) return prev
-      const next = [...prev, friend]
-      if (next.length > 3) return next.slice(1)
-      return next
-    })
-  }, [])
-
-  const closeChat = (friendId: string) => {
-    setOpenPopups((prev) => prev.filter((p) => p.id !== friendId))
-  }
-
-  const focusChat = (friendId: string) => {
-    setOpenPopups((prev) => {
-      const idx = prev.findIndex((p) => p.id === friendId)
-      if (idx <= 0) return prev
-      const next = [...prev]
-      const item = next.splice(idx, 1)[0]
-      if (!item) return prev
-      next.unshift(item)
-      return next
-    })
-  }
-
-  useEffect(() => {
-    if (!currentUser) {
-      return
-    }
-
-    const ably = createAblyClient()
-    const subscriptions: Array<{
-      channel: ReturnType<typeof ably.channels.get>
-      handler: (message: { data?: unknown }) => void
-    }> = []
-    let cancelled = false
-
-    const setupIncomingListeners = async () => {
-      const result = await listMyConversations()
-      if (!result.success || !result.data || cancelled) {
+      if (!result.success || !result.data) {
         return
       }
 
-      for (const conversation of result.data) {
-        const channel = ably.channels.get(getChatChannelName(conversation.id))
-        const handler = (message: { data?: unknown }) => {
-          const payload = message.data as ChatMessageItem | undefined
-
-          if (!payload) {
-            return
-          }
-
-          if (payload.senderId === currentUser.userId) {
-            return
-          }
-
-          openChat({
-            id: payload.senderId,
-            name: payload.senderName,
-            avatar: payload.senderAvatarUrl ?? undefined,
-            status: "online",
-          })
-        }
-
-        channel.subscribe("message.new", handler)
-        subscriptions.push({ channel, handler })
-      }
-    }
-
-    void setupIncomingListeners()
-
-    return () => {
-      cancelled = true
-      for (const subscription of subscriptions) {
-        subscription.channel.unsubscribe("message.new", subscription.handler)
-      }
-    }
-  }, [currentUser, openChat])
+      openConversation({
+        id: result.data.conversationId,
+        name: result.data.peer.displayName,
+        avatarUrl: result.data.peer.avatarUrl,
+        isGroup: false,
+        peerUserId: result.data.peer.userId,
+        participantCount: 2,
+        communityType: null,
+      })
+    },
+    [openConversation],
+  )
 
   return (
     <>
-      {openPopups.map((friend, index) => (
-        <ChatPopup
-          key={friend.id}
-          friend={friend}
-          index={index}
-          onClose={() => closeChat(friend.id)}
-          onFocus={() => focusChat(friend.id)}
-        />
-      ))}
-
       <PageContainer
         variant="full"
         className="h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] overflow-hidden py-0 lg:h-[calc(100dvh_-_4rem)]"
