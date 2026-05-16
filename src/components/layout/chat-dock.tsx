@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { usePathname } from "next/navigation"
 
 import { ChatPopup } from "@/components/layout/chat-popup"
 import { useInboxNotification } from "@/hooks/use-inbox-notification"
@@ -55,6 +56,7 @@ export function notificationToConversation(
 }
 
 export function ChatDock({ children, userId }: ChatDockProps) {
+  const pathname = usePathname()
   const [conversations, setConversations] = useState<ChatConversationBubble[]>([])
 
   const openConversation = useCallback((conversation: ChatConversationBubble) => {
@@ -78,9 +80,13 @@ export function ChatDock({ children, userId }: ChatDockProps) {
 
   const handleIncoming = useCallback(
     (notification: ChatInboxNotification) => {
+      if (pathname === "/messages") {
+        return
+      }
+
       openConversation(notificationToConversation(notification))
     },
-    [openConversation],
+    [openConversation, pathname],
   )
 
   useInboxNotification({
