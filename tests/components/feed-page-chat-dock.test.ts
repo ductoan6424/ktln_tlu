@@ -1,13 +1,261 @@
+// @vitest-environment jsdom
+
 import { readFileSync } from "fs"
 import path from "path"
-import { describe, expect, it } from "vitest"
+import { act, createElement, type ReactNode } from "react"
+import { createRoot, type Root } from "react-dom/client"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+const openConversation = vi.hoisted(() => vi.fn())
+const openDirectConversation = vi.hoisted(() => vi.fn())
+
+vi.mock("@/components/layout/chat-dock", () => ({
+  useChatDock: () => ({ openConversation }),
+}))
+
+vi.mock("@/actions/chat", () => ({
+  openDirectConversation,
+}))
+
+vi.mock("@/components/layout/active-friends", () => ({
+  ActiveFriends: ({
+    onFriendClick,
+  }: {
+    onFriendClick?: (friend: {
+      id: string
+      name: string
+      avatar?: string
+      status: "online"
+    }) => void
+  }) =>
+    createElement(
+      "button",
+      {
+        type: "button",
+        "data-testid": "active-friend",
+        onClick: () =>
+          onFriendClick?.({
+            id: "friend-1",
+            name: "Lan",
+            avatar: "/lan.png",
+            status: "online",
+          }),
+      },
+      "Lan",
+    ),
+}))
+
+vi.mock("@/actions/posts", () => ({
+  loadFeedPosts: vi.fn(),
+  togglePostLike: vi.fn(),
+  getPostById: vi.fn(),
+}))
+
+vi.mock("@/components/ui/use-toast", () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}))
+
+function Stub({ children }: { children?: ReactNode }) {
+  return createElement("div", null, children)
+}
+
+vi.mock("@/components/ui/card", () => ({
+  Card: Stub,
+  CardContent: Stub,
+}))
+
+vi.mock("@/components/shared/user-avatar", () => ({
+  UserAvatar: Stub,
+}))
+
+vi.mock("@/components/layout/sidebar-nav-item", () => ({
+  SidebarNavItem: Stub,
+}))
+
+vi.mock("@/components/shared/section-header", () => ({
+  SectionHeader: Stub,
+}))
+
+vi.mock("@/components/shared/divider-label", () => ({
+  DividerLabel: Stub,
+}))
+
+vi.mock("@/components/feed/post-card", () => ({
+  PostCard: Stub,
+  PostCardSkeleton: Stub,
+}))
+
+vi.mock("@/components/feed/feed-empty-state", () => ({
+  FeedEmptyState: Stub,
+}))
+
+vi.mock("@/components/feed/post-composer", () => ({
+  PostComposer: Stub,
+}))
+
+vi.mock("@/components/feed/announcement-feed-card", () => ({
+  AnnouncementFeedCard: Stub,
+}))
+
+vi.mock("@/components/dashboard/trending-item", () => ({
+  TrendingItem: Stub,
+}))
+
+vi.mock("@/components/dashboard/event-item", () => ({
+  EventItem: Stub,
+}))
+
+vi.mock("@/components/layout/page-container", () => ({
+  PageContainer: Stub,
+}))
+
+vi.mock("@/components/layout/sidebar-group-item", () => ({
+  SidebarGroupItem: Stub,
+}))
+
+vi.mock("@/components/feed/post-detail-dialog", () => ({
+  PostDetailDialog: Stub,
+}))
+
+vi.mock("next/link", () => ({
+  default: Stub,
+}))
 
 const FEED_PAGE_SOURCE = readFileSync(
   path.join(process.cwd(), "src/app/(main)/feed/feed-page-client.tsx"),
   "utf8",
 )
 
+const roots: Root[] = []
+const reactActGlobal = globalThis as typeof globalThis & {
+  IS_REACT_ACT_ENVIRONMENT?: boolean
+}
+
+async function renderFeedPage() {
+  const { FeedPageClient } = await import("@/app/(main)/feed/feed-page-client")
+  const container = document.createElement("div")
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  roots.push(root)
+
+  await act(async () => {
+    root.render(
+      createElement(FeedPageClient, {
+        currentUser: {
+          userId: "user-self",
+          displayName: "Self",
+          avatarUrl: null,
+        },
+        initialPosts: [],
+        initialCursor: {
+          redisFetched: 0,
+          celebrityFetched: 0,
+          freshnessFetched: 0,
+          followedFetched: 0,
+          restFetched: 0,
+          followedExhausted: false,
+        },
+        initialHasMore: false,
+      }),
+    )
+  })
+
+  return container
+}
+
 describe("FeedPageClient chat dock migration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    reactActGlobal.IS_REACT_ACT_ENVIRONMENT = true
+    globalThis.IntersectionObserver = class {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    } as typeof IntersectionObserver
+  })
+
+  afterEach(async () => {
+    while (roots.length > 0) {
+      const root = roots.pop()
+      if (!root) {
+        continue
+      }
+
+      await act(async () => {
+        root.unmount()
+      })
+    }
+
+    document.body.innerHTML = ""
+  })
+
+  it("opens the returned direct conversation once while the same friend is already opening", async () => {
+    let resolveOpen:
+      | ((value: {
+          success: true
+          data: {
+            conversationId: string
+            peer: {
+              userId: string
+              displayName: string
+              avatarUrl: string | null
+            }
+          }
+        }) => void)
+      | undefined
+    const pendingOpen = new Promise<{
+      success: true
+      data: {
+        conversationId: string
+        peer: {
+          userId: string
+          displayName: string
+          avatarUrl: string | null
+        }
+      }
+    }>((resolve) => {
+      resolveOpen = resolve
+    })
+    openDirectConversation.mockReturnValue(pendingOpen)
+    const container = await renderFeedPage()
+    const friendButton = container.querySelector('[data-testid="active-friend"]')
+    expect(friendButton).not.toBeNull()
+
+    await act(async () => {
+      friendButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+      friendButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    })
+
+    expect(openDirectConversation).toHaveBeenCalledTimes(1)
+    expect(openDirectConversation).toHaveBeenCalledWith("friend-1")
+
+    await act(async () => {
+      resolveOpen?.({
+        success: true,
+        data: {
+          conversationId: "conversation-1",
+          peer: {
+            userId: "friend-1",
+            displayName: "Lan",
+            avatarUrl: "/lan.png",
+          },
+        },
+      })
+      await pendingOpen
+    })
+
+    expect(openConversation).toHaveBeenCalledTimes(1)
+    expect(openConversation).toHaveBeenCalledWith({
+      id: "conversation-1",
+      name: "Lan",
+      avatarUrl: "/lan.png",
+      isGroup: false,
+      peerUserId: "friend-1",
+      participantCount: 2,
+      communityType: null,
+    })
+  })
+
   it("delegates floating chat ownership to the global dock", () => {
     expect(FEED_PAGE_SOURCE).not.toContain(
       'import { ChatPopup } from "@/components/layout/chat-popup"',
