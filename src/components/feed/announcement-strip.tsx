@@ -255,7 +255,7 @@ export function AnnouncementStripSkeleton() {
         <div className="flex gap-3 overflow-hidden">
           {[0, 1, 2].map((i) => (
             <div
-              key={i}
+              key={`announcement-skel-${i}`}
               className="flex-none w-[260px] h-[260px] rounded-xl border border-border p-3 space-y-2"
             >
               <div className="flex items-center gap-2">

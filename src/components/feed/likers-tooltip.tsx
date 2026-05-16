@@ -55,8 +55,8 @@ export function LikersTooltip({ postId, children }: LikersTooltipProps) {
             <Loader2 className="size-3.5 animate-spin mx-auto" />
           ) : likers && likers.length > 0 ? (
             <div className="flex flex-col gap-0.5">
-              {likers.map((u, i) => (
-                <span key={i} className="truncate">{u.displayName}</span>
+              {likers.map((u) => (
+                <span key={u.displayName} className="truncate">{u.displayName}</span>
               ))}
               {total > likers.length && (
                 <span className="text-muted-background/70 mt-0.5">
