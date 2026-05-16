@@ -380,4 +380,79 @@ describe("ChatDock", () => {
 
     expect(getRenderedIds(container)).toEqual([])
   })
+
+  it("does not open a hydrated bubble after navigation moves to the messages route", async () => {
+    let resolveHydration:
+      | ((value: {
+          success: true
+          data: Array<{
+            id: string
+            name: string
+            peerUserId: string | null
+            avatarUrl: string | null
+            isGroup: boolean
+            communityType: null
+            communityTargetId: null
+            isOnline: boolean
+            participantCount: number
+            unreadCount: number
+            lastMessage: string
+            lastMessageAt: null
+          }>
+        }) => void)
+      | undefined
+
+    listMyConversations.mockReturnValue(
+      new Promise((resolve) => {
+        resolveHydration = resolve
+      }),
+    )
+    const { container, root } = await renderDock()
+    roots.push(root)
+
+    const incoming = useInboxNotification.mock.calls.at(-1)?.[0]?.onIncoming as
+      | ((notification: { conversationId: string }) => Promise<void>)
+      | undefined
+
+    void incoming?.({
+      conversationId: "legacy-direct",
+    })
+
+    usePathname.mockReturnValue("/messages")
+    await act(async () => {
+      root.render(
+        createElement(
+          TestChatDock,
+          {
+            userId: "user-self",
+          },
+          createElement(DockHarness),
+        ),
+      )
+    })
+
+    await act(async () => {
+      resolveHydration?.({
+        success: true,
+        data: [
+          {
+            id: "legacy-direct",
+            name: "Lan",
+            peerUserId: "user-lan",
+            avatarUrl: "/lan.png",
+            isGroup: false,
+            communityType: null,
+            communityTargetId: null,
+            isOnline: false,
+            participantCount: 2,
+            unreadCount: 1,
+            lastMessage: "Xin chao",
+            lastMessageAt: null,
+          },
+        ],
+      })
+    })
+
+    expect(getRenderedIds(container)).toEqual([])
+  })
 })
