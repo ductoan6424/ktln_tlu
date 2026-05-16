@@ -48,11 +48,11 @@ export function SimpleBarChart({
       className={cn("flex items-end justify-between gap-2", className)}
       style={{ height }}
     >
-      {data.map((item, idx) => {
+      {data.map((item) => {
         const heightPercent = (item.value / maxValue) * 100
         return (
           <div
-            key={`${item.label}-${idx}`}
+            key={item.label}
             className="flex-1 flex flex-col items-center gap-1.5 min-w-0"
             title={item.tooltip ?? `${item.label}: ${item.value}`}
           >

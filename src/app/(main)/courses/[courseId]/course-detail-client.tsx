@@ -110,9 +110,9 @@ export function CourseDetailClient({
             />
           ) : null}
 
-          {POSTS.map((post, index) => (
+          {POSTS.map((post) => (
             <PostCard
-              key={index}
+              key={`${post.authorName}-${post.createdAt}`}
               authorName={post.authorName}
               createdAt={post.createdAt}
               content={post.content}

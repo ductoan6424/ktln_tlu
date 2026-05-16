@@ -93,7 +93,7 @@ export function CommunityPostComposer({
           <div className="space-y-2">
             {files.map((file, index) => (
               <div
-                key={`${file.name}-${file.size}-${index}`}
+                key={`${file.name}-${file.size}-${file.lastModified}`}
                 className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
               >
                 <span className="flex min-w-0 items-center gap-2">
