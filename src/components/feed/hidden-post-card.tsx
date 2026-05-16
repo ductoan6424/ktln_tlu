@@ -51,6 +51,7 @@ export function HiddenPostCard({ item, onUnhide, disabled }: HiddenPostCardProps
             src={item.imageUrl}
             alt="Ảnh bài viết"
             fill
+            sizes="(max-width: 768px) 100vw, 600px"
             className="object-cover"
           />
         </div>

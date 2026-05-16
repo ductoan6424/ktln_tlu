@@ -34,7 +34,7 @@ export function AnnouncementMenu({ announcementId, isSaved = false, onUnsave }: 
         })
         return
       }
-      const nowSaved = res.data.saved
+      const nowSaved = res.data?.saved ?? false
       setSaved(nowSaved)
       if (!nowSaved) onUnsave?.()
       toast({

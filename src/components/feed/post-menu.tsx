@@ -77,7 +77,7 @@ export function PostMenu({
         })
         return
       }
-      const nowSaved = res.data.saved
+      const nowSaved = res.data?.saved ?? false
       setSaved(nowSaved)
       toast({
         description: nowSaved ? "Đã lưu bài viết." : "Đã bỏ lưu bài viết.",

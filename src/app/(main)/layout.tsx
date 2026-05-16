@@ -30,6 +30,9 @@ export default async function MainLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Khởi chạy song song các tác vụ độc lập với auth
+  const moduleFlagsPromise = getModuleFlags()
+
   const supabase = await createClient()
   const {
     data: { user: authUser },
@@ -47,7 +50,7 @@ export default async function MainLayout({
           },
         })
       : Promise.resolve(null),
-    getModuleFlags(),
+    moduleFlagsPromise,
   ])
 
   const sessionUser = buildSessionUser(authUser, profile)

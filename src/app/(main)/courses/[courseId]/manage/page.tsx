@@ -49,11 +49,12 @@ export default async function ManageCoursePage({
   params: Promise<{ courseId: string }>
   searchParams?: Promise<SearchParams>
 }) {
-  const [{ courseId }, queryParams] = await Promise.all([
-    params,
+  const { courseId } = await params
+  const [queryParams, accessResult] = await Promise.all([
     searchParams ?? Promise.resolve({}),
+    requireCourseManagementAccess(courseId),
   ])
-  const { context, course } = await requireCourseManagementAccess(courseId)
+  const { context, course } = accessResult
   const canonicalPath = buildCommunityPath("COURSE", course.code, course.shortId, "manage")
 
   if (courseId !== course.id && canonicalPath !== `/courses/${courseId}/manage`) {

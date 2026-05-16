@@ -71,8 +71,10 @@ export default async function SettingsPage({
   const { data: authData } = await supabase.auth.getUser()
   if (!authData.user) redirect("/login")
 
-  const { section: activeSection = "profile" } = await searchParams
-  const profile = await getUserProfile(authData.user.id)
+  const [{ section: activeSection = "profile" }, profile] = await Promise.all([
+    searchParams,
+    getUserProfile(authData.user.id),
+  ])
 
   return (
     <PageContainer variant="centered" className="space-y-6">

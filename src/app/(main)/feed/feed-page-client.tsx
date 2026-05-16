@@ -53,6 +53,9 @@ const EVENTS_DATA = [
   { month: "Th3", day: "18", title: "Ngày hội việc làm", location: "Sảnh chính", time: "09:00" },
 ]
 
+// Tránh tạo array mới mỗi render → ổn định reference để React.memo làm việc
+const EMPTY_ANNOUNCEMENTS: AnnouncementStripItem[] = []
+
 interface SharedPostData {
   id: string
   content: string
@@ -123,12 +126,13 @@ export function FeedPageClient({
   initialCursor,
   initialHasMore,
   deepLinkPostId,
-  announcements = [],
+  announcements = EMPTY_ANNOUNCEMENTS,
 }: FeedPageClientProps) {
   const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(initialHasMore)
-  const [cursor, setCursor] = useState<FeedCursor>(initialCursor)
+
+  const hasMoreRef = useRef<boolean>(initialHasMore)
+  const cursorRef = useRef<FeedCursor>(initialCursor)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const rollbackRef = useRef<FeedPost[] | null>(null)
   const { toast } = useToast()
@@ -138,8 +142,8 @@ export function FeedPageClient({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync posts với kết quả revalidate từ server
     setPosts(initialPosts)
-    setCursor(initialCursor)
-    setHasMore(initialHasMore)
+    cursorRef.current = initialCursor
+    hasMoreRef.current = initialHasMore
   }, [initialPosts, initialCursor, initialHasMore])
 
   const [deepLinkData, setDeepLinkData] = useState<DeepLinkPost | null>(null)
@@ -237,11 +241,11 @@ export function FeedPageClient({
   )
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return
+    if (isLoadingMore || !hasMoreRef.current) return
 
     setIsLoadingMore(true)
 
-    const result = await loadFeedPosts(cursor, FEED_PAGE_SIZE)
+    const result = await loadFeedPosts(cursorRef.current, FEED_PAGE_SIZE)
 
     if (result.success && result.data) {
       const page = result.data
@@ -272,14 +276,14 @@ export function FeedPageClient({
         const filtered = newPosts.filter((p) => !existingIds.has(p.id))
         return [...prev, ...filtered]
       })
-      setCursor(page.nextCursor)
-      setHasMore(page.hasMore)
+      cursorRef.current = page.nextCursor
+      hasMoreRef.current = page.hasMore
     } else {
-      setHasMore(false)
+      hasMoreRef.current = false
     }
 
     setIsLoadingMore(false)
-  }, [isLoadingMore, hasMore, cursor])
+  }, [isLoadingMore])
 
   useEffect(() => {
     const sentinel = sentinelRef.current

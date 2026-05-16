@@ -138,6 +138,7 @@ export function UserHoverCard({
             src={coverUrl}
             alt={`Ảnh bìa của ${displayName}`}
             fill
+            sizes="320px"
             className="object-cover"
           />
         )}

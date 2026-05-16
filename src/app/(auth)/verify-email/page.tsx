@@ -1,4 +1,6 @@
 // src/app/(auth)/verify-email/page.tsx
+import Link from "next/link"
+
 import { verifyEmail } from "@/actions/auth"
 import { CheckCircle, XCircle } from "lucide-react"
 
@@ -29,18 +31,18 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
                 </p>
               </div>
               <div className="space-y-3">
-                <a
+                <Link
                   href="/login"
                   className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
                 >
                   Quay về đăng nhập
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/register"
                   className="block w-full py-3 px-4 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
                 >
                   Đăng ký tài khoản mới
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -63,12 +65,12 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
                 Tài khoản của bạn đã được xác minh. Bây giờ bạn có thể đăng nhập.
               </p>
             </div>
-            <a
+            <Link
               href="/login"
               className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
             >
               Đăng nhập ngay
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -91,18 +93,18 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
             </p>
           </div>
           <div className="space-y-3">
-            <a
+            <Link
               href="/login"
               className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
             >
               Quay về đăng nhập
-            </a>
-            <a
+            </Link>
+            <Link
               href="/register"
               className="block w-full py-3 px-4 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
             >
               Đăng ký tài khoản mới
-            </a>
+            </Link>
           </div>
         </div>
       </div>
