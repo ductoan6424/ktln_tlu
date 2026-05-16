@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -130,6 +131,8 @@ async function hydrateConversation(conversationId: string) {
 
 export function ChatDock({ children, userId }: ChatDockProps) {
   const pathname = usePathname()
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
   const [conversations, setConversations] = useState<ChatConversationBubble[]>([])
 
   const openConversation = useCallback((conversation: ChatConversationBubble) => {
@@ -153,7 +156,7 @@ export function ChatDock({ children, userId }: ChatDockProps) {
 
   const handleIncoming = useCallback(
     async (notification: ChatInboxEvent) => {
-      if (pathname === "/messages") {
+      if (pathnameRef.current === "/messages") {
         return
       }
 
@@ -161,11 +164,11 @@ export function ChatDock({ children, userId }: ChatDockProps) {
         ? notificationToConversation(notification)
         : await hydrateConversation(notification.conversationId)
 
-      if (conversation) {
+      if (conversation && pathnameRef.current !== "/messages") {
         openConversation(conversation)
       }
     },
-    [openConversation, pathname],
+    [openConversation],
   )
 
   useInboxNotification({
