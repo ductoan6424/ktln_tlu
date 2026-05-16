@@ -10,6 +10,7 @@ import {
   getPersonalizedFeedPostIds,
 } from "@/lib/feed/fanout";
 import { buildCommunityPath } from "@/lib/communities/urls";
+import { buildVisiblePostWhere } from "@/lib/posts/visibility";
 
 export type FeedCursor = {
   redisFetched: number;
@@ -335,24 +336,12 @@ export function buildCommunityFeedWhere({
   joinedCourseIds,
   hiddenIds,
 }: CommunityFeedWhereInput): Prisma.PostWhereInput {
-  return {
-    visibility: "PUBLIC",
-    deletedAt: null,
-    communityStatus: "PUBLISHED",
-    OR: [
-      { groupId: null, clubId: null, courseId: null },
-      ...(joinedGroupIds.length > 0
-        ? [{ groupId: { in: joinedGroupIds } }]
-        : []),
-      ...(joinedClubIds.length > 0
-        ? [{ clubId: { in: joinedClubIds } }]
-        : []),
-      ...(joinedCourseIds.length > 0
-        ? [{ courseId: { in: joinedCourseIds } }]
-        : []),
-    ],
-    ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
-  };
+  return buildVisiblePostWhere({
+    joinedGroupIds,
+    joinedClubIds,
+    joinedCourseIds,
+    hiddenIds,
+  });
 }
 
 export function buildCommunityDetailPostWhere(
