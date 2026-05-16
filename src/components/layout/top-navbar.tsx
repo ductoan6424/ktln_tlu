@@ -173,6 +173,7 @@ export function TopNavbar({
             placeholder={searchPlaceholder}
             className="flex-1"
             autoFocus
+            onClose={() => setMobileSearchOpen(false)}
           />
           <Button
             variant="ghost"

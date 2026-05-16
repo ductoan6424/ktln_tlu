@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 
-import { SearchInput } from "@/components/shared/search-input"
+import { FilterSearchInput } from "@/components/shared/filter-search-input"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import type { AdminTabItems } from "@/lib/admin/admin-types"
 import { buttonVariants } from "@/components/ui/button-variants"
@@ -31,7 +31,7 @@ export function AdminFilterBar({
 
   if (tabs.length === 0) {
     return (
-      <SearchInput
+      <FilterSearchInput
         placeholder={searchPlaceholder}
         value={resolvedQuery}
         onChange={onQueryChange}
@@ -43,7 +43,7 @@ export function AdminFilterBar({
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
-      <SearchInput placeholder={searchPlaceholder} value={resolvedQuery} onChange={onQueryChange} />
+      <FilterSearchInput placeholder={searchPlaceholder} value={resolvedQuery} onChange={onQueryChange} />
       {hasHrefTabs ? (
         <div className="flex gap-2 overflow-x-auto">
           {tabs.map((tab) => {

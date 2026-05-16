@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { SearchInput } from "@/components/shared/search-input"
+import { FilterSearchInput } from "@/components/shared/filter-search-input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,7 +64,7 @@ export function MemberManageList() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <SearchInput
+          <FilterSearchInput
             placeholder="Tìm thành viên..."
             value={search}
             onChange={setSearch}
