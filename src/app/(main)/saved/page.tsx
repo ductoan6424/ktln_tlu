@@ -23,8 +23,8 @@ export default async function SavedPage() {
     }),
   ])
 
-  const savedPosts = savedPostsRes.success ? savedPostsRes.data : []
-  const savedAnnouncements = savedAnnouncementsRes.success ? savedAnnouncementsRes.data : []
+  const savedPosts = (savedPostsRes.success && savedPostsRes.data) ? savedPostsRes.data : []
+  const savedAnnouncements = (savedAnnouncementsRes.success && savedAnnouncementsRes.data) ? savedAnnouncementsRes.data : []
   const currentUser = profile
     ? {
         userId: profile.userId,

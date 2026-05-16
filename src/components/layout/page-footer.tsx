@@ -35,7 +35,7 @@ export function PageFooter({
         {variant === "full" ? (
           <AppLogo size="sm" />
         ) : (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground" suppressHydrationWarning>
             © {new Date().getFullYear()} TLU Community. Mọi quyền được bảo lưu.
           </p>
         )}
@@ -52,7 +52,7 @@ export function PageFooter({
         </div>
       </div>
       {variant === "full" && (
-        <p className="text-xs text-muted-foreground text-center mt-4">
+        <p className="text-xs text-muted-foreground text-center mt-4" suppressHydrationWarning>
           © {new Date().getFullYear()} TLU Community. Mọi quyền được bảo lưu.
         </p>
       )}

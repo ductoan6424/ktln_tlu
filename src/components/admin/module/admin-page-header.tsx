@@ -9,6 +9,8 @@ interface AdminHeaderAction {
   variant?: "default" | "outline" | "secondary" | "ghost"
 }
 
+const EMPTY_ACTIONS: AdminHeaderAction[] = []
+
 interface AdminPageHeaderProps {
   title: string
   description: string
@@ -20,7 +22,7 @@ export function AdminPageHeader({
   title,
   description,
   primaryAction,
-  secondaryActions = [],
+  secondaryActions = EMPTY_ACTIONS,
 }: AdminPageHeaderProps) {
   return (
     <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

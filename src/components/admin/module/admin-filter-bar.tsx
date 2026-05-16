@@ -8,6 +8,8 @@ import type { AdminTabItems } from "@/lib/admin/admin-types"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { cn } from "@/lib/utils"
 
+const EMPTY_TABS: AdminTabItems = []
+
 interface AdminFilterBarProps {
   activeTab?: string
   onActiveTabChange?: (value: string) => void
@@ -22,7 +24,7 @@ export function AdminFilterBar({
   onActiveTabChange,
   onQueryChange,
   query,
-  tabs = [],
+  tabs = EMPTY_TABS,
   searchPlaceholder = "Tìm kiếm...",
 }: AdminFilterBarProps) {
   const resolvedActiveTab = activeTab ?? ""

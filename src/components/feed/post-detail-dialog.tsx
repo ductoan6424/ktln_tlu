@@ -297,6 +297,7 @@ export function PostDetailDialog({
                   src={imageUrl!}
                   alt="Ảnh bài viết"
                   fill
+                  sizes="100vw"
                   className="object-contain"
                 />
               </div>
@@ -401,6 +402,7 @@ export function PostDetailDialog({
                   src={imageUrl!}
                   alt="Ảnh bài viết"
                   fill
+                  sizes="(max-width: 1280px) calc(100vw - 420px), calc(100vw - 420px)"
                   className="object-contain"
                 />
               </div>

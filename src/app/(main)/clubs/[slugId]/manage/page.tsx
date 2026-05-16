@@ -60,11 +60,13 @@ export default async function ClubManagePage({
   params: Promise<{ slugId: string }>
   searchParams?: Promise<SearchParams>
 }) {
-  const [{ slugId }, queryParams] = await Promise.all([
-    params,
-    searchParams ?? Promise.resolve({}),
-  ])
-  const target = await getCommunityBySlugId("CLUB", slugId)
+  const { slugId } = await params
+  // Khởi chạy song song các tác vụ độc lập với target
+  const queryParamsPromise = searchParams ?? Promise.resolve({})
+  const contextPromise = getAuthorizationContext().catch(() => null)
+  const targetPromise = getCommunityBySlugId("CLUB", slugId)
+
+  const target = await targetPromise
   if (!target) notFound()
 
   const href = buildCommunityPath("CLUB", target.name, target.shortId)
@@ -72,12 +74,11 @@ export default async function ClubManagePage({
     redirect(`${href}/manage`)
   }
 
-  const context = await getAuthorizationContext().catch(() => null)
-  const membershipRole = await getViewerMembershipRole(
-    "CLUB",
-    target.id,
-    context?.profile.userId ?? null,
-  )
+  const context = await contextPromise
+  const [membershipRole, queryParams] = await Promise.all([
+    getViewerMembershipRole("CLUB", target.id, context?.profile.userId ?? null),
+    queryParamsPromise,
+  ])
   const permissions = getCommunityPermissions({
     viewerId: context?.profile.userId ?? null,
     baseRole: context?.baseRole ?? null,

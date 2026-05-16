@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 import type { ChatMessageItem } from "@/types/chat"
 import { formatChatFullTime, formatChatTime } from "@/utils/formatters"
 
+const EMPTY_MESSAGES: ChatMessageItem[] = []
+
 type SendPayload = {
   message: string
   attachmentFile?: File | null
@@ -45,7 +47,7 @@ export function CommunityChatPanel({
   conversationId,
   canSend,
   readonlyLabel,
-  messages = [],
+  messages = EMPTY_MESSAGES,
   className,
 }: CommunityChatPanelProps) {
   const [items, setItems] = useState(messages)

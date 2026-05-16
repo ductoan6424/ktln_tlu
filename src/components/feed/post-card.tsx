@@ -189,6 +189,7 @@ export function PostCard({
                       src={imageUrl}
                       alt="Ảnh bài viết"
                       fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 720px"
                       className="object-cover"
                     />
                   </div>

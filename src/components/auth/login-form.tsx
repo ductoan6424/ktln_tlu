@@ -3,6 +3,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { SsoButton } from "@/components/auth/sso-button"
 import { DividerLabel } from "@/components/shared/divider-label"
@@ -82,9 +83,9 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           <div className="mt-8 pt-6 border-t border-border text-center">
             <p className="text-xs text-muted-foreground">
               Khi đăng nhập, bạn đồng ý với{" "}
-              <a href="/terms" className="text-primary hover:underline underline-offset-4">
+              <Link href="/terms" className="text-primary hover:underline underline-offset-4">
                 Điều khoản dịch vụ
-              </a>
+              </Link>
               .
             </p>
           </div>
