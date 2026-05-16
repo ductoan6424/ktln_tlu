@@ -1,24 +1,29 @@
-"use client"
-
-import { useState } from "react"
+import { redirect } from "next/navigation"
+import Link from "next/link"
+import { createClient } from "@/lib/supabase/server"
+import { prisma } from "@/lib/prisma/client"
+import { PageContainer } from "@/components/layout/page-container"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { UserAvatar } from "@/components/shared/user-avatar"
+import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { SectionHeader } from "@/components/shared/section-header"
-import { Skeleton } from "@/components/ui/skeleton"
-import { PageContainer } from "@/components/layout/page-container"
+import { PushDevicesManager } from "@/components/pwa/push-devices-manager"
+import { SignOutOthersButton } from "@/components/auth/sign-out-others-button"
 import {
   User,
   Bell,
   Shield,
   Palette,
   Globe,
-  Camera,
+  EyeOff,
 } from "lucide-react"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = { title: "Cài đặt" }
 
 const SETTINGS_NAV = [
   { icon: User, label: "Hồ sơ cá nhân", value: "profile" },
@@ -28,8 +33,48 @@ const SETTINGS_NAV = [
   { icon: Globe, label: "Ngôn ngữ", value: "language" },
 ]
 
-export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState("profile")
+const SETTINGS_LINKS = [
+  { icon: EyeOff, label: "Bài viết đã ẩn", href: "/settings/hidden-posts" },
+]
+
+interface UserProfile {
+  displayName: string
+  studentId: string | null
+  avatarUrl: string | null
+  bio: string | null
+  major: string | null
+  year: number | null
+  email: string
+}
+
+async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  return prisma.userProfile.findUnique({
+    where: { userId },
+    select: {
+      displayName: true,
+      studentId: true,
+      avatarUrl: true,
+      bio: true,
+      major: true,
+      year: true,
+      email: true,
+    },
+  })
+}
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ section?: string }>
+}) {
+  const supabase = await createClient()
+  const { data: authData } = await supabase.auth.getUser()
+  if (!authData.user) redirect("/login")
+
+  const [{ section: activeSection = "profile" }, profile] = await Promise.all([
+    searchParams,
+    getUserProfile(authData.user.id),
+  ])
 
   return (
     <PageContainer variant="centered" className="space-y-6">
@@ -52,9 +97,9 @@ export default function SettingsPage() {
                   const Icon = item.icon
                   const isActive = activeSection === item.value
                   return (
-                    <button
+                    <Link
                       key={item.value}
-                      onClick={() => setActiveSection(item.value)}
+                      href={`/settings?section=${item.value}`}
                       className={`
                         w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
                         ${isActive
@@ -65,7 +110,21 @@ export default function SettingsPage() {
                     >
                       <Icon className="size-4" />
                       {item.label}
-                    </button>
+                    </Link>
+                  )
+                })}
+                <Separator className="my-1" />
+                {SETTINGS_LINKS.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    >
+                      <Icon className="size-4" />
+                      {item.label}
+                    </Link>
                   )
                 })}
               </nav>
@@ -75,7 +134,9 @@ export default function SettingsPage() {
 
         {/* Nội dung chính */}
         <section className="lg:col-span-9">
-          {activeSection === "profile" && <ProfileSection />}
+          {activeSection === "profile" && profile && (
+            <ProfileSection profile={profile} />
+          )}
           {activeSection === "notifications" && <NotificationsSection />}
           {activeSection === "security" && <SecuritySection />}
           {activeSection === "appearance" && <AppearanceSection />}
@@ -89,44 +150,42 @@ export default function SettingsPage() {
 /* ------------------------------------------------------------------ */
 /* Hồ sơ cá nhân                                                       */
 /* ------------------------------------------------------------------ */
-function ProfileSection() {
+function ProfileSection({ profile }: { profile: UserProfile }) {
   return (
     <Card>
       <CardContent className="p-6 space-y-6">
         <SectionHeader title="Hồ sơ cá nhân" />
 
         {/* Ảnh đại diện */}
-        <div className="flex items-center gap-6">
-          <div className="relative">
-            <UserAvatar name="Nguyễn Đức Toàn" size="lg" />
-            <button className="absolute -bottom-1 -right-1 size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-sm">
-              <Camera className="size-3.5" />
-            </button>
-          </div>
-          <div>
-            <p className="text-sm font-semibold">Ảnh đại diện</p>
-            <p className="text-xs text-muted-foreground">
-              JPG, PNG hoặc GIF. Tối đa 2MB.
-            </p>
-          </div>
-        </div>
+        <AvatarUploader
+          variant="settings"
+          currentAvatarUrl={profile.avatarUrl}
+          displayName={profile.displayName}
+        />
 
         <Separator />
 
         {/* Form */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SettingsField label="Họ và tên" defaultValue="Nguyễn Đức Toàn" />
-          <SettingsField label="Mã sinh viên" defaultValue="2051063624" disabled />
-          <SettingsField label="Email" defaultValue="toan@e.tlu.edu.vn" type="email" />
-          <SettingsField label="Số điện thoại" defaultValue="0912345678" type="tel" />
-          <SettingsField label="Khoa" defaultValue="Công nghệ thông tin" disabled />
-          <SettingsField label="Khoá" defaultValue="K35" disabled />
+          <SettingsField label="Họ và tên" defaultValue={profile.displayName} />
+          <SettingsField
+            label="Mã sinh viên"
+            defaultValue={profile.studentId ?? ""}
+            disabled
+          />
+          <SettingsField label="Email" defaultValue={profile.email} type="email" />
+          <SettingsField label="Khoa" defaultValue={profile.major ?? ""} disabled />
+          <SettingsField
+            label="Khoá"
+            defaultValue={profile.year ? `K${profile.year}` : ""}
+            disabled
+          />
         </div>
 
         <div className="space-y-2">
           <label className="text-sm font-medium">Giới thiệu bản thân</label>
           <Textarea
-            defaultValue="Sinh viên năm 4 ngành CNTT, đam mê AI/ML và phát triển web."
+            defaultValue={profile.bio ?? ""}
             rows={3}
           />
         </div>
@@ -149,13 +208,18 @@ function NotificationsSection() {
       <CardContent className="p-6 space-y-6">
         <SectionHeader title="Cài đặt thông báo" />
 
+        <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          Quản lý bật/tắt thông báo đẩy và danh sách thiết bị nhận thông báo trong{" "}
+          <Link
+            href="/settings?section=security"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Bảo mật → Thông báo đẩy
+          </Link>
+          .
+        </p>
+
         <div className="space-y-4">
-          <SettingsToggle
-            title="Thông báo đẩy"
-            description="Nhận thông báo trên trình duyệt khi có hoạt động mới"
-            defaultChecked
-          />
-          <Separator />
           <SettingsToggle
             title="Thông báo qua email"
             description="Nhận email tóm tắt hoạt động hàng tuần"
@@ -220,33 +284,34 @@ function SecuritySection() {
         </CardContent>
       </Card>
 
+      {/* Thông báo đẩy & thiết bị PWA */}
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="space-y-1">
+            <SectionHeader title="Thông báo đẩy" />
+            <p className="text-xs text-muted-foreground">
+              Quản lý bật/tắt và các trình duyệt/PWA đã đăng ký nhận thông báo.
+            </p>
+          </div>
+          <PushDevicesManager />
+        </CardContent>
+      </Card>
+
       {/* Phiên đăng nhập */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <SectionHeader title="Phiên đăng nhập" />
-          <div className="space-y-3">
-            <SessionItem
-              device="Chrome trên Windows"
-              location="Hà Nội, Việt Nam"
-              time="Đang hoạt động"
-              isCurrent
-            />
-            <Separator />
-            <SessionItem
-              device="Safari trên iPhone"
-              location="Hà Nội, Việt Nam"
-              time="2 giờ trước"
-            />
-            <Separator />
-            <SessionItem
-              device="Firefox trên macOS"
-              location="Hà Nội, Việt Nam"
-              time="3 ngày trước"
-            />
+          <div className="space-y-1">
+            <SectionHeader title="Phiên đăng nhập" />
+            <p className="text-xs text-muted-foreground">
+              Thu hồi đăng nhập trên các thiết bị khác. Phiên hiện tại được giữ nguyên.
+            </p>
           </div>
-          <Button variant="outline" className="text-destructive hover:text-destructive">
-            Đăng xuất tất cả thiết bị khác
-          </Button>
+          <p className="text-xs text-muted-foreground">
+            Vì lý do bảo mật, chúng tôi không hiển thị danh sách phiên cụ thể. Bạn có thể đăng xuất khỏi mọi thiết bị khác chỉ bằng một thao tác.
+          </p>
+          <div className="flex justify-start">
+            <SignOutOthersButton />
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -378,46 +443,11 @@ function SettingsToggle({
   )
 }
 
-function SessionItem({
-  device,
-  location,
-  time,
-  isCurrent = false,
-}: {
-  device: string
-  location: string
-  time: string
-  isCurrent?: boolean
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium flex items-center gap-2">
-          {device}
-          {isCurrent && (
-            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-              Hiện tại
-            </span>
-          )}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {location} • {time}
-        </p>
-      </div>
-      {!isCurrent && (
-        <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive">
-          Đăng xuất
-        </Button>
-      )}
-    </div>
-  )
-}
-
 function ThemeOption({ label, isActive = false }: { label: string; isActive?: boolean }) {
   return (
-    <button
+    <div
       className={`
-        rounded-lg border-2 p-4 text-center text-sm font-medium transition-colors
+        rounded-lg border-2 p-4 text-center text-sm font-medium transition-colors cursor-pointer
         ${isActive
           ? "border-primary bg-primary/5 text-primary"
           : "border-border hover:border-muted-foreground/30"
@@ -425,7 +455,7 @@ function ThemeOption({ label, isActive = false }: { label: string; isActive?: bo
       `}
     >
       {label}
-    </button>
+    </div>
   )
 }
 
@@ -439,9 +469,9 @@ function LanguageOption({
   isActive?: boolean
 }) {
   return (
-    <button
+    <div
       className={`
-        w-full flex items-center justify-between rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors
+        w-full flex items-center justify-between rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors cursor-pointer
         ${isActive
           ? "border-primary bg-primary/5 text-primary"
           : "border-border hover:border-muted-foreground/30"
@@ -450,49 +480,6 @@ function LanguageOption({
     >
       <span>{label}</span>
       <span className="text-xs text-muted-foreground uppercase">{code}</span>
-    </button>
-  )
-}
-
-/* Skeleton */
-export function SettingsPageSkeleton() {
-  return (
-    <PageContainer variant="centered" className="space-y-6">
-      <Skeleton className="h-7 w-28" />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <aside className="lg:col-span-3">
-          <Card>
-            <CardContent className="p-2 space-y-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full rounded-md" />
-              ))}
-            </CardContent>
-          </Card>
-        </aside>
-        <section className="lg:col-span-9">
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <Skeleton className="h-5 w-32" />
-              <div className="flex items-center gap-6">
-                <Skeleton className="size-14 rounded-full" />
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-40" />
-                </div>
-              </div>
-              <Skeleton className="h-px w-full" />
-              <div className="grid grid-cols-2 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-9 w-full" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      </div>
-    </PageContainer>
+    </div>
   )
 }

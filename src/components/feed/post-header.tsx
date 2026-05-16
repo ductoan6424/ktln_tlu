@@ -1,61 +1,151 @@
+"use client"
+
+import Link from "next/link"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { IconButton } from "@/components/shared/icon-button"
+import { RelativeTime } from "@/components/shared/relative-time"
 import { Skeleton } from "@/components/ui/skeleton"
+import { UserHoverCard } from "@/components/feed/user-hover-card"
 import { MoreHorizontal, BadgeCheck } from "lucide-react"
+import type { ReactNode } from "react"
 
 interface PostHeaderProps {
+  authorId?: string
   authorName: string
   authorAvatar?: string
+  authorCover?: string
   createdAt: string
   tag?: string
   tagVariant?: "primary" | "accent" | "muted"
   isVerified?: boolean
   subtitle?: string
+  currentUserId?: string | null
+  communityContext?: {
+    type: "GROUP" | "CLUB" | "COURSE"
+    name: string
+    href: string
+  } | null
   onMore?: () => void
+  menu?: ReactNode
 }
 
+const COMMUNITY_LABELS = {
+  GROUP: "Nhóm",
+  CLUB: "CLB",
+  COURSE: "Lớp học",
+} as const
+
 export function PostHeader({
+  authorId,
   authorName,
   authorAvatar,
+  authorCover,
   createdAt,
   tag,
   tagVariant = "primary",
   isVerified = false,
   subtitle,
+  currentUserId,
+  communityContext,
   onMore,
+  menu,
 }: PostHeaderProps) {
-  return (
-    <div className="flex justify-between items-start">
-      <div className="flex gap-3">
-        <UserAvatar src={authorAvatar} name={authorName} size="md" />
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h4 className="font-bold text-sm">{authorName}</h4>
+  const profileHref = authorId ? `/profile/${authorId}` : null
+
+  const avatarNode = (
+    <UserAvatar src={authorAvatar} name={authorName} size="md" />
+  )
+
+  const nameNode = (
+    <h4 className="font-bold text-sm hover:underline cursor-pointer">
+      {authorName}
+    </h4>
+  )
+
+  const triggerWrapper = (
+    <span className="flex items-start gap-3">
+      {profileHref ? (
+        <Link href={profileHref} className="shrink-0" aria-label={`Trang cá nhân của ${authorName}`}>
+          {avatarNode}
+        </Link>
+      ) : (
+        avatarNode
+      )}
+        <span className="block">
+          <span className="flex items-center gap-1.5">
+            {profileHref ? (
+              <Link href={profileHref}>{nameNode}</Link>
+            ) : (
+              nameNode
+            )}
+            {communityContext ? (
+              <>
+                <span className="text-sm font-normal text-muted-foreground">
+                  · trong
+                </span>
+                <Link
+                  href={communityContext.href}
+                  className="text-sm font-semibold hover:underline"
+                >
+                  {communityContext.name}
+                </Link>
+              </>
+            ) : null}
             {isVerified && (
               <BadgeCheck className="size-4 text-primary fill-primary stroke-primary-foreground" />
             )}
-          </div>
-          <p className="text-xs text-muted-foreground">
+          </span>
+          <span className="block text-xs text-muted-foreground">
             {subtitle && <>{subtitle} • </>}
-            {createdAt}
+            <RelativeTime date={createdAt} fallback={createdAt} />
+            {communityContext ? (
+              <>
+                {" • "}
+                <StatusBadge variant="muted" size="sm">
+                  {COMMUNITY_LABELS[communityContext.type]}
+                </StatusBadge>
+              </>
+            ) : null}
             {tag && (
               <>
                 {" • "}
-                <StatusBadge variant={tagVariant} size="sm">
-                  {tag}
-                </StatusBadge>
-              </>
-            )}
-          </p>
-        </div>
-      </div>
-      <IconButton
-        icon={MoreHorizontal}
-        size="sm"
-        onClick={onMore}
-        ariaLabel="Thêm tùy chọn"
-      />
+              <StatusBadge variant={tagVariant} size="sm">
+                {tag}
+              </StatusBadge>
+            </>
+          )}
+        </span>
+      </span>
+    </span>
+  )
+
+  return (
+    <div className="flex justify-between items-start">
+      {authorId ? (
+        <UserHoverCard
+          userId={authorId}
+          displayName={authorName}
+          avatarUrl={authorAvatar ?? null}
+          coverUrl={authorCover ?? null}
+          subtitle={subtitle ?? null}
+          currentUserId={currentUserId}
+        >
+          {triggerWrapper}
+        </UserHoverCard>
+      ) : (
+        triggerWrapper
+      )}
+      {menu !== undefined ? (
+        <div className="shrink-0">{menu}</div>
+      ) : onMore ? (
+        <IconButton
+          icon={MoreHorizontal}
+          size="sm"
+          onClick={onMore}
+          ariaLabel="Thêm tùy chọn"
+        />
+      ) : null}
     </div>
   )
 }

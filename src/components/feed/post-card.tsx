@@ -4,14 +4,42 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { PostHeader, PostHeaderSkeleton } from "@/components/feed/post-header"
 import { PostActions } from "@/components/feed/post-actions"
+import { PostContent } from "@/components/feed/post-content"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
+import { PostMenu } from "@/components/feed/post-menu"
+import { SharedPostPreview } from "@/components/feed/shared-post-preview"
+import { PollDisplay } from "@/components/polls/poll-display"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
+import type { PollView } from "@/lib/polls/types"
+
+interface PostPermissions {
+  canDelete: boolean
+  canHide: boolean
+  deleteRole: "AUTHOR" | "MODERATOR" | null
+}
+
+interface SharedPostData {
+  id: string
+  content: string
+  imageUrl: string | null
+  authorDisplayName: string
+  authorAvatarUrl: string | null
+}
+
+export interface PostCommunityContext {
+  type: "GROUP" | "CLUB" | "COURSE"
+  name: string
+  href: string
+  avatarUrl: string | null
+}
 
 interface PostCardProps {
+  postId?: string
   authorName: string
   authorAvatar?: string
+  authorCover?: string
   createdAt: string
   content: string
   imageUrl?: string
@@ -25,12 +53,27 @@ interface PostCardProps {
   shares?: number
   showSave?: boolean
   showRegister?: boolean
+  onUnsave?: () => void
   className?: string
+  isLiked?: boolean
+  currentUser?: { userId?: string; id?: string; displayName?: string; avatarUrl?: string | null } | null
+  currentUserId?: string | null
+  authorId?: string
+  onLike?: () => void
+  permissions?: PostPermissions
+  onDeleted?: () => void
+  onHidden?: () => void
+  isSaved?: boolean
+  sharedPost?: SharedPostData | null
+  communityContext?: PostCommunityContext | null
+  poll?: PollView | null
 }
 
 export function PostCard({
+  postId,
   authorName,
   authorAvatar,
+  authorCover,
   createdAt,
   content,
   imageUrl,
@@ -44,11 +87,33 @@ export function PostCard({
   shares,
   showSave,
   showRegister,
+  onUnsave,
   className,
+  isLiked,
+  currentUser,
+  currentUserId,
+  authorId,
+  onLike,
+  permissions,
+  onDeleted,
+  onHidden,
+  isSaved,
+  sharedPost,
+  communityContext,
+  poll,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const handleOpenDetail = () => setIsDetailOpen(true)
+
+  // Normalize userId vs id field
+  const resolvedCurrentUser = currentUser
+    ? {
+        id: currentUser.id ?? currentUser.userId ?? "",
+        displayName: currentUser.displayName,
+        avatarUrl: currentUser.avatarUrl,
+      }
+    : null
 
   return (
     <>
@@ -61,22 +126,39 @@ export function PostCard({
       >
         {/* Thanh accent cho bài ghim */}
         {isPinned && (
-          <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-destructive" />
         )}
 
-        <CardContent className="p-4 md:p-6">
+        <CardContent className="px-3 py-3 md:px-4 md:py-3">
           {/* Header */}
           <PostHeader
+            authorId={authorId}
             authorName={authorName}
             authorAvatar={authorAvatar}
+            authorCover={authorCover}
             createdAt={createdAt}
             tag={tag}
             tagVariant={tagVariant}
             isVerified={isVerified}
             subtitle={subtitle}
+            communityContext={communityContext}
+            currentUserId={currentUserId}
+            menu={
+              permissions && postId ? (
+                <PostMenu
+                  postId={postId}
+                  canDelete={permissions.canDelete}
+                  canHide={permissions.canHide}
+                  deleteRole={permissions.deleteRole}
+                  isSaved={isSaved}
+                  onDeleted={onDeleted}
+                  onHidden={onHidden}
+                />
+              ) : undefined
+            }
           />
 
-          {/* Vùng clickable — Nội dung + Ảnh */}
+          {/* Vùng clickable — Nội dung + Ảnh/Repost */}
           <div
             role="button"
             tabIndex={0}
@@ -85,32 +167,67 @@ export function PostCard({
             className="w-full text-left cursor-pointer"
           >
             {/* Nội dung */}
-            <p className="text-sm leading-relaxed mt-4">{content}</p>
+            {content && (
+              <PostContent content={content} className="mt-2.5" />
+            )}
 
-            {/* Hình ảnh */}
-            {imageUrl && (
-              <div className="rounded-lg overflow-hidden mt-4 border border-border">
-                <div className="relative aspect-video w-full">
-                  <Image
-                    src={imageUrl}
-                    alt="Ảnh bài viết"
-                    fill
-                    className="object-cover"
-                  />
+            {/* Nếu là bài repost — hiển thị embedded card */}
+            {sharedPost !== undefined && sharedPost !== null ? (
+              <SharedPostPreview
+                postId={sharedPost.id}
+                authorName={sharedPost.authorDisplayName}
+                authorAvatar={sharedPost.authorAvatarUrl}
+                content={sharedPost.content}
+                imageUrl={sharedPost.imageUrl}
+                className="mt-2.5"
+              />
+            ) : (
+              imageUrl && (
+                <div className="rounded-md overflow-hidden mt-2.5 border border-border">
+                  <div className="relative aspect-video w-full">
+                    <Image
+                      src={imageUrl}
+                      alt="Ảnh bài viết"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 720px"
+                      className="object-cover"
+                    />
+                  </div>
                 </div>
-              </div>
+              )
             )}
           </div>
 
+          {poll && (
+            <PollDisplay
+              poll={poll}
+              currentUserId={currentUserId ?? null}
+              authorId={authorId ?? ""}
+              className="mt-2.5"
+            />
+          )}
+
           {/* Actions */}
           <PostActions
+            postId={postId}
+            authorName={sharedPost ? sharedPost.authorDisplayName : authorName}
+            authorAvatar={sharedPost ? (sharedPost.authorAvatarUrl ?? undefined) : authorAvatar}
+            postContent={sharedPost ? sharedPost.content : content}
+            postImage={sharedPost ? (sharedPost.imageUrl ?? undefined) : imageUrl}
+            currentUserName={currentUser?.displayName}
+            currentUserAvatar={currentUser?.avatarUrl ?? undefined}
             likes={likes}
             comments={comments}
             shares={shares}
             showSave={showSave}
             showRegister={showRegister}
+            onUnsave={onUnsave}
             onCommentClick={handleOpenDetail}
-            className="mt-4"
+            isLiked={isLiked}
+            currentUserId={currentUserId}
+            authorId={authorId}
+            onLike={onLike}
+            className="mt-2.5"
           />
         </CardContent>
       </Card>
@@ -119,8 +236,10 @@ export function PostCard({
       <PostDetailDialog
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
+        postId={postId}
         authorName={authorName}
         authorAvatar={authorAvatar}
+        authorCover={authorCover}
         createdAt={createdAt}
         content={content}
         imageUrl={imageUrl}
@@ -131,6 +250,17 @@ export function PostCard({
         likes={likes}
         comments={comments}
         shares={shares}
+        isLiked={isLiked}
+        currentUser={resolvedCurrentUser}
+        currentUserId={currentUserId}
+        authorId={authorId}
+        onLike={onLike}
+        permissions={permissions}
+        onDeleted={onDeleted}
+        onHidden={onHidden}
+        sharedPost={sharedPost}
+        communityContext={communityContext}
+        poll={poll}
       />
     </>
   )
@@ -139,13 +269,13 @@ export function PostCard({
 export function PostCardSkeleton() {
   return (
     <Card>
-      <CardContent className="p-4 md:p-6 space-y-4">
+      <CardContent className="px-3 py-3 md:px-4 md:py-3 space-y-2.5">
         <PostHeaderSkeleton />
         <div className="space-y-2">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-4/5" />
         </div>
-        <Skeleton className="h-48 w-full rounded-lg" />
+        <Skeleton className="h-36 w-full rounded-md" />
         <div className="flex gap-4 pt-4 border-t border-border">
           <Skeleton className="h-5 w-16" />
           <Skeleton className="h-5 w-16" />

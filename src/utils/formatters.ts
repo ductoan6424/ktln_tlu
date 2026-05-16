@@ -1,4 +1,11 @@
-import { format, formatDistanceToNow } from "date-fns";
+import {
+  format,
+  formatDistance,
+  isToday,
+  isYesterday,
+  isThisWeek,
+  isThisYear,
+} from "date-fns";
 import { vi } from "date-fns/locale";
 
 // Format ngày tháng dạng đầy đủ: "11 tháng 3, 2026"
@@ -12,8 +19,11 @@ export function formatDateShort(date: Date | string): string {
 }
 
 // Format thời gian tương đối: "3 phút trước"
-export function formatRelativeTime(date: Date | string): string {
-  return formatDistanceToNow(new Date(date), {
+export function formatRelativeTime(
+  date: Date | string,
+  baseDate: Date | string = new Date(),
+): string {
+  return formatDistance(new Date(date), new Date(baseDate), {
     addSuffix: true,
     locale: vi,
   });
@@ -28,6 +38,33 @@ export function formatNumber(num: number): string {
     return `${(num / 1_000).toFixed(1)}K`;
   }
   return num.toString();
+}
+
+// Format giờ ngắn cho tin nhắn: "14:30"
+export function formatChatTime(date: Date | string): string {
+  return format(new Date(date), "HH:mm");
+}
+
+// Format label ngày cho date divider giống Facebook:
+// Hôm nay → "Hôm nay"
+// Hôm qua → "Hôm qua"
+// Trong tuần → "Thứ Hai" / "Thứ Ba" ...
+// Năm nay → "11 tháng 3"
+// Năm khác → "11 tháng 3, 2025"
+export function formatChatDateLabel(date: Date | string): string {
+  const d = new Date(date);
+
+  if (isToday(d)) return "Hôm nay";
+  if (isYesterday(d)) return "Hôm qua";
+  if (isThisWeek(d, { weekStartsOn: 1 })) return format(d, "EEEE", { locale: vi });
+  if (isThisYear(d)) return format(d, "d MMMM", { locale: vi });
+
+  return format(d, "d MMMM, yyyy", { locale: vi });
+}
+
+// Format đầy đủ cho hover tooltip: "14:30, 11 tháng 3, 2026"
+export function formatChatFullTime(date: Date | string): string {
+  return format(new Date(date), "HH:mm, d MMMM, yyyy", { locale: vi });
 }
 
 // Cắt ngắn text và thêm "..."

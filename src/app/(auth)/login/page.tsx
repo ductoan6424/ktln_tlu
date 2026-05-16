@@ -1,5 +1,6 @@
+// src/app/(auth)/login/page.tsx
 import type { Metadata } from "next"
-import { LoginCard } from "@/components/auth/login-card"
+import { LoginForm } from "@/components/auth/login-form"
 import Link from "next/link"
 
 export const metadata: Metadata = {
@@ -10,10 +11,17 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <div className="space-y-8">
-      <LoginCard />
-
-      {/* Hỗ trợ */}
-      <div className="text-center">
+      <LoginForm />
+      <div className="text-center space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Chưa có tài khoản?{" "}
+          <Link
+            href="/register"
+            className="text-primary font-medium hover:underline underline-offset-4"
+          >
+            Đăng ký ngay
+          </Link>
+        </p>
         <p className="text-sm text-muted-foreground">
           Cần hỗ trợ?{" "}
           <Link
@@ -21,6 +29,14 @@ export default function LoginPage() {
             className="text-primary font-medium hover:underline underline-offset-4"
           >
             Liên hệ quản trị hệ thống
+          </Link>
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          <Link
+            href="/forgot-password"
+            className="text-primary/70 hover:text-primary font-medium hover:underline underline-offset-4 transition-colors"
+          >
+            Quên mật khẩu?
           </Link>
         </p>
       </div>

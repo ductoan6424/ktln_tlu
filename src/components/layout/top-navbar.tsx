@@ -3,40 +3,50 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { logout } from "@/actions/auth"
+import type { MainNavIcon, MainNavItem } from "@/app/(main)/main-nav-items"
 import { AppLogo } from "@/components/layout/app-logo"
+import { useChatDock } from "@/components/layout/chat-dock"
+import { MessagePopup } from "@/components/layout/message-popup"
 import { NavbarLink } from "@/components/layout/navbar-link"
+import { NotificationPopup } from "@/components/layout/notification-popup"
 import { SearchInput } from "@/components/shared/search-input"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
 import {
-  Bell,
-  MessageSquare,
-  Settings,
+  CalendarDays,
+  ChevronDown,
+  Home,
   LogOut,
   Moon,
-  ChevronDown,
   Search,
+  Settings,
+  Users,
+  UsersRound,
   X,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
 
-interface NavItem {
-  icon?: LucideIcon
-  label: string
-  href: string
+const NAV_ICONS: Record<MainNavIcon, LucideIcon> = {
+  home: Home,
+  users: Users,
+  "calendar-days": CalendarDays,
+  "users-round": UsersRound,
 }
 
+const EMPTY_NAV_ITEMS: MainNavItem[] = []
+
 interface TopNavbarProps {
-  navItems?: NavItem[]
+  navItems?: MainNavItem[]
   user?: {
     name: string
     subtitle?: string
@@ -49,7 +59,7 @@ interface TopNavbarProps {
 }
 
 export function TopNavbar({
-  navItems = [],
+  navItems = EMPTY_NAV_ITEMS,
   user,
   notificationCount,
   messageCount,
@@ -59,22 +69,32 @@ export function TopNavbar({
   const pathname = usePathname()
   const [darkMode, setDarkMode] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const { openConversation } = useChatDock()
+
+  void notificationCount
+  void messageCount
 
   const handleDarkModeToggle = (checked: boolean) => {
     setDarkMode(checked)
     document.documentElement.classList.toggle("dark", checked)
   }
 
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    await logout()
+    window.location.href = "/login"
+  }
+
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 h-14 lg:h-16 bg-card border-b border-border",
+        "fixed top-0 left-0 right-0 z-50 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-card border-b border-border lg:h-16 lg:pt-0",
         className
       )}
     >
-      {/* Mobile search overlay */}
       {mobileSearchOpen && (
-        <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 lg:hidden">
+        <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 pt-[env(safe-area-inset-top)] lg:hidden">
           <SearchInput
             placeholder={searchPlaceholder}
             className="flex-1"
@@ -93,25 +113,22 @@ export function TopNavbar({
       )}
 
       <div className="w-full px-3 lg:px-8 h-full flex items-center justify-between gap-4 relative">
-        {/* Logo + Search */}
         <div className="flex items-center gap-4 lg:gap-6">
           <Link href="/feed">
             <AppLogo size="md" />
           </Link>
-          {/* Desktop search */}
           <SearchInput
             placeholder={searchPlaceholder}
             className="hidden lg:block w-64"
           />
         </div>
 
-        {/* Desktop nav — ẩn trên mobile */}
         {navItems.length > 0 && (
           <nav className="hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item) => (
               <NavbarLink
                 key={item.href}
-                icon={item.icon}
+                icon={NAV_ICONS[item.icon]}
                 label={item.label}
                 href={item.href}
                 isActive={pathname === item.href}
@@ -120,9 +137,7 @@ export function TopNavbar({
           </nav>
         )}
 
-        {/* Actions */}
         <div className="flex items-center gap-1">
-          {/* Mobile: search button */}
           <Button
             variant="ghost"
             size="icon"
@@ -133,15 +148,13 @@ export function TopNavbar({
             <Search className="size-5" />
           </Button>
 
-          {/* Desktop: notification + message icons */}
-          <Link href="/notifications" className="hidden lg:inline-flex">
-            <NotificationButton icon={Bell} count={notificationCount} label="Thông báo" />
-          </Link>
-          <Link href="/messages" className="hidden lg:inline-flex">
-            <NotificationButton icon={MessageSquare} count={messageCount} label="Tin nhắn" />
-          </Link>
+          <div className="hidden lg:block">
+            <NotificationPopup />
+          </div>
+          <div className="hidden lg:block">
+            <MessagePopup onOpenConversation={openConversation} />
+          </div>
 
-          {/* Desktop: Avatar Dropdown — ẩn trên mobile (đã có trong bottom nav) */}
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -156,7 +169,6 @@ export function TopNavbar({
               </DropdownMenuTrigger>
 
               <DropdownMenuContent align="end" sideOffset={8} className="w-72">
-                {/* Profile header */}
                 <div className="p-0">
                   <Link
                     href="/profile"
@@ -194,7 +206,6 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                {/* Dark mode toggle */}
                 <div className="flex items-center justify-between px-2 py-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Moon className="size-4" />
@@ -208,9 +219,9 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem variant="destructive" className="cursor-pointer">
+                <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={handleLogout} disabled={loggingOut}>
                   <LogOut className="size-4" />
-                  Đăng xuất
+                  {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -220,31 +231,3 @@ export function TopNavbar({
     </header>
   )
 }
-
-/* Nút thông báo / tin nhắn với số badge */
-function NotificationButton({
-  icon: Icon,
-  count,
-  label,
-}: {
-  icon: LucideIcon
-  count?: number
-  label: string
-}) {
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="relative size-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-      aria-label={label}
-    >
-      <Icon className="size-5" />
-      {count !== undefined && count > 0 && (
-        <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-white text-[10px] font-bold leading-none">
-          {count > 99 ? "99+" : count}
-        </span>
-      )}
-    </Button>
-  )
-}
-

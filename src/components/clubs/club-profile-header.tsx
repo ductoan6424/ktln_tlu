@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/shared/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Users, MapPin, Share2 } from "lucide-react"
+import { Users, MapPin, Share2, Settings } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 interface ClubProfileHeaderProps {
   logo?: string
@@ -10,6 +12,8 @@ interface ClubProfileHeaderProps {
   hub?: string
   memberCount?: number
   location?: string
+  showManageButton?: boolean
+  manageHref?: string
   className?: string
 }
 
@@ -19,13 +23,16 @@ export function ClubProfileHeader({
   hub,
   memberCount,
   location,
+  showManageButton = false,
+  manageHref,
+  className,
 }: ClubProfileHeaderProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-4 py-4">
+    <div className={cn("flex flex-col md:flex-row md:items-center gap-4 py-4", className)}>
       {/* Logo */}
       {logo && (
         <div className="size-16 rounded-xl bg-muted border border-border overflow-hidden relative -mt-10 z-10 shadow-lg">
-          <Image src={logo} alt={name} fill className="object-cover" />
+          <Image src={logo} alt={name} fill sizes="64px" className="object-cover" />
         </div>
       )}
 
@@ -55,6 +62,15 @@ export function ClubProfileHeader({
 
       {/* Actions */}
       <div className="flex items-center gap-3">
+        {showManageButton && manageHref && (
+          <Link
+            href={manageHref}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 transition-colors"
+          >
+            <Settings className="size-4" />
+            Quản lý
+          </Link>
+        )}
         <Button className="font-bold shadow-md shadow-primary/20">
           Tham gia CLB
         </Button>

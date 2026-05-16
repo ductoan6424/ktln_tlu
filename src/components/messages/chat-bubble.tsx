@@ -1,10 +1,16 @@
+/* eslint-disable @next/next/no-img-element */
+
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ChatAttachment } from "@/components/messages/chat-attachment"
+import type { ChatAttachment as ChatAttachmentType } from "@/types/chat"
 
 interface ChatBubbleProps {
   message: string
+  attachment?: ChatAttachmentType | null
   senderName?: string
   time: string
+  fullTime?: string
   isOwn: boolean
   readStatus?: "sent" | "delivered" | "read"
   senderAvatar?: string
@@ -13,16 +19,25 @@ interface ChatBubbleProps {
 
 export function ChatBubble({
   message,
+  attachment,
   senderName,
   time,
+  fullTime,
   isOwn,
   readStatus,
   className,
 }: ChatBubbleProps) {
+  const hasMessage = message.trim().length > 0
+
+  const fileSizeLabel =
+    attachment && attachment.sizeBytes > 0
+      ? formatFileSize(attachment.sizeBytes)
+      : "Không rõ kích thước"
+
   return (
     <div
       className={cn(
-        "flex flex-col gap-1 max-w-[80%]",
+        "flex flex-col gap-1 max-w-[80%] min-w-0",
         isOwn ? "self-end items-end" : "items-start",
         className
       )}
@@ -31,7 +46,7 @@ export function ChatBubble({
       <div className="flex items-center gap-2">
         {isOwn ? (
           <>
-            <span className="text-[10px] text-muted-foreground">{time}</span>
+            <span className="text-[10px] text-muted-foreground cursor-default" title={fullTime}>{time}</span>
             <span className="text-sm font-bold">Bạn</span>
           </>
         ) : (
@@ -39,22 +54,53 @@ export function ChatBubble({
             {senderName && (
               <span className="text-sm font-bold">{senderName}</span>
             )}
-            <span className="text-[10px] text-muted-foreground">{time}</span>
+            <span className="text-[10px] text-muted-foreground cursor-default" title={fullTime}>{time}</span>
           </>
         )}
       </div>
 
-      {/* Nội dung tin nhắn */}
-      <div
-        className={cn(
-          "px-4 py-2.5 text-sm leading-relaxed",
-          isOwn
-            ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-none shadow-md shadow-primary/10"
-            : "bg-muted rounded-2xl rounded-tl-none shadow-sm"
-        )}
-      >
-        {message}
-      </div>
+      {attachment?.type === "image" && (
+        <a
+          href={attachment.url}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            "overflow-hidden rounded-2xl border border-border/70",
+            isOwn ? "rounded-tr-none" : "rounded-tl-none",
+          )}
+        >
+          <img
+            src={attachment.url}
+            alt={attachment.name}
+            className="block max-h-64 w-auto max-w-full object-cover"
+            loading="lazy"
+          />
+        </a>
+      )}
+
+      {attachment?.type === "file" && (
+        <div className="w-full max-w-sm">
+          <ChatAttachment
+            fileUrl={attachment.url}
+            fileName={attachment.name}
+            fileType={attachment.mimeType}
+            fileSize={fileSizeLabel}
+          />
+        </div>
+      )}
+
+      {hasMessage && (
+        <div
+          className={cn(
+            "px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-all max-w-full",
+            isOwn
+              ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-none shadow-md shadow-primary/10"
+              : "bg-muted rounded-2xl rounded-tl-none shadow-sm"
+          )}
+        >
+          {message}
+        </div>
+      )}
 
       {/* Trạng thái đọc */}
       {isOwn && readStatus && (
@@ -68,6 +114,18 @@ export function ChatBubble({
       )}
     </div>
   )
+}
+
+function formatFileSize(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`
+  }
+
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export function ChatBubbleSkeleton({ isOwn = false }: { isOwn?: boolean }) {
