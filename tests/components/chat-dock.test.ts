@@ -7,9 +7,14 @@ import { ChatDock, useChatDock } from "@/components/layout/chat-dock"
 import type { ChatConversationBubble, ChatInboxNotification } from "@/types/chat"
 
 const useInboxNotification = vi.hoisted(() => vi.fn())
+const usePathname = vi.hoisted(() => vi.fn())
 
 vi.mock("@/hooks/use-inbox-notification", () => ({
   useInboxNotification,
+}))
+
+vi.mock("next/navigation", () => ({
+  usePathname,
 }))
 
 vi.mock("@/components/layout/chat-popup", () => ({
@@ -142,6 +147,7 @@ describe("ChatDock", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+    usePathname.mockReturnValue("/feed")
     roots = []
   })
 
@@ -175,6 +181,17 @@ describe("ChatDock", () => {
     await click(container, "open-d")
 
     expect(getRenderedIds(container)).toEqual(["d", "c", "b"])
+  })
+
+  it("passes its user id into the inbox subscription", async () => {
+    const { root } = await renderDock()
+    roots.push(root)
+
+    expect(useInboxNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-self",
+      }),
+    )
   })
 
   it("opens incoming direct and group notifications as conversation bubbles", async () => {
@@ -230,5 +247,32 @@ describe("ChatDock", () => {
     expect(group).toHaveProperty("dataset.peerUserId", "")
     expect(group).toHaveProperty("dataset.participantCount", "12")
     expect(group).toHaveProperty("dataset.communityType", "COURSE")
+  })
+
+  it("does not auto-open incoming inbox notifications on the messages route", async () => {
+    usePathname.mockReturnValue("/messages")
+    const { container, root } = await renderDock()
+    roots.push(root)
+
+    const incoming = useInboxNotification.mock.calls.at(-1)?.[0]?.onIncoming as
+      | ((notification: ChatInboxNotification) => void)
+      | undefined
+
+    await act(async () => {
+      incoming?.({
+        conversationId: "direct-inbox",
+        conversationName: null,
+        conversationType: "DIRECT",
+        peerUserId: "user-lan",
+        participantCount: 2,
+        communityType: null,
+        senderId: "user-lan",
+        senderName: "Lan",
+        senderAvatarUrl: "/lan.png",
+        content: "Xin chao",
+      })
+    })
+
+    expect(getRenderedIds(container)).toEqual([])
   })
 })
