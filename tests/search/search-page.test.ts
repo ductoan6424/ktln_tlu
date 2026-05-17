@@ -29,4 +29,27 @@ describe("SearchPage", () => {
       page: 1,
     })
   })
+
+  it("maps the announcements tab from the query string", async () => {
+    searchResults.mockResolvedValue({
+      success: true,
+      data: {
+        ANNOUNCEMENT: {
+          items: [],
+          page: 1,
+          hasMore: false,
+        },
+      },
+    })
+
+    await SearchPage({
+      searchParams: Promise.resolve({ q: "hoc phi", type: "announcements" }),
+    })
+
+    expect(searchResults).toHaveBeenCalledWith({
+      query: "hoc phi",
+      type: "ANNOUNCEMENT",
+      page: 1,
+    })
+  })
 })

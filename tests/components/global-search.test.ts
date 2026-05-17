@@ -150,4 +150,43 @@ describe("GlobalSearch", () => {
 
     expect(push).toHaveBeenCalledWith("/search?q=nguyen")
   })
+
+  it("navigates to the announcements search tab when an announcement is selected", async () => {
+    searchSuggestions.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: "announcement-1",
+          type: "ANNOUNCEMENT",
+          title: "Lịch đóng học phí",
+          subtitle: "Trường Đại Học Thăng Long",
+          href: "/feed?announcement=announcement-1",
+          avatarUrl: "/logo.svg",
+          excerpt: "Thông báo mới",
+          score: { exact: 1, prefix: 1, tokenCoverage: 1, textRank: 0, similarity: 0 },
+          totalScore: 160,
+        },
+      ],
+    })
+    const container = document.createElement("div")
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    await act(async () => root.render(createElement(GlobalSearch)))
+
+    const input = container.querySelector("input")!
+    await act(async () => {
+      setInputValue(input, "hoc phi")
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    })
+
+    const button = Array.from(container.querySelectorAll("button")).find((node) =>
+      node.textContent?.includes("Lịch đóng học phí"),
+    )!
+    await act(async () => button.click())
+
+    expect(push).toHaveBeenCalledWith("/search?q=hoc+phi&type=announcements")
+  })
 })
