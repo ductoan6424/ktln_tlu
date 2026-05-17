@@ -10,7 +10,7 @@ import { useChatDock } from "@/components/layout/chat-dock"
 import { MessagePopup } from "@/components/layout/message-popup"
 import { NavbarLink } from "@/components/layout/navbar-link"
 import { NotificationPopup } from "@/components/layout/notification-popup"
-import { SearchInput } from "@/components/shared/search-input"
+import { GlobalSearch } from "@/components/search/global-search"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -95,7 +95,7 @@ export function TopNavbar({
     >
       {mobileSearchOpen && (
         <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 pt-[env(safe-area-inset-top)] lg:hidden">
-          <SearchInput
+          <GlobalSearch
             placeholder={searchPlaceholder}
             className="flex-1"
             autoFocus
@@ -117,7 +117,7 @@ export function TopNavbar({
           <Link href="/feed">
             <AppLogo size="md" />
           </Link>
-          <SearchInput
+          <GlobalSearch
             placeholder={searchPlaceholder}
             className="hidden lg:block w-64"
           />
