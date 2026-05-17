@@ -265,13 +265,12 @@ function DeviceRow({
   onRevoke: () => void
 }) {
   const parsed = parseUserAgent(device.userAgent)
-  const Icon = pickDeviceIcon(parsed.os)
 
   return (
     <li className="flex items-center justify-between gap-3 px-4 py-3">
       <div className="flex min-w-0 items-start gap-3">
         <span className="mt-0.5 flex size-9 flex-shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <Icon className="size-4" />
+          {renderDeviceIcon(parsed.os)}
         </span>
         <div className="min-w-0 space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
@@ -319,8 +318,8 @@ function DeviceListSkeleton() {
   )
 }
 
-function pickDeviceIcon(os: string) {
-  if (/Android|iOS/.test(os)) return Smartphone
-  if (/Windows|macOS|ChromeOS|Linux/.test(os)) return Laptop
-  return Globe
+function renderDeviceIcon(os: string) {
+  if (/Android|iOS/.test(os)) return <Smartphone className="size-4" />
+  if (/Windows|macOS|ChromeOS|Linux/.test(os)) return <Laptop className="size-4" />
+  return <Globe className="size-4" />
 }

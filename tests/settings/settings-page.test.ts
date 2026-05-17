@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe("settings profile section", () => {
   it("renders AvatarUploader instead of the legacy static camera block", async () => {
-    const { ProfileSection } = await import("@/app/(main)/settings/page")
+    const { ProfileSection } = await import("@/app/(main)/settings/profile-section")
 
     const markup = renderToStaticMarkup(
       createElement(ProfileSection, {

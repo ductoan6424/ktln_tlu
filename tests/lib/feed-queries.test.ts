@@ -5,6 +5,10 @@ const prisma = vi.hoisted(() => ({
   hiddenPost: { findMany: vi.fn() },
   post: { findMany: vi.fn() },
   poll: { findMany: vi.fn() },
+  groupMember: { findMany: vi.fn() },
+  clubMember: { findMany: vi.fn() },
+  courseMember: { findMany: vi.fn() },
+  course: { findMany: vi.fn() },
 }));
 
 const fanout = vi.hoisted(() => ({
@@ -60,13 +64,19 @@ function makeRawPost(
     authorId: overrides.authorId ?? "author-1",
     clubId: null,
     groupId: null,
+    courseId: null,
     sharedPostId: null,
     mediaUrls: null,
     updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-    author: { displayName: "Tac gia", avatarUrl: null },
+    author: { displayName: "Tac gia", avatarUrl: null, coverUrl: null },
     likes: [],
+    savedBy: [],
     _count: { likes: 0, comments: 0 },
     sharedPost: null,
+    group: null,
+    club: null,
+    course: null,
+    attachments: [],
   };
 }
 
@@ -84,6 +94,13 @@ function makeCandidate(
   };
 }
 
+function getWhereIdIn(where?: {
+  id?: { in?: string[] };
+  AND?: Array<{ id?: { in?: string[] } }>;
+}) {
+  return where?.id?.in ?? where?.AND?.find((clause) => clause.id?.in)?.id?.in;
+}
+
 function mockHybridPostQueries(buckets: {
   personalized?: ReturnType<typeof makeCandidate>[];
   celebrity?: ReturnType<typeof makeCandidate>[];
@@ -97,13 +114,16 @@ function mockHybridPostQueries(buckets: {
       include?: unknown;
       where?: {
         id?: { in?: string[] };
+        AND?: Array<{ id?: { in?: string[] } }>;
         authorId?: { in?: string[]; notIn?: string[] };
         createdAt?: { gte?: Date };
       };
       take?: number;
     }) => {
-      if (args.include && args.where?.id?.in) return buckets.full ?? [];
-      if (args.where?.id?.in) return buckets.personalized ?? [];
+      const idIn = getWhereIdIn(args.where);
+
+      if (args.include && idIn) return buckets.full ?? [];
+      if (idIn) return buckets.personalized ?? [];
       if (args.where?.createdAt?.gte) return buckets.freshness ?? [];
       if (args.where?.authorId?.notIn || !args.where?.authorId)
         return buckets.rest ?? [];
@@ -120,10 +140,18 @@ beforeEach(() => {
   prisma.hiddenPost.findMany.mockReset();
   prisma.post.findMany.mockReset();
   prisma.poll.findMany.mockReset();
+  prisma.groupMember.findMany.mockReset();
+  prisma.clubMember.findMany.mockReset();
+  prisma.courseMember.findMany.mockReset();
+  prisma.course.findMany.mockReset();
   fanout.getPersonalizedFeedPostIds.mockReset();
   fanout.getCelebrityAuthorIds.mockReset();
   prisma.hiddenPost.findMany.mockResolvedValue([]);
   prisma.poll.findMany.mockResolvedValue([]);
+  prisma.groupMember.findMany.mockResolvedValue([]);
+  prisma.clubMember.findMany.mockResolvedValue([]);
+  prisma.courseMember.findMany.mockResolvedValue([]);
+  prisma.course.findMany.mockResolvedValue([]);
   fanout.getPersonalizedFeedPostIds.mockResolvedValue([]);
   fanout.getCelebrityAuthorIds.mockResolvedValue([]);
 });
@@ -475,12 +503,13 @@ describe("getFeedPosts hybrid feed", () => {
         include?: unknown;
         where?: {
           id?: { in?: string[] };
+          AND?: Array<{ id?: { in?: string[] } }>;
           authorId?: { in?: string[]; notIn?: string[] };
           createdAt?: { gte?: Date };
         };
         take?: number;
       }) => {
-        if (args.include && args.where?.id?.in) {
+        if (args.include && getWhereIdIn(args.where)) {
           return [
             makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
             makeRawPost({ id: "followed-1", authorId: FOLLOWED_A }),
@@ -542,12 +571,13 @@ describe("getFeedPosts hybrid feed", () => {
         include?: unknown;
         where?: {
           id?: { in?: string[] };
+          AND?: Array<{ id?: { in?: string[] } }>;
           authorId?: { in?: string[]; notIn?: string[] };
           createdAt?: { gte?: Date };
         };
         take?: number;
       }) => {
-        if (args.include && args.where?.id?.in) {
+        if (args.include && getWhereIdIn(args.where)) {
           return [
             makeRawPost({ id: "dup-1", authorId: RANDOM_C }),
             makeRawPost({ id: "rest-2", authorId: RANDOM_C }),

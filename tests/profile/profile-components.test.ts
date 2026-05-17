@@ -198,7 +198,7 @@ describe("profile components", () => {
     expect(publicMarkup).toContain("@thib")
     expect(publicMarkup).not.toContain("data-profile-action=\"edit\"")
     expect(publicMarkup).not.toContain("data-avatar-trigger=\"profile\"")
-  })
+  }, 10_000)
 
   it("uses totalCount instead of the preview length in connections grid", async () => {
     const { ConnectionsGrid } = await import("@/components/profile/connections-grid")

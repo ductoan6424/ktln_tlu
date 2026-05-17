@@ -1,4 +1,10 @@
-export type SearchEntityType = "USER" | "POST" | "GROUP" | "CLUB" | "COURSE"
+export type SearchEntityType =
+  | "USER"
+  | "POST"
+  | "GROUP"
+  | "CLUB"
+  | "COURSE"
+  | "ANNOUNCEMENT"
 
 export type SearchScore = {
   exact: number

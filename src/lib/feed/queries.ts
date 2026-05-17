@@ -89,7 +89,7 @@ export const INITIAL_FEED_CURSOR: FeedCursor = {
   followedExhausted: false,
 };
 
-type RawFeedPost = Prisma.PostGetPayload<{
+type RawFeedPostBase = Prisma.PostGetPayload<{
   include: {
     author: { select: { displayName: true; avatarUrl: true; coverUrl: true } };
     likes: { where: { userId: string }; select: { id: true } };
@@ -125,6 +125,11 @@ type RawFeedPost = Prisma.PostGetPayload<{
     };
   };
 }>;
+
+type RawFeedPost = Omit<RawFeedPostBase, "likes"> & {
+  likes?: Array<{ id: string }> | false;
+  savedBy?: Array<{ userId: string }> | false;
+};
 
 type FeedCandidatePost = {
   id: string;
@@ -266,8 +271,8 @@ async function mapRawPost(
         }
       : null;
 
-  const likesArr = Array.isArray((post as any).likes) ? (post as any).likes : [];
-  const savedArr = Array.isArray((post as any).savedBy) ? (post as any).savedBy : [];
+  const likesArr = Array.isArray(post.likes) ? post.likes : [];
+  const savedArr = Array.isArray(post.savedBy) ? post.savedBy : [];
   const communityContext: FeedPostCommunityContext | null = post.group
     ? {
         type: "GROUP",
