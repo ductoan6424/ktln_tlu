@@ -62,7 +62,7 @@ export function CommunityListPage({
           />
         </form>
 
-        <nav className="flex gap-2 overflow-x-auto">
+        <nav className="flex flex-wrap gap-2">
           {tabs.map((tab) => (
             <Link key={tab.value} href={tab.href}>
               <Button

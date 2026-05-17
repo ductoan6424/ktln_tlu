@@ -11,6 +11,7 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  devIndicators: false,
   experimental: {
     serverActions: {
       bodySizeLimit: "25mb",

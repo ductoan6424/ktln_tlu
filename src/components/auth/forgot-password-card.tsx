@@ -138,7 +138,7 @@ export function ForgotPasswordCard() {
   if (submitted) {
     return (
       <Card className="shadow-2xl shadow-foreground/5 border">
-        <CardContent className="p-8 lg:p-10">
+        <CardContent className="p-5 sm:p-8 lg:p-10">
           <SuccessState email={email} />
         </CardContent>
       </Card>
@@ -147,9 +147,9 @@ export function ForgotPasswordCard() {
 
   return (
     <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10">
+      <CardContent className="p-5 sm:p-8 lg:p-10">
         {/* Tiêu đề */}
-        <div className="text-center mb-8">
+        <div className="mb-6 text-center sm:mb-8">
           <div className="flex justify-center mb-4">
             <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Mail className="size-6 text-primary" />
@@ -213,7 +213,7 @@ export function ForgotPasswordCard() {
 export function ForgotPasswordCardSkeleton() {
   return (
     <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10 space-y-6">
+      <CardContent className="space-y-6 p-5 sm:p-8 lg:p-10">
         <div className="text-center space-y-3">
           <Skeleton className="size-12 rounded-full mx-auto" />
           <Skeleton className="h-7 w-48 mx-auto" />

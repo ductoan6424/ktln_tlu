@@ -503,7 +503,7 @@ function MessagesPageInner() {
         }}
       />
 
-      <div className="flex h-[calc(100vh-3.5rem-3.5rem)] lg:h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex h-[calc(100dvh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-hidden lg:h-[calc(100dvh-4rem)]">
       <div className={activeConversationId ? "hidden lg:flex" : "flex w-full lg:w-auto"}>
         <ConversationList
           activeTab={activeFilter}
