@@ -92,7 +92,7 @@ export function AnnouncementFeedCard({
           <h3 className="text-base font-bold leading-snug">{title}</h3>
           <p
             className={cn(
-              "text-sm text-foreground whitespace-pre-wrap",
+              "text-sm text-foreground leading-relaxed whitespace-pre-wrap",
               shouldClamp && !expanded && "line-clamp-4",
             )}
           >
