@@ -31,7 +31,7 @@ export function AdminLayoutClient({ user, children }: AdminLayoutClientProps) {
   }, [pathname])
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-dvh overflow-hidden">
       <div className="hidden lg:block">
         <AdminSidebar activeHref={pathname} user={user} />
       </div>
@@ -56,9 +56,9 @@ export function AdminLayoutClient({ user, children }: AdminLayoutClientProps) {
         </div>
       )}
 
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 lg:h-16 lg:px-8">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Button
               variant="ghost"
               size="icon"

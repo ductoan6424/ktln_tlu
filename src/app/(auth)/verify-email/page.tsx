@@ -16,9 +16,9 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
     const result = await verifyEmail(token)
     if (!result.success) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="flex w-full items-center justify-center">
           <div className="w-full max-w-md">
-            <div className="bg-card rounded-2xl border shadow-2xl p-8 text-center space-y-6">
+            <div className="space-y-6 rounded-2xl border bg-card p-5 text-center shadow-2xl sm:p-8">
               <div className="flex justify-center">
                 <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center">
                   <XCircle className="size-8 text-destructive" />
@@ -51,9 +51,9 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
     }
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="flex w-full items-center justify-center">
         <div className="w-full max-w-md">
-          <div className="bg-card rounded-2xl border shadow-2xl p-8 text-center space-y-6">
+          <div className="space-y-6 rounded-2xl border bg-card p-5 text-center shadow-2xl sm:p-8">
             <div className="flex justify-center">
               <div className="size-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 <CheckCircle className="size-8 text-emerald-600" />
@@ -78,9 +78,9 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="flex w-full items-center justify-center">
       <div className="w-full max-w-md">
-        <div className="bg-card rounded-2xl border shadow-2xl p-8 text-center space-y-6">
+        <div className="space-y-6 rounded-2xl border bg-card p-5 text-center shadow-2xl sm:p-8">
           <div className="flex justify-center">
             <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center">
               <XCircle className="size-8 text-destructive" />

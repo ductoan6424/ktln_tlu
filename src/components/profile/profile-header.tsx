@@ -68,7 +68,7 @@ export function ProfileHeader({
       </div>
 
       <CardContent className="relative p-6 pt-0">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end">
+        <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-end">
           <div className="-mt-20 md:-mt-24 z-10">
             {isOwnProfile ? (
               <AvatarUploader
@@ -87,15 +87,15 @@ export function ProfileHeader({
             )}
           </div>
 
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">{name}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="break-words text-2xl font-bold">{name}</h1>
             {username && (
               <p className="mt-1 text-sm font-medium text-muted-foreground">
                 @{username}
               </p>
             )}
             {metaItems.length > 0 && (
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 break-words text-sm text-muted-foreground">
                 {metaItems.join(" • ")}
               </p>
             )}
@@ -115,7 +115,7 @@ export function ProfileHeader({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isOwnProfile && (
               <Button
                 variant="outline"

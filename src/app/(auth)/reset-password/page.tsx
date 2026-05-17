@@ -50,7 +50,7 @@ function ResetPasswordForm({ token }: { token: string }) {
   if (success) {
     return (
       <Card className="w-full max-w-md shadow-2xl border">
-        <CardContent className="p-8 text-center space-y-6">
+        <CardContent className="space-y-6 p-5 text-center sm:p-8">
           <div className="size-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
             <CheckCircle className="size-8 text-emerald-600" />
           </div>
@@ -73,7 +73,7 @@ function ResetPasswordForm({ token }: { token: string }) {
 
   return (
     <Card className="w-full max-w-md shadow-2xl border">
-      <CardContent className="p-8 space-y-6">
+      <CardContent className="space-y-6 p-5 sm:p-8">
         <div className="text-center space-y-2">
           <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
             <Lock className="size-6 text-primary" />
@@ -163,7 +163,7 @@ function ResetPasswordForm({ token }: { token: string }) {
 function InvalidTokenState() {
   return (
     <Card className="w-full max-w-md shadow-2xl border">
-      <CardContent className="p-8 text-center space-y-4">
+      <CardContent className="space-y-4 p-5 text-center sm:p-8">
         <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
           <XCircle className="size-8 text-destructive" />
         </div>
@@ -185,7 +185,7 @@ function InvalidTokenState() {
 function LoadingState() {
   return (
     <Card className="w-full max-w-md shadow-2xl border">
-      <CardContent className="p-8 space-y-6">
+      <CardContent className="space-y-6 p-5 sm:p-8">
         <div className="text-center space-y-3">
           <Skeleton className="size-12 rounded-full mx-auto" />
           <Skeleton className="h-7 w-40 mx-auto" />
@@ -206,7 +206,7 @@ function ResetPasswordPageInner() {
   const token = searchParams.get("token")
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="flex w-full items-center justify-center">
       {token ? <ResetPasswordForm token={token} /> : <InvalidTokenState />}
     </div>
   )
@@ -216,7 +216,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="flex w-full items-center justify-center">
           <LoadingState />
         </div>
       }
