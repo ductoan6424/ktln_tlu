@@ -20,7 +20,11 @@ vi.mock("@/lib/feed/queries", () => ({
   }),
 }))
 
-import { getSearchablePostMembershipContext, searchUsers } from "@/lib/search/queries"
+import {
+  getSearchablePostMembershipContext,
+  searchAnnouncements,
+  searchUsers,
+} from "@/lib/search/queries"
 
 describe("search queries", () => {
   it("returns no keyword results when the normalized query is too short", async () => {
@@ -38,5 +42,22 @@ describe("search queries", () => {
       joinedCourseIds: [],
       hiddenIds: [],
     })
+  })
+
+  it("returns no announcement results when the normalized query is too short", async () => {
+    await expect(searchAnnouncements("a", "STUDENT", { limit: 5 })).resolves.toEqual([])
+    expect(queryRaw).not.toHaveBeenCalled()
+  })
+
+  it("queries only published announcements allowed for the viewer role", async () => {
+    queryRaw.mockResolvedValue([])
+
+    await searchAnnouncements("hoc phi", "LECTURER", { limit: 5 })
+
+    const sql = queryRaw.mock.calls.at(-1)?.[0]
+    expect(sql.values).toEqual(expect.arrayContaining(["hoc phi", "ALL", "FACULTY", 5, 0]))
+    expect(sql.strings.join(" ")).toContain("FROM announcements")
+    expect(sql.strings.join(" ")).toContain("status = 'PUBLISHED'")
+    expect(sql.strings.join(" ")).not.toContain("expires_at")
   })
 })
