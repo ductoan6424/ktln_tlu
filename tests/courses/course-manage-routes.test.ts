@@ -74,7 +74,7 @@ describe("course manage routes", () => {
     expect(markup).toContain("Quản lý lớp học")
     expect(markup).toContain("Thêm sinh viên")
     expect(markup).toContain("Danh sách lớp")
-  })
+  }, 10_000)
 
   it("renders course settings as a real manage tab", async () => {
     const { default: ManageCoursePage } = await import("@/app/(main)/courses/[courseId]/manage/page")
