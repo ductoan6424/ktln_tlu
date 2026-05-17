@@ -101,4 +101,53 @@ describe("GlobalSearch", () => {
     expect(recordSearchQuery).toHaveBeenCalledWith({ query: "nguyen" })
     expect(push).toHaveBeenCalledWith("/search?q=nguyen&type=users")
   })
+
+  it("removes one recent search from the open history list", async () => {
+    getRecentSearches.mockResolvedValue({
+      success: true,
+      data: [{ query: "Nguyễn Văn A", normalizedQuery: "nguyen van a", lastSearchedAt: new Date() }],
+    })
+    const container = document.createElement("div")
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    await act(async () => root.render(createElement(GlobalSearch)))
+
+    const input = container.querySelector("input")!
+    await act(async () => {
+      input.focus()
+      await Promise.resolve()
+    })
+
+    const removeButton = Array.from(container.querySelectorAll("button")).find(
+      (node) => node.getAttribute("aria-label") === "Xóa Nguyễn Văn A",
+    )!
+    await act(async () => removeButton.click())
+
+    expect(removeRecentSearch).toHaveBeenCalledWith({ query: "Nguyễn Văn A" })
+  })
+
+  it("navigates to all results when the summary action is clicked", async () => {
+    searchSuggestions.mockResolvedValue({ success: true, data: [] })
+    const container = document.createElement("div")
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    await act(async () => root.render(createElement(GlobalSearch)))
+
+    const input = container.querySelector("input")!
+    await act(async () => {
+      setInputValue(input, "nguyen")
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    })
+
+    const button = Array.from(container.querySelectorAll("button")).find((node) =>
+      node.textContent?.includes("Xem tất cả"),
+    )!
+    await act(async () => button.click())
+
+    expect(push).toHaveBeenCalledWith("/search?q=nguyen")
+  })
 })

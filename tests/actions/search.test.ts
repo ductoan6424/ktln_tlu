@@ -68,6 +68,55 @@ describe("search actions", () => {
     })
   })
 
+  it("passes the current viewer into post search suggestions", async () => {
+    mockSession("viewer-1")
+    searchUsers.mockResolvedValue([])
+    searchPosts.mockResolvedValue([])
+    searchGroups.mockResolvedValue([])
+    searchClubs.mockResolvedValue([])
+    searchCourses.mockResolvedValue([])
+
+    await searchSuggestions({ query: "hoc tap" })
+
+    expect(searchPosts).toHaveBeenCalledWith("hoc tap", "viewer-1", { limit: 4 })
+  })
+
+  it("returns suggestions in ranked mixed order", async () => {
+    mockSession("user-1")
+    searchUsers.mockResolvedValue([
+      {
+        id: "user-1",
+        type: "USER",
+        title: "Nguyễn Văn A",
+        subtitle: null,
+        href: "/profile/user-1",
+        avatarUrl: null,
+        excerpt: null,
+        score: { exact: 0, prefix: 1, tokenCoverage: 1, textRank: 0.2, similarity: 0.3 },
+      },
+    ])
+    searchPosts.mockResolvedValue([
+      {
+        id: "post-1",
+        type: "POST",
+        title: "Bài viết",
+        subtitle: null,
+        href: "/feed?post=post-1",
+        avatarUrl: null,
+        excerpt: null,
+        score: { exact: 0, prefix: 1, tokenCoverage: 1, textRank: 0.2, similarity: 0.3 },
+      },
+    ])
+    searchGroups.mockResolvedValue([])
+    searchClubs.mockResolvedValue([])
+    searchCourses.mockResolvedValue([])
+
+    const result = await searchSuggestions({ query: "nguyen" })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.map((item) => item.id)).toEqual(["user-1", "post-1"])
+  })
+
   it("removes one recent search for the current viewer", async () => {
     mockSession("user-1")
     await removeRecentSearch({ query: "Nguyễn Văn A" })

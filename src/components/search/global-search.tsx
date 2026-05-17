@@ -66,15 +66,9 @@ export function GlobalSearch({
   }, [open, showRecent])
 
   useEffect(() => {
-    if (!open || showRecent || trimmedQuery.length < 2) {
-      setLoading(false)
-      setSuggestions([])
-      setActiveIndex(-1)
-      return
-    }
+    if (!open || showRecent || trimmedQuery.length < 2) return
 
     let cancelled = false
-    setLoading(true)
     const timer = window.setTimeout(() => {
       void searchSuggestions({ query: trimmedQuery }).then((result) => {
         if (cancelled) return
@@ -128,6 +122,13 @@ export function GlobalSearch({
         onChange={(value) => {
           setQuery(value)
           setOpen(true)
+          setActiveIndex(-1)
+          if (value.trim().length < 2) {
+            setLoading(false)
+            setSuggestions([])
+          } else {
+            setLoading(true)
+          }
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={(event) => {
@@ -236,7 +237,7 @@ export function GlobalSearch({
                 onClick={() => void goToSearch(trimmedQuery)}
               >
                 <Search className="size-4 shrink-0 text-muted-foreground" />
-                <span className="truncate">Xem tất cả kết quả cho "{trimmedQuery}"</span>
+                <span className="truncate">Xem tất cả kết quả cho &quot;{trimmedQuery}&quot;</span>
               </button>
             </div>
           )}

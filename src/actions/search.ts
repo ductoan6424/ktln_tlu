@@ -16,6 +16,7 @@ import {
 import { rankSearchCandidates } from "@/lib/search/ranking"
 import { createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
+import type { ActionResult } from "@/types/api"
 import type {
   SearchCandidate,
   SearchEntityType,
@@ -37,10 +38,15 @@ async function getViewerId() {
   return error ? null : data.user?.id ?? null
 }
 
-export async function getRecentSearches() {
+type RecentSearchItem = Awaited<ReturnType<typeof listRecentSearches>>[number]
+
+export async function getRecentSearches(): Promise<ActionResult<RecentSearchItem[]>> {
   const viewerId = await getViewerId()
   if (!viewerId) {
-    return errorResult("Bạn cần đăng nhập để xem lịch sử tìm kiếm", "UNAUTHORIZED")
+    return errorResult<RecentSearchItem[]>(
+      "Bạn cần đăng nhập để xem lịch sử tìm kiếm",
+      "UNAUTHORIZED",
+    )
   }
 
   return successResult(await listRecentSearches(viewerId))
