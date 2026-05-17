@@ -6,13 +6,12 @@ import { PageContainer } from "@/components/layout/page-container"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { SectionHeader } from "@/components/shared/section-header"
 import { PushDevicesManager } from "@/components/pwa/push-devices-manager"
 import { SignOutOthersButton } from "@/components/auth/sign-out-others-button"
+import { ProfileSection, type UserProfile } from "./profile-section"
 import {
   User,
   Bell,
@@ -36,16 +35,6 @@ const SETTINGS_NAV = [
 const SETTINGS_LINKS = [
   { icon: EyeOff, label: "Bài viết đã ẩn", href: "/settings/hidden-posts" },
 ]
-
-interface UserProfile {
-  displayName: string
-  studentId: string | null
-  avatarUrl: string | null
-  bio: string | null
-  major: string | null
-  year: number | null
-  email: string
-}
 
 async function getUserProfile(userId: string): Promise<UserProfile | null> {
   return prisma.userProfile.findUnique({
@@ -144,58 +133,6 @@ export default async function SettingsPage({
         </section>
       </div>
     </PageContainer>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Hồ sơ cá nhân                                                       */
-/* ------------------------------------------------------------------ */
-function ProfileSection({ profile }: { profile: UserProfile }) {
-  return (
-    <Card>
-      <CardContent className="p-6 space-y-6">
-        <SectionHeader title="Hồ sơ cá nhân" />
-
-        {/* Ảnh đại diện */}
-        <AvatarUploader
-          variant="settings"
-          currentAvatarUrl={profile.avatarUrl}
-          displayName={profile.displayName}
-        />
-
-        <Separator />
-
-        {/* Form */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SettingsField label="Họ và tên" defaultValue={profile.displayName} />
-          <SettingsField
-            label="Mã sinh viên"
-            defaultValue={profile.studentId ?? ""}
-            disabled
-          />
-          <SettingsField label="Email" defaultValue={profile.email} type="email" />
-          <SettingsField label="Khoa" defaultValue={profile.major ?? ""} disabled />
-          <SettingsField
-            label="Khoá"
-            defaultValue={profile.year ? `K${profile.year}` : ""}
-            disabled
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Giới thiệu bản thân</label>
-          <Textarea
-            defaultValue={profile.bio ?? ""}
-            rows={3}
-          />
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <Button variant="outline">Huỷ</Button>
-          <Button>Lưu thay đổi</Button>
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 

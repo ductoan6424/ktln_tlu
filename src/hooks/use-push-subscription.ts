@@ -78,7 +78,17 @@ export function usePushSubscription() {
   }, [])
 
   useEffect(() => {
-    refresh()
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        void refresh()
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [refresh])
 
   const subscribe = useCallback(async (): Promise<{
