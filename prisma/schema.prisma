@@ -143,27 +143,28 @@ enum AnnouncementStatus {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model UserProfile {
-  userId      String    @id @map("user_id")
-  email       String    @unique @map("email")
-  displayName String    @map("display_name")
-  username    String?   @unique @map("username")
-  avatarUrl   String?   @map("avatar_url")
-  coverUrl    String?   @map("cover_url")
-  bio         String?   @map("bio")
-  studentId   String?   @unique @map("student_id")
-  role        UserRole  @default(STUDENT) @map("role")
-  major       String?   @map("major")
-  year        Int?      @map("year")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
+  userId               String    @id @map("user_id")
+  email                String    @unique @map("email")
+  displayName          String    @map("display_name")
+  username             String?   @unique @map("username")
+  avatarUrl            String?   @map("avatar_url")
+  coverUrl             String?   @map("cover_url")
+  bio                  String?   @map("bio")
+  studentId            String?   @unique @map("student_id")
+  role                 UserRole  @default(STUDENT) @map("role")
+  major                String?   @map("major")
+  year                 Int?      @map("year")
+  searchTextNormalized String    @default("") @map("search_text_normalized")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
 
   posts                Post[]
   comments             Comment[]
   likes                Like[]
   pollVotes            PollVote[]
   notifications        Notification[]
-  notificationsAsActor Notification[] @relation("NotificationActor")
+  notificationsAsActor Notification[]  @relation("NotificationActor")
   clubMemberships      ClubMember[]
   groupMemberships     GroupMember[]
   courseMemberships    CourseMember[]
@@ -197,14 +198,15 @@ model UserProfile {
 
   pushSubscriptions PushSubscription[]
 
-  communityJoinRequests       CommunityJoinRequest[]  @relation("CommunityJoinRequester")
-  reviewedCommunityRequests   CommunityJoinRequest[]  @relation("CommunityJoinReviewer")
-  sentCommunityInvites        CommunityInvite[]       @relation("CommunityInviteSender")
-  receivedCommunityInvites    CommunityInvite[]       @relation("CommunityInviteRecipient")
-  pinnedCommunityPosts        PinnedPost[]            @relation("PinnedPostActor")
-  communityReports            CommunityReport[]       @relation("CommunityReportReporter")
-  resolvedCommunityReports    CommunityReport[]       @relation("CommunityReportResolver")
-  communityModerationActions  CommunityModerationLog[] @relation("CommunityModerationActor")
+  communityJoinRequests      CommunityJoinRequest[]   @relation("CommunityJoinRequester")
+  reviewedCommunityRequests  CommunityJoinRequest[]   @relation("CommunityJoinReviewer")
+  sentCommunityInvites       CommunityInvite[]        @relation("CommunityInviteSender")
+  receivedCommunityInvites   CommunityInvite[]        @relation("CommunityInviteRecipient")
+  pinnedCommunityPosts       PinnedPost[]             @relation("PinnedPostActor")
+  communityReports           CommunityReport[]        @relation("CommunityReportReporter")
+  resolvedCommunityReports   CommunityReport[]        @relation("CommunityReportResolver")
+  communityModerationActions CommunityModerationLog[] @relation("CommunityModerationActor")
+  searchHistories            SearchHistory[]
 
   @@map("user_profiles")
 }
@@ -226,24 +228,25 @@ model PushSubscription {
 }
 
 model Club {
-  id                  String              @id @default(cuid()) @map("club_id")
-  shortId             String              @unique @default(cuid()) @map("short_id")
-  name                String              @map("name")
-  slug                String              @unique @map("slug")
-  description         String?             @map("description")
-  coverUrl            String?             @map("cover_url")
-  logoUrl             String?             @map("logo_url")
-  category            String?             @map("category")
-  visibility          PostVisibility      @default(PUBLIC) @map("visibility")
-  communityVisibility CommunityVisibility @default(PUBLIC) @map("community_visibility")
-  requirePostApproval Boolean             @default(false) @map("require_post_approval")
-  chatEnabled         Boolean             @default(true) @map("chat_enabled")
-  chatMode            CommunityChatMode   @default(OPEN) @map("chat_mode")
-  memberInviteEnabled Boolean             @default(true) @map("member_invite_enabled")
-  foundedAt           DateTime?           @map("founded_at")
-  createdAt           DateTime            @default(now()) @map("created_at")
-  updatedAt           DateTime            @updatedAt @map("updated_at")
-  deletedAt           DateTime?           @map("deleted_at")
+  id                   String              @id @default(cuid()) @map("club_id")
+  shortId              String              @unique @default(cuid()) @map("short_id")
+  name                 String              @map("name")
+  slug                 String              @unique @map("slug")
+  description          String?             @map("description")
+  coverUrl             String?             @map("cover_url")
+  logoUrl              String?             @map("logo_url")
+  category             String?             @map("category")
+  searchTextNormalized String              @default("") @map("search_text_normalized")
+  visibility           PostVisibility      @default(PUBLIC) @map("visibility")
+  communityVisibility  CommunityVisibility @default(PUBLIC) @map("community_visibility")
+  requirePostApproval  Boolean             @default(false) @map("require_post_approval")
+  chatEnabled          Boolean             @default(true) @map("chat_enabled")
+  chatMode             CommunityChatMode   @default(OPEN) @map("chat_mode")
+  memberInviteEnabled  Boolean             @default(true) @map("member_invite_enabled")
+  foundedAt            DateTime?           @map("founded_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+  deletedAt            DateTime?           @map("deleted_at")
 
   members ClubMember[]
   posts   Post[]
@@ -254,21 +257,22 @@ model Club {
 }
 
 model Group {
-  id                  String              @id @default(cuid()) @map("group_id")
-  shortId             String              @unique @default(cuid()) @map("short_id")
-  name                String              @map("name")
-  slug                String              @unique @map("slug")
-  description         String?             @map("description")
-  coverUrl            String?             @map("cover_url")
-  visibility          PostVisibility      @default(PUBLIC) @map("visibility")
-  communityVisibility CommunityVisibility @default(PUBLIC) @map("community_visibility")
-  requirePostApproval Boolean             @default(false) @map("require_post_approval")
-  chatEnabled         Boolean             @default(true) @map("chat_enabled")
-  chatMode            CommunityChatMode   @default(OPEN) @map("chat_mode")
-  memberInviteEnabled Boolean             @default(true) @map("member_invite_enabled")
-  createdAt           DateTime            @default(now()) @map("created_at")
-  updatedAt           DateTime            @updatedAt @map("updated_at")
-  deletedAt           DateTime?           @map("deleted_at")
+  id                   String              @id @default(cuid()) @map("group_id")
+  shortId              String              @unique @default(cuid()) @map("short_id")
+  name                 String              @map("name")
+  slug                 String              @unique @map("slug")
+  description          String?             @map("description")
+  searchTextNormalized String              @default("") @map("search_text_normalized")
+  coverUrl             String?             @map("cover_url")
+  visibility           PostVisibility      @default(PUBLIC) @map("visibility")
+  communityVisibility  CommunityVisibility @default(PUBLIC) @map("community_visibility")
+  requirePostApproval  Boolean             @default(false) @map("require_post_approval")
+  chatEnabled          Boolean             @default(true) @map("chat_enabled")
+  chatMode             CommunityChatMode   @default(OPEN) @map("chat_mode")
+  memberInviteEnabled  Boolean             @default(true) @map("member_invite_enabled")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+  deletedAt            DateTime?           @map("deleted_at")
 
   members       GroupMember[]
   posts         Post[]
@@ -308,20 +312,21 @@ model GroupMember {
 }
 
 model Course {
-  id                  String            @id @default(cuid()) @map("course_id")
-  shortId             String            @unique @default(cuid()) @map("short_id")
-  code                String            @unique @map("code")
-  name                String            @map("name")
-  slug                String            @unique @map("slug")
-  description         String?           @map("description")
-  coverUrl            String?           @map("cover_url")
-  lecturerId          String            @map("lecturer_id")
-  requirePostApproval Boolean           @default(false) @map("require_post_approval")
-  chatEnabled         Boolean           @default(true) @map("chat_enabled")
-  chatMode            CommunityChatMode @default(OPEN) @map("chat_mode")
-  createdAt           DateTime          @default(now()) @map("created_at")
-  updatedAt           DateTime          @updatedAt @map("updated_at")
-  deletedAt           DateTime?         @map("deleted_at")
+  id                   String            @id @default(cuid()) @map("course_id")
+  shortId              String            @unique @default(cuid()) @map("short_id")
+  code                 String            @unique @map("code")
+  name                 String            @map("name")
+  slug                 String            @unique @map("slug")
+  description          String?           @map("description")
+  searchTextNormalized String            @default("") @map("search_text_normalized")
+  coverUrl             String?           @map("cover_url")
+  lecturerId           String            @map("lecturer_id")
+  requirePostApproval  Boolean           @default(false) @map("require_post_approval")
+  chatEnabled          Boolean           @default(true) @map("chat_enabled")
+  chatMode             CommunityChatMode @default(OPEN) @map("chat_mode")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+  deletedAt            DateTime?         @map("deleted_at")
 
   lecturer    UserProfile    @relation("CourseLecturer", fields: [lecturerId], references: [userId], onDelete: Restrict)
   members     CourseMember[]
@@ -346,20 +351,22 @@ model CourseMember {
 }
 
 model Post {
-  id              String              @id @default(cuid()) @map("post_id")
-  content         String              @map("content")
-  imageUrl        String?             @map("image_url")
-  mediaUrls       Json?               @map("media_urls")
-  visibility      PostVisibility      @default(PUBLIC) @map("visibility")
-  communityStatus CommunityPostStatus @default(PUBLISHED) @map("community_status")
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
-  deletedAt       DateTime?           @map("deleted_at")
-  deletedBy       String?             @map("deleted_by")
-  deletedReason   String?             @map("deleted_reason")
-  reviewedBy      String?             @map("reviewed_by")
-  reviewedAt      DateTime?           @map("reviewed_at")
-  reviewReason    String?             @map("review_reason")
+  id                   String                   @id @default(cuid()) @map("post_id")
+  content              String                   @map("content")
+  imageUrl             String?                  @map("image_url")
+  mediaUrls            Json?                    @map("media_urls")
+  visibility           PostVisibility           @default(PUBLIC) @map("visibility")
+  communityStatus      CommunityPostStatus      @default(PUBLISHED) @map("community_status")
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
+  deletedAt            DateTime?                @map("deleted_at")
+  deletedBy            String?                  @map("deleted_by")
+  deletedReason        String?                  @map("deleted_reason")
+  reviewedBy           String?                  @map("reviewed_by")
+  reviewedAt           DateTime?                @map("reviewed_at")
+  reviewReason         String?                  @map("review_reason")
+  searchTextNormalized String                   @default("") @map("search_text_normalized")
+  searchVector         Unsupported("tsvector")? @map("search_vector")
 
   authorId String      @map("author_id")
   author   UserProfile @relation(fields: [authorId], references: [userId], onDelete: Cascade)
@@ -400,6 +407,20 @@ model Post {
   @@index([sharedPostId])
   @@index([createdAt(sort: Desc)])
   @@map("posts")
+}
+
+model SearchHistory {
+  id              String   @id @default(cuid()) @map("search_history_id")
+  userId          String   @map("user_id")
+  query           String   @map("query")
+  normalizedQuery String   @map("normalized_query")
+  lastSearchedAt  DateTime @default(now()) @updatedAt @map("last_searched_at")
+
+  user UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, normalizedQuery])
+  @@index([userId, lastSearchedAt(sort: Desc)])
+  @@map("search_histories")
 }
 
 model Comment {
@@ -496,15 +517,15 @@ model PollVote {
 }
 
 model Conversation {
-  id        String           @id @default(cuid()) @map("conversation_id")
-  type      ConversationType @default(DIRECT) @map("type")
-  name      String?          @map("name")
-  groupId   String?          @map("group_id")
-  communityType     CommunityType? @map("community_type")
-  communityTargetId String?        @map("community_target_id")
-  group     Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  createdAt DateTime         @default(now()) @map("created_at")
-  updatedAt DateTime         @updatedAt @map("updated_at")
+  id                String           @id @default(cuid()) @map("conversation_id")
+  type              ConversationType @default(DIRECT) @map("type")
+  name              String?          @map("name")
+  groupId           String?          @map("group_id")
+  communityType     CommunityType?   @map("community_type")
+  communityTargetId String?          @map("community_target_id")
+  group             Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
 
   participants ConversationParticipant[]
   messages     Message[]
@@ -547,15 +568,15 @@ model ConversationParticipant {
 }
 
 model Message {
-  id            String    @id @default(cuid()) @map("message_id")
-  content       String    @map("content")
-  attachmentUrl String?   @map("attachment_url")
-  attachmentType MessageAttachmentType? @map("attachment_type")
-  attachmentName String?  @map("attachment_name")
-  attachmentMimeType String? @map("attachment_mime_type")
-  attachmentSizeBytes Int? @map("attachment_size_bytes")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  deletedAt     DateTime? @map("deleted_at")
+  id                  String                 @id @default(cuid()) @map("message_id")
+  content             String                 @map("content")
+  attachmentUrl       String?                @map("attachment_url")
+  attachmentType      MessageAttachmentType? @map("attachment_type")
+  attachmentName      String?                @map("attachment_name")
+  attachmentMimeType  String?                @map("attachment_mime_type")
+  attachmentSizeBytes Int?                   @map("attachment_size_bytes")
+  createdAt           DateTime               @default(now()) @map("created_at")
+  deletedAt           DateTime?              @map("deleted_at")
 
   senderId String      @map("sender_id")
   sender   UserProfile @relation("MessageSender", fields: [senderId], references: [userId], onDelete: Cascade)
