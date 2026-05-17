@@ -7,9 +7,11 @@ const searchPosts = vi.hoisted(() => vi.fn())
 const searchGroups = vi.hoisted(() => vi.fn())
 const searchClubs = vi.hoisted(() => vi.fn())
 const searchCourses = vi.hoisted(() => vi.fn())
+const searchAnnouncements = vi.hoisted(() => vi.fn())
 const listRecentSearches = vi.hoisted(() => vi.fn())
 const recordRecentSearch = vi.hoisted(() => vi.fn())
 const deleteRecentSearch = vi.hoisted(() => vi.fn())
+const userProfileFindUnique = vi.hoisted(() => vi.fn())
 
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
 vi.mock("@/lib/search/queries", () => ({
@@ -18,11 +20,19 @@ vi.mock("@/lib/search/queries", () => ({
   searchGroups,
   searchClubs,
   searchCourses,
+  searchAnnouncements,
 }))
 vi.mock("@/lib/search/history", () => ({
   listRecentSearches,
   recordRecentSearch,
   deleteRecentSearch,
+}))
+vi.mock("@/lib/prisma/client", () => ({
+  prisma: {
+    userProfile: {
+      findUnique: userProfileFindUnique,
+    },
+  },
 }))
 
 import {
@@ -42,6 +52,7 @@ function mockSession(userId: string | null) {
       }),
     },
   } as unknown as SupabaseClient)
+  userProfileFindUnique.mockResolvedValue(userId ? { role: "STUDENT" } : null)
 }
 
 describe("search actions", () => {
@@ -61,6 +72,7 @@ describe("search actions", () => {
     searchGroups.mockResolvedValue([])
     searchClubs.mockResolvedValue([])
     searchCourses.mockResolvedValue([])
+    searchAnnouncements.mockResolvedValue([])
 
     await expect(searchSuggestions({ query: "nguyen" })).resolves.toMatchObject({
       success: true,
@@ -75,6 +87,7 @@ describe("search actions", () => {
     searchGroups.mockResolvedValue([])
     searchClubs.mockResolvedValue([])
     searchCourses.mockResolvedValue([])
+    searchAnnouncements.mockResolvedValue([])
 
     await searchSuggestions({ query: "hoc tap" })
 
@@ -110,6 +123,7 @@ describe("search actions", () => {
     searchGroups.mockResolvedValue([])
     searchClubs.mockResolvedValue([])
     searchCourses.mockResolvedValue([])
+    searchAnnouncements.mockResolvedValue([])
 
     const result = await searchSuggestions({ query: "nguyen" })
 
@@ -121,5 +135,19 @@ describe("search actions", () => {
     mockSession("user-1")
     await removeRecentSearch({ query: "Nguyễn Văn A" })
     expect(deleteRecentSearch).toHaveBeenCalledWith("user-1", "Nguyễn Văn A")
+  })
+
+  it("loads announcement suggestions with the viewer role", async () => {
+    mockSession("user-1")
+    searchUsers.mockResolvedValue([])
+    searchPosts.mockResolvedValue([])
+    searchGroups.mockResolvedValue([])
+    searchClubs.mockResolvedValue([])
+    searchCourses.mockResolvedValue([])
+    searchAnnouncements.mockResolvedValue([])
+
+    await searchSuggestions({ query: "hoc phi" })
+
+    expect(searchAnnouncements).toHaveBeenCalledWith("hoc phi", "STUDENT", { limit: 4 })
   })
 })

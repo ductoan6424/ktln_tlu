@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import {
+  searchAnnouncements,
   searchClubs,
   searchCourses,
   searchGroups,
@@ -14,6 +15,7 @@ import {
   recordRecentSearch,
 } from "@/lib/search/history"
 import { rankSearchCandidates } from "@/lib/search/ranking"
+import { prisma } from "@/lib/prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -28,20 +30,31 @@ const querySchema = z.object({
 })
 
 const resultSchema = querySchema.extend({
-  type: z.enum(["ALL", "USER", "POST", "GROUP", "CLUB", "COURSE"]).default("ALL"),
+  type: z.enum(["ALL", "USER", "POST", "GROUP", "CLUB", "COURSE", "ANNOUNCEMENT"]).default("ALL"),
   page: z.number().int().min(1).default(1),
 })
 
-async function getViewerId() {
+async function getViewerContext() {
   const supabase = await createClient()
   const { data, error } = await supabase.auth.getUser()
-  return error ? null : data.user?.id ?? null
+  const viewerId = error ? null : data.user?.id ?? null
+  const profile = viewerId
+    ? await prisma.userProfile.findUnique({
+        where: { userId: viewerId },
+        select: { role: true },
+      })
+    : null
+
+  return {
+    viewerId,
+    viewerRole: profile?.role ?? "STUDENT",
+  } as const
 }
 
 type RecentSearchItem = Awaited<ReturnType<typeof listRecentSearches>>[number]
 
 export async function getRecentSearches(): Promise<ActionResult<RecentSearchItem[]>> {
-  const viewerId = await getViewerId()
+  const { viewerId } = await getViewerContext()
   if (!viewerId) {
     return errorResult<RecentSearchItem[]>(
       "Bạn cần đăng nhập để xem lịch sử tìm kiếm",
@@ -53,7 +66,7 @@ export async function getRecentSearches(): Promise<ActionResult<RecentSearchItem
 }
 
 export async function recordSearchQuery(rawInput: unknown) {
-  const viewerId = await getViewerId()
+  const { viewerId } = await getViewerContext()
   if (!viewerId) {
     return errorResult("Bạn cần đăng nhập để lưu lịch sử tìm kiếm", "UNAUTHORIZED")
   }
@@ -64,7 +77,7 @@ export async function recordSearchQuery(rawInput: unknown) {
 }
 
 export async function removeRecentSearch(rawInput: unknown) {
-  const viewerId = await getViewerId()
+  const { viewerId } = await getViewerContext()
   if (!viewerId) {
     return errorResult("Bạn cần đăng nhập để xóa lịch sử tìm kiếm", "UNAUTHORIZED")
   }
@@ -76,17 +89,18 @@ export async function removeRecentSearch(rawInput: unknown) {
 
 export async function searchSuggestions(rawInput: unknown) {
   const input = querySchema.parse(rawInput)
-  const viewerId = await getViewerId()
-  const [users, posts, groups, clubs, courses] = await Promise.all([
+  const { viewerId, viewerRole } = await getViewerContext()
+  const [users, posts, groups, clubs, courses, announcements] = await Promise.all([
     searchUsers(input.query, { limit: 6 }),
     searchPosts(input.query, viewerId, { limit: 4 }),
     searchGroups(input.query, { limit: 4 }),
     searchClubs(input.query, { limit: 4 }),
     searchCourses(input.query, { limit: 4 }),
+    searchAnnouncements(input.query, viewerRole, { limit: 4 }),
   ])
 
   return successResult(
-    rankSearchCandidates([...users, ...posts, ...groups, ...clubs, ...courses], {
+    rankSearchCandidates([...users, ...posts, ...groups, ...clubs, ...courses, ...announcements], {
       mode: "AUTOCOMPLETE",
     }).slice(0, 8),
   )
@@ -94,7 +108,7 @@ export async function searchSuggestions(rawInput: unknown) {
 
 export async function searchResults(rawInput: unknown) {
   const input = resultSchema.parse(rawInput)
-  const viewerId = await getViewerId()
+  const { viewerId, viewerRole } = await getViewerContext()
   const pageSize = 20
   const previewSize = 5
   const offset = (input.page - 1) * pageSize
@@ -107,6 +121,7 @@ export async function searchResults(rawInput: unknown) {
     GROUP: (page) => searchGroups(input.query, page),
     CLUB: (page) => searchClubs(input.query, page),
     COURSE: (page) => searchCourses(input.query, page),
+    ANNOUNCEMENT: (page) => searchAnnouncements(input.query, viewerRole, page),
   }
 
   if (input.type === "ALL") {
