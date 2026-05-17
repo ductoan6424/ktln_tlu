@@ -7,13 +7,24 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { RelativeTime } from "@/components/shared/relative-time"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { IconButton } from "@/components/shared/icon-button"
-import { BadgeCheck, Megaphone, Pin, ChevronLeft, ChevronRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { TabNavigation } from "@/components/shared/tab-navigation"
+import { DividerLabel } from "@/components/shared/divider-label"
+import { EmptyState } from "@/components/shared/empty-state"
+import { SectionHeader } from "@/components/shared/section-header"
+import { BadgeCheck, Megaphone, Pin, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   OFFICIAL_SCHOOL_AVATAR_URL,
   OFFICIAL_SCHOOL_DISPLAY_NAME,
 } from "@/lib/config/announcements"
 import { cn } from "@/lib/utils"
 import { AnnouncementDetailDialog } from "@/components/feed/announcement-detail-dialog"
+import { AnnouncementMenu } from "@/components/feed/announcement-menu"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +59,7 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
   const [canLeft, setCanLeft] = useState(false)
   const [canRight, setCanRight] = useState(false)
   const [selected, setSelected] = useState<AnnouncementStripItem | null>(null)
+  const [listOpen, setListOpen] = useState(false)
 
   const syncScroll = useCallback(() => {
     const el = scrollRef.current
@@ -82,13 +94,21 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
       <Card className={cn("shadow-sm overflow-hidden", className)} aria-label="Thông báo của trường">
         <CardContent className="p-4 space-y-3">
 
-          {/* Tiêu đề */}
-          <div className="flex items-center gap-2">
-            <Megaphone className="size-4 text-primary" aria-hidden="true" />
-            <h2 className="text-[15px] font-bold text-foreground leading-none">
-              Thông báo của trường
-            </h2>
-          </div>
+          {/* Tiêu đề — dùng SectionHeader */}
+          <SectionHeader
+            title="Thông báo của trường"
+            action={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setListOpen(true)}
+                className="h-auto px-1.5 py-0.5 text-[13px] font-semibold text-primary hover:text-primary hover:bg-primary/10"
+              >
+                Xem chi tiết
+              </Button>
+            }
+            className="[&_h3]:text-[15px] [&_h3]:font-bold [&_h3]:normal-case [&_h3]:tracking-normal [&_h3]:text-foreground"
+          />
 
           {/* Scrollable row + nút scroll nổi */}
           <div className="relative">
@@ -136,6 +156,17 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
         </CardContent>
       </Card>
 
+      {/* List dialog — toàn bộ thông báo */}
+      <AnnouncementListDialog
+        open={listOpen}
+        onOpenChange={setListOpen}
+        announcements={announcements}
+        onSelectItem={(item) => {
+          setListOpen(false)
+          setSelected(item)
+        }}
+      />
+
       {/* Detail dialog */}
       {selected && (
         <AnnouncementDetailDialog
@@ -150,6 +181,295 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
         />
       )}
     </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Time filter helpers
+// ---------------------------------------------------------------------------
+
+type TimeFilter = "all" | "today" | "week" | "month" | "3months" | "6months"
+
+const TIME_FILTERS: { value: TimeFilter; label: string }[] = [
+  { value: "all",     label: "Tất cả"   },
+  { value: "today",   label: "Hôm nay"  },
+  { value: "week",    label: "Tuần này" },
+  { value: "month",   label: "Tháng này"},
+  { value: "3months", label: "3 tháng"  },
+  { value: "6months", label: "6 tháng"  },
+]
+
+function getFilterStart(filter: TimeFilter): Date | null {
+  const now = new Date()
+  if (filter === "today") {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  }
+  if (filter === "week") {
+    const d = new Date(now)
+    d.setDate(d.getDate() - 6)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
+  if (filter === "month") {
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  }
+  if (filter === "3months") {
+    return new Date(now.getFullYear(), now.getMonth() - 3, 1)
+  }
+  if (filter === "6months") {
+    return new Date(now.getFullYear(), now.getMonth() - 6, 1)
+  }
+  return null
+}
+
+function applyFilter(items: AnnouncementStripItem[], filter: TimeFilter): AnnouncementStripItem[] {
+  const start = getFilterStart(filter)
+  if (!start) return items
+  return items.filter((item) => new Date(item.publishedAt) >= start)
+}
+
+// Group label theo thời gian — giống Facebook
+function getGroupLabel(date: Date, now: Date): string {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfYesterday = new Date(startOfToday)
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1)
+  const startOfWeek = new Date(startOfToday)
+  startOfWeek.setDate(startOfWeek.getDate() - 6)
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+  if (date >= startOfToday)      return "Hôm nay"
+  if (date >= startOfYesterday)  return "Hôm qua"
+  if (date >= startOfWeek)       return "Tuần này"
+  if (date >= startOfMonth)      return "Tháng này"
+  if (date >= startOfLastMonth)  return "Tháng trước"
+
+  // Các tháng xa hơn: "Tháng 3 · 2025"
+  const month = date.getMonth() + 1
+  const year = date.getFullYear()
+  return year === now.getFullYear()
+    ? `Tháng ${month}`
+    : `Tháng ${month} · ${year}`
+}
+
+interface GroupedAnnouncements {
+  label: string
+  items: AnnouncementStripItem[]
+}
+
+function groupByTime(items: AnnouncementStripItem[]): GroupedAnnouncements[] {
+  const now = new Date()
+  const groups: GroupedAnnouncements[] = []
+  const labelMap = new Map<string, AnnouncementStripItem[]>()
+
+  // Ghim luôn lên đầu thành nhóm riêng nếu có
+  const pinned = items.filter((i) => i.pinToTop)
+  const rest   = items.filter((i) => !i.pinToTop)
+
+  if (pinned.length > 0) {
+    groups.push({ label: "📌 Đã ghim", items: pinned })
+  }
+
+  for (const item of rest) {
+    const label = getGroupLabel(new Date(item.publishedAt), now)
+    if (!labelMap.has(label)) labelMap.set(label, [])
+    labelMap.get(label)!.push(item)
+  }
+
+  for (const [label, groupItems] of labelMap) {
+    groups.push({ label, items: groupItems })
+  }
+
+  return groups
+}
+
+// ---------------------------------------------------------------------------
+// List dialog — pill filter + grouping theo thời gian
+// ---------------------------------------------------------------------------
+
+interface AnnouncementListDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  announcements: AnnouncementStripItem[]
+  onSelectItem: (item: AnnouncementStripItem) => void
+}
+
+function AnnouncementListDialog({
+  open,
+  onOpenChange,
+  announcements,
+  onSelectItem,
+}: AnnouncementListDialogProps) {
+  const [activeFilter, setActiveFilter] = useState<TimeFilter>("all")
+
+  // Reset filter khi đóng dialog
+  useEffect(() => {
+    if (!open) setActiveFilter("all")
+  }, [open])
+
+  const filtered = applyFilter(announcements, activeFilter)
+  const groups   = groupByTime(filtered)
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showCloseButton
+        className={cn(
+          "!flex !flex-col p-0 !gap-0 overflow-hidden",
+          /* Mobile: full-screen */
+          "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 w-full h-full max-w-none max-h-none rounded-none",
+          /* Desktop: modal giữa màn hình */
+          "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2",
+          "md:!w-[min(96vw,500px)] md:!h-[min(90vh,680px)]",
+          "md:!max-w-none md:!max-h-none md:rounded-xl",
+        )}
+      >
+        <DialogTitle className="sr-only">Tất cả thông báo của trường</DialogTitle>
+
+        {/* ── Header — dùng SectionHeader ── */}
+        <div className="shrink-0 flex items-center gap-2 px-4 h-14 border-b border-border">
+          <IconButton
+            icon={ArrowLeft}
+            size="md"
+            ariaLabel="Đóng"
+            onClick={() => onOpenChange(false)}
+            className="rounded-full md:hidden"
+          />
+          <SectionHeader
+            title="Thông báo của trường"
+            className="flex-1 min-w-0 [&_h3]:text-[15px] [&_h3]:font-bold [&_h3]:normal-case [&_h3]:tracking-normal [&_h3]:text-foreground"
+          />
+        </div>
+
+        {/* ── Pill filter — dùng TabNavigation variant="pill" ── */}
+        <div className="shrink-0 px-4 py-2.5 border-b border-border/60 bg-muted/30">
+          <TabNavigation
+            tabs={TIME_FILTERS}
+            activeTab={activeFilter}
+            onTabChange={(v) => setActiveFilter(v as TimeFilter)}
+            variant="pill"
+          />
+        </div>
+
+        {/* ── Danh sách có grouping ── */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {filtered.length === 0 ? (
+            /* Empty state — dùng EmptyState */
+            <EmptyState
+              icon={Megaphone}
+              title="Không có thông báo nào"
+              description="Không có thông báo nào trong khoảng thời gian này"
+            />
+          ) : (
+            <div>
+              {groups.map((group) => (
+                <div key={group.label}>
+                  {/* Group label — dùng DividerLabel */}
+                  <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                    <DividerLabel
+                      label={`${group.label}  ·  ${group.items.length} thông báo`}
+                      className="px-4 py-0"
+                    />
+                  </div>
+
+                  {/* Rows trong group */}
+                  <div className="divide-y divide-border/60">
+                    {group.items.map((item) => (
+                      <AnnouncementListRow
+                        key={item.id}
+                        item={item}
+                        onClick={() => onSelectItem(item)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Row item bên trong list dialog
+// ---------------------------------------------------------------------------
+
+function AnnouncementListRow({
+  item,
+  onClick,
+}: {
+  item: AnnouncementStripItem
+  onClick: () => void
+}) {
+  return (
+    <div
+      className={cn(
+        "relative flex items-start gap-3 px-4 py-5",
+        "hover:bg-accent/40 transition-colors cursor-pointer",
+        item.pinToTop && "pl-[calc(1rem+3px)] border-l-[3px] border-l-destructive",
+      )}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick() }}
+    >
+      {/* Avatar */}
+      <UserAvatar
+        src={OFFICIAL_SCHOOL_AVATAR_URL}
+        name={OFFICIAL_SCHOOL_DISPLAY_NAME}
+        size="md"
+        className="shrink-0 mt-0.5"
+      />
+
+      {/* Nội dung */}
+      <div className="flex-1 min-w-0 space-y-1.5">
+
+        {/* Dòng 1: Tên + verified + badges */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[13px] font-semibold leading-tight">
+            {OFFICIAL_SCHOOL_DISPLAY_NAME}
+          </span>
+          <BadgeCheck
+            className="size-3.5 shrink-0 text-primary fill-primary stroke-primary-foreground"
+            aria-label="Tài khoản chính thức"
+          />
+          {item.pinToTop && (
+            <StatusBadge variant="warning" size="sm">
+              GHIM
+            </StatusBadge>
+          )}
+        </div>
+
+        {/* Dòng 2: Thời gian */}
+        <p className="text-[11px] text-muted-foreground leading-none">
+          <RelativeTime date={item.publishedAt} fallback={item.publishedAt} />
+          {" · "}Tài khoản chính thức
+        </p>
+
+        {/* Dòng 3: Tiêu đề */}
+        <p className="text-[13px] font-bold leading-snug text-foreground line-clamp-2 pt-0.5">
+          {item.title}
+        </p>
+
+        {/* Dòng 4: Nội dung preview */}
+        <p className="text-[12px] text-muted-foreground leading-relaxed line-clamp-3">
+          {item.content}
+        </p>
+
+      </div>
+
+      {/* Menu 3 chấm — không propagate click */}
+      {item.id && (
+        <div
+          className="shrink-0 mt-0.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <AnnouncementMenu announcementId={item.id} isSaved={item.isSaved} />
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -230,7 +550,7 @@ function AnnouncementCard({
           <p className="text-[13px] font-bold leading-snug text-foreground shrink-0 line-clamp-2">
             {title}
           </p>
-          <p className="text-[12px] text-muted-foreground leading-relaxed overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:999]">
+          <p className="text-[12px] text-muted-foreground leading-relaxed line-clamp-6">
             {content}
           </p>
         </div>

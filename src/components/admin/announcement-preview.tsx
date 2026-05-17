@@ -53,7 +53,7 @@ export function AnnouncementPreview({
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-semibold text-sm">{OFFICIAL_SCHOOL_DISPLAY_NAME}</span>
+                <span className="text-sm font-semibold">{OFFICIAL_SCHOOL_DISPLAY_NAME}</span>
                 <BadgeCheck className="size-4 text-primary fill-primary stroke-primary-foreground" />
                 <StatusBadge variant="primary" size="sm" className="ml-1">
                   Thông báo
@@ -71,7 +71,7 @@ export function AnnouncementPreview({
                 <h4 className="text-base font-bold leading-snug">{title}</h4>
               )}
               {content && (
-                <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-6">
                   {content}
                 </p>
               )}

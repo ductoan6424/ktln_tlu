@@ -167,7 +167,7 @@ export function AnnouncementList({ items, onEdit }: AnnouncementListProps) {
 
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold text-base truncate">{item.title}</h3>
+                    <h3 className="text-sm font-semibold truncate">{item.title}</h3>
                     <BadgeCheck className="size-4 text-primary fill-primary stroke-primary-foreground shrink-0" />
                     <StatusBadge variant={STATUS_VARIANT[item.status]} size="sm">
                       {STATUS_LABEL[item.status]}
@@ -182,7 +182,7 @@ export function AnnouncementList({ items, onEdit }: AnnouncementListProps) {
                     </StatusBadge>
                   </div>
 
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
                     {item.content}
                   </p>
 
