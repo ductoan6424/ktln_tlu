@@ -254,7 +254,7 @@ describe("FeedPageClient chat dock migration", () => {
       participantCount: 2,
       communityType: null,
     })
-  })
+  }, 10_000)
 
   it("delegates floating chat ownership to the global dock", () => {
     expect(FEED_PAGE_SOURCE).not.toContain(

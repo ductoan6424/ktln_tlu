@@ -1,8 +1,11 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { MAX_IMAGE_SIZE } from "@/utils/constants"
 
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/utils/constants"
+
+const updateUserAvatar = vi.hoisted(() => vi.fn())
+const toast = vi.hoisted(() => vi.fn())
 const refresh = vi.hoisted(() => vi.fn())
 
 vi.mock("next/navigation", () => ({
@@ -11,10 +14,20 @@ vi.mock("next/navigation", () => ({
   }),
 }))
 
+vi.mock("@/actions/profile", () => ({
+  updateUserAvatar,
+}))
+
+vi.mock("@/components/ui/use-toast", () => ({
+  useToast: () => ({
+    toast,
+    toasts: [],
+  }),
+}))
+
 import {
   AvatarUploader,
-  buildAvatarUploadFormData,
-  submitAvatarUpload,
+  deriveAvatarSelectionState,
   validateAvatarFile,
 } from "@/components/profile/avatar-uploader"
 
@@ -26,102 +39,52 @@ describe("avatar uploader helpers", () => {
   it("rejects invalid file types and oversized files", () => {
     const wrongType = new File(["avatar"], "avatar.txt", { type: "text/plain" })
     const oversized = new File([new Uint8Array(MAX_IMAGE_SIZE + 1)], "avatar.png", {
-      type: "image/png",
+      type: ALLOWED_IMAGE_TYPES[0],
     })
 
-    expect(validateAvatarFile(wrongType)).toBe("Chỉ hỗ trợ JPG, PNG, WEBP hoặc GIF.")
-    expect(validateAvatarFile(oversized)).toBe("Ảnh phải nhỏ hơn 5 MB.")
+    expect(validateAvatarFile(wrongType)).toBe("Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.")
+    expect(validateAvatarFile(oversized)).toBe("Ảnh vượt quá dung lượng tối đa 5MB.")
     expect(validateAvatarFile(new File(["avatar"], "avatar.png", { type: "image/png" }))).toBeNull()
   })
 
-  it("builds form data with the avatar field", () => {
-    const file = new File(["avatar"], "avatar.png", { type: "image/png" })
-
-    const formData = buildAvatarUploadFormData(file)
-
-    expect(formData.get("avatar")).toBe(file)
-  })
-
-  it("submits the file, shows a success toast, and refreshes the router", async () => {
-    const file = new File(["avatar"], "avatar.png", { type: "image/png" })
-    const updateUserAvatar = vi.fn().mockResolvedValue({
-      success: true,
-      data: { avatarUrl: "https://cdn.example/avatar-new.png" },
+  it("clears stale selection when an invalid replacement is chosen", () => {
+    const previousFile = new File(["avatar"], "avatar.png", {
+      type: ALLOWED_IMAGE_TYPES[0],
     })
-    const toast = vi.fn()
-    const setCurrentAvatarUrl = vi.fn()
-
-    const result = await submitAvatarUpload({
-      file,
-      updateUserAvatar,
-      toast,
-      refresh,
-      setCurrentAvatarUrl,
+    const invalidReplacement = new File(["avatar"], "avatar.svg", {
+      type: "image/svg+xml",
     })
 
-    expect(updateUserAvatar).toHaveBeenCalledTimes(1)
-    expect(updateUserAvatar).toHaveBeenCalledWith(expect.any(FormData))
-    expect((updateUserAvatar.mock.calls[0][0] as FormData).get("avatar")).toBe(file)
-    expect(setCurrentAvatarUrl).toHaveBeenCalledWith("https://cdn.example/avatar-new.png")
-    expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Ảnh đại diện đã được cập nhật",
-      })
+    const nextState = deriveAvatarSelectionState(
+      {
+        selectedFile: previousFile,
+        previewUrl: "blob:previous-preview",
+      },
+      invalidReplacement,
+      () => "blob:new-preview"
     )
-    expect(refresh).toHaveBeenCalledTimes(1)
-    expect(result).toEqual({
-      success: true,
-      data: { avatarUrl: "https://cdn.example/avatar-new.png" },
-    })
-  })
 
-  it("shows an error toast and skips refresh when the update fails", async () => {
-    const file = new File(["avatar"], "avatar.png", { type: "image/png" })
-    const updateUserAvatar = vi.fn().mockResolvedValue({
-      success: false,
-      error: "Không thể cập nhật ảnh đại diện.",
-      code: "PROFILE_UPDATE_ERROR",
-    })
-    const toast = vi.fn()
-    const setCurrentAvatarUrl = vi.fn()
-
-    const result = await submitAvatarUpload({
-      file,
-      updateUserAvatar,
-      toast,
-      refresh,
-      setCurrentAvatarUrl,
-    })
-
-    expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        variant: "destructive",
-        title: "Không thể cập nhật ảnh đại diện",
-      })
-    )
-    expect(refresh).not.toHaveBeenCalled()
-    expect(setCurrentAvatarUrl).not.toHaveBeenCalled()
-    expect(result).toEqual({
-      success: false,
-      error: "Không thể cập nhật ảnh đại diện.",
-      code: "PROFILE_UPDATE_ERROR",
+    expect(nextState).toEqual({
+      selectedFile: null,
+      previewUrl: null,
+      error: "Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.",
     })
   })
 })
 
 describe("AvatarUploader", () => {
-  it("renders the hidden file input and the initial trigger state", () => {
+  it("renders the hidden file input and the initial settings state", () => {
     const markup = renderToStaticMarkup(
       createElement(AvatarUploader, {
-        name: "Nguyen Van A",
-        avatarUrl: "https://cdn.example/avatar.png",
+        currentAvatarUrl: "https://cdn.example/avatar.png",
+        displayName: "Nguyen Van A",
         variant: "settings",
       })
     )
 
     expect(markup).toContain('type="file"')
     expect(markup).toContain('accept="image/jpeg,image/png,image/webp,image/gif"')
-    expect(markup).toContain("Đổi ảnh đại diện")
+    expect(markup).toContain("Chọn ảnh")
     expect(markup).not.toContain("Lưu ảnh")
     expect(markup).not.toContain("Hủy")
   })

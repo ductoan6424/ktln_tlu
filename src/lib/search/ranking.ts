@@ -10,6 +10,7 @@ const AUTOCOMPLETE_ENTITY_BOOST = {
   GROUP: 0,
   CLUB: 0,
   COURSE: 0,
+  ANNOUNCEMENT: 0,
 } as const
 
 export function getSearchCandidateScore(

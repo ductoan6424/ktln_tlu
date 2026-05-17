@@ -10,6 +10,7 @@ const TYPE_MAP = {
   groups: "GROUP",
   clubs: "CLUB",
   courses: "COURSE",
+  announcements: "ANNOUNCEMENT",
 } as const
 
 function getParam(params: SearchParams, key: string) {

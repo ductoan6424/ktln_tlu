@@ -26,6 +26,7 @@ const TYPE_PARAM = {
   GROUP: "groups",
   CLUB: "clubs",
   COURSE: "courses",
+  ANNOUNCEMENT: "announcements",
 } as const
 
 export function GlobalSearch({

@@ -1,4 +1,6 @@
 import { Prisma } from "@prisma/client"
+import { audiencesForViewer, OFFICIAL_AUTHOR } from "@/lib/announcements/queries"
+import type { ViewerRole } from "@/lib/announcements/queries"
 import { prisma } from "@/lib/prisma/client"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import { getJoinedCommunityIds } from "@/lib/feed/queries"
@@ -299,4 +301,49 @@ export async function searchPosts(
   `)
 
   return rows.map((row) => mapCandidate("POST", row))
+}
+
+export async function searchAnnouncements(
+  rawQuery: string,
+  viewerRole: ViewerRole | null,
+  { limit, offset = 0 }: SearchPageInput,
+): Promise<SearchCandidate[]> {
+  const query = normalizeSearchText(rawQuery)
+  if (query.length < 2) return []
+
+  const tokens = splitSearchTokens(query)
+  const audiences = audiencesForViewer(viewerRole)
+  const rows = await prisma.$queryRaw<RawCandidateRow[]>(Prisma.sql`
+    SELECT
+      announcement_id AS id,
+      title,
+      ${OFFICIAL_AUTHOR.displayName}::text AS subtitle,
+      '/feed?announcement=' || announcement_id AS href,
+      ${OFFICIAL_AUTHOR.avatarUrl}::text AS avatar_url,
+      LEFT(content, 160) AS excerpt,
+      CASE WHEN search_text_normalized = ${query} THEN 1 ELSE 0 END AS exact_score,
+      CASE WHEN search_text_normalized LIKE ${toPrefixPattern(query)} THEN 1 ELSE 0 END AS prefix_score,
+      CASE
+        WHEN ${tokens
+          .map((token) => Prisma.sql`search_text_normalized LIKE ${toContainsPattern(token)}`)
+          .reduce((left, right) => Prisma.sql`${left} AND ${right}`)}
+        THEN 1 ELSE 0
+      END AS token_coverage,
+      ts_rank_cd(search_vector, plainto_tsquery('simple', ${query})) AS text_rank,
+      CASE WHEN ${query.length} >= 4 THEN similarity(search_text_normalized, ${query}) ELSE 0 END AS similarity_score
+    FROM announcements
+    WHERE status = 'PUBLISHED'
+      AND deleted_at IS NULL
+      AND audience IN (${Prisma.join(audiences)})
+      AND (
+        search_vector @@ plainto_tsquery('simple', ${query})
+        OR search_text_normalized LIKE ${toContainsPattern(query)}
+        OR (${query.length} >= 4 AND search_text_normalized % ${query})
+      )
+    ORDER BY exact_score DESC, prefix_score DESC, text_rank DESC, similarity_score DESC, published_at DESC NULLS LAST
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `)
+
+  return rows.map((row) => mapCandidate("ANNOUNCEMENT", row))
 }

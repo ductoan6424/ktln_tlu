@@ -11,6 +11,7 @@ const TABS = [
   { label: "Nhóm", value: "groups" },
   { label: "Câu lạc bộ", value: "clubs" },
   { label: "Lớp học", value: "courses" },
+  { label: "Thông báo", value: "announcements" },
 ] as const
 
 const LABEL_BY_TYPE: Record<SearchEntityType, string> = {
@@ -19,6 +20,7 @@ const LABEL_BY_TYPE: Record<SearchEntityType, string> = {
   GROUP: "Nhóm",
   CLUB: "Câu lạc bộ",
   COURSE: "Lớp học",
+  ANNOUNCEMENT: "Thông báo",
 }
 
 function buildSearchHref(query: string, type: string, page?: number) {

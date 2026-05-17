@@ -52,7 +52,7 @@ export const OFFICIAL_AUTHOR = {
 
 export type ViewerRole = "STUDENT" | "LECTURER" | "ADMIN"
 
-function audiencesForViewer(role: ViewerRole | null): AnnouncementAudience[] {
+export function audiencesForViewer(role: ViewerRole | null): AnnouncementAudience[] {
   if (role === "LECTURER") return ["ALL", "FACULTY"]
   if (role === "ADMIN") return ["ALL", "STUDENTS", "FACULTY"]
   return ["ALL", "STUDENTS"]
