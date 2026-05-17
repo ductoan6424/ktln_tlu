@@ -38,7 +38,7 @@ export function AnnouncementMenu({ announcementId, isSaved = false, onUnsave }: 
       setSaved(nowSaved)
       if (!nowSaved) onUnsave?.()
       toast({
-        description: nowSaved ? "Đã lưu thông báo." : "Đã bỏ lưu thông báo.",
+        description: nowSaved ? "Đã lưu thông báo." : "Đã bỏ lưu thông báo.", 
         action: nowSaved ? (
           <Link
             href="/saved"
