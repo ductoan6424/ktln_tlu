@@ -54,7 +54,7 @@ export function CommunityManageShell({
     tabs.find((tab) => tab.value === activeTab)?.label ?? tabs[0]?.label
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#f0f2f5]">
+    <div className="min-h-[calc(100dvh-4rem)] bg-[#f0f2f5]">
       <PageContainer
         variant="full"
         className="mx-auto max-w-7xl space-y-4 py-4 sm:py-6"

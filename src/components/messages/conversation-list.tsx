@@ -63,7 +63,7 @@ export function ConversationList({
 
 export function ConversationListSkeleton() {
   return (
-    <aside className="w-80 border-r border-border flex flex-col bg-card">
+    <aside className="w-full border-r border-border flex flex-col bg-card lg:w-80">
       <div className="p-4 space-y-4">
         <Skeleton className="h-6 w-24" />
         <div className="flex gap-2">
