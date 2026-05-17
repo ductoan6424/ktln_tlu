@@ -54,7 +54,7 @@ function StepIndicator({
   totalSteps: number
 }) {
   return (
-    <div className="flex items-center justify-center gap-2 mb-8">
+    <div className="mb-6 flex items-center justify-center gap-2 sm:mb-8">
       {Array.from({ length: totalSteps }).map((_, i) => (
         <div key={i} className="flex items-center gap-2">
           <div
@@ -72,7 +72,7 @@ function StepIndicator({
           {i < totalSteps - 1 && (
             <div
               className={cn(
-                "w-8 h-px transition-all duration-300",
+                "h-px w-6 transition-all duration-300 sm:w-8",
                 i + 1 < currentStep ? "bg-primary" : "bg-border"
               )}
             />
@@ -332,7 +332,7 @@ function StepPersonal({
         </div>
       </FormField>
 
-      <div className="flex gap-3 pt-1">
+      <div className="flex flex-col gap-3 pt-1 sm:flex-row">
         <Button
           variant="outline"
           onClick={onBack}
@@ -385,28 +385,28 @@ function StepConfirm({
       </div>
 
       <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
-        <div className="flex justify-between text-sm">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
           <span className="text-muted-foreground">Họ và tên</span>
-          <span className="font-medium text-foreground">{data.fullName}</span>
+          <span className="min-w-0 break-words font-medium text-foreground sm:text-right">{data.fullName}</span>
         </div>
         <div className="h-px bg-border" />
-        <div className="flex justify-between text-sm">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
           <span className="text-muted-foreground">Mã sinh viên</span>
           <span className="font-medium text-foreground font-mono">
             {data.studentId}
           </span>
         </div>
         <div className="h-px bg-border" />
-        <div className="flex justify-between text-sm">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
           <span className="text-muted-foreground">Khoa</span>
-          <span className="font-medium text-foreground text-right max-w-[60%] text-end">
+          <span className="min-w-0 break-words font-medium text-foreground sm:max-w-[60%] sm:text-end">
             {data.faculty}
           </span>
         </div>
         <div className="h-px bg-border" />
-        <div className="flex justify-between text-sm">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
           <span className="text-muted-foreground">Email</span>
-          <span className="font-medium text-foreground font-mono">
+          <span className="min-w-0 break-all font-mono font-medium text-foreground sm:text-right">
             {data.email}
           </span>
         </div>
@@ -421,7 +421,7 @@ function StepConfirm({
         </p>
       </div>
 
-      <div className="flex gap-3 pt-1">
+      <div className="flex flex-col gap-3 pt-1 sm:flex-row">
         <Button
           variant="outline"
           onClick={onBack}
@@ -468,7 +468,7 @@ function SuccessState({ email }: { email: string }) {
         <p className="text-sm text-muted-foreground">
           Chúng tôi đã gửi email xác thực đến
         </p>
-        <p className="text-sm font-semibold text-foreground font-mono">
+        <p className="break-all font-mono text-sm font-semibold text-foreground">
           {email}
         </p>
         <p className="text-xs text-muted-foreground">
@@ -596,7 +596,7 @@ export function RegisterCard() {
   if (submitted) {
     return (
       <Card className="shadow-2xl shadow-foreground/5 border">
-        <CardContent className="p-8 lg:p-10">
+        <CardContent className="p-5 sm:p-8 lg:p-10">
           <SuccessState email={formData.email} />
         </CardContent>
       </Card>
@@ -605,10 +605,10 @@ export function RegisterCard() {
 
   return (
     <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10">
+      <CardContent className="p-5 sm:p-8 lg:p-10">
         {/* Tiêu đề — chỉ hiện ở step 1 */}
         {step === 1 && (
-          <div className="text-center mb-6">
+          <div className="mb-5 text-center sm:mb-6">
             <h1 className="text-2xl font-bold mb-1.5">Tạo tài khoản mới</h1>
             <p className="text-sm text-muted-foreground">
               Tham gia cộng đồng sinh viên TLU
@@ -666,7 +666,7 @@ export function RegisterCard() {
 export function RegisterCardSkeleton() {
   return (
     <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10 space-y-6">
+      <CardContent className="space-y-6 p-5 sm:p-8 lg:p-10">
         <div className="text-center space-y-2">
           <Skeleton className="h-7 w-48 mx-auto" />
           <Skeleton className="h-4 w-56 mx-auto" />

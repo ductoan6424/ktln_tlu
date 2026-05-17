@@ -77,8 +77,8 @@ export function CommunityPostComposer({
   return (
     <Card>
       <CardContent className="space-y-3 p-4">
-        <div className="flex gap-3">
-          <UserAvatar src={userAvatar ?? undefined} name={userName} size="md" />
+        <div className="flex items-start gap-3">
+          <UserAvatar src={userAvatar ?? undefined} name={userName} size="md" className="shrink-0" />
           <div className="min-w-0 flex-1">
             <Textarea
               value={content}
@@ -117,7 +117,7 @@ export function CommunityPostComposer({
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <input
             ref={fileInputRef}
             type="file"
@@ -135,7 +135,7 @@ export function CommunityPostComposer({
             <ImageIcon className="size-4" />
             Ảnh / file
           </Button>
-          <Button type="button" size="sm" disabled={isPending} onClick={submit}>
+          <Button type="button" size="sm" disabled={isPending} onClick={submit} className="ml-auto">
             {isPending ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />

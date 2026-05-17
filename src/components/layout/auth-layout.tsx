@@ -9,21 +9,21 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-muted">
+    <div className="min-h-dvh flex flex-col bg-muted">
       {/* Header */}
-      <header className="w-full px-6 py-6 lg:px-12 flex justify-between items-center">
+      <header className="w-full shrink-0 px-4 py-4 sm:px-6 sm:py-6 lg:px-12 flex justify-between items-center gap-4">
         <AppLogo size="md" />
         <Link
           href="/support"
-          className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+          className="flex items-center justify-end gap-1 text-right text-sm font-medium leading-tight text-muted-foreground transition-colors hover:text-primary"
         >
-          <HelpCircle className="size-4" />
+          <HelpCircle className="size-4 shrink-0" />
           Trung tâm hỗ trợ
         </Link>
       </header>
 
       {/* Nội dung chính */}
-      <main className="flex-grow flex items-center justify-center px-4 relative overflow-hidden">
+      <main className="relative flex flex-1 items-center justify-center overflow-x-hidden px-4 py-4 sm:py-6">
         {/* Hoa văn nền nhẹ */}
         <div
           className="absolute inset-0 opacity-[0.03] pointer-events-none"
@@ -32,7 +32,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             backgroundSize: "20px 20px",
           }}
         />
-        <div className="w-full max-w-[440px] z-10">
+        <div className="z-10 w-full max-w-[440px]">
           {children}
         </div>
       </main>

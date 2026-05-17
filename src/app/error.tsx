@@ -8,7 +8,7 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4">
       <h2 className="text-2xl font-semibold">Đã xảy ra lỗi!</h2>
       <p className="text-muted-foreground">{error.message}</p>
       <button

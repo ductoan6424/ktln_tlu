@@ -95,7 +95,7 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
 
             {/* Nút TRÁI — dùng IconButton, chỉ hiện khi không ở đầu */}
             {canLeft && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10">
+              <div className="absolute left-0 top-1/2 z-10 hidden -translate-x-1/2 -translate-y-1/2 sm:block">
                 <IconButton
                   icon={ChevronLeft}
                   size="md"
@@ -108,7 +108,7 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
 
             {/* Nút PHẢI — dùng IconButton, chỉ hiện khi không ở cuối */}
             {canRight && (
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10">
+              <div className="absolute right-0 top-1/2 z-10 hidden translate-x-1/2 -translate-y-1/2 sm:block">
                 <IconButton
                   icon={ChevronRight}
                   size="md"
@@ -121,7 +121,7 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
 
             <div
               ref={scrollRef}
-              className="flex gap-3 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {announcements.map((item) => (
                 <AnnouncementCard
@@ -171,7 +171,7 @@ function AnnouncementCard({
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick() }}
       className={cn(
-        "flex-none w-[260px] h-[260px]",
+        "h-[260px] w-[calc(100vw-5rem)] max-w-[300px] flex-none snap-start sm:w-[260px]",
         "relative rounded-xl border border-border bg-card overflow-hidden",
         "shadow-[0_1px_3px_rgba(0,0,0,0.08)]",
         "hover:shadow-[0_3px_12px_rgba(0,0,0,0.12)] hover:-translate-y-px",
@@ -256,7 +256,7 @@ export function AnnouncementStripSkeleton() {
           {[0, 1, 2].map((i) => (
             <div
               key={`announcement-skel-${i}`}
-              className="flex-none w-[260px] h-[260px] rounded-xl border border-border p-3 space-y-2"
+              className="h-[260px] w-[calc(100vw-5rem)] max-w-[300px] flex-none rounded-xl border border-border p-3 space-y-2 sm:w-[260px]"
             >
               <div className="flex items-center gap-2">
                 <Skeleton className="size-8 rounded-full" />
