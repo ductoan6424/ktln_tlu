@@ -10,6 +10,8 @@ const notFound = vi.hoisted(() =>
     throw new Error("NOT_FOUND")
   }),
 )
+const listAdminEvents = vi.hoisted(() => vi.fn())
+const getAdminEventById = vi.hoisted(() => vi.fn())
 
 vi.mock("next/link", () => ({
   default: ({
@@ -21,10 +23,78 @@ vi.mock("next/link", () => ({
   }) => createElement("a", { href }, children),
 }))
 
-vi.mock("next/navigation", () => ({ notFound }))
+vi.mock("next/navigation", () => ({
+  notFound,
+  useRouter: () => ({
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}))
+vi.mock("@/lib/events/queries", () => ({
+  listAdminEvents,
+  getAdminEventById,
+}))
 
 beforeEach(() => {
   vi.clearAllMocks()
+  const adminEvents = [
+    {
+      id: "event-001",
+      title: "Ngày hội định hướng",
+      description: "Sự kiện nội bộ",
+      type: "INTERNAL",
+      typeLabel: "Nội bộ",
+      location: "Hội trường lớn",
+      coverImageUrl: null,
+      organizerName: "Phòng công tác sinh viên",
+      startAt: "2026-08-20T02:00:00.000Z",
+      endAt: "2026-08-20T05:00:00.000Z",
+      dateLabel: "20/08/2026",
+      timeLabel: "09:00 - 12:00",
+      month: "Thg 8",
+      day: "20",
+      capacity: 300,
+      attendeeCount: 240,
+      registrationStatus: "OPEN",
+      status: "PUBLISHED",
+      runtimeStatus: "upcoming",
+      featured: true,
+      isRegistered: false,
+      createdAt: "2026-05-01T00:00:00.000Z",
+      publishedAt: "2026-05-01T00:00:00.000Z",
+      cancelledAt: null,
+    },
+    {
+      id: "event-002",
+      title: "Triển lãm nghiên cứu",
+      description: "Sự kiện học thuật",
+      type: "ACADEMIC",
+      typeLabel: "Học thuật",
+      location: "Trung tâm đổi mới sáng tạo",
+      coverImageUrl: null,
+      organizerName: "Ban chủ nhiệm khoa",
+      startAt: "2026-09-02T06:30:00.000Z",
+      endAt: "2026-09-02T09:30:00.000Z",
+      dateLabel: "02/09/2026",
+      timeLabel: "13:30 - 16:30",
+      month: "Thg 9",
+      day: "02",
+      capacity: 200,
+      attendeeCount: 180,
+      registrationStatus: "APPROVAL_REQUIRED",
+      status: "DRAFT",
+      runtimeStatus: "upcoming",
+      featured: false,
+      isRegistered: false,
+      createdAt: "2026-05-02T00:00:00.000Z",
+      publishedAt: null,
+      cancelledAt: null,
+    },
+  ]
+  listAdminEvents.mockResolvedValue(adminEvents)
+  getAdminEventById.mockImplementation((id: string) => {
+    return Promise.resolve(adminEvents.find((event) => event.id === id) ?? null)
+  })
 })
 
 function findElementByName(node: unknown, name: string): Record<string, unknown> | undefined {
@@ -52,7 +122,7 @@ describe("admin groups and events pages", () => {
     const detailPage = await import("@/app/admin/groups/[groupId]/page")
     const editPage = await import("@/app/admin/groups/[groupId]/edit/page")
 
-    const listMarkup = renderToStaticMarkup(createElement(listPage.default))
+    const listMarkup = renderToStaticMarkup(await listPage.default())
     const newMarkup = renderToStaticMarkup(createElement(newPage.default))
     const settingsMarkup = renderToStaticMarkup(createElement(settingsPage.default))
     const detailMarkup = renderToStaticMarkup(
@@ -106,7 +176,7 @@ describe("admin groups and events pages", () => {
     const detailPage = await import("@/app/admin/events/[eventId]/page")
     const editPage = await import("@/app/admin/events/[eventId]/edit/page")
 
-    const listMarkup = renderToStaticMarkup(createElement(listPage.default))
+    const listMarkup = renderToStaticMarkup(await listPage.default())
     const newMarkup = renderToStaticMarkup(createElement(newPage.default))
     const settingsMarkup = renderToStaticMarkup(createElement(settingsPage.default))
     const detailMarkup = renderToStaticMarkup(
@@ -123,8 +193,8 @@ describe("admin groups and events pages", () => {
     expect(listMarkup).toContain("Thêm sự kiện")
     expect(listMarkup).toContain("Ngày hội định hướng")
 
-    expect(newMarkup).toContain("Thêm sự kiện")
-    expect(newMarkup).toContain("Thông tin sự kiện")
+    expect(newMarkup).toContain("Sự kiện mới")
+    expect(newMarkup).toContain("Đơn vị tổ chức")
     expect(newMarkup).toContain("Đăng ký")
 
     expect(settingsMarkup).toContain("Cài đặt sự kiện")
@@ -132,17 +202,14 @@ describe("admin groups and events pages", () => {
     expect(settingsMarkup).toContain("Quy tắc nhắc lịch")
 
     expect(detailMarkup).toContain("Ngày hội định hướng")
-    expect(detailMarkup).toContain("Tổng quan sự kiện")
+    expect(detailMarkup).toContain("240/300")
     expect(detailMarkup).toContain("/admin/events/event-001/edit")
 
-    expect(editMarkup).toContain("Cập nhật Ngày hội định hướng")
-    expect(editMarkup).toContain("Sự kiện nội bộ")
-    expect(editMarkup).toContain("Thông tin sự kiện")
+    expect(editMarkup).toContain("Chỉnh sửa sự kiện")
+    expect(editMarkup).toContain("Đơn vị tổ chức")
     expect(editMarkup).toContain("Đăng ký")
     expect(editMarkup).toContain('value="Ngày hội định hướng"')
     expect(editMarkup).toContain('value="Hội trường lớn"')
-    expect(secondEditMarkup).toContain("Cập nhật Triển lãm nghiên cứu")
-    expect(secondEditMarkup).toContain("Sự kiện học thuật")
     expect(secondEditMarkup).toContain('value="Triển lãm nghiên cứu"')
     expect(secondEditMarkup).toContain('value="Trung tâm đổi mới sáng tạo"')
 

@@ -117,13 +117,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
       },
     }),
-    prisma.post.count({
-      where: { deletedAt: null, createdAt: { gte: startOfMonth } },
+    prisma.event.count({
+      where: { deletedAt: null, startAt: { gte: startOfMonth } },
     }),
-    prisma.post.count({
+    prisma.event.count({
       where: {
         deletedAt: null,
-        createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+        startAt: { gte: startOfLastMonth, lte: endOfLastMonth },
       },
     }),
     prisma.postModerationLog.count({

@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation"
 
-import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
-
-const eventsModule = getAdminModule("events")
+import { EventForm } from "@/components/admin/event-form"
+import { getAdminEventById } from "@/lib/events/queries"
 
 export default async function AdminEditEventPage({
   params,
@@ -11,11 +9,27 @@ export default async function AdminEditEventPage({
   params: Promise<{ eventId: string }>
 }) {
   const { eventId } = await params
-  const record = eventsModule.getRecord(eventId)
+  const event = await getAdminEventById(eventId)
 
-  if (!record) {
-    notFound()
-  }
+  if (!event) notFound()
 
-  return <AdminFormPageShell<typeof record.cells> module={eventsModule} mode="edit" record={record} />
+  return (
+    <EventForm
+      initialValues={{
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        type: event.type,
+        location: event.location,
+        organizerName: event.organizerName,
+        startAt: event.startAt,
+        endAt: event.endAt,
+        capacity: event.capacity,
+        registrationStatus: event.registrationStatus,
+        featured: event.featured,
+        coverImageUrl: event.coverImageUrl,
+        status: event.status,
+      }}
+    />
+  )
 }
