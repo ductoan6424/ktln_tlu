@@ -1,8 +1,11 @@
-import { AdminListPageShell } from "@/components/admin/shells/admin-list-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { listAdminEvents } from "@/lib/events/queries"
 
-const eventsModule = getAdminModule("events")
+import AdminEventsClient from "./admin-events-client"
 
-export default function AdminEventsPage() {
-  return <AdminListPageShell module={eventsModule} />
+export const dynamic = "force-dynamic"
+
+export default async function AdminEventsPage() {
+  const events = await listAdminEvents()
+
+  return <AdminEventsClient events={events} />
 }

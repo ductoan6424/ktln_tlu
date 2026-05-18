@@ -25,6 +25,7 @@ import type { ActiveFriend } from "@/components/layout/mock-data"
 import { openDirectConversation } from "@/actions/chat"
 import { loadFeedPosts, togglePostLike, getPostById } from "@/actions/posts"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
+import type { EventSidebarItem } from "@/lib/events/queries"
 import type { FeedCursor, FeedPostCommunityContext } from "@/lib/feed/queries"
 import type { PollView } from "@/lib/polls/types"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
@@ -52,6 +53,10 @@ const EVENTS_DATA = [
 
 // Tránh tạo array mới mỗi render → ổn định reference để React.memo làm việc
 const EMPTY_ANNOUNCEMENTS: AnnouncementStripItem[] = []
+const EMPTY_EVENTS: EventSidebarItem[] = EVENTS_DATA.map((event, index) => ({
+  id: `mock-${index}`,
+  ...event,
+}))
 
 interface SharedPostData {
   id: string
@@ -115,6 +120,7 @@ interface FeedPageClientProps {
   initialHasMore: boolean
   deepLinkPostId?: string | null
   announcements?: AnnouncementStripItem[]
+  upcomingEvents?: EventSidebarItem[]
 }
 
 export function FeedPageClient({
@@ -124,6 +130,7 @@ export function FeedPageClient({
   initialHasMore,
   deepLinkPostId,
   announcements = EMPTY_ANNOUNCEMENTS,
+  upcomingEvents = EMPTY_EVENTS,
 }: FeedPageClientProps) {
   const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -482,18 +489,22 @@ export function FeedPageClient({
                     }
                     className="mb-4"
                   />
-                  <div className="space-y-4">
-                    {EVENTS_DATA.map((event) => (
-                      <EventItem
-                        key={event.title}
-                        month={event.month}
-                        day={event.day}
-                        title={event.title}
-                        location={event.location}
-                        time={event.time}
-                      />
-                    ))}
-                  </div>
+                  {upcomingEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Chưa có sự kiện sắp tới.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {upcomingEvents.map((event) => (
+                        <EventItem
+                          key={event.id}
+                          month={event.month}
+                          day={event.day}
+                          title={event.title}
+                          location={event.location}
+                          time={event.time}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
