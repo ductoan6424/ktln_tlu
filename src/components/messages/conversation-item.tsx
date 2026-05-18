@@ -36,7 +36,7 @@ export function ConversationItem({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "h-auto w-full justify-start gap-4 rounded-none border-0 px-4 py-4 text-left whitespace-normal",
+        "h-auto w-full justify-start gap-4 rounded-none border-0 p-4 text-left whitespace-normal",
         isActive
           ? "border-r-4 border-primary bg-primary/5 hover:bg-primary/5"
           : "border-b border-border/50 hover:bg-muted"
@@ -90,7 +90,7 @@ export function ConversationItem({
 
 export function ConversationItemSkeleton() {
   return (
-    <div className="flex items-center gap-4 px-4 py-4">
+    <div className="flex items-center gap-4 p-4">
       <Skeleton className="size-12 rounded-full" />
       <div className="flex-1 space-y-1.5">
         <Skeleton className="h-3.5 w-28" />

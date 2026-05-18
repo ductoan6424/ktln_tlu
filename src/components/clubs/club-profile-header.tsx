@@ -38,7 +38,7 @@ export function ClubProfileHeader({
 
       {/* Thông tin */}
       <div className="flex-1">
-        <h2 className="text-xl font-bold">{name}</h2>
+        <h2 className="text-xl font-semibold">{name}</h2>
         <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
           {hub && (
             <span className="flex items-center gap-1">

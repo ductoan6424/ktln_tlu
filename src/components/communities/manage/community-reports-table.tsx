@@ -36,7 +36,7 @@ export function CommunityReportsTable({
             <Flag className="size-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#050505]">Báo cáo</h2>
+            <h2 className="text-lg font-semibold text-[#050505]">Báo cáo</h2>
             <p className="text-sm text-[#65676b]">
               Nội dung thành viên đã báo cáo cần được xử lý.
             </p>

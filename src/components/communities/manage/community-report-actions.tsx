@@ -33,7 +33,7 @@ export function CommunityReportActions({
   contentType,
   contentId,
 }: CommunityReportActionsProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
 
@@ -58,7 +58,7 @@ export function CommunityReportActions({
                 ? "Đã cập nhật báo cáo."
                 : result.error ?? "Không thể xử lý.",
             )
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }}
       >
@@ -109,7 +109,7 @@ export function CommunityReportActions({
                 ? "Đã xoá nội dung bị báo cáo."
                 : result.error ?? "Không thể xoá.",
             )
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }}
       >

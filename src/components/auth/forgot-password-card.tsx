@@ -55,7 +55,7 @@ function SuccessState({ email }: { email: string }) {
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-xl font-bold text-foreground">
+        <h2 className="text-xl font-semibold text-foreground">
           Đã gửi email khôi phục!
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -155,7 +155,7 @@ export function ForgotPasswordCard() {
               <Mail className="size-6 text-primary" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold mb-1.5">Quên mật khẩu?</h1>
+          <h1 className="text-2xl font-semibold mb-1.5">Quên mật khẩu?</h1>
           <p className="text-sm text-muted-foreground">
             Nhập email đã đăng ký để khôi phục mật khẩu
           </p>
@@ -190,7 +190,7 @@ export function ForgotPasswordCard() {
             {loading ? (
               <>
                 <Loader2 className="size-4 animate-spin mr-2" />
-                Đang gửi...
+                Đang gửi…
               </>
             ) : (
               "Gửi liên kết khôi phục"

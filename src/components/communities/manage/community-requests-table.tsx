@@ -23,7 +23,7 @@ type CommunityRequestItem = {
 }
 
 function RequestActions({ requestId }: { requestId: string }) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [approving, startApprove] = useTransition()
   const [rejecting, startReject] = useTransition()
   const busy = approving || rejecting
@@ -37,7 +37,7 @@ function RequestActions({ requestId }: { requestId: string }) {
         onClick={() =>
           startApprove(async () => {
             const result = await approveJoinRequest({ requestId })
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }
       >
@@ -52,7 +52,7 @@ function RequestActions({ requestId }: { requestId: string }) {
         onClick={() =>
           startReject(async () => {
             const result = await rejectJoinRequest({ requestId })
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }
       >
@@ -76,7 +76,7 @@ export function CommunityRequestsTable({
             <ClipboardCheck className="size-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#050505]">
+            <h2 className="text-lg font-semibold text-[#050505]">
               Yêu cầu tham gia
             </h2>
             <p className="text-sm text-[#65676b]">

@@ -114,7 +114,6 @@ export function PostDetailDialog({
   const [commentsData, setCommentsData] = useState<CommentWithAuthorFlat[]>([])
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
-  const [focusComment, setFocusComment] = useState(false)
 
   // Hỗ trợ cả currentUser mới và currentUserId cũ (backward compat)
   const resolvedCurrentUser = currentUser ?? (currentUserId != null ? { id: currentUserId } : null)
@@ -175,11 +174,6 @@ export function PostDetailDialog({
     }
   }
 
-  const handleCommentClick = () => {
-    setFocusComment(true)
-    setTimeout(() => setFocusComment(false), 100)
-  }
-
   const canLike = Boolean(resolvedCurrentUser?.id && authorId && resolvedCurrentUser.id !== authorId)
   const isRepost = sharedPost !== undefined && sharedPost !== null
   const hasImage = Boolean(imageUrl) && !isRepost
@@ -232,7 +226,6 @@ export function PostDetailDialog({
       <Button
         variant="ghost"
         size="sm"
-        onClick={handleCommentClick}
         className="flex-1 gap-1.5 text-muted-foreground hover:text-primary"
       >
         <MessageCircle className="size-5" />
@@ -262,7 +255,7 @@ export function PostDetailDialog({
         className={cn(
           "!flex !flex-col p-0 !gap-0 overflow-hidden",
           /* Mobile: full-screen */
-          "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 w-full h-full max-w-none max-h-none rounded-none",
+          "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 size-full max-w-none max-h-none rounded-none",
           /* Desktop: modal thông thường */
           hasImage
             ? "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 md:!w-[min(94vw,1080px)] md:!h-[min(88vh,760px)] md:!max-w-none md:!max-h-none md:rounded-lg"
@@ -367,7 +360,6 @@ export function PostDetailDialog({
               <CommentList
                 comments={commentsData}
                 currentUser={resolvedCurrentUser ?? undefined}
-                autoFocusInput={focusComment}
                 hideInput
                 isLoading={isLoadingComments}
                 onDelete={(id) => setDeleteTargetId(id)}
@@ -381,7 +373,6 @@ export function PostDetailDialog({
             <CommentInput
               userName={resolvedCurrentUser?.displayName}
               userAvatar={resolvedCurrentUser?.avatarUrl ?? undefined}
-              autoFocus={focusComment}
               onSubmit={handleCommentSubmit}
             />
           </div>
@@ -397,7 +388,7 @@ export function PostDetailDialog({
           {/* Phần ảnh — chỉ hiện khi có ảnh */}
           {hasImage && (
             <div className="relative flex min-w-0 flex-1 shrink-0 items-center justify-center bg-black">
-              <div className="relative h-full w-full min-h-[200px]">
+              <div className="relative size-full min-h-[200px]">
                 <Image
                   src={imageUrl!}
                   alt="Ảnh bài viết"
@@ -483,7 +474,6 @@ export function PostDetailDialog({
               <CommentList
                 comments={commentsData}
                 currentUser={resolvedCurrentUser ?? undefined}
-                autoFocusInput={focusComment}
                 isLoading={isLoadingComments}
                 onSubmit={handleCommentSubmit}
                 onDelete={(id) => setDeleteTargetId(id)}

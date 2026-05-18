@@ -39,7 +39,7 @@ export default function SettingsClient({
   initialSettings,
   initialModuleFlags,
 }: SettingsClientProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [activeTab, setActiveTab] = useState("general")
   const [settings, setSettings] = useState<SystemSettings>(initialSettings)
   const [moduleFlags, setModuleFlags] = useState<ModuleFlagsMap>(initialModuleFlags)
@@ -55,7 +55,7 @@ export default function SettingsClient({
         return
       }
       toast({ title: "Đã lưu", description: "Cập nhật cài đặt thành công" })
-      router.refresh()
+      refresh()
     })
   }
 
@@ -116,7 +116,7 @@ export default function SettingsClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Cài đặt hệ thống</h1>
+          <h1 className="text-2xl font-semibold">Cài đặt hệ thống</h1>
           <p className="text-sm text-muted-foreground">
             Cấu hình thông tin chung, bật/tắt module và chính sách đăng ký
           </p>
@@ -140,16 +140,18 @@ export default function SettingsClient({
           <CardContent className="p-6 space-y-5">
             <SectionHeader title="Thông tin hệ thống" />
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tên hệ thống</label>
+              <label className="text-sm font-medium" htmlFor="system-name">Tên hệ thống</label>
               <Input
+                id="system-name"
                 value={settings.name}
                 onChange={(e) => setSettings((prev) => ({ ...prev, name: e.target.value }))}
                 maxLength={100}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Mô tả ngắn</label>
+              <label className="text-sm font-medium" htmlFor="system-description">Mô tả ngắn</label>
               <Textarea
+                id="system-description"
                 value={settings.description}
                 onChange={(e) => setSettings((prev) => ({ ...prev, description: e.target.value }))}
                 rows={3}
@@ -160,8 +162,9 @@ export default function SettingsClient({
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">URL trang chủ</label>
+              <label className="text-sm font-medium" htmlFor="system-url">URL trang chủ</label>
               <Input
+                id="system-url"
                 type="url"
                 value={settings.url}
                 onChange={(e) => setSettings((prev) => ({ ...prev, url: e.target.value }))}
@@ -169,8 +172,9 @@ export default function SettingsClient({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email liên hệ</label>
+              <label className="text-sm font-medium" htmlFor="system-contact-email">Email liên hệ</label>
               <Input
+                id="system-contact-email"
                 type="email"
                 value={settings.contactEmail}
                 onChange={(e) => setSettings((prev) => ({ ...prev, contactEmail: e.target.value }))}

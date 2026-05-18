@@ -18,7 +18,7 @@ export default async function HiddenPostsPage() {
   return (
     <PageContainer variant="centered" className="space-y-4 max-w-2xl">
       <div>
-        <h1 className="text-xl font-bold">Bài viết đã ẩn</h1>
+        <h1 className="text-xl font-semibold">Bài viết đã ẩn</h1>
         <p className="text-sm text-muted-foreground">
           Các bài viết bạn đã ẩn khỏi bảng tin. Bỏ ẩn để hiển thị lại.
         </p>

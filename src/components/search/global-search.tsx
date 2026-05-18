@@ -32,13 +32,11 @@ const TYPE_PARAM = {
 export function GlobalSearch({
   placeholder = "Tìm kiếm...",
   className,
-  autoFocus,
 }: {
   placeholder?: string
   className?: string
-  autoFocus?: boolean
 }) {
-  const router = useRouter()
+  const { push } = useRouter()
   const rootRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
@@ -106,7 +104,7 @@ export function GlobalSearch({
       params.set("type", TYPE_PARAM[type])
     }
 
-    router.push(`/search?${params.toString()}`)
+    push(`/search?${params.toString()}`)
     setOpen(false)
   }
 
@@ -163,7 +161,6 @@ export function GlobalSearch({
             setOpen(false)
           }
         }}
-        autoFocus={autoFocus}
       />
 
       {open ? (
@@ -181,7 +178,7 @@ export function GlobalSearch({
                   >
                     <button
                       type="button"
-                      className="flex min-w-0 flex-1 items-center gap-3 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                      className="flex min-w-0 flex-1 items-center gap-3 rounded-sm p-2 text-left text-sm hover:bg-muted"
                       onClick={() => void goToSearch(item.query)}
                     >
                       <Clock3 className="size-4 shrink-0 text-muted-foreground" />

@@ -54,7 +54,7 @@ export function AnnouncementDetailDialog({
         className={cn(
           "!flex !flex-col p-0 !gap-0 overflow-hidden",
           /* Mobile: full-screen */
-          "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 w-full h-full max-w-none max-h-none rounded-none",
+          "fixed !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 size-full max-w-none max-h-none rounded-none",
           /* Desktop: modal giữa màn hình */
           "md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2",
           "md:!w-[min(94vw,600px)] md:!h-[min(88vh,600px)]",
@@ -131,7 +131,7 @@ export function AnnouncementDetailDialog({
             <Separator />
 
             {/* Tiêu đề */}
-            <h2 className="text-[20px] font-bold leading-snug text-foreground">
+            <h2 className="text-[20px] font-semibold leading-snug text-foreground">
               {title}
             </h2>
 

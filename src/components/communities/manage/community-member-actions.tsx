@@ -32,7 +32,7 @@ export function CommunityMemberActions({
   canChangeRole,
   canRemove,
 }: CommunityMemberActionsProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
 
@@ -57,7 +57,7 @@ export function CommunityMemberActions({
                   ? "Đã cập nhật vai trò."
                   : result.error ?? "Không thể cập nhật.",
               )
-              if (result.success) router.refresh()
+              if (result.success) refresh()
             })
           }}
         >
@@ -98,7 +98,7 @@ export function CommunityMemberActions({
                   ? "Đã xoá thành viên."
                   : result.error ?? "Không thể xoá.",
               )
-              if (result.success) router.refresh()
+              if (result.success) refresh()
             })
           }}
         >

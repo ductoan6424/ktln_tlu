@@ -29,7 +29,7 @@ export function EventItem({
       </div>
       {/* Thông tin sự kiện */}
       <div>
-        <h4 className="text-sm font-bold leading-snug">{title}</h4>
+        <h4 className="text-sm font-semibold leading-snug">{title}</h4>
         <p className="text-xs text-muted-foreground mt-0.5">
           {location} • {time}
         </p>

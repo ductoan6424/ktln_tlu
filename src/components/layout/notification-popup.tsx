@@ -42,26 +42,30 @@ export function NotificationPopup({ className }: NotificationPopupProps) {
     let cancelled = false
 
     const init = async () => {
-      const sessionResult = await getNotificationSession()
       if (cancelled) return
 
-      if (sessionResult.success && sessionResult.data) {
+      const sessionResult = await getNotificationSession()
+
+      if (!cancelled && sessionResult.success && sessionResult.data) {
         setUserId(sessionResult.data.userId)
         setUnreadCount(sessionResult.data.unreadCount)
-      } else {
+      } else if (!cancelled) {
         setIsLoading(false)
         return
       }
 
-      const listResult = await listMyNotifications({ limit: NOTIFICATION_POPUP_LIMIT })
       if (cancelled) return
 
-      if (listResult.success && listResult.data) {
-        setNotifications(listResult.data.items)
-        setUnreadCount(listResult.data.unreadCount)
-      }
+      const listResult = await listMyNotifications({ limit: NOTIFICATION_POPUP_LIMIT })
 
-      setIsLoading(false)
+      if (!cancelled) {
+        if (listResult.success && listResult.data) {
+          setNotifications(listResult.data.items)
+          setUnreadCount(listResult.data.unreadCount)
+        }
+
+        setIsLoading(false)
+      }
     }
 
     void init()

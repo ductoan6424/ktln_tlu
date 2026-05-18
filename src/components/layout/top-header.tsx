@@ -22,7 +22,7 @@ export function TopHeader({
     >
       <div className="flex min-w-0 items-center gap-2">
         {breadcrumbs ? breadcrumbs : (
-          <h2 className="truncate text-xl font-bold">{title}</h2>
+          <h2 className="truncate text-xl font-semibold">{title}</h2>
         )}
       </div>
       {actions && (

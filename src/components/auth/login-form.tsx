@@ -18,7 +18,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const [showForm, setShowForm] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -39,8 +39,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setLoading(false)
 
     if (result.success) {
-      router.push("/feed")
-      router.refresh()
+      push("/feed")
+      refresh()
       onSuccess?.()
     } else {
       setError(result.error ?? "Đăng nhập thất bại.")
@@ -56,7 +56,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       <Card className="shadow-2xl shadow-foreground/5 border">
         <CardContent className="p-5 sm:p-8 lg:p-10">
           <div className="mb-8 text-center sm:mb-10">
-            <h1 className="text-2xl font-bold mb-2">Chào mừng trở lại</h1>
+            <h1 className="text-2xl font-semibold mb-2">Chào mừng trở lại</h1>
             <p className="text-muted-foreground text-sm">
               Truy cập cổng thông tin sinh viên
             </p>
@@ -98,7 +98,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     <Card className="shadow-2xl shadow-foreground/5 border">
       <CardContent className="p-5 sm:p-8 lg:p-10">
         <div className="mb-6 text-center sm:mb-8">
-          <h1 className="text-2xl font-bold mb-2">Đăng nhập</h1>
+          <h1 className="text-2xl font-semibold mb-2">Đăng nhập</h1>
           <p className="text-muted-foreground text-sm">
             Nhập thông tin tài khoản của bạn
           </p>
@@ -113,10 +113,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Email</label>
+            <label className="text-sm font-medium" htmlFor="login-email">Email</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -129,10 +130,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Mật khẩu</label>
+            <label className="text-sm font-medium" htmlFor="login-password">Mật khẩu</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
+                id="login-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

@@ -58,8 +58,9 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
 
               <div className="grid gap-4 md:grid-cols-3">
                 {(["STUDENT", "LECTURER", "ADMIN"] as const).map((role) => (
-                  <label key={role} className="flex items-start gap-3 rounded-xl border p-4">
+                  <label key={role} htmlFor={`base-role-${role}`} className="flex items-start gap-3 rounded-xl border p-4">
                     <input
+                      id={`base-role-${role}`}
                       type="radio"
                       name="baseRole"
                       value={role}
@@ -93,10 +94,7 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
 
               <div className="space-y-3">
                 {adminRoles.map((role) => (
-                  <label
-                    key={role.id}
-                    className="flex items-start justify-between gap-4 rounded-xl border p-4"
-                  >
+                  <label key={role.id} htmlFor={`admin-role-${role.id}`} className="flex items-start justify-between gap-4 rounded-xl border p-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 font-medium">
                         <span>{role.name}</span>
@@ -109,6 +107,7 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
                       </p>
                     </div>
                     <input
+                      id={`admin-role-${role.id}`}
                       type="checkbox"
                       name="adminRoleIds"
                       value={role.id}

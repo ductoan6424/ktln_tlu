@@ -25,7 +25,7 @@ export function CompetitionCard({
         className
       )}
     >
-      <h4 className="font-bold text-sm leading-tight">{title}</h4>
+      <h4 className="font-semibold text-sm leading-tight">{title}</h4>
       <div className="flex flex-col gap-1 mt-1.5 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Calendar className="size-3" />

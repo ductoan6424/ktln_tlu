@@ -87,7 +87,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Bảng điều khiển</h1>
+          <h1 className="text-2xl font-semibold">Bảng điều khiển</h1>
           <p className="text-sm text-muted-foreground">
             Dữ liệu tổng quan lấy trực tiếp từ cơ sở dữ liệu UniConnect
           </p>

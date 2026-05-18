@@ -25,7 +25,7 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
                 </div>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-destructive">Xác minh thất bại</h1>
+                <h1 className="text-xl font-semibold text-destructive">Xác minh thất bại</h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {result.error ?? "Xác minh thất bại."}
                 </p>
@@ -60,7 +60,7 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
               </div>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-emerald-600">Xác minh thành công!</h1>
+              <h1 className="text-xl font-semibold text-emerald-600">Xác minh thành công!</h1>
               <p className="text-sm text-muted-foreground mt-2">
                 Tài khoản của bạn đã được xác minh. Bây giờ bạn có thể đăng nhập.
               </p>
@@ -87,7 +87,7 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
             </div>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-destructive">Liên kết không hợp lệ</h1>
+            <h1 className="text-xl font-semibold text-destructive">Liên kết không hợp lệ</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Không có mã xác minh trong liên kết.
             </p>

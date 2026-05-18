@@ -43,7 +43,7 @@ export function SearchResultsPage({
   return (
     <PageContainer variant="centered" className="max-w-4xl space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Kết quả tìm kiếm</h1>
+        <h1 className="text-2xl font-semibold">Kết quả tìm kiếm</h1>
         <p className="text-sm text-muted-foreground">
           {query ? `Kết quả cho "${query}"` : "Nhập từ khóa để bắt đầu tìm kiếm."}
         </p>

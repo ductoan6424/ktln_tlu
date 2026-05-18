@@ -116,30 +116,32 @@ export function CourseSettingsPanel({
           <CardContent className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
             <input type="hidden" name="courseId" value={courseId} />
 
-            <label className="flex flex-col gap-2">
+            <label className="flex flex-col gap-2" htmlFor="field-app-main-courses-courseid-manage-course-settings-panel-1">
               <span className="text-sm font-semibold text-[#050505]">
                 Tên lớp học
               </span>
-              <Input name="name" defaultValue={name} required className={manageInput} />
+              <Input id="field-app-main-courses-courseid-manage-course-settings-panel-1" name="name" defaultValue={name} required className={manageInput} />
             </label>
 
-            <label className="flex flex-col gap-2">
+            <label className="flex flex-col gap-2" htmlFor="field-app-main-courses-courseid-manage-course-settings-panel-2">
               <span className="text-sm font-semibold text-[#050505]">
                 Mã môn học
               </span>
-              <Input name="code" defaultValue={code} required className={manageInput} />
+              <Input id="field-app-main-courses-courseid-manage-course-settings-panel-2" name="code" defaultValue={code} required className={manageInput} />
             </label>
 
-            <label className="flex flex-col gap-2 sm:col-span-2">
+            <label className="flex flex-col gap-2 sm:col-span-2" htmlFor="field-app-main-courses-courseid-manage-course-settings-panel-3">
               <span className="text-sm font-semibold text-[#050505]">Mô tả</span>
               <Textarea
                 name="description"
                 defaultValue={description ?? ""}
                 className={manageInput}
+              id="field-app-main-courses-courseid-manage-course-settings-panel-3"
+
               />
             </label>
 
-            <label className="flex flex-col gap-2">
+            <label className="flex flex-col gap-2" htmlFor="field-app-main-courses-courseid-manage-course-settings-panel-4">
               <span className="text-sm font-semibold text-[#050505]">
                 Chế độ chat
               </span>
@@ -147,7 +149,7 @@ export function CourseSettingsPanel({
                 name="chatMode"
                 defaultValue={chatMode}
                 className={`${manageInput} h-10 px-3 text-sm`}
-              >
+               id="field-app-main-courses-courseid-manage-course-settings-panel-4">
                 <option value="OPEN">Mọi thành viên</option>
                 <option value="ADMINS_ONLY">Chỉ giảng viên/quản lý</option>
                 <option value="READ_ONLY">Không cho gửi tin nhắn</option>

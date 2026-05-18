@@ -72,7 +72,7 @@ export function AdminDataTable<Cells extends AdminCellValues>({
                   return (
                     <td
                       key={column.key}
-                      className="px-4 py-4 text-sm text-muted-foreground"
+                      className="p-4 text-sm text-muted-foreground"
                       style={{ textAlign: column.align }}
                     >
                       {content}

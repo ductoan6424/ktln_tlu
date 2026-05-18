@@ -96,7 +96,7 @@ export function CommunityChatPanel({
         className,
       )}
     >
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {sortedMessages.length === 0 ? (
           <div className="flex h-full min-h-48 items-center justify-center text-sm text-muted-foreground">
             Chưa có tin nhắn.

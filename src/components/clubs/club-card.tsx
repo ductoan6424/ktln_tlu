@@ -30,7 +30,7 @@ export function ClubCard({
           {icon || name.charAt(0)}
         </div>
         <div>
-          <h4 className="text-sm font-bold group-hover:text-primary transition-colors">
+          <h4 className="text-sm font-semibold group-hover:text-primary transition-colors">
             {name}
           </h4>
           <p className="text-xs text-muted-foreground">

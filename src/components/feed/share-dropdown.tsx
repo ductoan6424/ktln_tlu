@@ -65,7 +65,7 @@ export function ShareDropdown({
   className,
 }: ShareDropdownProps) {
   const { toast } = useToast()
-  const router = useRouter()
+  const { refresh, push } = useRouter()
   const [isComposeOpen, setIsComposeOpen] = useState(false)
   const [composeMessage, setComposeMessage] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -128,7 +128,7 @@ export function ShareDropdown({
       setIsComposeOpen(false)
       setComposeMessage("")
       onShared?.()
-      router.refresh()
+      refresh()
     })
   }
 
@@ -151,7 +151,7 @@ export function ShareDropdown({
     } catch {
       toast({ description: "Không thể thực hiện. Vui lòng thử lại." })
     }
-    router.push("/messages")
+    push("/messages")
   }
 
   return (

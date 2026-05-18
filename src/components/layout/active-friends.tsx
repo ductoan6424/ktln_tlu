@@ -89,28 +89,30 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
     let isDisposed = false
 
     const refreshContacts = async () => {
-      const result = await listActiveFriends(normalizedQuery ? { query } : undefined)
       if (isDisposed) {
         return
       }
 
-      if (!result.success || !result.data) {
-        if (normalizedQuery) {
-          setSearchContacts([])
-          setSearchGroups([])
-        } else {
-          setContacts([])
-          setGroups([])
-        }
-        return
-      }
+      const result = await listActiveFriends(normalizedQuery ? { query } : undefined)
 
-      if (normalizedQuery) {
-        setSearchContacts(result.data.contacts)
-        setSearchGroups(result.data.groups)
-      } else {
-        setContacts(result.data.contacts)
-        setGroups(result.data.groups)
+      if (!isDisposed) {
+        if (!result.success || !result.data) {
+          if (normalizedQuery) {
+            setSearchContacts([])
+            setSearchGroups([])
+          } else {
+            setContacts([])
+            setGroups([])
+          }
+        } else {
+          if (normalizedQuery) {
+            setSearchContacts(result.data.contacts)
+            setSearchGroups(result.data.groups)
+          } else {
+            setContacts(result.data.contacts)
+            setGroups(result.data.groups)
+          }
+        }
       }
     }
 
@@ -183,20 +185,23 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
 
     let isDisposed = false
     const timeoutId = setTimeout(async () => {
-      setIsSearching(true)
-      const result = await listActiveFriends({ query })
       if (isDisposed) {
         return
       }
 
-      if (result.success && result.data) {
-        setSearchContacts(result.data.contacts)
-        setSearchGroups(result.data.groups)
-      } else {
-        setSearchContacts([])
-        setSearchGroups([])
+      setIsSearching(true)
+      const result = await listActiveFriends({ query })
+
+      if (!isDisposed) {
+        if (result.success && result.data) {
+          setSearchContacts(result.data.contacts)
+          setSearchGroups(result.data.groups)
+        } else {
+          setSearchContacts([])
+          setSearchGroups([])
+        }
+        setIsSearching(false)
       }
-      setIsSearching(false)
     }, 250)
 
     return () => {
@@ -329,7 +334,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
 
         <div className="space-y-0.5">
           {normalizedQuery && isSearching && (
-            <p className="px-2 py-2 text-sm text-muted-foreground">Đang tìm kiếm...</p>
+            <p className="p-2 text-sm text-muted-foreground">Đang tìm kiếm…</p>
           )}
           {visibleContacts.map((contact) => (
             <Button

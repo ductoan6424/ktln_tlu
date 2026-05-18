@@ -21,8 +21,9 @@ interface AnnouncementMenuProps {
 
 export function AnnouncementMenu({ announcementId, isSaved = false, onUnsave }: AnnouncementMenuProps) {
   const { toast } = useToast()
-  const [saved, setSaved] = useState(isSaved)
+  const [savedOverride, setSavedOverride] = useState<boolean | null>(null)
   const [pending, startTransition] = useTransition()
+  const saved = savedOverride ?? isSaved
 
   const handleSaveToggle = () => {
     startTransition(async () => {
@@ -35,7 +36,7 @@ export function AnnouncementMenu({ announcementId, isSaved = false, onUnsave }: 
         return
       }
       const nowSaved = res.data?.saved ?? false
-      setSaved(nowSaved)
+      setSavedOverride(nowSaved)
       if (!nowSaved) onUnsave?.()
       toast({
         description: nowSaved ? "Đã lưu thông báo." : "Đã bỏ lưu thông báo.", 

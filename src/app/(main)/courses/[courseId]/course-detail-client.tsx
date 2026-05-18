@@ -75,7 +75,7 @@ export function CourseDetailClient({
           </Link>
         </div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold">{course.name}</h2>
+          <h2 className="text-xl font-semibold">{course.name}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <span>{course.subject}</span>
             <span>{course.studentCount} sinh viên</span>
@@ -125,7 +125,7 @@ export function CourseDetailClient({
         <aside className="space-y-6">
           <Card>
             <CardContent className="p-5">
-              <h3 className="mb-4 text-sm font-bold">Thành viên nổi bật</h3>
+              <h3 className="mb-4 text-sm font-semibold">Thành viên nổi bật</h3>
               <div className="space-y-4">
                 {course.members.slice(0, 6).map((member) => (
                   <MemberItem key={`${member.name}-${member.role}`} name={member.name} role={member.role} />
@@ -136,7 +136,7 @@ export function CourseDetailClient({
 
           <Card>
             <CardContent className="space-y-2 p-5">
-              <h3 className="text-sm font-bold">Giới thiệu lớp học</h3>
+              <h3 className="text-sm font-semibold">Giới thiệu lớp học</h3>
               <p className="text-sm text-muted-foreground">
                 {course.description ?? "Giảng viên chưa cập nhật mô tả cho lớp học này."}
               </p>

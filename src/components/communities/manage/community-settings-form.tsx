@@ -74,7 +74,7 @@ export function CommunitySettingsForm({
           <input type="hidden" name="type" value={type} />
           <input type="hidden" name="slugId" value={slugId} />
 
-          <label className="flex flex-col gap-2">
+          <label className="flex flex-col gap-2" htmlFor="field-components-communities-manage-community-settings-form-1">
             <span className="text-sm font-semibold text-[#050505]">
               Chế độ hiển thị
             </span>
@@ -82,13 +82,13 @@ export function CommunitySettingsForm({
               name="visibility"
               defaultValue={visibility ?? "PUBLIC"}
               className={`${manageInput} h-10 px-3 text-sm`}
-            >
+             id="field-components-communities-manage-community-settings-form-1">
               <option value="PUBLIC">Công khai</option>
               <option value="PRIVATE">Riêng tư</option>
             </select>
           </label>
 
-          <label className="flex flex-col gap-2">
+          <label className="flex flex-col gap-2" htmlFor="field-components-communities-manage-community-settings-form-2">
             <span className="text-sm font-semibold text-[#050505]">
               Chế độ chat
             </span>
@@ -96,7 +96,7 @@ export function CommunitySettingsForm({
               name="chatMode"
               defaultValue={chatMode}
               className={`${manageInput} h-10 px-3 text-sm`}
-            >
+             id="field-components-communities-manage-community-settings-form-2">
               <option value="OPEN">Mọi thành viên</option>
               <option value="ADMINS_ONLY">Chỉ quản trị viên</option>
               <option value="READ_ONLY">Không cho gửi tin nhắn</option>
@@ -104,8 +104,9 @@ export function CommunitySettingsForm({
           </label>
 
           <input type="hidden" name="requirePostApproval" value="false" />
-          <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
+          <label htmlFor="community-require-post-approval" className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
             <input
+              id="community-require-post-approval"
               className="mt-1 accent-[#1877f2]"
               type="checkbox"
               name="requirePostApproval"
@@ -123,8 +124,9 @@ export function CommunitySettingsForm({
           </label>
 
           <input type="hidden" name="chatEnabled" value="false" />
-          <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
+          <label htmlFor="community-chat-enabled" className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
             <input
+              id="community-chat-enabled"
               className="mt-1 accent-[#1877f2]"
               type="checkbox"
               name="chatEnabled"
@@ -142,8 +144,9 @@ export function CommunitySettingsForm({
           </label>
 
           <input type="hidden" name="memberInviteEnabled" value="false" />
-          <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3 sm:col-span-2`}>
+          <label htmlFor="community-member-invite-enabled" className={`${manageSoftItem} flex cursor-pointer items-start gap-3 sm:col-span-2`}>
             <input
+              id="community-member-invite-enabled"
               className="mt-1 accent-[#1877f2]"
               type="checkbox"
               name="memberInviteEnabled"

@@ -42,7 +42,7 @@ export default function AnnouncementsClient({
   initialItems,
   initialTotal,
 }: AnnouncementsClientProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [activeTab, setActiveTab] = useState<TabValue>("compose")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
   const [editTarget, setEditTarget] = useState<AnnouncementFormInitialValues | null>(null)
@@ -67,7 +67,7 @@ export default function AnnouncementsClient({
 
   function handleSaved() {
     setEditTarget(null)
-    router.refresh()
+    refresh()
   }
 
   function handleNewCompose() {
@@ -81,7 +81,7 @@ export default function AnnouncementsClient({
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Thông báo chính thức</h1>
+          <h1 className="text-2xl font-semibold">Thông báo chính thức</h1>
           <p className="text-sm text-muted-foreground">
             Tạo và quản lý thông báo hiển thị ở bảng tin của sinh viên và giảng viên
           </p>

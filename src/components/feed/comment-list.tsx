@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils"
 interface CommentListProps {
   comments: CommentWithAuthorFlat[]
   currentUser?: { id: string; displayName?: string; avatarUrl?: string | null | undefined } | null
-  autoFocusInput?: boolean
   hideInput?: boolean
   isLoading?: boolean
   className?: string
@@ -20,7 +19,6 @@ interface CommentListProps {
 export function CommentList({
   comments,
   currentUser,
-  autoFocusInput = false,
   hideInput = false,
   isLoading = false,
   className,
@@ -61,7 +59,6 @@ export function CommentList({
           <CommentInput
             userName={currentUser?.displayName}
             userAvatar={currentUser?.avatarUrl ?? undefined}
-            autoFocus={autoFocusInput}
             onSubmit={onSubmit}
           />
         </div>

@@ -41,7 +41,7 @@ export function PostComposer({
   const [isPollModalOpen, setIsPollModalOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
+  const { refresh } = useRouter()
 
   useEffect(() => {
     return () => {
@@ -136,7 +136,7 @@ export function PostComposer({
         onPostCreated(result.data)
       }
 
-      router.refresh()
+      refresh()
     } catch (submitError) {
       console.error("createPost submit error:", submitError)
       setError("Không thể đăng bài. Vui lòng thử lại.")
@@ -309,7 +309,7 @@ export function PostComposer({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 size-4 animate-spin" />
-                    Đang đăng...
+                    Đang đăng…
                   </>
                 ) : (
                   "Đăng bài"

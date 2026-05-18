@@ -31,7 +31,7 @@ export function CommunityPostActions({
   postId,
   mode,
 }: CommunityPostActionsProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
 
@@ -51,7 +51,7 @@ export function CommunityPostActions({
                 ? "Đã bỏ ghim bài viết."
                 : result.error ?? "Không thể bỏ ghim.",
             )
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }}
       >
@@ -87,7 +87,7 @@ export function CommunityPostActions({
                   ? "Đã duyệt bài viết."
                   : result.error ?? "Không thể duyệt.",
               )
-              if (result.success) router.refresh()
+              if (result.success) refresh()
             })
           }}
         >
@@ -119,7 +119,7 @@ export function CommunityPostActions({
                 ? "Đã từ chối bài viết."
                 : result.error ?? "Không thể từ chối.",
             )
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }}
       >

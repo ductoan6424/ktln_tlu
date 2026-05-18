@@ -72,8 +72,8 @@ export function InstallPrompt() {
   return (
     <div className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 rounded-lg border bg-card p-4 shadow-lg">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Download className="h-5 w-5" aria-hidden />
+        <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Download className="size-5" aria-hidden />
         </div>
         <div className="flex-1">
           <p className="text-sm font-medium">Cài TLU Community lên thiết bị</p>
@@ -95,7 +95,7 @@ export function InstallPrompt() {
           onClick={handleDismiss}
           className="text-muted-foreground hover:text-foreground"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </button>
       </div>
     </div>

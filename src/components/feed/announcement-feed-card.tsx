@@ -50,7 +50,7 @@ export function AnnouncementFeedCard({
         <div className="absolute top-0 left-0 w-1 h-full bg-destructive" aria-hidden="true" />
       )}
 
-      <CardContent className="px-3 py-3 md:px-4 md:py-3">
+      <CardContent className="p-3 md:px-4 md:py-3">
         {/* Header — account chính thức của trường */}
         <div className="flex items-start gap-3">
           <div className="relative size-10 shrink-0 rounded-full overflow-hidden border border-border bg-white flex items-center justify-center">
@@ -89,7 +89,7 @@ export function AnnouncementFeedCard({
 
         {/* Tiêu đề + Nội dung */}
         <div className="mt-3 space-y-2">
-          <h3 className="text-base font-bold leading-snug">{title}</h3>
+          <h3 className="text-base font-semibold leading-snug">{title}</h3>
           <p
             className={cn(
               "text-sm text-foreground leading-relaxed whitespace-pre-wrap",

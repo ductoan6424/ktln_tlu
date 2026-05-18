@@ -25,25 +25,25 @@ export function NewCourseForm() {
         <Card>
           <CardContent className="space-y-4 p-6">
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold">Tạo lớp học</h1>
+              <h1 className="text-2xl font-semibold">Tạo lớp học</h1>
               <p className="text-sm text-muted-foreground">
                 Chỉ giảng viên và quản trị viên mới có thể mở lớp học trong hệ thống.
               </p>
             </div>
 
-            <label className="block space-y-2">
+            <label className="block space-y-2" htmlFor="field-app-main-courses-new-new-course-form-1">
               <span className="text-sm font-medium">Tên lớp học</span>
-              <Input name="name" required />
+              <Input id="field-app-main-courses-new-new-course-form-1" name="name" required />
             </label>
 
-            <label className="block space-y-2">
+            <label className="block space-y-2" htmlFor="field-app-main-courses-new-new-course-form-2">
               <span className="text-sm font-medium">Mã môn học</span>
-              <Input name="code" required />
+              <Input id="field-app-main-courses-new-new-course-form-2" name="code" required />
             </label>
 
-            <label className="block space-y-2">
+            <label className="block space-y-2" htmlFor="field-app-main-courses-new-new-course-form-3">
               <span className="text-sm font-medium">Mô tả</span>
-              <Textarea name="description" rows={5} />
+              <Textarea id="field-app-main-courses-new-new-course-form-3" name="description" rows={5} />
             </label>
           </CardContent>
         </Card>

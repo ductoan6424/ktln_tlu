@@ -34,7 +34,7 @@ export function SavedPostsClient({
   const [announcements, setAnnouncements] = useState<SavedAnnouncementItem[]>(initialAnnouncements)
   const [, startTransition] = useTransition()
   const { toast } = useToast()
-  const router = useRouter()
+  const { refresh } = useRouter()
 
   const handleUnsavePost = (postId: string) => {
     setPosts((prev) => prev.filter((p) => p.postId !== postId))
@@ -45,7 +45,7 @@ export function SavedPostsClient({
         toast({ description: res.error ?? "Không thể bỏ lưu bài viết.", variant: "destructive" })
         return
       }
-      router.refresh()
+      refresh()
     })
   }
 
@@ -58,7 +58,7 @@ export function SavedPostsClient({
         toast({ description: res.error ?? "Không thể bỏ lưu thông báo.", variant: "destructive" })
         return
       }
-      router.refresh()
+      refresh()
     })
   }
 

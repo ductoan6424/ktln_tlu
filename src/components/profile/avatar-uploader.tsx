@@ -84,7 +84,7 @@ export function AvatarUploader({
   embedded = false,
   className,
 }: AvatarUploaderProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -180,7 +180,7 @@ export function AvatarUploader({
         title: "Đã cập nhật ảnh đại diện",
         description: "Ảnh đại diện mới đã được lưu.",
       })
-      router.refresh()
+      refresh()
     } catch {
       setError(GENERIC_UPLOAD_ERROR)
       toast({

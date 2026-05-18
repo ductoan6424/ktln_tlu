@@ -152,6 +152,8 @@ export function MessagePopup({
               conversations.map((conversation) => (
                 <div
                   key={conversation.id}
+                  role="button"
+                  tabIndex={0}
                   className="block"
                   onClick={() => {
                     setIsOpen(false)
@@ -164,6 +166,12 @@ export function MessagePopup({
                         avatar: conversation.avatarUrl ?? undefined,
                         status: conversation.isOnline ? "online" : "offline",
                       })
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      event.currentTarget.click()
                     }
                   }}
                 >

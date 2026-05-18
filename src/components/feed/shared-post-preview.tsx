@@ -32,7 +32,7 @@ export function SharedPostPreview({
 
   return (
     <div
-      role={onClick ? "button" : undefined}
+      role="button"
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === "Enter") onClick() } : undefined}

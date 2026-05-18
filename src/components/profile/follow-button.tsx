@@ -37,7 +37,7 @@ export function FollowButton({
   initialStatus,
   className,
 }: FollowButtonProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const { toast } = useToast()
   const [status, setStatus] = useState<FollowStatus>(initialStatus)
   const [isPending, startTransition] = useTransition()
@@ -53,7 +53,7 @@ export function FollowButton({
       : "Bỏ theo dõi"
     : appearance.label
 
-  const handleClick = () => {
+  const handleFollowToggle = () => {
     if (isPending) return
 
     const previousStatus = status
@@ -96,7 +96,7 @@ export function FollowButton({
           ? result.data.isMutual
           : false,
       })
-      router.refresh()
+      refresh()
     })
   }
 
@@ -107,7 +107,7 @@ export function FollowButton({
           ? "outline"
           : appearance.variant
       }
-      onClick={handleClick}
+      onClick={handleFollowToggle}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       disabled={isPending}

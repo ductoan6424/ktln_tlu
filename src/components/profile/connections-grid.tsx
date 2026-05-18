@@ -43,7 +43,7 @@ export function ConnectionsGrid({
       <CardContent className="space-y-4 p-5">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold">Kết nối</h3>
+            <h3 className="text-sm font-semibold">Kết nối</h3>
             <p className="text-xs text-muted-foreground" data-total-count={totalCount}>
               {totalCount} kết nối
             </p>

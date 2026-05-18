@@ -44,7 +44,7 @@ export function CourseManageTabs({ course }: CourseManageTabsProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Quản lý lớp học</h1>
+        <h1 className="text-2xl font-semibold">Quản lý lớp học</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {course.name} · {course.code}
         </p>

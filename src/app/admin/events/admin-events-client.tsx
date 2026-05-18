@@ -34,7 +34,7 @@ const STATUS_LABELS = {
 }
 
 export default function AdminEventsClient({ events }: AdminEventsClientProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("all")
   const [isPending, startTransition] = useTransition()
@@ -59,7 +59,7 @@ export default function AdminEventsClient({ events }: AdminEventsClientProps) {
         return
       }
       toast({ title: successTitle })
-      router.refresh()
+      refresh()
     })
   }
 
@@ -183,5 +183,5 @@ function TableHead({ children }: { children: React.ReactNode }) {
 }
 
 function TableCell({ children }: { children: React.ReactNode }) {
-  return <td className="px-4 py-4 text-sm text-muted-foreground">{children}</td>
+  return <td className="p-4 text-sm text-muted-foreground">{children}</td>
 }
