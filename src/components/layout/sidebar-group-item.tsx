@@ -1,10 +1,16 @@
 import Link from "next/link"
 import { Users } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { GroupData } from "./mock-data"
+
+interface SidebarGroupItemData {
+  id: string
+  name: string
+  memberCount: number
+  href: string
+}
 
 interface SidebarGroupItemProps {
-  group: GroupData
+  group: SidebarGroupItemData
   className?: string
 }
 

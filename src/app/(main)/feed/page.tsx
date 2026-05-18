@@ -9,6 +9,10 @@ import {
 } from "@/lib/announcements/queries"
 import { FEED_SIDEBAR_EVENTS_LIMIT } from "@/lib/config/events"
 import { listUpcomingEventsForSidebar } from "@/lib/events/queries"
+import {
+  listFeedSidebarGroups,
+  listTrendingSearches,
+} from "@/lib/feed/sidebar-queries"
 
 interface FeedPageProps {
   searchParams: Promise<{ post?: string }>
@@ -43,10 +47,18 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     }
   }
 
-  const [initialFeed, announcements, upcomingEvents] = await Promise.all([
+  const [
+    initialFeed,
+    announcements,
+    upcomingEvents,
+    sidebarGroups,
+    trendingSearches,
+  ] = await Promise.all([
     getFeedPosts(currentUserId, INITIAL_FEED_CURSOR, FEED_PAGE_SIZE),
     listActiveAnnouncementsForViewer(currentUser?.role ?? null, 5, currentUserId),
     listUpcomingEventsForSidebar({ take: FEED_SIDEBAR_EVENTS_LIMIT }),
+    listFeedSidebarGroups(currentUser?.userId ?? null),
+    listTrendingSearches(),
   ])
 
   const initialPosts = initialFeed.posts.map((post) => ({
@@ -95,6 +107,8 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         isSaved: a.isSaved,
       }))}
       upcomingEvents={upcomingEvents}
+      sidebarGroups={sidebarGroups}
+      trendingSearches={trendingSearches}
     />
   )
 }
