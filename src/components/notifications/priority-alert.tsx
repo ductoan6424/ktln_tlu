@@ -61,7 +61,7 @@ export function PriorityAlert({
                 {config.label}
               </StatusBadge>
             </div>
-            <h3 className="text-lg font-bold mb-1">{title}</h3>
+            <h3 className="text-lg font-semibold mb-1">{title}</h3>
             <p className="text-sm text-muted-foreground mb-4">{description}</p>
             {actionLabel && (
               <Button size="sm" variant="destructive" onClick={onAction} className="font-bold">
@@ -71,7 +71,7 @@ export function PriorityAlert({
           </div>
           {imageUrl && (
             <div className="w-40 h-28 rounded-lg overflow-hidden shrink-0 hidden md:block">
-              <div className="relative w-full h-full">
+              <div className="relative size-full">
                 <Image src={imageUrl} alt="" fill sizes="160px" className="object-cover" />
               </div>
             </div>

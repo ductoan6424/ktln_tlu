@@ -19,7 +19,7 @@ export function TrendingItem({
       <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">
         {category}
       </p>
-      <h4 className="text-sm font-bold leading-snug">{title}</h4>
+      <h4 className="text-sm font-semibold leading-snug">{title}</h4>
       <p className="text-xs text-muted-foreground">{stats}</p>
     </div>
   )

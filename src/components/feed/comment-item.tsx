@@ -48,7 +48,7 @@ export function CommentItem({
               variant="link"
               size="sm"
               onClick={() => onDelete?.(comment.id)}
-              className="text-xs font-medium text-destructive h-auto px-0 py-0"
+              className="text-xs font-medium text-destructive h-auto p-0"
             >
               Xóa
             </Button>

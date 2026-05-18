@@ -54,7 +54,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
     initialValues?.audience ?? "ALL",
   )
   const [pinToTop, setPinToTop] = useState(initialValues?.pinToTop ?? false)
-  const [expiresAt, setExpiresAt] = useState(formatDateTimeLocal(initialValues?.expiresAt))
+  const [expiresAt, setExpiresAt] = useState(() => formatDateTimeLocal(initialValues?.expiresAt))
   const [isPending, startTransition] = useTransition()
   const [activeAction, setActiveAction] = useState<"draft" | "publish" | null>(null)
   const { toast } = useToast()
@@ -145,7 +145,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold">
+        <h2 className="text-2xl font-semibold">
           {isEditing ? "Chỉnh sửa thông báo" : "Thông báo mới"}
         </h2>
         <div className="flex gap-3">
@@ -179,8 +179,9 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
       <Card>
         <CardContent className="p-6 space-y-6">
           <div>
-            <label className="text-sm font-semibold mb-2 block">Tiêu đề thông báo</label>
+            <label className="text-sm font-semibold mb-2 block" htmlFor="announcement-title">Tiêu đề thông báo</label>
             <Input
+              id="announcement-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="VD: Lịch bảo trì hệ thống - Học kỳ 2 năm 2026"
@@ -191,8 +192,9 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
           </div>
 
           <div>
-            <label className="text-sm font-semibold mb-2 block">Nội dung</label>
+            <label className="text-sm font-semibold mb-2 block" htmlFor="announcement-content">Nội dung</label>
             <Textarea
+              id="announcement-content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Bắt đầu nhập nội dung thông báo..."
@@ -204,7 +206,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="text-sm font-semibold mb-3 block">Đối tượng nhận</label>
+              <p className="text-sm font-semibold mb-3">Đối tượng nhận</p>
               <AudienceSelector
                 value={audience}
                 onChange={(v) => setAudience(v as AnnouncementAudienceValue)}
@@ -216,7 +218,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
             </div>
 
             <div>
-              <label className="text-sm font-semibold mb-3 block">Tùy chọn hiển thị</label>
+              <p className="text-sm font-semibold mb-3">Tùy chọn hiển thị</p>
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
                   <div>
@@ -226,10 +228,11 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
                   <Switch checked={pinToTop} onCheckedChange={setPinToTop} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label className="text-xs font-medium text-muted-foreground" htmlFor="announcement-expires-at">
                     Tự động ẩn sau (tùy chọn)
                   </label>
                   <Input
+                    id="announcement-expires-at"
                     type="datetime-local"
                     value={expiresAt}
                     onChange={(e) => setExpiresAt(e.target.value)}

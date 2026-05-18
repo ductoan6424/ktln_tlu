@@ -20,11 +20,11 @@ export function MessageButton({
   variant = "text",
   className,
 }: MessageButtonProps) {
-  const router = useRouter()
+  const { push } = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
 
-  const handleClick = () => {
+  const handleMessageButtonClick = () => {
     startTransition(async () => {
       const result = await openDirectConversation(targetUserId)
 
@@ -37,7 +37,7 @@ export function MessageButton({
         return
       }
 
-      router.push(`/messages?conversation=${result.data.conversationId}`)
+      push(`/messages?conversation=${result.data.conversationId}`)
     })
   }
 
@@ -47,10 +47,10 @@ export function MessageButton({
         type="button"
         variant="outline"
         size="icon"
-        onClick={handleClick}
+        onClick={handleMessageButtonClick}
         disabled={isPending}
         aria-label="Nhắn tin"
-        className={cn("h-9 w-9", className)}
+        className={cn("size-9", className)}
       >
         <MessageCircle className="size-4" />
       </Button>
@@ -61,7 +61,7 @@ export function MessageButton({
     <Button
       type="button"
       variant="outline"
-      onClick={handleClick}
+      onClick={handleMessageButtonClick}
       disabled={isPending}
       className={cn("gap-1.5", className)}
     >

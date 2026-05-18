@@ -29,7 +29,7 @@ export function EventRegistrationButton({
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
 
-  function handleClick() {
+  function handleRegistrationToggle() {
     startTransition(async () => {
       const result = isRegistered
         ? await cancelEventRegistration(eventId)
@@ -61,7 +61,7 @@ export function EventRegistrationButton({
       size="sm"
       variant={isRegistered ? "outline" : "default"}
       disabled={isDisabled}
-      onClick={handleClick}
+      onClick={handleRegistrationToggle}
       className="text-xs font-bold"
     >
       {isPending && <Loader2 className="mr-2 size-3.5 animate-spin" />}

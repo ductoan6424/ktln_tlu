@@ -38,7 +38,9 @@ export function AdminLayoutClient({ user, children }: AdminLayoutClientProps) {
 
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <div
+          <button
+            type="button"
+            aria-label="Đóng menu quản trị"
             className="absolute inset-0 bg-black/40 transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />

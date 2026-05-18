@@ -53,27 +53,29 @@ function StepIndicator({
   currentStep: number
   totalSteps: number
 }) {
+  const steps = Array.from({ length: totalSteps }, (_, stepIndex) => stepIndex + 1)
+
   return (
     <div className="mb-6 flex items-center justify-center gap-2 sm:mb-8">
-      {Array.from({ length: totalSteps }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2">
+      {steps.map((step) => (
+        <div key={`step-${step}`} className="flex items-center gap-2">
           <div
             className={cn(
               "size-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
-              i + 1 < currentStep
+              step < currentStep
                 ? "bg-primary text-primary-foreground"
-                : i + 1 === currentStep
+                : step === currentStep
                   ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
                   : "bg-muted text-muted-foreground"
             )}
           >
-            {i + 1 < currentStep ? <Check className="size-3.5" /> : i + 1}
+            {step < currentStep ? <Check className="size-3.5" /> : step}
           </div>
-          {i < totalSteps - 1 && (
+          {step < totalSteps && (
             <div
               className={cn(
                 "h-px w-6 transition-all duration-300 sm:w-8",
-                i + 1 < currentStep ? "bg-primary" : "bg-border"
+                step < currentStep ? "bg-primary" : "bg-border"
               )}
             />
           )}
@@ -170,7 +172,7 @@ function StepAccount({
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <div className="space-y-1">
-        <h2 className="text-lg font-bold text-foreground">Tài khoản</h2>
+        <h2 className="text-lg font-semibold text-foreground">Tài khoản</h2>
         <p className="text-sm text-muted-foreground">
           Thông tin đăng nhập của bạn
         </p>
@@ -201,12 +203,12 @@ function StepAccount({
         {data.password && (
           <div className="space-y-1">
             <div className="flex gap-1">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+              {[1, 2, 3, 4, 5, 6].map((bar) => (
                 <div
-                  key={`bar-${i}`}
+                  key={`bar-${bar}`}
                   className={cn(
                     "h-1 flex-1 rounded-full transition-all duration-300",
-                    i <= strength.score ? strength.color : "bg-border"
+                    bar <= strength.score ? strength.color : "bg-border"
                   )}
                 />
               ))}
@@ -271,7 +273,7 @@ function StepPersonal({
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <div className="space-y-1">
-        <h2 className="text-lg font-bold text-foreground">Thông tin cá nhân</h2>
+        <h2 className="text-lg font-semibold text-foreground">Thông tin cá nhân</h2>
         <p className="text-sm text-muted-foreground">
           Thông tin sinh viên của bạn
         </p>
@@ -378,7 +380,7 @@ function StepConfirm({
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <div className="space-y-1">
-        <h2 className="text-lg font-bold text-foreground">Xác nhận đăng ký</h2>
+        <h2 className="text-lg font-semibold text-foreground">Xác nhận đăng ký</h2>
         <p className="text-sm text-muted-foreground">
           Kiểm tra thông tin trước khi tiếp tục
         </p>
@@ -464,7 +466,7 @@ function SuccessState({ email }: { email: string }) {
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-xl font-bold text-foreground">Đăng ký thành công!</h2>
+        <h2 className="text-xl font-semibold text-foreground">Đăng ký thành công!</h2>
         <p className="text-sm text-muted-foreground">
           Chúng tôi đã gửi email xác thực đến
         </p>
@@ -516,7 +518,7 @@ export function RegisterCard() {
     faculty: "",
   })
 
-  const handleChange = (field: string, value: string) => {
+  const updateRegistrationField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     // Clear error when user types
     if (errors[field]) {
@@ -609,7 +611,7 @@ export function RegisterCard() {
         {/* Tiêu đề — chỉ hiện ở step 1 */}
         {step === 1 && (
           <div className="mb-5 text-center sm:mb-6">
-            <h1 className="text-2xl font-bold mb-1.5">Tạo tài khoản mới</h1>
+            <h1 className="text-2xl font-semibold mb-1.5">Tạo tài khoản mới</h1>
             <p className="text-sm text-muted-foreground">
               Tham gia cộng đồng sinh viên TLU
             </p>
@@ -621,7 +623,7 @@ export function RegisterCard() {
         {step === 1 && (
           <StepAccount
             data={formData}
-            onChange={handleChange}
+            onChange={updateRegistrationField}
             onNext={handleNextStep2}
             errors={errors}
           />
@@ -629,7 +631,7 @@ export function RegisterCard() {
         {step === 2 && (
           <StepPersonal
             data={formData}
-            onChange={handleChange}
+            onChange={updateRegistrationField}
             onNext={handleNextStep3}
             onBack={() => setStep(1)}
             errors={errors}

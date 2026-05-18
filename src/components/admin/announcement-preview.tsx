@@ -68,7 +68,7 @@ export function AnnouncementPreview({
           {hasContent ? (
             <div className="mt-3 space-y-2">
               {title && (
-                <h4 className="text-base font-bold leading-snug">{title}</h4>
+                <h4 className="text-base font-semibold leading-snug">{title}</h4>
               )}
               {content && (
                 <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-6">
@@ -79,7 +79,7 @@ export function AnnouncementPreview({
           ) : (
             <div className="mt-3 space-y-2">
               <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="size-4/5" />
               <Skeleton className="h-4 w-3/5" />
             </div>
           )}

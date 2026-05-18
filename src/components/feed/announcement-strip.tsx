@@ -302,16 +302,16 @@ function AnnouncementListDialog({
 }: AnnouncementListDialogProps) {
   const [activeFilter, setActiveFilter] = useState<TimeFilter>("all")
 
-  // Reset filter khi đóng dialog
-  useEffect(() => {
-    if (!open) setActiveFilter("all")
-  }, [open])
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) setActiveFilter("all")
+    onOpenChange(nextOpen)
+  }
 
   const filtered = applyFilter(announcements, activeFilter)
   const groups   = groupByTime(filtered)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton
         className={cn(
@@ -332,7 +332,7 @@ function AnnouncementListDialog({
             icon={ArrowLeft}
             size="md"
             ariaLabel="Đóng"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             className="rounded-full md:hidden"
           />
           <SectionHeader
@@ -463,6 +463,7 @@ function AnnouncementListRow({
       {/* Menu 3 chấm — không propagate click */}
       {item.id && (
         <div
+          role="presentation"
           className="shrink-0 mt-0.5"
           onClick={(e) => e.stopPropagation()}
         >
@@ -573,9 +574,9 @@ export function AnnouncementStripSkeleton() {
           <Skeleton className="h-4 w-40 rounded" />
         </div>
         <div className="flex gap-3 overflow-hidden">
-          {[0, 1, 2].map((i) => (
+          {[0, 1, 2].map((slot) => (
             <div
-              key={`announcement-skel-${i}`}
+              key={`announcement-skel-${slot}`}
               className="h-[260px] w-[calc(100vw-5rem)] max-w-[300px] flex-none rounded-xl border border-border p-3 space-y-2 sm:w-[260px]"
             >
               <div className="flex items-center gap-2">

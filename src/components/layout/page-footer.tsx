@@ -13,6 +13,8 @@ const DEFAULT_LINKS: FooterLink[] = [
   { label: "Hỗ trợ", href: "/support" },
 ]
 
+const COPYRIGHT_YEAR = new Date().getFullYear()
+
 interface PageFooterProps {
   variant?: "simple" | "full"
   links?: FooterLink[]
@@ -36,7 +38,7 @@ export function PageFooter({
           <AppLogo size="sm" />
         ) : (
           <p className="text-xs text-muted-foreground" suppressHydrationWarning>
-            © {new Date().getFullYear()} TLU Community. Mọi quyền được bảo lưu.
+            © {COPYRIGHT_YEAR} TLU Community. Mọi quyền được bảo lưu.
           </p>
         )}
         <div className="flex items-center gap-6">
@@ -53,7 +55,7 @@ export function PageFooter({
       </div>
       {variant === "full" && (
         <p className="text-xs text-muted-foreground text-center mt-4" suppressHydrationWarning>
-          © {new Date().getFullYear()} TLU Community. Mọi quyền được bảo lưu.
+          © {COPYRIGHT_YEAR} TLU Community. Mọi quyền được bảo lưu.
         </p>
       )}
     </footer>

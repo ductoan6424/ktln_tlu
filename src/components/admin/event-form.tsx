@@ -59,7 +59,7 @@ interface EventFormProps {
 }
 
 export function EventForm({ initialValues }: EventFormProps) {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [activeAction, setActiveAction] = useState<"draft" | "publish" | null>(null)
@@ -68,8 +68,8 @@ export function EventForm({ initialValues }: EventFormProps) {
   const [type, setType] = useState<EventType>(initialValues?.type ?? "OTHER")
   const [location, setLocation] = useState(initialValues?.location ?? "")
   const [organizerName, setOrganizerName] = useState(initialValues?.organizerName ?? "")
-  const [startAt, setStartAt] = useState(formatDateTimeLocal(initialValues?.startAt))
-  const [endAt, setEndAt] = useState(formatDateTimeLocal(initialValues?.endAt))
+  const [startAt, setStartAt] = useState(() => formatDateTimeLocal(initialValues?.startAt))
+  const [endAt, setEndAt] = useState(() => formatDateTimeLocal(initialValues?.endAt))
   const [capacity, setCapacity] = useState(initialValues?.capacity?.toString() ?? "")
   const [registrationStatus, setRegistrationStatus] = useState<EventRegistrationStatus>(
     initialValues?.registrationStatus ?? "OPEN",
@@ -128,8 +128,8 @@ export function EventForm({ initialValues }: EventFormProps) {
         description: isEditing ? "Cập nhật sự kiện thành công." : "Sự kiện mới đã được tạo.",
       })
       setActiveAction(null)
-      router.push("/admin/events")
-      router.refresh()
+      push("/admin/events")
+      refresh()
     })
   }
 
@@ -137,7 +137,7 @@ export function EventForm({ initialValues }: EventFormProps) {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-semibold">
             {isEditing ? "Chỉnh sửa sự kiện" : "Sự kiện mới"}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -169,15 +169,15 @@ export function EventForm({ initialValues }: EventFormProps) {
       <Card>
         <CardContent className="space-y-5 p-6">
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2 md:col-span-2">
+            <label className="space-y-2 md:col-span-2" htmlFor="field-components-admin-event-form-1">
               <span className="text-sm font-medium">Tên sự kiện *</span>
-              <Input value={title} onChange={(event) => setTitle(event.target.value)} />
+              <Input value={title} id="field-components-admin-event-form-1" onChange={(event) => setTitle(event.target.value)} />
             </label>
-            <label className="space-y-2">
+            <label className="space-y-2" htmlFor="field-components-admin-event-form-2">
               <span className="text-sm font-medium">Loại sự kiện *</span>
               <select
                 value={type}
-                onChange={(event) => setType(event.target.value as EventType)}
+                id="field-components-admin-event-form-2" onChange={(event) => setType(event.target.value as EventType)}
                 className="flex h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 {EVENT_TYPE_OPTIONS.map((option) => (
@@ -187,48 +187,48 @@ export function EventForm({ initialValues }: EventFormProps) {
                 ))}
               </select>
             </label>
-            <label className="space-y-2">
+            <label className="space-y-2" htmlFor="field-components-admin-event-form-3">
               <span className="text-sm font-medium">Đơn vị tổ chức *</span>
-              <Input value={organizerName} onChange={(event) => setOrganizerName(event.target.value)} />
+              <Input value={organizerName} id="field-components-admin-event-form-3" onChange={(event) => setOrganizerName(event.target.value)} />
             </label>
-            <label className="space-y-2 md:col-span-2">
+            <label className="space-y-2 md:col-span-2" htmlFor="field-components-admin-event-form-4">
               <span className="text-sm font-medium">Mô tả *</span>
               <Textarea
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                id="field-components-admin-event-form-4" onChange={(event) => setDescription(event.target.value)}
                 className="min-h-32"
               />
             </label>
-            <label className="space-y-2">
+            <label className="space-y-2" htmlFor="field-components-admin-event-form-5">
               <span className="text-sm font-medium">Địa điểm *</span>
-              <Input value={location} onChange={(event) => setLocation(event.target.value)} />
+              <Input value={location} id="field-components-admin-event-form-5" onChange={(event) => setLocation(event.target.value)} />
             </label>
-            <label className="space-y-2">
+            <label className="space-y-2" htmlFor="field-components-admin-event-form-6">
               <span className="text-sm font-medium">Ảnh bìa</span>
-              <Input value={coverImageUrl} onChange={(event) => setCoverImageUrl(event.target.value)} />
+              <Input value={coverImageUrl} id="field-components-admin-event-form-6" onChange={(event) => setCoverImageUrl(event.target.value)} />
             </label>
-            <label className="space-y-2">
+            <label className="space-y-2" htmlFor="field-components-admin-event-form-7">
               <span className="text-sm font-medium">Bắt đầu *</span>
-              <Input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} />
+              <Input type="datetime-local" value={startAt} id="field-components-admin-event-form-7" onChange={(event) => setStartAt(event.target.value)} />
             </label>
-            <label className="space-y-2">
+            <label className="space-y-2" htmlFor="field-components-admin-event-form-8">
               <span className="text-sm font-medium">Kết thúc *</span>
-              <Input type="datetime-local" value={endAt} onChange={(event) => setEndAt(event.target.value)} />
+              <Input type="datetime-local" value={endAt} id="field-components-admin-event-form-8" onChange={(event) => setEndAt(event.target.value)} />
             </label>
-            <label className="space-y-2">
+            <label className="space-y-2" htmlFor="field-components-admin-event-form-9">
               <span className="text-sm font-medium">Sức chứa</span>
               <Input
                 type="number"
                 min={0}
                 value={capacity}
-                onChange={(event) => setCapacity(event.target.value)}
+                id="field-components-admin-event-form-9" onChange={(event) => setCapacity(event.target.value)}
               />
             </label>
-            <label className="space-y-2">
+            <label className="space-y-2" htmlFor="field-components-admin-event-form-10">
               <span className="text-sm font-medium">Đăng ký</span>
               <select
                 value={registrationStatus}
-                onChange={(event) => setRegistrationStatus(event.target.value as EventRegistrationStatus)}
+                id="field-components-admin-event-form-10" onChange={(event) => setRegistrationStatus(event.target.value as EventRegistrationStatus)}
                 className="flex h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 {REGISTRATION_OPTIONS.map((option) => (

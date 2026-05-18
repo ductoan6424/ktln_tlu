@@ -69,7 +69,7 @@ export function ProfileOverviewCard({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg bg-muted/60 px-3 py-3">
+            <div className="rounded-lg bg-muted/60 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Câu lạc bộ
               </p>
@@ -77,7 +77,7 @@ export function ProfileOverviewCard({
                 {formatNumber(stats.clubsCount)}
               </p>
             </div>
-            <div className="rounded-lg bg-muted/60 px-3 py-3">
+            <div className="rounded-lg bg-muted/60 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Nhóm
               </p>
@@ -105,7 +105,7 @@ export function ProfileOverviewCard({
           />
         </div>
 
-        <div className="rounded-lg border border-border/60 bg-background px-3 py-3">
+        <div className="rounded-lg border border-border/60 bg-background p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Giới thiệu
           </p>

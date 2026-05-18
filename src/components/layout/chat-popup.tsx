@@ -19,6 +19,10 @@ import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/co
 import type { ChatConversationBubble, ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime } from "@/utils/formatters"
 
+function getMessageDateKey(createdAt: string) {
+  return createdAt.slice(0, 10)
+}
+
 const ChatMessageRow = memo(function ChatMessageRow({
   message,
   showDateDivider,
@@ -281,6 +285,8 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
   return (
     <div
+      role="region"
+      aria-label={`Chat với ${conversation.name}`}
       className="fixed bg-card border border-border rounded-xl shadow-2xl shadow-black/20 flex flex-col overflow-hidden"
       style={{
         width: 320,
@@ -305,15 +311,15 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
       </div>
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
+        className="flex-1 overflow-y-auto p-3 space-y-3"
         onScroll={handleMessagesScroll}
       >
         {isLoadingMore && hasMore && (
-          <p className="text-xs text-muted-foreground text-center">Đang tải tin nhắn cũ hơn...</p>
+          <p className="text-xs text-muted-foreground text-center">Đang tải tin nhắn cũ hơn…</p>
         )}
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Đang tải hội thoại...</p>
+          <p className="text-sm text-muted-foreground">Đang tải hội thoại…</p>
         ) : loadError ? (
           <p className="text-sm text-muted-foreground" role="alert">{loadError}</p>
         ) : (
@@ -333,7 +339,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
               const prevMessage = virtualItem.index > 0 ? messages[virtualItem.index - 1] : null
               const showDateDivider = !prevMessage ||
-                new Date(message.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString()
+                getMessageDateKey(message.createdAt) !== getMessageDateKey(prevMessage.createdAt)
 
               return (
                 <div

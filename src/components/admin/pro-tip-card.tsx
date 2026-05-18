@@ -19,7 +19,7 @@ export function ProTipCard({
         className
       )}
     >
-      <h4 className="text-sm font-bold flex items-center gap-2">
+      <h4 className="text-sm font-semibold flex items-center gap-2">
         <Lightbulb className="size-4 text-yellow-400" />
         {title}
       </h4>

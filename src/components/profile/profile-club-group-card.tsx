@@ -60,7 +60,7 @@ export function ProfileClubGroupCard({
               {clubs.map((membership) => (
                 <div
                   key={membership.clubId}
-                  className="rounded-lg border border-border/60 px-3 py-3"
+                  className="rounded-lg border border-border/60 p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
@@ -92,7 +92,7 @@ export function ProfileClubGroupCard({
               {groups.map((membership) => (
                 <div
                   key={membership.groupId}
-                  className="rounded-lg border border-border/60 px-3 py-3"
+                  className="rounded-lg border border-border/60 p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">

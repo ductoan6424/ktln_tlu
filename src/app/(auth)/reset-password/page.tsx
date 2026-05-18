@@ -55,7 +55,7 @@ function ResetPasswordForm({ token }: { token: string }) {
             <CheckCircle className="size-8 text-emerald-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-emerald-600">Đặt lại mật khẩu thành công!</h1>
+            <h1 className="text-xl font-semibold text-emerald-600">Đặt lại mật khẩu thành công!</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Mật khẩu của bạn đã được thay đổi. Bây giờ bạn có thể đăng nhập.
             </p>
@@ -78,7 +78,7 @@ function ResetPasswordForm({ token }: { token: string }) {
           <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
             <Lock className="size-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Đặt lại mật khẩu</h1>
+          <h1 className="text-2xl font-semibold">Đặt lại mật khẩu</h1>
           <p className="text-sm text-muted-foreground">
             Nhập mật khẩu mới cho tài khoản của bạn.
           </p>
@@ -86,10 +86,11 @@ function ResetPasswordForm({ token }: { token: string }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Mật khẩu mới</label>
+            <label className="text-sm font-medium" htmlFor="reset-password-new">Mật khẩu mới</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
+                id="reset-password-new"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -109,10 +110,11 @@ function ResetPasswordForm({ token }: { token: string }) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Xác nhận mật khẩu</label>
+            <label className="text-sm font-medium" htmlFor="reset-password-confirm">Xác nhận mật khẩu</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
+                id="reset-password-confirm"
                 type={showConfirm ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -167,7 +169,7 @@ function InvalidTokenState() {
         <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
           <XCircle className="size-8 text-destructive" />
         </div>
-        <h1 className="text-xl font-bold">Liên kết không hợp lệ</h1>
+        <h1 className="text-xl font-semibold">Liên kết không hợp lệ</h1>
         <p className="text-sm text-muted-foreground">
           Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.
         </p>
@@ -202,8 +204,7 @@ function LoadingState() {
 }
 
 function ResetPasswordPageInner() {
-  const searchParams = useSearchParams()
-  const token = searchParams.get("token")
+  const token = useSearchParams().get("token")
 
   return (
     <div className="flex w-full items-center justify-center">

@@ -160,7 +160,7 @@ export function MobileBottomNav({
             <DropdownMenuSeparator />
 
             {/* Dark mode toggle */}
-            <div className="flex items-center justify-between px-2 py-2">
+            <div className="flex items-center justify-between p-2">
               <div className="flex items-center gap-2 text-sm">
                 <Moon className="size-4" />
                 Chế độ tối

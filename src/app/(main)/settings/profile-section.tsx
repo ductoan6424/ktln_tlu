@@ -31,15 +31,17 @@ export function ProfileSection({ profile }: { profile: UserProfile }) {
         <Separator />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SettingsField label="Họ và tên" defaultValue={profile.displayName} />
+          <SettingsField id="profile-display-name" label="Họ và tên" defaultValue={profile.displayName} />
           <SettingsField
+            id="profile-student-id"
             label="Mã sinh viên"
             defaultValue={profile.studentId ?? ""}
             disabled
           />
-          <SettingsField label="Email" defaultValue={profile.email} type="email" />
-          <SettingsField label="Khoa" defaultValue={profile.major ?? ""} disabled />
+          <SettingsField id="profile-email" label="Email" defaultValue={profile.email} type="email" />
+          <SettingsField id="profile-major" label="Khoa" defaultValue={profile.major ?? ""} disabled />
           <SettingsField
+            id="profile-year"
             label="Khoá"
             defaultValue={profile.year ? `K${profile.year}` : ""}
             disabled
@@ -47,8 +49,8 @@ export function ProfileSection({ profile }: { profile: UserProfile }) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Giới thiệu bản thân</label>
-          <Textarea defaultValue={profile.bio ?? ""} rows={3} />
+          <label className="text-sm font-medium" htmlFor="profile-bio">Giới thiệu bản thân</label>
+          <Textarea id="profile-bio" defaultValue={profile.bio ?? ""} rows={3} />
         </div>
 
         <div className="flex justify-end gap-3">
@@ -61,12 +63,14 @@ export function ProfileSection({ profile }: { profile: UserProfile }) {
 }
 
 function SettingsField({
+  id,
   label,
   defaultValue,
   type = "text",
   placeholder,
   disabled = false,
 }: {
+  id: string
   label: string
   defaultValue?: string
   type?: string
@@ -75,8 +79,9 @@ function SettingsField({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-sm font-medium" htmlFor={id}>{label}</label>
       <Input
+        id={id}
         type={type}
         defaultValue={defaultValue}
         placeholder={placeholder}

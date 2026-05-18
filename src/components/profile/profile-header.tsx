@@ -88,7 +88,7 @@ export function ProfileHeader({
           </div>
 
           <div className="min-w-0 flex-1">
-            <h1 className="break-words text-2xl font-bold">{name}</h1>
+            <h1 className="break-words text-2xl font-semibold">{name}</h1>
             {username && (
               <p className="mt-1 text-sm font-medium text-muted-foreground">
                 @{username}

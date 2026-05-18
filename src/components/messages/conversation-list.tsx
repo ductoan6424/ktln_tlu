@@ -35,7 +35,7 @@ export function ConversationList({
     >
       <div className="p-4 space-y-4 shrink-0">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-bold">Tin nhắn</h2>
+          <h2 className="text-lg font-semibold">Tin nhắn</h2>
           <IconButton
             icon={SquarePen}
             size="sm"
@@ -67,14 +67,14 @@ export function ConversationListSkeleton() {
       <div className="p-4 space-y-4">
         <Skeleton className="h-6 w-24" />
         <div className="flex gap-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={`tab-${i}`} className="h-7 w-16 rounded-full" />
+          {[1, 2, 3, 4].map((slot) => (
+            <Skeleton key={`tab-${slot}`} className="h-7 w-16 rounded-full" />
           ))}
         </div>
       </div>
       <div className="flex-1 space-y-0">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={`item-${i}`} className="flex gap-4 px-4 py-4">
+        {[1, 2, 3, 4].map((slot) => (
+          <div key={`item-${slot}`} className="flex gap-4 p-4">
             <Skeleton className="size-12 rounded-full" />
             <div className="flex-1 space-y-1.5">
               <Skeleton className="h-3.5 w-28" />

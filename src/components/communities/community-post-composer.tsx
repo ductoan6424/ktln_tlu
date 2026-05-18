@@ -26,7 +26,7 @@ export function CommunityPostComposer({
   userName,
   userAvatar,
 }: CommunityPostComposerProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [content, setContent] = useState("")
   const [files, setFiles] = useState<File[]>([])
@@ -70,7 +70,7 @@ export function CommunityPostComposer({
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
-      router.refresh()
+      refresh()
     })
   }
 

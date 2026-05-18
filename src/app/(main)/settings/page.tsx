@@ -69,7 +69,7 @@ export default async function SettingsPage({
     <PageContainer variant="centered" className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold">Cài đặt</h1>
+        <h1 className="text-xl font-semibold">Cài đặt</h1>
         <p className="text-sm text-muted-foreground">
           Quản lý tài khoản và tuỳ chỉnh trải nghiệm
         </p>
@@ -212,9 +212,9 @@ function SecuritySection() {
       <Card>
         <CardContent className="p-6 space-y-4">
           <SectionHeader title="Đổi mật khẩu" />
-          <SettingsField label="Mật khẩu hiện tại" type="password" placeholder="••••••••" />
-          <SettingsField label="Mật khẩu mới" type="password" placeholder="••••••••" />
-          <SettingsField label="Xác nhận mật khẩu mới" type="password" placeholder="••••••••" />
+          <SettingsField id="current-password" label="Mật khẩu hiện tại" type="password" placeholder="••••••••" />
+          <SettingsField id="new-password" label="Mật khẩu mới" type="password" placeholder="••••••••" />
+          <SettingsField id="confirm-new-password" label="Xác nhận mật khẩu mới" type="password" placeholder="••••••••" />
           <div className="flex justify-end">
             <Button>Cập nhật mật khẩu</Button>
           </div>
@@ -266,7 +266,7 @@ function AppearanceSection() {
 
         {/* Chọn chế độ */}
         <div className="space-y-3">
-          <label className="text-sm font-medium">Chế độ hiển thị</label>
+          <p className="text-sm font-medium">Chế độ hiển thị</p>
           <div className="grid grid-cols-3 gap-3">
             <ThemeOption label="Sáng" isActive />
             <ThemeOption label="Tối" />
@@ -306,7 +306,7 @@ function LanguageSection() {
         <SectionHeader title="Ngôn ngữ" />
 
         <div className="space-y-3">
-          <label className="text-sm font-medium">Ngôn ngữ hiển thị</label>
+          <p className="text-sm font-medium">Ngôn ngữ hiển thị</p>
           <div className="space-y-2">
             <LanguageOption label="Tiếng Việt" code="vi" isActive />
             <LanguageOption label="English" code="en" />
@@ -316,8 +316,8 @@ function LanguageSection() {
         <Separator />
 
         <div className="space-y-3">
-          <label className="text-sm font-medium">Múi giờ</label>
-          <Input defaultValue="(GMT+7) Hà Nội, Bangkok, Jakarta" disabled />
+          <label className="text-sm font-medium" htmlFor="timezone">Múi giờ</label>
+          <Input id="timezone" defaultValue="(GMT+7) Hà Nội, Bangkok, Jakarta" disabled />
           <p className="text-xs text-muted-foreground">
             Múi giờ được tự động xác định dựa trên vị trí của bạn
           </p>
@@ -335,12 +335,14 @@ function LanguageSection() {
 /* Shared sub-components                                               */
 /* ------------------------------------------------------------------ */
 function SettingsField({
+  id,
   label,
   defaultValue,
   type = "text",
   placeholder,
   disabled = false,
 }: {
+  id: string
   label: string
   defaultValue?: string
   type?: string
@@ -349,8 +351,9 @@ function SettingsField({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-sm font-medium" htmlFor={id}>{label}</label>
       <Input
+        id={id}
         type={type}
         defaultValue={defaultValue}
         placeholder={placeholder}

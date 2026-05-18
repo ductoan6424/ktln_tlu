@@ -57,7 +57,7 @@ export function CommunityDetailShell({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold">{target.name}</h1>
+              <h1 className="text-2xl font-semibold">{target.name}</h1>
               {target.visibility ? (
                 <Badge variant="outline">
                   {target.visibility === "PRIVATE" ? "Riêng tư" : "Công khai"}

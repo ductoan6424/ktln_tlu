@@ -37,8 +37,9 @@ export function PostMenu({
 }: PostMenuProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [saved, setSaved] = useState(isSaved)
+  const [savedOverride, setSavedOverride] = useState<boolean | null>(null)
   const [pending, startTransition] = useTransition()
+  const saved = savedOverride ?? isSaved
 
   if (!canDelete && !canHide) return null
 
@@ -78,7 +79,7 @@ export function PostMenu({
         return
       }
       const nowSaved = res.data?.saved ?? false
-      setSaved(nowSaved)
+      setSavedOverride(nowSaved)
       toast({
         description: nowSaved ? "Đã lưu bài viết." : "Đã bỏ lưu bài viết.",
         action: nowSaved ? (

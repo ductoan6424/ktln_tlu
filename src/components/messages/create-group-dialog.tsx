@@ -176,7 +176,7 @@ export function CreateGroupDialog({
             {isLoadingUsers ? (
               <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
-                Đang tìm thành viên...
+                Đang tìm thành viên…
               </div>
             ) : users.length === 0 ? (
               <p className="px-3 py-4 text-sm text-muted-foreground">

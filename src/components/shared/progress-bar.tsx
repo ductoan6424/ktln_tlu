@@ -19,18 +19,18 @@ export function ProgressBar({
 
   return (
     <div className={cn("space-y-1", className)}>
-      {(label || showCount) && (
+      {(Boolean(label) || showCount) ? (
         <div className="flex justify-between text-sm">
-          {label && (
+          {label ? (
             <span className="text-muted-foreground">{label}</span>
-          )}
-          {showCount && (
+          ) : null}
+          {showCount ? (
             <span className="font-bold">
               {value} / {max}
             </span>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
       <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
         <div
           className="h-full bg-primary rounded-full transition-all duration-500"

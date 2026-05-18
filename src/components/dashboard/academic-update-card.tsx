@@ -48,7 +48,7 @@ export function AcademicUpdateCard({
         <Icon className="size-3" />
         {config.label}
       </div>
-      <h4 className="text-sm font-bold">{title}</h4>
+      <h4 className="text-sm font-semibold">{title}</h4>
       <p className="text-xs text-muted-foreground mt-0.5">{detail}</p>
     </div>
   )

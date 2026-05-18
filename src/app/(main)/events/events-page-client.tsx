@@ -61,7 +61,7 @@ export function EventsPageClient({ events }: EventsPageClientProps) {
     <PageContainer variant="centered" className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold">Sự kiện</h1>
+          <h1 className="text-xl font-semibold">Sự kiện</h1>
           <p className="text-sm text-muted-foreground">
             Khám phá và tham gia các sự kiện trong trường
           </p>
@@ -102,7 +102,7 @@ export function EventsPageClient({ events }: EventsPageClientProps) {
           <Card>
             <CardContent className="p-5">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-bold">Sự kiện sắp tới</h3>
+                <h3 className="text-sm font-semibold">Sự kiện sắp tới</h3>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="icon" className="size-7" disabled>
                     <ChevronLeft className="size-4" />
@@ -125,7 +125,7 @@ export function EventsPageClient({ events }: EventsPageClientProps) {
                         <span className="text-lg font-bold leading-tight">{event.day}</span>
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold leading-snug">{event.title}</h4>
+                        <h4 className="text-sm font-semibold leading-snug">{event.title}</h4>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {event.location} • {event.timeLabel.split(" - ")[0]}
                         </p>
@@ -190,7 +190,7 @@ function EventCard({ event }: { event: EventListItem }) {
       </div>
 
       <CardContent className="space-y-3 p-5">
-        <h3 className="text-base font-bold leading-snug transition-colors group-hover:text-primary">
+        <h3 className="text-base font-semibold leading-snug transition-colors group-hover:text-primary">
           {event.title}
         </h3>
         <p className="line-clamp-2 text-sm text-muted-foreground">

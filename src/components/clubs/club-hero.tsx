@@ -20,7 +20,7 @@ export function ClubHero({ coverImage, title, className }: ClubHeroProps) {
         priority
       />
       <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
-      <h2 className="absolute bottom-8 left-8 text-3xl font-bold text-white">
+      <h2 className="absolute bottom-8 left-8 text-3xl font-semibold text-white">
         {title}
       </h2>
     </div>

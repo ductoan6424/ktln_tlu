@@ -159,6 +159,7 @@ export function PollDisplay({
 
   return (
     <div
+      role="presentation"
       className={cn(
         "rounded-xl border border-border bg-muted/30 p-3",
         className,

@@ -98,7 +98,6 @@ export function TopNavbar({
           <GlobalSearch
             placeholder={searchPlaceholder}
             className="flex-1"
-            autoFocus
           />
           <Button
             variant="ghost"
@@ -172,7 +171,7 @@ export function TopNavbar({
                 <div className="p-0">
                   <Link
                     href="/profile"
-                    className="flex items-center gap-3 px-3 py-3 hover:bg-muted rounded-md transition-colors"
+                    className="flex items-center gap-3 p-3 hover:bg-muted rounded-md transition-colors"
                   >
                     <UserAvatar
                       src={user.avatarSrc}
@@ -206,7 +205,7 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                <div className="flex items-center justify-between px-2 py-2">
+                <div className="flex items-center justify-between p-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Moon className="size-4" />
                     Chế độ tối

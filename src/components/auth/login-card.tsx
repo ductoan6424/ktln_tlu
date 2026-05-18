@@ -13,7 +13,7 @@ export function LoginCard() {
       <CardContent className="p-5 sm:p-8 lg:p-10">
         {/* Tiêu đề */}
         <div className="mb-8 text-center sm:mb-10">
-          <h1 className="text-2xl font-bold mb-2">Chào mừng trở lại</h1>
+          <h1 className="text-2xl font-semibold mb-2">Chào mừng trở lại</h1>
           <p className="text-muted-foreground text-sm">
             Truy cập cổng thông tin sinh viên
           </p>

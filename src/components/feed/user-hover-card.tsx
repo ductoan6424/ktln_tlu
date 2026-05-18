@@ -188,7 +188,7 @@ export function UserHoverCard({
           <MessageButton
             targetUserId={userId}
             variant="icon"
-            className="h-8 w-8 shrink-0"
+            className="size-8 shrink-0"
           />
         </div>
       )}

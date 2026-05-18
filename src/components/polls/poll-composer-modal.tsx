@@ -129,10 +129,11 @@ export function PollComposerModal({
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-foreground">
+            <label className="text-[13px] font-medium text-foreground" htmlFor="poll-question">
               Câu hỏi
             </label>
             <Input
+              id="poll-question"
               value={draft.question}
               onChange={(event) =>
                 setDraft((current) => ({
@@ -149,9 +150,9 @@ export function PollComposerModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-foreground">
+            <p className="text-[13px] font-medium text-foreground">
               Đáp án
-            </label>
+            </p>
             <div className="space-y-2">
               {draft.options.map((option, index) => (
                 <div key={index} className="flex items-center gap-2">
@@ -189,9 +190,9 @@ export function PollComposerModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-foreground">
+            <p className="text-[13px] font-medium text-foreground">
               Hình thức
-            </label>
+            </p>
             <Tabs
               value={draft.type}
               onValueChange={(value) => handleTypeChange(value as PollTypeInput)}
@@ -204,9 +205,9 @@ export function PollComposerModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-foreground">
+            <p className="text-[13px] font-medium text-foreground">
               Thời hạn
-            </label>
+            </p>
             <Tabs
               value={draft.durationPreset}
               onValueChange={(value) =>

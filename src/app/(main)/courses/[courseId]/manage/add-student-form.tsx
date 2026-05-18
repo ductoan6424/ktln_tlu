@@ -35,13 +35,15 @@ export function AddStudentForm({ courseId }: { courseId: string }) {
           })
         }}
       >
-        <label className="block space-y-2">
+        <label className="block space-y-2" htmlFor="field-app-main-courses-courseid-manage-add-student-form-1">
           <span className="text-sm font-semibold text-[#050505]">Mã sinh viên</span>
           <Input
             name="studentId"
             placeholder="A46287"
             required
             className={manageInput}
+          id="field-app-main-courses-courseid-manage-add-student-form-1"
+
           />
         </label>
         <Button
@@ -77,7 +79,7 @@ export function AddStudentForm({ courseId }: { courseId: string }) {
           })
         }}
       >
-        <label className="block space-y-2">
+        <label className="block space-y-2" htmlFor="field-app-main-courses-courseid-manage-add-student-form-2">
           <span className="text-sm font-semibold text-[#050505]">
             Thêm nhiều mã sinh viên
           </span>
@@ -85,6 +87,8 @@ export function AddStudentForm({ courseId }: { courseId: string }) {
             name="studentCodesText"
             placeholder="A46287, A46288 hoặc mỗi mã một dòng"
             className={`${manageInput} min-h-28`}
+          id="field-app-main-courses-courseid-manage-add-student-form-2"
+
           />
         </label>
         <Button

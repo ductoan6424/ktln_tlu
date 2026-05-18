@@ -58,7 +58,7 @@ export function PostHeader({
   )
 
   const nameNode = (
-    <h4 className="truncate text-sm font-bold hover:underline cursor-pointer">
+    <h4 className="truncate text-sm font-semibold hover:underline cursor-pointer">
       {authorName}
     </h4>
   )

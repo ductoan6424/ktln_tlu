@@ -40,7 +40,7 @@ export function CommunityRulesPanel({
   targetType?: "GROUP" | "CLUB" | "COURSE"
   targetId?: string
 }) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
   const canEdit = Boolean(targetType && targetId)
@@ -53,7 +53,7 @@ export function CommunityRulesPanel({
             <ShieldCheck className="size-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#050505]">Quy định</h2>
+            <h2 className="text-lg font-semibold text-[#050505]">Quy định</h2>
             <p className="text-sm text-[#65676b]">
               Các quy định thành viên phải đồng ý trước khi tham gia.
             </p>
@@ -77,7 +77,7 @@ export function CommunityRulesPanel({
                     ? "Đã thêm quy định."
                     : result.error ?? "Không thể thêm.",
                 )
-                if (result.success) router.refresh()
+                if (result.success) refresh()
               })
             }}
           >
@@ -134,7 +134,7 @@ export function CommunityRulesPanel({
                               ? "Đã lưu quy định."
                               : result.error ?? "Không thể lưu.",
                           )
-                          if (result.success) router.refresh()
+                          if (result.success) refresh()
                         })
                       }}
                     >
@@ -173,7 +173,7 @@ export function CommunityRulesPanel({
                               ? "Đã xoá quy định."
                               : result.error ?? "Không thể xoá.",
                           )
-                          if (result.success) router.refresh()
+                          if (result.success) refresh()
                         })
                       }}
                     >

@@ -27,6 +27,10 @@ import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/co
 import type { ChatConversationItem, ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime, formatRelativeTime } from "@/utils/formatters"
 
+function getMessageDateKey(createdAt: string) {
+  return createdAt.slice(0, 10)
+}
+
 const ChatMessageRow = memo(function ChatMessageRow({
   message,
   showDateDivider,
@@ -53,9 +57,8 @@ const ChatMessageRow = memo(function ChatMessageRow({
 })
 
 function MessagesPageInner() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const requestedConversationId = searchParams.get("conversation")
+  const { push, replace } = useRouter()
+  const requestedConversationId = useSearchParams().get("conversation")
 
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
   const [conversations, setConversations] = useState<ChatConversationItem[]>([])
@@ -175,8 +178,8 @@ function MessagesPageInner() {
 
   const selectConversation = useCallback((conversationId: string) => {
     setOptimisticConversationId(conversationId)
-    router.push(getConversationHref(conversationId), { scroll: false })
-  }, [getConversationHref, router])
+    push(getConversationHref(conversationId), { scroll: false })
+  }, [getConversationHref, push])
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -218,11 +221,11 @@ function MessagesPageInner() {
     }
 
     const fallbackConversationId = conversations[0]?.id ?? null
-    router.replace(
+    replace(
       fallbackConversationId ? getConversationHref(fallbackConversationId) : "/messages",
       { scroll: false },
     )
-  }, [conversations, getConversationHref, isBooting, requestedConversationId, router])
+  }, [conversations, getConversationHref, isBooting, replace, requestedConversationId])
 
   const loadMessages = useCallback(async (conversationId: string, cursor?: string) => {
     const result = await getConversationMessages({ conversationId, cursor })
@@ -252,26 +255,27 @@ function MessagesPageInner() {
       setNextCursor(null)
       setHasMore(false)
 
-      const data = await loadMessages(conversationId)
-
       if (isDisposed || activeConversationIdRef.current !== conversationId) {
         return
       }
 
-      if (!data) {
-        setMessages([])
-        setNextCursor(null)
-        setHasMore(false)
-        setIsLoadingMessages(false)
-        return
+      const data = await loadMessages(conversationId)
+
+      if (!isDisposed && activeConversationIdRef.current === conversationId) {
+        if (!data) {
+          setMessages([])
+          setNextCursor(null)
+          setHasMore(false)
+          setIsLoadingMessages(false)
+        } else {
+          setMessages(data.items)
+          setNextCursor(data.nextCursor)
+          setHasMore(data.hasMore)
+          setIsLoadingMessages(false)
+
+          void markConversationAsRead(conversationId)
+        }
       }
-
-      setMessages(data.items)
-      setNextCursor(data.nextCursor)
-      setHasMore(data.hasMore)
-      setIsLoadingMessages(false)
-
-      void markConversationAsRead(conversationId)
       setConversations((prev) =>
         prev.map((conversation) =>
           conversation.id === conversationId
@@ -483,12 +487,12 @@ function MessagesPageInner() {
       const nextConversationId = nextConversations[0]?.id ?? null
       setOptimisticConversationId(nextConversationId)
       setMessages([])
-      router.replace(
+      replace(
         nextConversationId ? getConversationHref(nextConversationId) : "/messages",
         { scroll: false },
       )
     }
-  }, [activeConversationId, conversations, getConversationHref, router])
+  }, [activeConversationId, conversations, getConversationHref, replace])
 
   return (
     <>
@@ -499,7 +503,7 @@ function MessagesPageInner() {
           setConversations((prev) => [conversation, ...prev])
           setOptimisticConversationId(conversation.id)
           setActiveFilter("all")
-          router.push(getConversationHref(conversation.id), { scroll: false })
+          push(getConversationHref(conversation.id), { scroll: false })
         }}
       />
 
@@ -511,7 +515,18 @@ function MessagesPageInner() {
           onCreateGroupClick={() => setIsCreateGroupOpen(true)}
         >
           {visibleConversations.map((conv) => (
-            <div key={conv.id} onClick={() => selectConversation(conv.id)}>
+            <div
+              key={conv.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => selectConversation(conv.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  selectConversation(conv.id)
+                }
+              }}
+            >
               <ConversationItem
                 avatar={conv.avatarUrl ?? undefined}
                 name={conv.name}
@@ -544,7 +559,7 @@ function MessagesPageInner() {
             className="size-9 rounded-full"
             onClick={() => {
               setOptimisticConversationId(null)
-              router.push("/messages", { scroll: false })
+              push("/messages", { scroll: false })
             }}
             aria-label="Quay lại"
           >
@@ -580,11 +595,11 @@ function MessagesPageInner() {
               }}
             >
               {isLoadingMore && hasMore && (
-                <p className="text-xs text-muted-foreground text-center mb-3">Đang tải tin nhắn cũ hơn...</p>
+                  <p className="text-xs text-muted-foreground text-center mb-3">Đang tải tin nhắn cũ hơn…</p>
               )}
 
               {isLoadingMessages ? (
-                <p className="text-sm text-muted-foreground">Đang tải tin nhắn...</p>
+                  <p className="text-sm text-muted-foreground">Đang tải tin nhắn…</p>
               ) : (
                 <div
                   style={{
@@ -599,7 +614,7 @@ function MessagesPageInner() {
 
                     const prevMessage = virtualItem.index > 0 ? messages[virtualItem.index - 1] : null
                     const showDateDivider = !prevMessage ||
-                      new Date(message.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString()
+                      getMessageDateKey(message.createdAt) !== getMessageDateKey(prevMessage.createdAt)
 
                     return (
                       <div

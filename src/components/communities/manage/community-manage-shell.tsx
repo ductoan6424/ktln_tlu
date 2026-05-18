@@ -67,7 +67,7 @@ export function CommunityManageShell({
                 <Settings className="size-7" aria-hidden="true" />
               </div>
               <div className="min-w-0 pb-1">
-                <h1 className="truncate text-2xl font-bold leading-tight text-[#050505] sm:text-3xl">
+                <h1 className="truncate text-2xl font-semibold leading-tight text-[#050505] sm:text-3xl">
                   {title}
                 </h1>
                 <p className="mt-1 text-sm font-medium text-[#65676b]">

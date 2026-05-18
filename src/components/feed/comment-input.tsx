@@ -11,7 +11,6 @@ interface CommentInputProps {
   userName?: string
   userAvatar?: string
   placeholder?: string
-  autoFocus?: boolean
   onSubmit?: (text: string) => void
   className?: string
 }
@@ -20,7 +19,6 @@ export function CommentInput({
   userName = "",
   userAvatar,
   placeholder = "Viết bình luận...",
-  autoFocus = false,
   onSubmit,
   className,
 }: CommentInputProps) {
@@ -52,7 +50,6 @@ export function CommentInput({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          autoFocus={autoFocus}
           className="flex-1 !h-auto !border-0 !bg-transparent !px-0 !py-0 text-sm !shadow-none !ring-0 focus-visible:!ring-0 focus-visible:!border-transparent"
         />
         {text.trim() && (

@@ -51,7 +51,7 @@ export function AnnouncementCard({
           <StatusBadge variant="muted" size="sm" className="bg-white/20 backdrop-blur-md text-white border-none mb-3">
             {tag}
           </StatusBadge>
-          <h4 className="text-2xl font-bold mb-2">{title}</h4>
+          <h4 className="text-2xl font-semibold mb-2">{title}</h4>
           <p className="text-sm opacity-90 mb-4">{description}</p>
           <Button
             variant="secondary"
@@ -77,7 +77,7 @@ export function AnnouncementCard({
         <StatusBadge variant="primary" size="sm" className="mb-3">
           {tag}
         </StatusBadge>
-        <h4 className="text-xl font-bold mb-2">{title}</h4>
+        <h4 className="text-xl font-semibold mb-2">{title}</h4>
         <p className="text-muted-foreground text-sm mb-4">{description}</p>
         <Button variant="outline" size="sm" onClick={onAction} className="font-bold">
           {actionLabel}

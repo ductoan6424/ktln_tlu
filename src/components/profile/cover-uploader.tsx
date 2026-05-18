@@ -17,7 +17,7 @@ interface CoverUploaderProps {
 }
 
 export function CoverUploader({ currentCoverUrl, className }: CoverUploaderProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -97,7 +97,7 @@ export function CoverUploader({ currentCoverUrl, className }: CoverUploaderProps
         title: "Đã cập nhật ảnh bìa",
         description: "Ảnh bìa mới đã được lưu.",
       })
-      router.refresh()
+      refresh()
     } catch {
       toast({
         title: "Không thể cập nhật ảnh bìa",

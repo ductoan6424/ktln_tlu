@@ -19,7 +19,7 @@ export function CommunityInviteActions({
   slugId,
   inviteId,
 }: CommunityInviteActionsProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
 
@@ -38,7 +38,7 @@ export function CommunityInviteActions({
               ? "Đã huỷ lời mời."
               : result.error ?? "Không thể huỷ.",
           )
-          if (result.success) router.refresh()
+          if (result.success) refresh()
         })
       }}
     >

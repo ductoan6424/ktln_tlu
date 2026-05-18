@@ -65,24 +65,28 @@ export default function NotificationsPage() {
     let cancelled = false
 
     const init = async () => {
-      const sessionResult = await getNotificationSession()
       if (cancelled) return
 
-      if (sessionResult.success && sessionResult.data) {
+      const sessionResult = await getNotificationSession()
+
+      if (!cancelled && sessionResult.success && sessionResult.data) {
         setUserId(sessionResult.data.userId)
       }
 
-      const listResult = await listMyNotifications({})
       if (cancelled) return
 
-      if (listResult.success && listResult.data) {
-        setNotifications(listResult.data.items)
-        setCursor(listResult.data.nextCursor)
-        setHasMore(listResult.data.hasMore)
-        setUnreadCount(listResult.data.unreadCount)
-      }
+      const listResult = await listMyNotifications({})
 
-      setIsLoading(false)
+      if (!cancelled) {
+        if (listResult.success && listResult.data) {
+          setNotifications(listResult.data.items)
+          setCursor(listResult.data.nextCursor)
+          setHasMore(listResult.data.hasMore)
+          setUnreadCount(listResult.data.unreadCount)
+        }
+
+        setIsLoading(false)
+      }
     }
 
     void init()
@@ -170,7 +174,7 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Thông báo</h1>
+          <h1 className="text-xl font-semibold">Thông báo</h1>
           <p className="text-sm text-muted-foreground">
             {unreadCount > 0
               ? `Bạn có ${unreadCount} thông báo chưa đọc`
