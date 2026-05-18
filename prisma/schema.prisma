@@ -140,6 +140,34 @@ enum AnnouncementStatus {
   ARCHIVED
 }
 
+enum EventType {
+  ACADEMIC
+  CLUB
+  WORKSHOP
+  INTERNAL
+  SPORTS
+  CULTURE
+  CAREER
+  OTHER
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum EventRegistrationStatus {
+  OPEN
+  APPROVAL_REQUIRED
+  CLOSED
+}
+
+enum EventAttendanceStatus {
+  REGISTERED
+  CANCELLED
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model UserProfile {
@@ -195,6 +223,8 @@ model UserProfile {
 
   authoredAnnouncements Announcement[]  @relation("AnnouncementAuthor")
   systemSettingUpdates  SystemSetting[] @relation("SystemSettingUpdater")
+  createdEvents         Event[]         @relation("EventCreator")
+  eventRegistrations    EventRegistration[]
 
   pushSubscriptions PushSubscription[]
 
@@ -939,6 +969,54 @@ model Announcement {
   @@index([authorId])
   @@index([createdAt(sort: Desc)])
   @@map("announcements")
+}
+
+model Event {
+  id                 String                  @id @default(cuid()) @map("event_id")
+  title              String                  @map("title")
+  description        String                  @map("description")
+  type               EventType               @default(OTHER) @map("type")
+  location           String                  @map("location")
+  coverImageUrl      String?                 @map("cover_image_url")
+  organizerName      String                  @map("organizer_name")
+  startAt            DateTime                @map("start_at")
+  endAt              DateTime                @map("end_at")
+  capacity           Int?                    @map("capacity")
+  registrationStatus EventRegistrationStatus @default(OPEN) @map("registration_status")
+  status             EventStatus             @default(DRAFT) @map("status")
+  featured           Boolean                 @default(false) @map("featured")
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+  publishedAt        DateTime?               @map("published_at")
+  cancelledAt        DateTime?               @map("cancelled_at")
+  deletedAt          DateTime?               @map("deleted_at")
+
+  createdById String      @map("created_by")
+  createdBy   UserProfile @relation("EventCreator", fields: [createdById], references: [userId], onDelete: Cascade)
+
+  registrations EventRegistration[]
+
+  @@index([status, startAt])
+  @@index([featured, startAt])
+  @@index([createdById])
+  @@index([deletedAt])
+  @@map("events")
+}
+
+model EventRegistration {
+  eventId      String                @map("event_id")
+  userId       String                @map("user_id")
+  status       EventAttendanceStatus @default(REGISTERED) @map("status")
+  registeredAt DateTime              @default(now()) @map("registered_at")
+  cancelledAt  DateTime?             @map("cancelled_at")
+
+  event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId, registeredAt(sort: Desc)])
+  @@index([eventId, status])
+  @@map("event_registrations")
 }
 
 model SystemSetting {
