@@ -1,0 +1,7 @@
+export const EVENT_TITLE_MAX = 160
+export const EVENT_DESCRIPTION_MAX = 4000
+export const EVENT_LOCATION_MAX = 180
+export const EVENT_ORGANIZER_MAX = 140
+export const EVENT_CAPACITY_MAX = 10000
+export const EVENTS_PAGE_SIZE = 60
+export const FEED_SIDEBAR_EVENTS_LIMIT = 3

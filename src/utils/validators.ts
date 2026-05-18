@@ -5,6 +5,13 @@ import {
   ANNOUNCEMENT_CONTENT_MAX,
 } from "@/lib/config/announcements";
 import {
+  EVENT_CAPACITY_MAX,
+  EVENT_DESCRIPTION_MAX,
+  EVENT_LOCATION_MAX,
+  EVENT_ORGANIZER_MAX,
+  EVENT_TITLE_MAX,
+} from "@/lib/config/events";
+import {
   POLL_OPTIONS_MAX_COUNT,
   POLL_OPTIONS_MIN_COUNT,
   POLL_OPTION_MAX_LENGTH,
@@ -126,6 +133,64 @@ export const announcementInputSchema = z.object({
     .or(z.literal("")),
 });
 
+export const eventTypeSchema = z.enum([
+  "ACADEMIC",
+  "CLUB",
+  "WORKSHOP",
+  "INTERNAL",
+  "SPORTS",
+  "CULTURE",
+  "CAREER",
+  "OTHER",
+]);
+
+export const eventRegistrationStatusSchema = z.enum([
+  "OPEN",
+  "APPROVAL_REQUIRED",
+  "CLOSED",
+]);
+
+export const eventInputSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, "Tiêu đề sự kiện không được để trống")
+      .max(EVENT_TITLE_MAX, `Tiêu đề tối đa ${EVENT_TITLE_MAX} ký tự`),
+    description: z
+      .string()
+      .trim()
+      .min(1, "Mô tả sự kiện không được để trống")
+      .max(EVENT_DESCRIPTION_MAX, `Mô tả tối đa ${EVENT_DESCRIPTION_MAX} ký tự`),
+    type: eventTypeSchema.default("OTHER"),
+    location: z
+      .string()
+      .trim()
+      .min(1, "Địa điểm không được để trống")
+      .max(EVENT_LOCATION_MAX, `Địa điểm tối đa ${EVENT_LOCATION_MAX} ký tự`),
+    organizerName: z
+      .string()
+      .trim()
+      .min(1, "Đơn vị tổ chức không được để trống")
+      .max(EVENT_ORGANIZER_MAX, `Đơn vị tổ chức tối đa ${EVENT_ORGANIZER_MAX} ký tự`),
+    startAt: z.string().datetime({ offset: true }),
+    endAt: z.string().datetime({ offset: true }),
+    capacity: z
+      .number()
+      .int("Sức chứa phải là số nguyên")
+      .min(0, "Sức chứa không được âm")
+      .max(EVENT_CAPACITY_MAX, `Sức chứa tối đa ${EVENT_CAPACITY_MAX}`)
+      .nullable()
+      .optional(),
+    registrationStatus: eventRegistrationStatusSchema.default("OPEN"),
+    featured: z.boolean().default(false),
+    coverImageUrl: z.string().url("URL ảnh bìa không hợp lệ").optional().or(z.literal("")),
+  })
+  .refine((data) => new Date(data.endAt).getTime() > new Date(data.startAt).getTime(), {
+    message: "Thời gian kết thúc phải sau thời gian bắt đầu",
+    path: ["endAt"],
+  });
+
 // Export inferred types
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -134,6 +199,9 @@ export type CommentInput = z.infer<typeof commentSchema>;
 export type PostDeleteReasonInput = z.infer<typeof postDeleteReasonSchema>;
 export type AnnouncementInput = z.infer<typeof announcementInputSchema>;
 export type AnnouncementAudienceInput = z.infer<typeof announcementAudienceSchema>;
+export type EventInput = z.infer<typeof eventInputSchema>;
+export type EventTypeInput = z.infer<typeof eventTypeSchema>;
+export type EventRegistrationStatusInput = z.infer<typeof eventRegistrationStatusSchema>;
 export type PollInput = z.infer<typeof pollInputSchema>;
 export type PollOptionInput = z.infer<typeof pollOptionSchema>;
 export type PollTypeInput = z.infer<typeof pollTypeSchema>;
