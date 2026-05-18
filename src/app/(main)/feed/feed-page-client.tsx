@@ -20,13 +20,16 @@ import { PageContainer } from "@/components/layout/page-container"
 import { SidebarGroupItem } from "@/components/layout/sidebar-group-item"
 import { ActiveFriends } from "@/components/layout/active-friends"
 import { useChatDock } from "@/components/layout/chat-dock"
-import { mockGroups } from "@/components/layout/mock-data"
 import type { ActiveFriend } from "@/components/layout/mock-data"
 import { openDirectConversation } from "@/actions/chat"
 import { loadFeedPosts, togglePostLike, getPostById } from "@/actions/posts"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
 import type { EventSidebarItem } from "@/lib/events/queries"
 import type { FeedCursor, FeedPostCommunityContext } from "@/lib/feed/queries"
+import type {
+  FeedSidebarGroup,
+  TrendingSearchItem,
+} from "@/lib/feed/sidebar-queries"
 import type { PollView } from "@/lib/polls/types"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { useToast } from "@/components/ui/use-toast"
@@ -40,12 +43,6 @@ const LEFT_NAV = [
   { icon: Bookmark, label: "Bài viết đã lưu", href: "/saved" },
 ]
 
-const TRENDING_DATA = [
-  { category: "Xu hướng", title: "#KhaiGiangK67", stats: "1.2k bài viết" },
-  { category: "Học thuật", title: "Lịch thi cuối kỳ HK2", stats: "856 sinh viên thảo luận" },
-  { category: "Thể thao", title: "Giải bóng đá Khoa CNTT", stats: "2.4k quan tâm" },
-]
-
 const EVENTS_DATA = [
   { month: "Th3", day: "15", title: "Hackathon TLU 2025", location: "Hội trường A1", time: "08:00" },
   { month: "Th3", day: "18", title: "Ngày hội việc làm", location: "Sảnh chính", time: "09:00" },
@@ -53,6 +50,8 @@ const EVENTS_DATA = [
 
 // Tránh tạo array mới mỗi render → ổn định reference để React.memo làm việc
 const EMPTY_ANNOUNCEMENTS: AnnouncementStripItem[] = []
+const EMPTY_SIDEBAR_GROUPS: FeedSidebarGroup[] = []
+const EMPTY_TRENDING_SEARCHES: TrendingSearchItem[] = []
 const EMPTY_EVENTS: EventSidebarItem[] = EVENTS_DATA.map((event, index) => ({
   id: `mock-${index}`,
   ...event,
@@ -121,6 +120,8 @@ interface FeedPageClientProps {
   deepLinkPostId?: string | null
   announcements?: AnnouncementStripItem[]
   upcomingEvents?: EventSidebarItem[]
+  sidebarGroups?: FeedSidebarGroup[]
+  trendingSearches?: TrendingSearchItem[]
 }
 
 export function FeedPageClient({
@@ -131,6 +132,8 @@ export function FeedPageClient({
   deepLinkPostId,
   announcements = EMPTY_ANNOUNCEMENTS,
   upcomingEvents = EMPTY_EVENTS,
+  sidebarGroups = EMPTY_SIDEBAR_GROUPS,
+  trendingSearches = EMPTY_TRENDING_SEARCHES,
 }: FeedPageClientProps) {
   const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -146,7 +149,6 @@ export function FeedPageClient({
   // Sync lại state khi server revalidate `/feed` (vd: sau khi đăng bài mới)
   // → Next.js truyền `initialPosts` mới, nhưng useState chỉ init 1 lần nên cần effect này
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync posts với kết quả revalidate từ server
     setPosts(initialPosts)
     cursorRef.current = initialCursor
     hasMoreRef.current = initialHasMore
@@ -162,7 +164,6 @@ export function FeedPageClient({
 
     const existingPost = posts.find((p) => p.id === deepLinkPostId)
     if (existingPost) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- open the dialog in response to a deep-link query param
       setDeepLinkData({
         postId: existingPost.id,
         authorName: existingPost.author.displayName,
@@ -380,11 +381,17 @@ export function FeedPageClient({
                     <p className="px-1 py-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
                       Nhóm của bạn
                     </p>
-                    <div className="space-y-0.5">
-                      {mockGroups.map((group) => (
-                        <SidebarGroupItem key={group.id} group={group} />
-                      ))}
-                    </div>
+                    {sidebarGroups.length === 0 ? (
+                      <p className="px-1 py-2 text-xs text-muted-foreground">
+                        Chưa tham gia nhóm nào.
+                      </p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {sidebarGroups.map((group) => (
+                          <SidebarGroupItem key={group.id} group={group} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -462,16 +469,25 @@ export function FeedPageClient({
                   <p className="font-bold text-sm mb-4">
                     Xu hướng trong trường
                   </p>
-                  <div className="space-y-4">
-                    {TRENDING_DATA.map((item) => (
-                      <TrendingItem
-                        key={item.title}
-                        category={item.category}
-                        title={item.title}
-                        stats={item.stats}
-                      />
-                    ))}
-                  </div>
+                  {trendingSearches.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Chưa có dữ liệu tìm kiếm.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {trendingSearches.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          className="block rounded-md transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <TrendingItem
+                            category={item.category}
+                            title={item.title}
+                            stats={item.stats}
+                          />
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
