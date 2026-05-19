@@ -1,6 +1,6 @@
 "use client"
 
-/* eslint-disable @next/next/no-img-element */
+import Image from "next/image"
 
 import {
   useEffect,
@@ -218,11 +218,13 @@ export function MessageInput({
 
           {selectedImagePreviewUrl && (
             <div className="mt-2 overflow-hidden rounded-lg border border-border/70 w-fit max-w-full">
-              <img
+              <Image
                 src={selectedImagePreviewUrl}
                 alt={selectedFile.name}
+                width={320}
+                height={176}
+                unoptimized
                 className="block max-h-44 w-auto max-w-full object-cover"
-                loading="lazy"
               />
             </div>
           )}

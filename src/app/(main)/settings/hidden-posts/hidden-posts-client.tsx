@@ -11,9 +11,10 @@ interface HiddenPostsClientProps {
 }
 
 export function HiddenPostsClient({ initial }: HiddenPostsClientProps) {
-  const [items, setItems] = useState<HiddenPostItem[]>(initial)
+  const [itemsOverride, setItemsOverride] = useState<HiddenPostItem[] | null>(null)
   const [pending, startTransition] = useTransition()
   const { toast } = useToast()
+  const items = itemsOverride ?? initial
 
   if (items.length === 0) {
     return (
@@ -25,11 +26,11 @@ export function HiddenPostsClient({ initial }: HiddenPostsClientProps) {
 
   const handleUnhide = (postId: string) => {
     const snapshot = items
-    setItems((prev) => prev.filter((x) => x.postId !== postId))
+    setItemsOverride(items.filter((x) => x.postId !== postId))
     startTransition(async () => {
       const res = await unhidePost(postId)
       if (!res.success) {
-        setItems(snapshot)
+        setItemsOverride(snapshot)
         toast({
           description: res.error ?? "Không thể bỏ ẩn bài viết.",
           variant: "destructive",

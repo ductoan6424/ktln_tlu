@@ -18,7 +18,8 @@ export function PostContent({
   className,
 }: PostContentProps) {
   const isLong = content.length > threshold
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+  const [expandedOverride, setExpandedOverride] = useState(false)
+  const isExpanded = defaultExpanded || expandedOverride
 
   if (!content) return null
 
@@ -30,7 +31,7 @@ export function PostContent({
   const handleExpand = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.stopPropagation()
-    setIsExpanded(true)
+    setExpandedOverride(true)
   }
 
   return (

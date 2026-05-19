@@ -1,7 +1,7 @@
 // src/components/auth/login-form.tsx
 "use client"
 
-import { useState } from "react"
+import { useReducer } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
@@ -17,33 +17,49 @@ interface LoginFormProps {
   onSuccess?: () => void
 }
 
+type LoginState = {
+  showForm: boolean
+  email: string
+  password: string
+  showPassword: boolean
+  error: string
+  loading: boolean
+}
+
+const initialLoginState: LoginState = {
+  showForm: false,
+  email: "",
+  password: "",
+  showPassword: false,
+  error: "",
+  loading: false,
+}
+
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const { push, refresh } = useRouter()
-  const [showForm, setShowForm] = useState(false)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [state, setState] = useReducer(
+    (current: LoginState, next: Partial<LoginState>) => ({ ...current, ...next }),
+    initialLoginState,
+  )
+  const { showForm, email, password, showPassword, error, loading } = state
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError("Vui lòng nhập email và mật khẩu")
+      setState({ error: "Vui lòng nhập email và mật khẩu" })
       return
     }
 
-    setLoading(true)
-    setError("")
+    setState({ loading: true, error: "" })
 
     const result = await login(email, password)
-    setLoading(false)
+    setState({ loading: false })
 
     if (result.success) {
       push("/feed")
       refresh()
       onSuccess?.()
     } else {
-      setError(result.error ?? "Đăng nhập thất bại.")
+      setState({ error: result.error ?? "Đăng nhập thất bại." })
     }
   }
 
@@ -67,7 +83,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
               icon={LogIn}
               label="Đăng nhập bằng tài khoản"
               variant="primary"
-              onClick={() => setShowForm(true)}
+              onClick={() => setState({ showForm: true })}
             />
 
             <DividerLabel label="hoặc" />
@@ -76,7 +92,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
               icon={User}
               label="Đăng nhập Giảng viên / Khách"
               variant="secondary"
-              onClick={() => setShowForm(true)}
+              onClick={() => setState({ showForm: true })}
             />
           </div>
 
@@ -120,7 +136,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 id="login-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setState({ email: e.target.value })}
                 onKeyDown={handleKeyDown}
                 placeholder="email@example.com"
                 autoComplete="email"
@@ -137,7 +153,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 id="login-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => setState({ password: e.target.value })}
                 onKeyDown={handleKeyDown}
                 placeholder="Mật khẩu"
                 autoComplete="current-password"
@@ -145,7 +161,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setState({ showPassword: !showPassword })}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -164,7 +180,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           <div className="text-center">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={() => setState({ showForm: false })}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Quay lại

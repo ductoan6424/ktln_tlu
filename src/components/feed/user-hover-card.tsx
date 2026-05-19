@@ -39,8 +39,10 @@ export function UserHoverCard({
   className,
 }: UserHoverCardProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [followStatus, setFollowStatus] = useState<FollowStatus | null>(null)
-  const [isLoadingStatus, setIsLoadingStatus] = useState(false)
+  const [followState, setFollowState] = useState<{
+    status: FollowStatus | null
+    isLoading: boolean
+  }>({ status: null, isLoading: false })
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
   const triggerRef = useRef<HTMLSpanElement>(null)
@@ -50,6 +52,7 @@ export function UserHoverCard({
   const isOwnUser = currentUserId === userId
   const profileHref = `/profile/${userId}`
   const showFollowButton = !isOwnUser && Boolean(currentUserId)
+  const { status: followStatus, isLoading: isLoadingStatus } = followState
 
   const clearTimers = useCallback(() => {
     if (openTimerRef.current) {
@@ -79,9 +82,12 @@ export function UserHoverCard({
     clearTimers()
     openTimerRef.current = setTimeout(() => {
       computePosition()
+      if (showFollowButton) {
+        setFollowState((state) => ({ ...state, isLoading: true }))
+      }
       setIsOpen(true)
     }, HOVER_OPEN_DELAY_MS)
-  }, [clearTimers, computePosition])
+  }, [clearTimers, computePosition, showFollowButton])
 
   const handleMouseLeave = useCallback(() => {
     clearTimers()
@@ -104,17 +110,17 @@ export function UserHoverCard({
 
     void Promise.resolve().then(async () => {
       if (cancelled) return
-      setIsLoadingStatus(true)
 
-      try {
-        const result = await getFollowStatusAction(userId)
-        if (!cancelled && result.success && result.data) {
-          setFollowStatus(result.data)
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingStatus(false)
-        }
+      const result = await getFollowStatusAction(userId)
+      if (!cancelled) {
+        setFollowState({
+          status: result.success && result.data ? result.data : null,
+          isLoading: false,
+        })
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setFollowState((state) => ({ ...state, isLoading: false }))
       }
     })
 

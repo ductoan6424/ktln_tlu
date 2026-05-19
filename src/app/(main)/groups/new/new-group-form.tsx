@@ -92,7 +92,7 @@ export function NewGroupForm() {
             <fieldset className="flex flex-col gap-3">
               <legend className="text-sm font-medium">Chế độ hiển thị</legend>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-3" aria-label="Công khai">
                   <input
                     className="mt-1"
                     type="radio"
@@ -110,7 +110,7 @@ export function NewGroupForm() {
                   </span>
                 </label>
 
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-4">
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-4" aria-label="Riêng tư">
                   <input id="field-app-main-groups-new-new-group-form-4" className="mt-1" type="radio" name="visibility" value="PRIVATE" />
                   <span className="flex flex-col gap-1">
                     <span className="text-sm font-medium">Riêng tư</span>
@@ -124,7 +124,7 @@ export function NewGroupForm() {
 
             <div className="grid gap-3">
               <input type="hidden" name="requirePostApproval" value="false" />
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-5">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-5" aria-label="Duyệt bài viết">
                 <input
                   className="mt-1"
                   type="checkbox"
@@ -142,7 +142,7 @@ export function NewGroupForm() {
               </label>
 
               <input type="hidden" name="chatEnabled" value="false" />
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-6">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-6" aria-label="Bật chat nhóm">
                 <input
                   className="mt-1"
                   type="checkbox"
@@ -174,7 +174,7 @@ export function NewGroupForm() {
               </label>
 
               <input type="hidden" name="memberInviteEnabled" value="false" />
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-8">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3" htmlFor="field-app-main-groups-new-new-group-form-8" aria-label="Cho phép thành viên mời người khác">
                 <input
                   className="mt-1"
                   type="checkbox"

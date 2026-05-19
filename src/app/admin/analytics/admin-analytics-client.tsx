@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { ProgressBar } from "@/components/shared/progress-bar"
@@ -42,10 +42,9 @@ function formatTrendLabel(value: number): { label: string; positive: boolean } {
 
 export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientProps) {
   const { push } = useRouter()
-  const searchParams = useSearchParams()
 
   function handleRangeChange(nextRange: string) {
-    const params = new URLSearchParams(searchParams?.toString() ?? "")
+    const params = new URLSearchParams()
     params.set("range", nextRange)
     push(`/admin/analytics?${params.toString()}`)
   }

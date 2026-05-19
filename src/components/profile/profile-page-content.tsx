@@ -25,7 +25,7 @@ function getPostSubtitle(data: ProfilePageData) {
   return [data.profile.major, data.profile.studentId].filter(Boolean).join(" • ")
 }
 
-function renderPostsPanel(data: ProfilePageData) {
+function ProfilePostsPanel({ data }: ProfilePageContentProps) {
   const postSubtitle = getPostSubtitle(data)
 
   return (
@@ -78,7 +78,7 @@ function renderPostsPanel(data: ProfilePageData) {
   )
 }
 
-function renderInfoPanel(data: ProfilePageData) {
+function ProfileInfoPanel({ data }: ProfilePageContentProps) {
   return (
     <div className="space-y-4">
       <ProfileOverviewCard profile={data.profile} stats={data.stats} />
@@ -122,8 +122,8 @@ export function ProfilePageContent({ data }: ProfilePageContentProps) {
         <section className="lg:col-span-8">
           <ProfileTabs
             postsCount={data.stats.postsCount}
-            postsContent={renderPostsPanel(data)}
-            infoContent={renderInfoPanel(data)}
+            postsContent={<ProfilePostsPanel data={data} />}
+            infoContent={<ProfileInfoPanel data={data} />}
           />
         </section>
       </div>

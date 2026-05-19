@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { usePathname } from "next/navigation"
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
@@ -22,13 +22,21 @@ interface AdminLayoutClientProps {
 
 export function AdminLayoutClient({ user, children }: AdminLayoutClientProps) {
   const pathname = usePathname()
+
+  return (
+    <AdminLayoutShell key={pathname} pathname={pathname} user={user}>
+      {children}
+    </AdminLayoutShell>
+  )
+}
+
+interface AdminLayoutShellProps extends AdminLayoutClientProps {
+  pathname: string
+}
+
+function AdminLayoutShell({ pathname, user, children }: AdminLayoutShellProps) {
   const breadcrumbs = getAdminBreadcrumbItems(pathname)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSidebarOpen(false)
-  }, [pathname])
 
   return (
     <div className="flex h-dvh overflow-hidden">

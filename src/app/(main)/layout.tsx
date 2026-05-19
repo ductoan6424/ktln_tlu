@@ -26,22 +26,11 @@ function filterNavItemsByFlags(
   })
 }
 
-export default async function MainLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  // Khởi chạy song song các tác vụ độc lập với auth
-  const moduleFlagsPromise = getModuleFlags()
-
+async function getMainLayoutAuthContext() {
   const supabase = await createClient()
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser()
-
-  const [profile, moduleFlags] = await Promise.all([
-    authUser
-      ? prisma.userProfile.findUnique({
+  return supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
+    const profile = authUser
+      ? await prisma.userProfile.findUnique({
           where: { userId: authUser.id },
           select: {
             displayName: true,
@@ -50,9 +39,23 @@ export default async function MainLayout({
             avatarUrl: true,
           },
         })
-      : Promise.resolve(null),
-    moduleFlagsPromise,
+      : null
+
+    return { authUser, profile }
+  })
+}
+
+export default async function MainLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  // Khởi chạy song song các tác vụ độc lập với auth
+  const [authContext, moduleFlags] = await Promise.all([
+    getMainLayoutAuthContext(),
+    getModuleFlags(),
   ])
+  const { authUser, profile } = authContext
 
   const sessionUser = buildSessionUser(authUser, profile)
   const visibleNavItems = filterNavItemsByFlags(MAIN_NAV_ITEMS, moduleFlags)
