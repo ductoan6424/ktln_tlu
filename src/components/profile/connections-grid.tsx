@@ -17,6 +17,7 @@ interface Connection {
 interface ConnectionsGridProps {
   connections: Connection[]
   totalCount: number
+  profileUserId?: string
 }
 
 function resolveConnection(connection: Connection) {
@@ -26,7 +27,7 @@ function resolveConnection(connection: Connection) {
 
   return {
     avatar,
-    href: connection.href ?? "/connections",
+    href: connection.href ?? (connection.userId ? `/profile/${connection.userId}` : "/profile"),
     name,
     subtitle,
   }
@@ -35,8 +36,12 @@ function resolveConnection(connection: Connection) {
 export function ConnectionsGrid({
   connections,
   totalCount,
+  profileUserId,
 }: ConnectionsGridProps) {
   const remaining = Math.max(totalCount - connections.length, 0)
+  const connectionsHref = profileUserId
+    ? `/profile/${profileUserId}/connections`
+    : "/profile/connections"
 
   return (
     <Card>
@@ -50,7 +55,7 @@ export function ConnectionsGrid({
           </div>
           {totalCount > 0 && (
             <Link
-              href="/connections"
+              href={connectionsHref}
               className="text-xs font-bold text-primary hover:underline"
             >
               Xem tất cả

@@ -143,6 +143,8 @@ const selfPosts = [
     createdAt: new Date("2025-04-01T00:00:00.000Z"),
     club: null,
     group: null,
+    likes: [{ id: "like-private" }],
+    _count: { likes: 3, comments: 1 },
   },
   {
     id: "post-public",
@@ -160,6 +162,8 @@ const selfPosts = [
       name: "Data Study Group",
       slug: "data-study-group",
     },
+    likes: [],
+    _count: { likes: 4, comments: 2 },
   },
 ]
 
@@ -172,6 +176,8 @@ const publicPosts = [
     createdAt: new Date("2025-04-03T00:00:00.000Z"),
     club: null,
     group: null,
+    likes: [{ id: "like-public" }],
+    _count: { likes: 7, comments: 3 },
   },
 ]
 
@@ -302,6 +308,9 @@ describe("getProfilePageData", () => {
         group: null,
         sharedPost: null,
         poll: null,
+        likes: 3,
+        comments: 1,
+        isLiked: true,
       },
       {
         id: "post-public",
@@ -321,6 +330,9 @@ describe("getProfilePageData", () => {
         },
         sharedPost: null,
         poll: null,
+        likes: 4,
+        comments: 2,
+        isLiked: false,
       },
     ])
 
@@ -402,6 +414,9 @@ describe("getProfilePageData", () => {
         group: null,
         sharedPost: null,
         poll: null,
+        likes: 7,
+        comments: 3,
+        isLiked: true,
       },
     ])
 
@@ -455,5 +470,51 @@ describe("getProfilePageData", () => {
     expect(prisma.clubMember.count).not.toHaveBeenCalled()
     expect(prisma.groupMember.count).not.toHaveBeenCalled()
     expect(prisma.post.count).not.toHaveBeenCalled()
+  })
+
+  it("returns full approved connections for a profile", async () => {
+    prisma.userProfile.findFirst.mockResolvedValue(selfProfile)
+    prisma.friendship.count.mockResolvedValue(2)
+    prisma.friendship.findMany.mockResolvedValue([
+      requesterFriendship,
+      addresseeFriendship,
+    ])
+
+    const { getProfileConnectionsPageData } = await import("@/app/(main)/profile/profile-page-data")
+    const result = await getProfileConnectionsPageData({
+      viewerId: SELF_USER_ID,
+      profileUserId: SELF_USER_ID,
+    })
+
+    expect(result).toEqual({
+      viewerId: SELF_USER_ID,
+      profileUserId: SELF_USER_ID,
+      profile: expect.objectContaining({
+        userId: SELF_USER_ID,
+        displayName: "Nguyen Van A",
+      }),
+      totalCount: 2,
+      connections: [
+        {
+          userId: "friend-1",
+          displayName: "Le Thi C",
+          username: "lethic",
+          avatarUrl: "https://cdn.example/avatar-friend.png",
+          studentId: "SV3003",
+        },
+        {
+          userId: "friend-2",
+          displayName: "Pham Thi D",
+          username: "phamthid",
+          avatarUrl: "https://cdn.example/avatar-friend-2.png",
+          studentId: "SV4004",
+        },
+      ],
+    })
+    expect(prisma.friendship.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: undefined,
+      })
+    )
   })
 })
