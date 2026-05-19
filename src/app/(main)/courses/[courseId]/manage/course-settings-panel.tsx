@@ -157,7 +157,7 @@ export function CourseSettingsPanel({
             </label>
 
             <input type="hidden" name="requirePostApproval" value="false" />
-            <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
+            <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3`} aria-label="Yêu cầu duyệt bài">
               <input
                 className="mt-1 accent-[#1877f2]"
                 type="checkbox"
@@ -176,7 +176,7 @@ export function CourseSettingsPanel({
             </label>
 
             <input type="hidden" name="chatEnabled" value="false" />
-            <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3 sm:col-span-2`}>
+            <label className={`${manageSoftItem} flex cursor-pointer items-start gap-3 sm:col-span-2`} aria-label="Bật chat lớp học">
               <input
                 className="mt-1 accent-[#1877f2]"
                 type="checkbox"

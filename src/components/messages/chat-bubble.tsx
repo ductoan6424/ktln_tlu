@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import Image from "next/image"
 
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -69,11 +69,13 @@ export function ChatBubble({
             isOwn ? "rounded-tr-none" : "rounded-tl-none",
           )}
         >
-          <img
+          <Image
             src={attachment.url}
             alt={attachment.name}
+            width={512}
+            height={256}
+            unoptimized
             className="block max-h-64 w-auto max-w-full object-cover"
-            loading="lazy"
           />
         </a>
       )}

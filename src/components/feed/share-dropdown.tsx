@@ -85,8 +85,10 @@ export function ShareDropdown({
         const textarea = document.createElement("textarea")
         textarea.value = url
         textarea.setAttribute("readonly", "")
-        textarea.style.position = "fixed"
-        textarea.style.opacity = "0"
+        Object.assign(textarea.style, {
+          opacity: "0",
+          position: "fixed",
+        })
         document.body.appendChild(textarea)
         textarea.select()
         document.execCommand("copy")

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useReducer, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Clock3, Search, X } from "lucide-react"
 import {
@@ -18,6 +18,69 @@ type RecentSearch = {
   query: string
   normalizedQuery: string
   lastSearchedAt: Date
+}
+
+type GlobalSearchState = {
+  query: string
+  open: boolean
+  loading: boolean
+  recent: RecentSearch[]
+  suggestions: SearchSuggestion[]
+  activeIndex: number
+}
+
+type GlobalSearchAction =
+  | { type: "queryChanged"; query: string }
+  | { type: "setOpen"; open: boolean }
+  | { type: "setRecent"; recent: RecentSearch[] }
+  | { type: "suggestionsLoaded"; suggestions: SearchSuggestion[] }
+  | { type: "moveActive"; activeIndex: number }
+  | { type: "removeRecent"; query: string }
+
+const initialGlobalSearchState: GlobalSearchState = {
+  query: "",
+  open: false,
+  loading: false,
+  recent: [],
+  suggestions: [],
+  activeIndex: -1,
+}
+
+function globalSearchReducer(
+  state: GlobalSearchState,
+  action: GlobalSearchAction,
+): GlobalSearchState {
+  switch (action.type) {
+    case "queryChanged": {
+      const hasSearchQuery = action.query.trim().length >= 2
+      return {
+        ...state,
+        query: action.query,
+        open: true,
+        activeIndex: -1,
+        loading: hasSearchQuery,
+        suggestions: hasSearchQuery ? state.suggestions : [],
+      }
+    }
+    case "setOpen":
+      return { ...state, open: action.open }
+    case "setRecent":
+      return { ...state, recent: action.recent }
+    case "suggestionsLoaded":
+      return {
+        ...state,
+        loading: false,
+        suggestions: action.suggestions,
+        activeIndex: -1,
+      }
+    case "moveActive":
+      return { ...state, activeIndex: action.activeIndex }
+    case "removeRecent":
+      return {
+        ...state,
+        recent: state.recent.filter((item) => item.query !== action.query),
+      }
+  }
 }
 
 const TYPE_PARAM = {
@@ -38,12 +101,8 @@ export function GlobalSearch({
 }) {
   const { push } = useRouter()
   const rootRef = useRef<HTMLDivElement>(null)
-  const [query, setQuery] = useState("")
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [recent, setRecent] = useState<RecentSearch[]>([])
-  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
-  const [activeIndex, setActiveIndex] = useState(-1)
+  const [state, dispatch] = useReducer(globalSearchReducer, initialGlobalSearchState)
+  const { query, open, loading, recent, suggestions, activeIndex } = state
 
   const trimmedQuery = query.trim()
   const showRecent = trimmedQuery.length === 0
@@ -55,7 +114,7 @@ export function GlobalSearch({
     let cancelled = false
     void getRecentSearches().then((result) => {
       if (!cancelled && result.success) {
-        setRecent(result.data ?? [])
+        dispatch({ type: "setRecent", recent: result.data ?? [] })
       }
     })
 
@@ -71,9 +130,10 @@ export function GlobalSearch({
     const timer = window.setTimeout(() => {
       void searchSuggestions({ query: trimmedQuery }).then((result) => {
         if (cancelled) return
-        setLoading(false)
-        setSuggestions(result.success ? result.data ?? [] : [])
-        setActiveIndex(-1)
+        dispatch({
+          type: "suggestionsLoaded",
+          suggestions: result.success ? result.data ?? [] : [],
+        })
       })
     }, 220)
 
@@ -86,7 +146,7 @@ export function GlobalSearch({
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false)
+        dispatch({ type: "setOpen", open: false })
       }
     }
 
@@ -105,12 +165,12 @@ export function GlobalSearch({
     }
 
     push(`/search?${params.toString()}`)
-    setOpen(false)
+    dispatch({ type: "setOpen", open: false })
   }
 
   const removeHistoryItem = async (value: string) => {
     await removeRecentSearch({ query: value })
-    setRecent((items) => items.filter((item) => item.query !== value))
+    dispatch({ type: "removeRecent", query: value })
   }
 
   return (
@@ -119,26 +179,18 @@ export function GlobalSearch({
         placeholder={placeholder}
         value={query}
         onChange={(value) => {
-          setQuery(value)
-          setOpen(true)
-          setActiveIndex(-1)
-          if (value.trim().length < 2) {
-            setLoading(false)
-            setSuggestions([])
-          } else {
-            setLoading(true)
-          }
+          dispatch({ type: "queryChanged", query: value })
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => dispatch({ type: "setOpen", open: true })}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown") {
             event.preventDefault()
-            setActiveIndex((index) => Math.min(index + 1, optionCount - 1))
+            dispatch({ type: "moveActive", activeIndex: Math.min(activeIndex + 1, optionCount - 1) })
           }
 
           if (event.key === "ArrowUp") {
             event.preventDefault()
-            setActiveIndex((index) => Math.max(index - 1, -1))
+            dispatch({ type: "moveActive", activeIndex: Math.max(activeIndex - 1, -1) })
           }
 
           if (event.key === "Enter") {
@@ -158,7 +210,7 @@ export function GlobalSearch({
           }
 
           if (event.key === "Escape") {
-            setOpen(false)
+            dispatch({ type: "setOpen", open: false })
           }
         }}
       />
@@ -201,7 +253,7 @@ export function GlobalSearch({
           ) : (
             <div role="listbox" aria-label="Gợi ý tìm kiếm">
               {loading ? (
-                <p className="px-4 py-3 text-sm text-muted-foreground">Đang tìm...</p>
+                <p className="px-4 py-3 text-sm text-muted-foreground">Đang tìm…</p>
               ) : null}
 
               {suggestions.map((item, index) => (

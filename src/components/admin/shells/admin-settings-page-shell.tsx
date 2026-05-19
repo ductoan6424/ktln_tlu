@@ -22,7 +22,7 @@ function getSettingSummary(item: AdminSettingsItem) {
   return item.value
 }
 
-function renderSettingControl(item: AdminSettingsItem) {
+function SettingControl({ item }: { item: AdminSettingsItem }) {
   if (item.type === "toggle") {
     return <Switch aria-label={item.label} defaultChecked={item.value === "on"} />
   }
@@ -84,7 +84,9 @@ export function AdminSettingsPageShell<Cells extends AdminCellValues>({
                     <p className="text-sm font-medium text-foreground">{item.label}</p>
                     <p className="text-sm text-muted-foreground">{getSettingSummary(item)}</p>
                   </div>
-                  <div className="w-full md:w-56">{renderSettingControl(item)}</div>
+                  <div className="w-full md:w-56">
+                    <SettingControl item={item} />
+                  </div>
                 </div>
               ))}
             </div>

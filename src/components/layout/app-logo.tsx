@@ -1,3 +1,5 @@
+import Image from "next/image"
+
 import { cn } from "@/lib/utils"
 
 const SIZE_MAP = {
@@ -22,15 +24,16 @@ export function AppLogo({
   return (
     <div className={cn("flex items-center gap-2", className)}>
       {/* Dùng img thuần cho SVG vì Next.js Image không tối ưu tốt file SVG local */}
-      <img
+      <Image
         src="/logo.svg"
         alt="TLU Community"
         width={logo}
         height={logo}
+        priority={size !== "sm"}
         className="shrink-0"
       />
       {variant === "full" && (
-        <h1 className={cn(text, "font-bold tracking-tight text-foreground leading-none")}>
+        <h1 className={cn(text, "font-semibold tracking-tight text-foreground leading-none")}>
           TLU Community
         </h1>
       )}

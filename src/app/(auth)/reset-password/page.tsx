@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useReducer } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,40 +10,58 @@ import { Lock, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 
+type ResetPasswordState = {
+  password: string
+  confirmPassword: string
+  error: string
+  success: boolean
+  loading: boolean
+  showPassword: boolean
+  showConfirm: boolean
+}
+
+const initialResetPasswordState: ResetPasswordState = {
+  password: "",
+  confirmPassword: "",
+  error: "",
+  success: false,
+  loading: false,
+  showPassword: false,
+  showConfirm: false,
+}
+
 function ResetPasswordForm({ token }: { token: string }) {
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
+  const [state, setState] = useReducer(
+    (current: ResetPasswordState, next: Partial<ResetPasswordState>) => ({ ...current, ...next }),
+    initialResetPasswordState,
+  )
+  const { password, confirmPassword, error, success, loading, showPassword, showConfirm } = state
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
+    setState({ error: "" })
 
     if (!password) {
-      setError("Mật khẩu không được trống")
+      setState({ error: "Mật khẩu không được trống" })
       return
     }
     if (password.length < 8) {
-      setError("Mật khẩu phải có ít nhất 8 ký tự")
+      setState({ error: "Mật khẩu phải có ít nhất 8 ký tự" })
       return
     }
     if (password !== confirmPassword) {
-      setError("Mật khẩu không khớp")
+      setState({ error: "Mật khẩu không khớp" })
       return
     }
 
-    setLoading(true)
+    setState({ loading: true })
     const result = await resetPassword({ token, password })
-    setLoading(false)
+    setState({ loading: false })
 
     if (result.success) {
-      setSuccess(true)
+      setState({ success: true })
     } else {
-      setError(result.error ?? "Đặt lại mật khẩu thất bại.")
+      setState({ error: result.error ?? "Đặt lại mật khẩu thất bại." })
     }
   }
 
@@ -93,7 +111,7 @@ function ResetPasswordForm({ token }: { token: string }) {
                 id="reset-password-new"
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => setState({ password: e.target.value })}
                 placeholder="Ít nhất 8 ký tự"
                 className="pl-9 pr-9"
               />
@@ -101,7 +119,7 @@ function ResetPasswordForm({ token }: { token: string }) {
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setState({ showPassword: !showPassword })}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -117,7 +135,7 @@ function ResetPasswordForm({ token }: { token: string }) {
                 id="reset-password-confirm"
                 type={showConfirm ? "text" : "password"}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => setState({ confirmPassword: e.target.value })}
                 placeholder="Nhập lại mật khẩu"
                 className="pl-9 pr-9"
               />
@@ -125,7 +143,7 @@ function ResetPasswordForm({ token }: { token: string }) {
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowConfirm(!showConfirm)}
+                onClick={() => setState({ showConfirm: !showConfirm })}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}

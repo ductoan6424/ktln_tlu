@@ -135,8 +135,24 @@ export function FeedPageClient({
   sidebarGroups = EMPTY_SIDEBAR_GROUPS,
   trendingSearches = EMPTY_TRENDING_SEARCHES,
 }: FeedPageClientProps) {
-  const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
+  const [postsOverride, setPostsOverride] = useState<{
+    source: FeedPost[]
+    value: FeedPost[]
+  } | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const posts = postsOverride?.source === initialPosts ? postsOverride.value : initialPosts
+  const replacePosts = useCallback(
+    (value: FeedPost[] | null) => {
+      setPostsOverride(value ? { source: initialPosts, value } : null)
+    },
+    [initialPosts],
+  )
+  const updatePosts = useCallback(
+    (updater: (current: FeedPost[]) => FeedPost[]) => {
+      setPostsOverride({ source: initialPosts, value: updater(posts) })
+    },
+    [initialPosts, posts],
+  )
 
   const hasMoreRef = useRef<boolean>(initialHasMore)
   const cursorRef = useRef<FeedCursor>(initialCursor)
@@ -149,13 +165,15 @@ export function FeedPageClient({
   // Sync lại state khi server revalidate `/feed` (vd: sau khi đăng bài mới)
   // → Next.js truyền `initialPosts` mới, nhưng useState chỉ init 1 lần nên cần effect này
   useEffect(() => {
-    setPosts(initialPosts)
     cursorRef.current = initialCursor
     hasMoreRef.current = initialHasMore
-  }, [initialPosts, initialCursor, initialHasMore])
+  }, [initialCursor, initialHasMore])
 
-  const [deepLinkData, setDeepLinkData] = useState<DeepLinkPost | null>(null)
-  const [isDeepLinkOpen, setIsDeepLinkOpen] = useState(false)
+  const [deepLinkState, setDeepLinkState] = useState<{
+    data: DeepLinkPost | null
+    isOpen: boolean
+  }>({ data: null, isOpen: false })
+  const { data: deepLinkData, isOpen: isDeepLinkOpen } = deepLinkState
   const deepLinkHandledRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -164,7 +182,7 @@ export function FeedPageClient({
 
     const existingPost = posts.find((p) => p.id === deepLinkPostId)
     if (existingPost) {
-      setDeepLinkData({
+      setDeepLinkState({ data: {
         postId: existingPost.id,
         authorName: existingPost.author.displayName,
         authorAvatar: existingPost.author.avatarUrl ?? undefined,
@@ -179,8 +197,7 @@ export function FeedPageClient({
         permissions: existingPost.permissions,
         communityContext: existingPost.communityContext ?? null,
         sharedPost: existingPost.sharedPost ?? null,
-      })
-      setIsDeepLinkOpen(true)
+      }, isOpen: true })
       return
     }
 
@@ -190,7 +207,7 @@ export function FeedPageClient({
         return
       }
       const p = result.data
-      setDeepLinkData({
+      setDeepLinkState({ data: {
         postId: p.id,
         authorName: p.authorDisplayName,
         authorAvatar: p.authorAvatarUrl ?? undefined,
@@ -205,8 +222,7 @@ export function FeedPageClient({
         permissions: p.permissions,
         communityContext: p.communityContext ?? null,
         sharedPost: p.sharedPost ?? null,
-      })
-      setIsDeepLinkOpen(true)
+      }, isOpen: true })
     })
   }, [deepLinkPostId, posts, currentUser, toast])
 
@@ -219,8 +235,8 @@ export function FeedPageClient({
 
       rollbackRef.current = posts
 
-      setPosts((prev) =>
-        prev.map((p) =>
+      replacePosts(
+        posts.map((p) =>
           p.id === postId
             ? {
                 ...p,
@@ -228,13 +244,13 @@ export function FeedPageClient({
                 likes: p.isLiked ? p.likes - 1 : p.likes + 1,
               }
             : p
-        )
+        ),
       )
 
       const result = await togglePostLike(postId)
 
       if (!result.success) {
-        setPosts(rollbackRef.current ?? posts)
+        replacePosts(rollbackRef.current ?? null)
         if (result.code !== "CANNOT_LIKE_OWN") {
           toast({
             title: "Lỗi",
@@ -244,7 +260,7 @@ export function FeedPageClient({
         }
       }
     },
-    [posts, currentUser, toast]
+    [posts, currentUser, replacePosts, toast]
   )
 
   const loadMore = useCallback(async () => {
@@ -278,10 +294,10 @@ export function FeedPageClient({
         poll: post.poll ?? null,
       }))
 
-      setPosts((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id))
+      updatePosts((currentPosts) => {
+        const existingIds = new Set(currentPosts.map((p) => p.id))
         const filtered = newPosts.filter((p) => !existingIds.has(p.id))
-        return [...prev, ...filtered]
+        return [...currentPosts, ...filtered]
       })
       cursorRef.current = page.nextCursor
       hasMoreRef.current = page.hasMore
@@ -290,7 +306,7 @@ export function FeedPageClient({
     }
 
     setIsLoadingMore(false)
-  }, [isLoadingMore])
+  }, [isLoadingMore, updatePosts])
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -437,10 +453,10 @@ export function FeedPageClient({
                       permissions={post.permissions}
                       communityContext={post.communityContext ?? null}
                       onDeleted={() =>
-                        setPosts((prev) => prev.filter((p) => p.id !== post.id))
+                        replacePosts(posts.filter((p) => p.id !== post.id))
                       }
                       onHidden={() =>
-                        setPosts((prev) => prev.filter((p) => p.id !== post.id))
+                        replacePosts(posts.filter((p) => p.id !== post.id))
                       }
                       sharedPost={post.sharedPost}
                       poll={post.poll}
@@ -538,7 +554,7 @@ export function FeedPageClient({
       {deepLinkData && (
         <PostDetailDialog
           open={isDeepLinkOpen}
-          onOpenChange={setIsDeepLinkOpen}
+          onOpenChange={(isOpen) => setDeepLinkState((state) => ({ ...state, isOpen }))}
           postId={deepLinkData.postId}
           authorName={deepLinkData.authorName}
           authorAvatar={deepLinkData.authorAvatar}
@@ -555,12 +571,12 @@ export function FeedPageClient({
           permissions={deepLinkData.permissions}
           communityContext={deepLinkData.communityContext ?? null}
           onDeleted={() => {
-            setIsDeepLinkOpen(false)
-            setPosts((prev) => prev.filter((p) => p.id !== deepLinkData.postId))
+            setDeepLinkState((state) => ({ ...state, isOpen: false }))
+            replacePosts(posts.filter((p) => p.id !== deepLinkData.postId))
           }}
           onHidden={() => {
-            setIsDeepLinkOpen(false)
-            setPosts((prev) => prev.filter((p) => p.id !== deepLinkData.postId))
+            setDeepLinkState((state) => ({ ...state, isOpen: false }))
+            replacePosts(posts.filter((p) => p.id !== deepLinkData.postId))
           }}
           sharedPost={deepLinkData.sharedPost}
         />

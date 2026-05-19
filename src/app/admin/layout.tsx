@@ -13,16 +13,16 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  let context
-
-  try {
-    context = await requireAdminAccess()
-  } catch (error) {
+  const context = await requireAdminAccess().catch((error: unknown) => {
     if (error instanceof AppError) {
-      redirect("/feed")
+      return null
     }
 
     throw error
+  })
+
+  if (!context) {
+    redirect("/feed")
   }
 
   return (

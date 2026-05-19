@@ -30,18 +30,20 @@ export function SavedPostsClient({
   initialAnnouncements,
   currentUser,
 }: SavedPostsClientProps) {
-  const [posts, setPosts] = useState<SavedPostItem[]>(initialPosts)
-  const [announcements, setAnnouncements] = useState<SavedAnnouncementItem[]>(initialAnnouncements)
+  const [postsOverride, setPostsOverride] = useState<SavedPostItem[] | null>(null)
+  const [announcementsOverride, setAnnouncementsOverride] = useState<SavedAnnouncementItem[] | null>(null)
   const [, startTransition] = useTransition()
   const { toast } = useToast()
   const { refresh } = useRouter()
+  const posts = postsOverride ?? initialPosts
+  const announcements = announcementsOverride ?? initialAnnouncements
 
   const handleUnsavePost = (postId: string) => {
-    setPosts((prev) => prev.filter((p) => p.postId !== postId))
+    setPostsOverride(posts.filter((p) => p.postId !== postId))
     startTransition(async () => {
       const res = await toggleSavePost(postId)
       if (!res.success) {
-        setPosts(initialPosts)
+        setPostsOverride(null)
         toast({ description: res.error ?? "Không thể bỏ lưu bài viết.", variant: "destructive" })
         return
       }
@@ -50,11 +52,11 @@ export function SavedPostsClient({
   }
 
   const handleUnsaveAnnouncement = (announcementId: string) => {
-    setAnnouncements((prev) => prev.filter((a) => a.announcementId !== announcementId))
+    setAnnouncementsOverride(announcements.filter((a) => a.announcementId !== announcementId))
     startTransition(async () => {
       const res = await toggleSaveAnnouncement(announcementId)
       if (!res.success) {
-        setAnnouncements(initialAnnouncements)
+        setAnnouncementsOverride(null)
         toast({ description: res.error ?? "Không thể bỏ lưu thông báo.", variant: "destructive" })
         return
       }
@@ -66,15 +68,11 @@ export function SavedPostsClient({
     const post = posts.find((p) => p.postId === postId)
     if (!post) return
 
-    setPosts((prev) =>
-      prev.map((p) => p.postId === postId ? { ...p, isLiked: !p.isLiked } : p)
-    )
+    setPostsOverride(posts.map((p) => p.postId === postId ? { ...p, isLiked: !p.isLiked } : p))
 
     const res = await togglePostLike(postId)
     if (!res.success && res.code !== "CANNOT_LIKE_OWN") {
-      setPosts((prev) =>
-        prev.map((p) => p.postId === postId ? { ...p, isLiked: post.isLiked } : p)
-      )
+      setPostsOverride(posts.map((p) => p.postId === postId ? { ...p, isLiked: post.isLiked } : p))
       toast({ description: res.error ?? "Không thể thực hiện thao tác.", variant: "destructive" })
     }
   }

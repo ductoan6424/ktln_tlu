@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useReducer } from "react"
 import { Bell } from "lucide-react"
 
 import {
@@ -51,15 +51,123 @@ function matchesTab(type: NotificationType, tab: string): boolean {
   return true
 }
 
+type NotificationsState = {
+  activeTab: string
+  userId: string | null
+  notifications: NotificationListItem[]
+  cursor: NotificationListCursor
+  hasMore: boolean
+  isLoading: boolean
+  isLoadingMore: boolean
+  unreadCount: number
+}
+
+type NotificationsAction =
+  | { type: "setTab"; tab: string }
+  | {
+      type: "loaded"
+      userId: string | null
+      items: NotificationListItem[]
+      cursor: NotificationListCursor
+      hasMore: boolean
+      unreadCount: number
+    }
+  | { type: "setLoading"; isLoading: boolean }
+  | { type: "setLoadingMore"; isLoadingMore: boolean }
+  | {
+      type: "append"
+      items: NotificationListItem[]
+      cursor: NotificationListCursor
+      hasMore: boolean
+      unreadCount: number
+    }
+  | { type: "created"; notification: NotificationListItem }
+  | { type: "updated"; notification: NotificationListItem }
+  | { type: "read"; notificationId: string }
+  | { type: "readAll" }
+  | { type: "setUnreadCount"; unreadCount: number }
+
+const initialNotificationsState: NotificationsState = {
+  activeTab: "all",
+  userId: null,
+  notifications: [],
+  cursor: null,
+  hasMore: false,
+  isLoading: true,
+  isLoadingMore: false,
+  unreadCount: 0,
+}
+
+function notificationsReducer(
+  state: NotificationsState,
+  action: NotificationsAction,
+): NotificationsState {
+  switch (action.type) {
+    case "setTab":
+      return { ...state, activeTab: action.tab }
+    case "loaded":
+      return {
+        ...state,
+        userId: action.userId,
+        notifications: action.items,
+        cursor: action.cursor,
+        hasMore: action.hasMore,
+        unreadCount: action.unreadCount,
+        isLoading: false,
+      }
+    case "setLoading":
+      return { ...state, isLoading: action.isLoading }
+    case "setLoadingMore":
+      return { ...state, isLoadingMore: action.isLoadingMore }
+    case "append":
+      return {
+        ...state,
+        notifications: [...state.notifications, ...action.items],
+        cursor: action.cursor,
+        hasMore: action.hasMore,
+        unreadCount: action.unreadCount,
+        isLoadingMore: false,
+      }
+    case "created": {
+      const withoutSame = state.notifications.filter((item) => item.id !== action.notification.id)
+      return { ...state, notifications: [action.notification, ...withoutSame] }
+    }
+    case "updated":
+      return {
+        ...state,
+        notifications: state.notifications.map((item) =>
+          item.id === action.notification.id ? action.notification : item,
+        ),
+      }
+    case "read":
+      return {
+        ...state,
+        notifications: state.notifications.map((item) =>
+          item.id === action.notificationId ? { ...item, isRead: true } : item,
+        ),
+      }
+    case "readAll":
+      return {
+        ...state,
+        notifications: state.notifications.map((item) => ({ ...item, isRead: true })),
+      }
+    case "setUnreadCount":
+      return { ...state, unreadCount: action.unreadCount }
+  }
+}
+
 export default function NotificationsPage() {
-  const [activeTab, setActiveTab] = useState("all")
-  const [userId, setUserId] = useState<string | null>(null)
-  const [notifications, setNotifications] = useState<NotificationListItem[]>([])
-  const [cursor, setCursor] = useState<NotificationListCursor>(null)
-  const [hasMore, setHasMore] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [state, dispatch] = useReducer(notificationsReducer, initialNotificationsState)
+  const {
+    activeTab,
+    userId,
+    notifications,
+    cursor,
+    hasMore,
+    isLoading,
+    isLoadingMore,
+    unreadCount,
+  } = state
 
   useEffect(() => {
     let cancelled = false
@@ -67,25 +175,24 @@ export default function NotificationsPage() {
     const init = async () => {
       if (cancelled) return
 
-      const sessionResult = await getNotificationSession()
-
-      if (!cancelled && sessionResult.success && sessionResult.data) {
-        setUserId(sessionResult.data.userId)
-      }
-
-      if (cancelled) return
-
-      const listResult = await listMyNotifications({})
+      const [sessionResult, listResult] = await Promise.all([
+        getNotificationSession(),
+        listMyNotifications({}),
+      ])
 
       if (!cancelled) {
         if (listResult.success && listResult.data) {
-          setNotifications(listResult.data.items)
-          setCursor(listResult.data.nextCursor)
-          setHasMore(listResult.data.hasMore)
-          setUnreadCount(listResult.data.unreadCount)
+          dispatch({
+            type: "loaded",
+            userId: sessionResult.success && sessionResult.data ? sessionResult.data.userId : null,
+            items: listResult.data.items,
+            cursor: listResult.data.nextCursor,
+            hasMore: listResult.data.hasMore,
+            unreadCount: listResult.data.unreadCount,
+          })
+        } else {
+          dispatch({ type: "setLoading", isLoading: false })
         }
-
-        setIsLoading(false)
       }
     }
 
@@ -98,40 +205,35 @@ export default function NotificationsPage() {
 
   const handleLoadMore = async () => {
     if (!cursor || isLoadingMore) return
-    setIsLoadingMore(true)
+    dispatch({ type: "setLoadingMore", isLoadingMore: true })
     const result = await listMyNotifications({ cursor })
-    setIsLoadingMore(false)
     if (result.success && result.data) {
-      setNotifications((prev) => [...prev, ...result.data!.items])
-      setCursor(result.data.nextCursor)
-      setHasMore(result.data.hasMore)
-      setUnreadCount(result.data.unreadCount)
+      dispatch({
+        type: "append",
+        items: result.data.items,
+        cursor: result.data.nextCursor,
+        hasMore: result.data.hasMore,
+        unreadCount: result.data.unreadCount,
+      })
+    } else {
+      dispatch({ type: "setLoadingMore", isLoadingMore: false })
     }
   }
 
   const handleCreated = useCallback((notification: NotificationListItem) => {
-    setNotifications((prev) => {
-      const withoutSame = prev.filter((item) => item.id !== notification.id)
-      return [notification, ...withoutSame]
-    })
+    dispatch({ type: "created", notification })
   }, [])
 
   const handleUpdated = useCallback((notification: NotificationListItem) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === notification.id ? notification : item)),
-    )
+    dispatch({ type: "updated", notification })
   }, [])
 
   const handleRead = useCallback((notificationId: string) => {
-    setNotifications((prev) =>
-      prev.map((item) =>
-        item.id === notificationId ? { ...item, isRead: true } : item,
-      ),
-    )
+    dispatch({ type: "read", notificationId })
   }, [])
 
   const handleReadAll = useCallback(() => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })))
+    dispatch({ type: "readAll" })
   }, [])
 
   useNotificationsRealtime({
@@ -140,7 +242,7 @@ export default function NotificationsPage() {
     onUpdated: handleUpdated,
     onRead: handleRead,
     onReadAll: handleReadAll,
-    onUnreadCountChange: setUnreadCount,
+    onUnreadCountChange: (unreadCount) => dispatch({ type: "setUnreadCount", unreadCount }),
   })
 
   const filtered = useMemo(
@@ -151,21 +253,17 @@ export default function NotificationsPage() {
   const handleMarkAllRead = async () => {
     const result = await markAllNotificationsAsRead()
     if (result.success && result.data) {
-      setUnreadCount(result.data.unreadCount)
-      setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })))
+      dispatch({ type: "setUnreadCount", unreadCount: result.data.unreadCount })
+      dispatch({ type: "readAll" })
     }
   }
 
   const handleItemClick = async (notification: NotificationListItem) => {
     if (notification.isRead) return
-    setNotifications((prev) =>
-      prev.map((item) =>
-        item.id === notification.id ? { ...item, isRead: true } : item,
-      ),
-    )
+    dispatch({ type: "read", notificationId: notification.id })
     const result = await markNotificationAsRead(notification.id)
     if (result.success && result.data) {
-      setUnreadCount(result.data.unreadCount)
+      dispatch({ type: "setUnreadCount", unreadCount: result.data.unreadCount })
     }
   }
 
@@ -195,7 +293,7 @@ export default function NotificationsPage() {
           <TabNavigation
             tabs={TABS}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={(tab) => dispatch({ type: "setTab", tab })}
             className="px-4"
           />
 

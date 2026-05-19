@@ -72,10 +72,13 @@ function getToggleDefaultValue<Cells extends AdminCellValues>(
   return normalizedValue === "on" || normalizedValue === "true" || normalizedValue === "active" || normalizedValue === "verified"
 }
 
-function renderField<Cells extends AdminCellValues>(
-  field: AdminFieldDefinition,
+function FieldControl<Cells extends AdminCellValues>({
+  field,
+  record,
+}: {
+  field: AdminFieldDefinition
   record?: AdminRecord<Cells>,
-) {
+}) {
   const commonProps = {
     id: field.name,
     name: field.name,
@@ -121,35 +124,42 @@ function renderField<Cells extends AdminCellValues>(
   )
 }
 
-function getSections<Cells extends AdminCellValues>(
-  sections: readonly AdminFormSection[],
-  record?: AdminRecord<Cells>,
-) {
-  return sections.map((section) => (
-    <Card key={section.title}>
-      <CardContent className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-foreground">{section.title}</h2>
-          {section.description && <p className="text-sm text-muted-foreground">{section.description}</p>}
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {section.fields.map((field) => (
-            <label
-              key={field.name}
-              htmlFor={field.name}
-              className={field.type === "textarea" ? "space-y-2 md:col-span-2" : "space-y-2"}
-            >
-              <span className="text-sm font-medium text-foreground">
-                {field.label}
-                {field.required ? " *" : ""}
-              </span>
-              {renderField(field, record)}
-            </label>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  ))
+function AdminFormSections<Cells extends AdminCellValues>({
+  sections,
+  record,
+}: {
+  sections: readonly AdminFormSection[]
+  record?: AdminRecord<Cells>
+}) {
+  return (
+    <>
+      {sections.map((section) => (
+        <Card key={section.title}>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">{section.title}</h2>
+              {section.description && <p className="text-sm text-muted-foreground">{section.description}</p>}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {section.fields.map((field) => (
+                <label
+                  key={field.name}
+                  htmlFor={field.name}
+                  className={field.type === "textarea" ? "space-y-2 md:col-span-2" : "space-y-2"}
+                >
+                  <span className="text-sm font-medium text-foreground">
+                    {field.label}
+                    {field.required ? " *" : ""}
+                  </span>
+                  <FieldControl field={field} record={record} />
+                </label>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </>
+  )
 }
 
 export function AdminFormPageShell<Cells extends AdminCellValues>({
@@ -171,7 +181,7 @@ export function AdminFormPageShell<Cells extends AdminCellValues>({
           { label: "Quay lại danh sách", href: module.paths.list, variant: "outline" },
         ]}
       />
-      {getSections(sections, record)}
+      <AdminFormSections sections={sections} record={record} />
       <div className="flex justify-end gap-2">
         <Button variant="outline">Hủy</Button>
         <Button>{isCreate ? `Tạo ${module.entityNameSingular}` : "Lưu thay đổi"}</Button>
