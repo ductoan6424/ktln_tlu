@@ -23,7 +23,7 @@ type CommunityMemberItem = {
   userId: string
   displayName: string
   avatarUrl: string | null
-  email: string
+  email?: string | null
   studentId: string | null
   role: "ADMIN" | "MODERATOR" | "MEMBER" | "STUDENT"
   joinedAt: Date
@@ -57,6 +57,7 @@ export function CommunityMembersPanel({
   targetType,
   slugId,
   managerId,
+  canManageActions = true,
   title = "Danh sách thành viên",
   description,
 }: {
@@ -64,6 +65,7 @@ export function CommunityMembersPanel({
   targetType?: "GROUP" | "CLUB" | "COURSE"
   slugId?: string
   managerId?: string | null
+  canManageActions?: boolean
   title?: string
   description?: string
 }) {
@@ -126,9 +128,11 @@ export function CommunityMembersPanel({
                       memberId={member.userId}
                       role={member.role}
                       canChangeRole={
-                        targetType !== "COURSE" && member.userId !== managerId
+                        canManageActions &&
+                        targetType !== "COURSE" &&
+                        member.userId !== managerId
                       }
-                      canRemove={member.userId !== managerId}
+                      canRemove={canManageActions && member.userId !== managerId}
                     />
                   ) : null}
                 </div>
