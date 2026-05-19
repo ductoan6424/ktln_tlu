@@ -142,7 +142,9 @@ export async function searchResults(rawInput: unknown) {
       }),
     )
 
-    return successResult(Object.fromEntries(groups) as SearchResultsPayload)
+    return successResult(
+      Object.fromEntries(groups.filter(([, group]) => group.items.length > 0)) as SearchResultsPayload,
+    )
   }
 
   const items = rankSearchCandidates(

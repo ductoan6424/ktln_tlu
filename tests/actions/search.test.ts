@@ -38,6 +38,7 @@ vi.mock("@/lib/prisma/client", () => ({
 import {
   getRecentSearches,
   removeRecentSearch,
+  searchResults,
   searchSuggestions,
 } from "@/actions/search"
 
@@ -149,5 +150,32 @@ describe("search actions", () => {
     await searchSuggestions({ query: "hoc phi" })
 
     expect(searchAnnouncements).toHaveBeenCalledWith("hoc phi", "STUDENT", { limit: 4 })
+  })
+
+  it("omits empty groups from all search results", async () => {
+    mockSession("user-1")
+    searchUsers.mockResolvedValue([
+      {
+        id: "user-1",
+        type: "USER",
+        title: "Nguyen Van A",
+        subtitle: null,
+        href: "/profile/user-1",
+        avatarUrl: null,
+        excerpt: null,
+        score: { exact: 1, prefix: 1, tokenCoverage: 1, textRank: 0, similarity: 0 },
+      },
+    ])
+    searchPosts.mockResolvedValue([])
+    searchGroups.mockResolvedValue([])
+    searchClubs.mockResolvedValue([])
+    searchCourses.mockResolvedValue([])
+    searchAnnouncements.mockResolvedValue([])
+
+    const result = await searchResults({ query: "nguyen", type: "ALL", page: 1 })
+
+    expect(result.success).toBe(true)
+    expect(Object.keys(result.data ?? {})).toEqual(["USER"])
+    expect(result.data?.USER?.items).toEqual([expect.objectContaining({ id: "user-1" })])
   })
 })
