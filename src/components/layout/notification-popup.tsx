@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useReducer, useState } from "react"
 import Link from "next/link"
 import { CheckCheck, Bell } from "lucide-react"
 import {
@@ -31,12 +31,80 @@ interface NotificationPopupProps {
   className?: string
 }
 
+type NotificationPopupState = {
+  userId: string | null
+  notifications: NotificationListItem[]
+  unreadCount: number
+  isLoading: boolean
+}
+
+type NotificationPopupAction =
+  | { type: "loaded"; userId: string | null; notifications: NotificationListItem[]; unreadCount: number }
+  | { type: "setLoading"; isLoading: boolean }
+  | { type: "created"; notification: NotificationListItem }
+  | { type: "updated"; notification: NotificationListItem }
+  | { type: "read"; notificationId: string }
+  | { type: "readAll"; unreadCount?: number }
+  | { type: "setUnreadCount"; unreadCount: number }
+
+const initialNotificationPopupState: NotificationPopupState = {
+  userId: null,
+  notifications: [],
+  unreadCount: 0,
+  isLoading: true,
+}
+
+function notificationPopupReducer(
+  state: NotificationPopupState,
+  action: NotificationPopupAction,
+): NotificationPopupState {
+  switch (action.type) {
+    case "loaded":
+      return {
+        ...state,
+        userId: action.userId,
+        notifications: action.notifications,
+        unreadCount: action.unreadCount,
+        isLoading: false,
+      }
+    case "setLoading":
+      return { ...state, isLoading: action.isLoading }
+    case "created": {
+      const withoutSame = state.notifications.filter((item) => item.id !== action.notification.id)
+      return {
+        ...state,
+        notifications: [action.notification, ...withoutSame].slice(0, NOTIFICATION_POPUP_LIMIT),
+      }
+    }
+    case "updated":
+      return {
+        ...state,
+        notifications: state.notifications.map((item) =>
+          item.id === action.notification.id ? action.notification : item,
+        ),
+      }
+    case "read":
+      return {
+        ...state,
+        notifications: state.notifications.map((item) =>
+          item.id === action.notificationId ? { ...item, isRead: true } : item,
+        ),
+      }
+    case "readAll":
+      return {
+        ...state,
+        unreadCount: action.unreadCount ?? state.unreadCount,
+        notifications: state.notifications.map((item) => ({ ...item, isRead: true })),
+      }
+    case "setUnreadCount":
+      return { ...state, unreadCount: action.unreadCount }
+  }
+}
+
 export function NotificationPopup({ className }: NotificationPopupProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [notifications, setNotifications] = useState<NotificationListItem[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [state, dispatch] = useReducer(notificationPopupReducer, initialNotificationPopupState)
+  const { userId, notifications, unreadCount, isLoading } = state
 
   useEffect(() => {
     let cancelled = false
@@ -44,27 +112,22 @@ export function NotificationPopup({ className }: NotificationPopupProps) {
     const init = async () => {
       if (cancelled) return
 
-      const sessionResult = await getNotificationSession()
-
-      if (!cancelled && sessionResult.success && sessionResult.data) {
-        setUserId(sessionResult.data.userId)
-        setUnreadCount(sessionResult.data.unreadCount)
-      } else if (!cancelled) {
-        setIsLoading(false)
-        return
-      }
-
-      if (cancelled) return
-
-      const listResult = await listMyNotifications({ limit: NOTIFICATION_POPUP_LIMIT })
+      const [sessionResult, listResult] = await Promise.all([
+        getNotificationSession(),
+        listMyNotifications({ limit: NOTIFICATION_POPUP_LIMIT }),
+      ])
 
       if (!cancelled) {
-        if (listResult.success && listResult.data) {
-          setNotifications(listResult.data.items)
-          setUnreadCount(listResult.data.unreadCount)
+        if (sessionResult.success && sessionResult.data && listResult.success && listResult.data) {
+          dispatch({
+            type: "loaded",
+            userId: sessionResult.data.userId,
+            notifications: listResult.data.items,
+            unreadCount: listResult.data.unreadCount,
+          })
+        } else {
+          dispatch({ type: "setLoading", isLoading: false })
         }
-
-        setIsLoading(false)
       }
     }
 
@@ -76,28 +139,19 @@ export function NotificationPopup({ className }: NotificationPopupProps) {
   }, [])
 
   const handleCreated = useCallback((notification: NotificationListItem) => {
-    setNotifications((prev) => {
-      const withoutSame = prev.filter((item) => item.id !== notification.id)
-      return [notification, ...withoutSame].slice(0, NOTIFICATION_POPUP_LIMIT)
-    })
+    dispatch({ type: "created", notification })
   }, [])
 
   const handleUpdated = useCallback((notification: NotificationListItem) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === notification.id ? notification : item)),
-    )
+    dispatch({ type: "updated", notification })
   }, [])
 
   const handleRead = useCallback((notificationId: string) => {
-    setNotifications((prev) =>
-      prev.map((item) =>
-        item.id === notificationId ? { ...item, isRead: true } : item,
-      ),
-    )
+    dispatch({ type: "read", notificationId })
   }, [])
 
   const handleReadAll = useCallback(() => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })))
+    dispatch({ type: "readAll" })
   }, [])
 
   useNotificationsRealtime({
@@ -106,27 +160,22 @@ export function NotificationPopup({ className }: NotificationPopupProps) {
     onUpdated: handleUpdated,
     onRead: handleRead,
     onReadAll: handleReadAll,
-    onUnreadCountChange: setUnreadCount,
+    onUnreadCountChange: (unreadCount) => dispatch({ type: "setUnreadCount", unreadCount }),
   })
 
   const handleMarkAllRead = async () => {
     const result = await markAllNotificationsAsRead()
     if (result.success && result.data) {
-      setUnreadCount(result.data.unreadCount)
-      setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })))
+      dispatch({ type: "readAll", unreadCount: result.data.unreadCount })
     }
   }
 
   const handleItemClick = async (notification: NotificationListItem) => {
     if (!notification.isRead) {
-      setNotifications((prev) =>
-        prev.map((item) =>
-          item.id === notification.id ? { ...item, isRead: true } : item,
-        ),
-      )
+      dispatch({ type: "read", notificationId: notification.id })
       const result = await markNotificationAsRead(notification.id)
       if (result.success && result.data) {
-        setUnreadCount(result.data.unreadCount)
+        dispatch({ type: "setUnreadCount", unreadCount: result.data.unreadCount })
       }
     }
     setIsOpen(false)

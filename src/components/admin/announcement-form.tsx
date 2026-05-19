@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useReducer, useTransition } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,6 +39,28 @@ const AUDIENCE_OPTIONS = [
   { value: "FACULTY", label: "Giảng viên" },
 ]
 
+type AnnouncementFormState = {
+  title: string
+  content: string
+  audience: AnnouncementAudienceValue
+  pinToTop: boolean
+  expiresAt: string
+  activeAction: "draft" | "publish" | null
+}
+
+function getInitialAnnouncementFormState(
+  initialValues?: AnnouncementFormInitialValues,
+): AnnouncementFormState {
+  return {
+    title: initialValues?.title ?? "",
+    content: initialValues?.content ?? "",
+    audience: initialValues?.audience ?? "ALL",
+    pinToTop: initialValues?.pinToTop ?? false,
+    expiresAt: formatDateTimeLocal(initialValues?.expiresAt),
+    activeAction: null,
+  }
+}
+
 function formatDateTimeLocal(iso: string | null | undefined): string {
   if (!iso) return ""
   const d = new Date(iso)
@@ -48,15 +70,13 @@ function formatDateTimeLocal(iso: string | null | undefined): string {
 }
 
 export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormProps) {
-  const [title, setTitle] = useState(initialValues?.title ?? "")
-  const [content, setContent] = useState(initialValues?.content ?? "")
-  const [audience, setAudience] = useState<AnnouncementAudienceValue>(
-    initialValues?.audience ?? "ALL",
+  const [state, setState] = useReducer(
+    (current: AnnouncementFormState, next: Partial<AnnouncementFormState>) => ({ ...current, ...next }),
+    initialValues,
+    getInitialAnnouncementFormState,
   )
-  const [pinToTop, setPinToTop] = useState(initialValues?.pinToTop ?? false)
-  const [expiresAt, setExpiresAt] = useState(() => formatDateTimeLocal(initialValues?.expiresAt))
   const [isPending, startTransition] = useTransition()
-  const [activeAction, setActiveAction] = useState<"draft" | "publish" | null>(null)
+  const { title, content, audience, pinToTop, expiresAt, activeAction } = state
   const { toast } = useToast()
 
   const isEditing = Boolean(initialValues?.id)
@@ -87,7 +107,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
       return
     }
 
-    setActiveAction(mode)
+    setState({ activeAction: mode })
     startTransition(async () => {
       const payload = buildPayload()
 
@@ -95,7 +115,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
         const updateResult = await updateAnnouncement({ ...payload, id: initialValues.id })
         if (!updateResult.success) {
           toast({ title: "Lỗi", description: updateResult.error, variant: "destructive" })
-          setActiveAction(null)
+          setState({ activeAction: null })
           return
         }
 
@@ -103,7 +123,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
           const publishResult = await publishAnnouncement(initialValues.id)
           if (!publishResult.success) {
             toast({ title: "Lỗi", description: publishResult.error, variant: "destructive" })
-            setActiveAction(null)
+            setState({ activeAction: null })
             return
           }
           toast({
@@ -117,7 +137,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
         const result = await createAnnouncement(payload, { publish: mode === "publish" })
         if (!result.success) {
           toast({ title: "Lỗi", description: result.error, variant: "destructive" })
-          setActiveAction(null)
+          setState({ activeAction: null })
           return
         }
         toast({
@@ -129,15 +149,17 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
         })
 
         if (mode === "publish") {
-          setTitle("")
-          setContent("")
-          setAudience("ALL")
-          setPinToTop(false)
-          setExpiresAt("")
+          setState({
+            title: "",
+            content: "",
+            audience: "ALL",
+            pinToTop: false,
+            expiresAt: "",
+          })
         }
       }
 
-      setActiveAction(null)
+      setState({ activeAction: null })
       onSaved?.()
     })
   }
@@ -183,7 +205,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
             <Input
               id="announcement-title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => setState({ title: e.target.value })}
               placeholder="VD: Lịch bảo trì hệ thống - Học kỳ 2 năm 2026"
               className="h-12"
               maxLength={200}
@@ -196,7 +218,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
             <Textarea
               id="announcement-content"
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => setState({ content: e.target.value })}
               placeholder="Bắt đầu nhập nội dung thông báo..."
               className="min-h-[240px]"
               maxLength={10000}
@@ -209,7 +231,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
               <p className="text-sm font-semibold mb-3">Đối tượng nhận</p>
               <AudienceSelector
                 value={audience}
-                onChange={(v) => setAudience(v as AnnouncementAudienceValue)}
+                onChange={(v) => setState({ audience: v as AnnouncementAudienceValue })}
                 options={AUDIENCE_OPTIONS}
               />
               <p className="text-xs text-muted-foreground mt-2">
@@ -225,7 +247,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
                     <p className="text-sm font-medium">Ghim lên đầu bảng tin</p>
                     <p className="text-xs text-muted-foreground">Nổi bật thông báo ở đầu feed</p>
                   </div>
-                  <Switch checked={pinToTop} onCheckedChange={setPinToTop} />
+                  <Switch checked={pinToTop} onCheckedChange={(pinToTop) => setState({ pinToTop })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground" htmlFor="announcement-expires-at">
@@ -235,7 +257,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
                     id="announcement-expires-at"
                     type="datetime-local"
                     value={expiresAt}
-                    onChange={(e) => setExpiresAt(e.target.value)}
+                    onChange={(e) => setState({ expiresAt: e.target.value })}
                     className="h-10"
                   />
                 </div>

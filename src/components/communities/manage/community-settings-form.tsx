@@ -104,7 +104,7 @@ export function CommunitySettingsForm({
           </label>
 
           <input type="hidden" name="requirePostApproval" value="false" />
-          <label htmlFor="community-require-post-approval" className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
+          <label htmlFor="community-require-post-approval" aria-label="Yêu cầu duyệt bài" className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
             <input
               id="community-require-post-approval"
               className="mt-1 accent-[#1877f2]"
@@ -124,7 +124,7 @@ export function CommunitySettingsForm({
           </label>
 
           <input type="hidden" name="chatEnabled" value="false" />
-          <label htmlFor="community-chat-enabled" className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
+          <label htmlFor="community-chat-enabled" aria-label="Bật chat" className={`${manageSoftItem} flex cursor-pointer items-start gap-3`}>
             <input
               id="community-chat-enabled"
               className="mt-1 accent-[#1877f2]"
@@ -144,7 +144,7 @@ export function CommunitySettingsForm({
           </label>
 
           <input type="hidden" name="memberInviteEnabled" value="false" />
-          <label htmlFor="community-member-invite-enabled" className={`${manageSoftItem} flex cursor-pointer items-start gap-3 sm:col-span-2`}>
+          <label htmlFor="community-member-invite-enabled" aria-label="Cho phép thành viên mời người khác" className={`${manageSoftItem} flex cursor-pointer items-start gap-3 sm:col-span-2`}>
             <input
               id="community-member-invite-enabled"
               className="mt-1 accent-[#1877f2]"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { MessageSquarePlus, MessageSquare } from "lucide-react"
 import { listMyConversations, markConversationAsRead } from "@/actions/chat"
@@ -46,7 +46,7 @@ export function MessagePopup({
   className,
 }: MessagePopupProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, startLoading] = useTransition()
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [conversations, setConversations] = useState<ChatConversationItem[]>([])
 
@@ -55,21 +55,19 @@ export function MessagePopup({
     [conversations],
   )
 
-  const loadConversations = async () => {
-    setIsLoading(true)
-    try {
+  const loadConversations = () => {
+    startLoading(async () => {
       const result = await listMyConversations()
 
       if (!result.success || !result.data) {
         setConversations([])
+        setHasLoadedOnce(true)
         return
       }
 
       setConversations(result.data)
-    } finally {
-      setIsLoading(false)
       setHasLoadedOnce(true)
-    }
+    })
   }
 
   const handleMarkAllRead = async () => {

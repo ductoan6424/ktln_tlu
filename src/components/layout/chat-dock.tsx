@@ -2,8 +2,8 @@
 
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -206,7 +206,7 @@ export function ChatDock({ children, userId }: ChatDockProps) {
 }
 
 export function useChatDock() {
-  const context = useContext(ChatDockContext)
+  const context = use(ChatDockContext)
 
   if (!context) {
     throw new Error("useChatDock must be used within ChatDock")

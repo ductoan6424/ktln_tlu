@@ -39,9 +39,10 @@ export function FollowButton({
 }: FollowButtonProps) {
   const { refresh } = useRouter()
   const { toast } = useToast()
-  const [status, setStatus] = useState<FollowStatus>(initialStatus)
+  const [statusOverride, setStatusOverride] = useState<FollowStatus | null>(null)
   const [isPending, startTransition] = useTransition()
   const [isHovering, setIsHovering] = useState(false)
+  const status = statusOverride ?? initialStatus
 
   const appearance = resolveAppearance(status)
   const showLeavingState = status.isFollowing && isHovering
@@ -59,7 +60,7 @@ export function FollowButton({
     const previousStatus = status
     const willFollow = !status.isFollowing
 
-    setStatus(
+    setStatusOverride(
       willFollow
         ? { isFollowing: true, isFollower: status.isFollower, isMutual: status.isFollower }
         : { isFollowing: false, isFollower: status.isFollower, isMutual: false }
@@ -71,7 +72,7 @@ export function FollowButton({
         : await unfollowUser(targetUserId)
 
       if (!result.success) {
-        setStatus(previousStatus)
+        setStatusOverride(previousStatus)
         toast({
           title: "Không thể thực hiện",
           description:
@@ -82,7 +83,7 @@ export function FollowButton({
       }
 
       if (willFollow && result.data && "isMutual" in result.data) {
-        setStatus({
+        setStatusOverride({
           isFollowing: true,
           isFollower: result.data.isMutual,
           isMutual: result.data.isMutual,
