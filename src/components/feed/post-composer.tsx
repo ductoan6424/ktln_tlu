@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -189,10 +190,12 @@ export function PostComposer({
             {imagePreviewUrl && (
               <div className="mt-2 overflow-hidden rounded-xl border border-border bg-muted">
                 <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={imagePreviewUrl}
                     alt="Xem trước ảnh bài viết"
+                    width={640}
+                    height={192}
+                    unoptimized
                     className="h-48 w-full object-cover"
                   />
                   <Button

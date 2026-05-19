@@ -111,9 +111,12 @@ export function PostDetailDialog({
   poll,
 }: PostDetailDialogProps) {
   const { toast } = useToast()
-  const [commentsData, setCommentsData] = useState<CommentWithAuthorFlat[]>([])
-  const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [commentsState, setCommentsState] = useState<{
+    items: CommentWithAuthorFlat[]
+    isLoading: boolean
+  }>({ items: [], isLoading: false })
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const { items: commentsData, isLoading: isLoadingComments } = commentsState
 
   // Hỗ trợ cả currentUser mới và currentUserId cũ (backward compat)
   const resolvedCurrentUser = currentUser ?? (currentUserId != null ? { id: currentUserId } : null)
@@ -121,12 +124,12 @@ export function PostDetailDialog({
   useEffect(() => {
     if (!open || !postId) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- thiết lập loading state dựa trên điều kiện mở dialog
-    setIsLoadingComments(true)
+    setCommentsState((state) => ({ ...state, isLoading: true }))
     loadComments(postId).then((result) => {
-      if (result.success && result.data) {
-        setCommentsData(result.data)
-      }
-      setIsLoadingComments(false)
+      setCommentsState({
+        items: result.success && result.data ? result.data : [],
+        isLoading: false,
+      })
     })
   }, [open, postId])
 
@@ -147,27 +150,36 @@ export function PostDetailDialog({
       authorAvatarUrl: resolvedCurrentUser.avatarUrl ?? null,
       likes: 0,
     }
-    setCommentsData(prev => [...prev, optimisticComment])
+    setCommentsState((state) => ({ ...state, items: [...state.items, optimisticComment] }))
 
     const result = await createComment(postId, text)
     if (!result.success) {
-      setCommentsData(prev => prev.filter(c => c.id !== tempId))
+      setCommentsState((state) => ({
+        ...state,
+        items: state.items.filter(c => c.id !== tempId),
+      }))
       toast({ description: "Không thể gửi bình luận. Vui lòng thử lại." })
     } else {
-      setCommentsData(prev => prev.map(c => c.id === tempId ? result.data! : c))
+      setCommentsState((state) => ({
+        ...state,
+        items: state.items.map(c => c.id === tempId ? result.data! : c),
+      }))
     }
   }
 
   const handleConfirmDelete = async (commentId: string) => {
     const comment = commentsData.find(c => c.id === commentId)
     if (!comment || comment.authorId !== resolvedCurrentUser?.id) return
-    setCommentsData(prev => prev.filter(c => c.id !== commentId))
+    setCommentsState((state) => ({
+      ...state,
+      items: state.items.filter(c => c.id !== commentId),
+    }))
     const result = await deleteComment(commentId)
     if (!result.success) {
       if (postId) {
         const reload = await loadComments(postId)
         if (reload.success && reload.data) {
-          setCommentsData(reload.data)
+          setCommentsState((state) => ({ ...state, items: reload.data! }))
         }
       }
       toast({ description: "Không thể xóa bình luận. Vui lòng thử lại." })
@@ -285,7 +297,7 @@ export function PostDetailDialog({
           <div className="flex-1 overflow-y-auto">
             {/* Ảnh bài viết */}
             {hasImage && (
-              <div className="relative w-full aspect-video min-h-[240px] bg-black">
+              <div className="relative w-full aspect-video min-h-[240px] bg-neutral-950">
                 <Image
                   src={imageUrl!}
                   alt="Ảnh bài viết"
@@ -387,7 +399,7 @@ export function PostDetailDialog({
         >
           {/* Phần ảnh — chỉ hiện khi có ảnh */}
           {hasImage && (
-            <div className="relative flex min-w-0 flex-1 shrink-0 items-center justify-center bg-black">
+            <div className="relative flex min-w-0 flex-1 shrink-0 items-center justify-center bg-neutral-950">
               <div className="relative size-full min-h-[200px]">
                 <Image
                   src={imageUrl!}

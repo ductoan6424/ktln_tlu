@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 
 import { togglePostLike } from "@/actions/posts"
 import { PostCard } from "@/components/feed/post-card"
@@ -20,13 +20,10 @@ export function CommunityFeedClient({
   posts: initialPosts,
   currentUser,
 }: CommunityFeedClientProps) {
-  const [posts, setPosts] = useState(initialPosts)
+  const [postsOverride, setPostsOverride] = useState<FeedPostDto[] | null>(null)
   const rollbackRef = useRef<FeedPostDto[] | null>(null)
   const { toast } = useToast()
-
-  useEffect(() => {
-    setPosts(initialPosts)
-  }, [initialPosts])
+  const posts = postsOverride ?? initialPosts
 
   const handleLike = useCallback(
     async (postId: string) => {
@@ -36,8 +33,8 @@ export function CommunityFeedClient({
       }
 
       rollbackRef.current = posts
-      setPosts((prev) =>
-        prev.map((item) =>
+      setPostsOverride(
+        posts.map((item) =>
           item.id === postId
             ? {
                 ...item,
@@ -50,7 +47,7 @@ export function CommunityFeedClient({
 
       const result = await togglePostLike(postId)
       if (!result.success) {
-        setPosts(rollbackRef.current ?? posts)
+        setPostsOverride(rollbackRef.current ?? null)
         if (result.code !== "CANNOT_LIKE_OWN") {
           toast({
             title: "Lỗi",
@@ -95,10 +92,10 @@ export function CommunityFeedClient({
           permissions={post.permissions}
           communityContext={post.communityContext}
           onDeleted={() =>
-            setPosts((prev) => prev.filter((item) => item.id !== post.id))
+            setPostsOverride(posts.filter((item) => item.id !== post.id))
           }
           onHidden={() =>
-            setPosts((prev) => prev.filter((item) => item.id !== post.id))
+            setPostsOverride(posts.filter((item) => item.id !== post.id))
           }
           sharedPost={post.sharedPost}
           poll={post.poll}

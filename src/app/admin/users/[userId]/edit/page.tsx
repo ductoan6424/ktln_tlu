@@ -10,10 +10,10 @@ export default async function AdminEditUserPage({
 }: {
   params: Promise<{ userId: string }>
 }) {
-  await requireSystemAdmin()
-
-  const { userId } = await params
-  const editorData = await getUserAccessEditorData(userId)
+  const [, editorData] = await Promise.all([
+    requireSystemAdmin(),
+    params.then(({ userId }) => getUserAccessEditorData(userId)),
+  ])
 
   if (!editorData) {
     notFound()

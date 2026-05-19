@@ -41,11 +41,21 @@ export default function SettingsClient({
 }: SettingsClientProps) {
   const { refresh } = useRouter()
   const [activeTab, setActiveTab] = useState("general")
-  const [settings, setSettings] = useState<SystemSettings>(initialSettings)
-  const [moduleFlags, setModuleFlags] = useState<ModuleFlagsMap>(initialModuleFlags)
+  const [settingsOverride, setSettingsOverride] = useState<SystemSettings | null>(null)
+  const [moduleFlagsOverride, setModuleFlagsOverride] = useState<ModuleFlagsMap | null>(null)
   const [newDomain, setNewDomain] = useState("")
   const [isSaving, startSaving] = useTransition()
   const { toast } = useToast()
+  const settings = settingsOverride ?? initialSettings
+  const moduleFlags = moduleFlagsOverride ?? initialModuleFlags
+
+  function setSettings(next: (current: SystemSettings) => SystemSettings) {
+    setSettingsOverride(next(settings))
+  }
+
+  function setModuleFlags(next: (current: ModuleFlagsMap) => ModuleFlagsMap) {
+    setModuleFlagsOverride(next(moduleFlags))
+  }
 
   function handleSaveSettings() {
     startSaving(async () => {

@@ -271,7 +271,7 @@ function DeviceRow({
     <li className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">
         <span className="mt-0.5 flex size-9 flex-shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          {renderDeviceIcon(parsed.os)}
+          <DeviceIcon os={parsed.os} />
         </span>
         <div className="min-w-0 space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
@@ -319,7 +319,7 @@ function DeviceListSkeleton() {
   )
 }
 
-function renderDeviceIcon(os: string) {
+function DeviceIcon({ os }: { os: string }) {
   if (/Android|iOS/.test(os)) return <Smartphone className="size-4" />
   if (/Windows|macOS|ChromeOS|Linux/.test(os)) return <Laptop className="size-4" />
   return <Globe className="size-4" />

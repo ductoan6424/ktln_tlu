@@ -25,9 +25,10 @@ export function EventRegistrationButton({
   full = false,
   past = false,
 }: EventRegistrationButtonProps) {
-  const [isRegistered, setIsRegistered] = useState(initialRegistered)
+  const [registeredOverride, setRegisteredOverride] = useState<boolean | null>(null)
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
+  const isRegistered = registeredOverride ?? initialRegistered
 
   function handleRegistrationToggle() {
     startTransition(async () => {
@@ -44,7 +45,7 @@ export function EventRegistrationButton({
         return
       }
 
-      setIsRegistered(result.data?.registered ?? false)
+      setRegisteredOverride(result.data?.registered ?? false)
       toast({
         title: result.data?.registered ? "Đã đăng ký sự kiện" : "Đã hủy đăng ký",
         description: result.data?.registered

@@ -16,10 +16,11 @@ const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 ngày
 // Banner khuyến khích cài PWA. Lắng nghe `beforeinstallprompt`.
 // Ẩn sau khi user cài hoặc bỏ qua (trong 7 ngày).
 export function InstallPrompt() {
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
-    null,
-  )
-  const [visible, setVisible] = useState(false)
+  const [promptState, setPromptState] = useState<{
+    deferred: BeforeInstallPromptEvent | null
+    visible: boolean
+  }>({ deferred: null, visible: false })
+  const { deferred, visible } = promptState
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -36,14 +37,12 @@ export function InstallPrompt() {
 
     const handler = (e: Event) => {
       e.preventDefault()
-      setDeferred(e as BeforeInstallPromptEvent)
-      setVisible(true)
+      setPromptState({ deferred: e as BeforeInstallPromptEvent, visible: true })
     }
 
     window.addEventListener("beforeinstallprompt", handler)
     window.addEventListener("appinstalled", () => {
-      setVisible(false)
-      setDeferred(null)
+      setPromptState({ deferred: null, visible: false })
     })
 
     return () => window.removeEventListener("beforeinstallprompt", handler)
@@ -59,14 +58,13 @@ export function InstallPrompt() {
         localStorage.setItem(DISMISS_KEY, String(Date.now()))
       }
     } finally {
-      setVisible(false)
-      setDeferred(null)
+      setPromptState({ deferred: null, visible: false })
     }
   }
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()))
-    setVisible(false)
+    setPromptState((state) => ({ ...state, visible: false }))
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, type ReactNode } from "react"
+import { useState, useCallback, useRef, type ReactNode } from "react"
 import {
   Tooltip,
   TooltipTrigger,
@@ -21,10 +21,11 @@ export function LikersTooltip({ postId, children }: LikersTooltipProps) {
   >(null)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [fetched, setFetched] = useState(false)
+  const fetchedRef = useRef(false)
 
   const fetchLikers = useCallback(async () => {
-    if (!postId || fetched) return
+    if (!postId || fetchedRef.current) return
+    fetchedRef.current = true
     setLoading(true)
     const result = await getPostLikers(postId)
     if (result.success && result.data) {
@@ -32,8 +33,7 @@ export function LikersTooltip({ postId, children }: LikersTooltipProps) {
       setTotal(result.data.total)
     }
     setLoading(false)
-    setFetched(true)
-  }, [postId, fetched])
+  }, [postId])
 
   if (!postId) return <>{children}</>
 
