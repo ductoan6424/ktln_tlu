@@ -59,7 +59,6 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageItem[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -67,6 +66,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   const [loadError, setLoadError] = useState<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  const nextCursorRef = useRef<string | null>(null)
   const isPrependingRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
 
@@ -115,7 +115,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
       if (messagesResult.success && messagesResult.data) {
         setMessages(messagesResult.data.items)
-        setNextCursor(messagesResult.data.nextCursor)
+        nextCursorRef.current = messagesResult.data.nextCursor
         setHasMore(messagesResult.data.hasMore)
         setConversationId(conversation.id)
         void markConversationAsRead(conversation.id)
@@ -130,6 +130,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   }, [conversation.id])
 
   const handleLoadMore = useCallback(async () => {
+    const nextCursor = nextCursorRef.current
     if (!conversationId || !nextCursor || isLoadingMore) {
       return
     }
@@ -153,7 +154,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
     }
 
     setMessages((prev) => [...result.data!.items, ...prev])
-    setNextCursor(result.data.nextCursor)
+    nextCursorRef.current = result.data.nextCursor
     setHasMore(result.data.hasMore)
 
     requestAnimationFrame(() => {
@@ -167,7 +168,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
       currentContainer.scrollTop = Math.max(currentContainer.scrollTop + delta, 0)
       isPrependingRef.current = false
     })
-  }, [conversationId, isLoadingMore, nextCursor])
+  }, [conversationId, isLoadingMore])
 
   const handleMessagesScroll = useCallback(() => {
     const container = messagesContainerRef.current

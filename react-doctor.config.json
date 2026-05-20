@@ -1,0 +1,13 @@
+{
+  "diff": "main",
+  "ignore": {
+    "rules": [
+      "react-doctor/no-cascading-set-state",
+      "react-doctor/no-effect-event-handler",
+      "react-doctor/no-giant-component",
+      "react-doctor/no-many-boolean-props",
+      "react-doctor/prefer-useReducer",
+      "react-doctor/rendering-usetransition-loading"
+    ]
+  }
+}

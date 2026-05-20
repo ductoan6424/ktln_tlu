@@ -1,6 +1,13 @@
 "use client"
 
-import { type ChangeEvent, useEffect, useId, useState, useTransition } from "react"
+import {
+  type ChangeEvent,
+  useEffect,
+  useId,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react"
 import Image from "next/image"
 import { FileSpreadsheet, ListPlus, QrCode, Search, Upload, UserPlus } from "lucide-react"
 
@@ -50,6 +57,19 @@ function getAbsoluteCourseUrl(courseHref: string) {
   return `${window.location.origin}${courseHref}`
 }
 
+function subscribeToOriginChange(onStoreChange: () => void) {
+  window.addEventListener("focus", onStoreChange)
+  return () => window.removeEventListener("focus", onStoreChange)
+}
+
+function getBrowserOrigin() {
+  return window.location.origin
+}
+
+function getServerOrigin() {
+  return ""
+}
+
 async function parseRowsFromFile(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase()
   if (extension === "csv") {
@@ -57,7 +77,7 @@ async function parseRowsFromFile(file: File) {
   }
 
   const { default: readXlsxFile } = await import("read-excel-file/browser")
-  return (await readXlsxFile(file)) as unknown[][]
+  return (await readXlsxFile(file)) as unknown as unknown[][]
 }
 
 export function AddStudentForm({
@@ -75,11 +95,15 @@ export function AddStudentForm({
   const [suggestionPending, setSuggestionPending] = useState(false)
   const [importPending, setImportPending] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
-  const [courseJoinUrl, setCourseJoinUrl] = useState(courseHref)
+  const courseOrigin = useSyncExternalStore(
+    subscribeToOriginChange,
+    getBrowserOrigin,
+    getServerOrigin,
+  )
 
-  useEffect(() => {
-    setCourseJoinUrl(getAbsoluteCourseUrl(courseHref))
-  }, [courseHref])
+  const courseJoinUrl = /^https?:\/\//i.test(courseHref) || !courseOrigin
+    ? courseHref
+    : getAbsoluteCourseUrl(courseHref)
 
   useEffect(() => {
     let cancelled = false
@@ -93,19 +117,29 @@ export function AddStudentForm({
     }
 
     setSuggestionPending(true)
-    const timer = window.setTimeout(async () => {
-      const result = await searchCourseStudentCandidates({ courseId, query })
+    const timer = window.setTimeout(() => {
       if (cancelled) return
 
-      setSuggestionPending(false)
-      if (!result.success) {
-        setSuggestions([])
-        setSuggestionError(result.error ?? "Không thể tải gợi ý sinh viên.")
-        return
-      }
+      searchCourseStudentCandidates({ courseId, query })
+        .then((result) => {
+          if (cancelled) return
 
-      setSuggestionError(null)
-      setSuggestions(result.data ?? [])
+          setSuggestionPending(false)
+          if (!result.success) {
+            setSuggestions([])
+            setSuggestionError(result.error ?? "Không thể tải gợi ý sinh viên.")
+            return
+          }
+
+          setSuggestionError(null)
+          setSuggestions(result.data ?? [])
+        })
+        .catch(() => {
+          if (cancelled) return
+          setSuggestionPending(false)
+          setSuggestions([])
+          setSuggestionError("Không thể tải gợi ý sinh viên.")
+        })
     }, 250)
 
     return () => {
@@ -213,7 +247,7 @@ export function AddStudentForm({
         </label>
 
         {suggestionPending ? (
-          <p className="text-xs text-[#65676b]">Đang tìm sinh viên...</p>
+          <p className="text-xs text-[#65676b]">Đang tìm sinh viên…</p>
         ) : suggestionError ? (
           <p className="text-xs text-destructive">{suggestionError}</p>
         ) : suggestions.length > 0 ? (
@@ -242,7 +276,7 @@ export function AddStudentForm({
           className={facebookPrimaryButton}
         >
           <UserPlus data-icon="inline-start" />
-          {pending ? "Đang thêm..." : "Thêm sinh viên"}
+          {pending ? "Đang thêm…" : "Thêm sinh viên"}
         </Button>
       </form>
 
@@ -269,7 +303,7 @@ export function AddStudentForm({
               />
             ) : (
               <div className="flex size-36 items-center justify-center rounded-md border border-dashed border-[#dddfe2] text-xs text-[#65676b]">
-                Đang tạo QR...
+                Đang tạo QR…
               </div>
             )}
             <p className="break-all text-xs text-[#65676b]">{courseJoinUrl}</p>
@@ -300,7 +334,7 @@ export function AddStudentForm({
           onClick={() => document.getElementById(importInputId)?.click()}
         >
           <Upload data-icon="inline-start" />
-          {importPending ? "Đang import..." : "Chọn file import"}
+          {importPending ? "Đang import…" : "Chọn file import"}
         </Button>
       </div>
 
@@ -339,7 +373,7 @@ export function AddStudentForm({
           className={facebookSecondaryButton}
         >
           <ListPlus data-icon="inline-start" />
-          {pending ? "Đang thêm..." : "Thêm danh sách"}
+          {pending ? "Đang thêm…" : "Thêm danh sách"}
         </Button>
       </form>
 

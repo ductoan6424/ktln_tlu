@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useCallback, useEffect } from "react"
+import { useRef, useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -61,25 +61,23 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
   const [selected, setSelected] = useState<AnnouncementStripItem | null>(null)
   const [listOpen, setListOpen] = useState(false)
 
-  const syncScroll = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    setCanLeft(el.scrollLeft > 4)
-    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
-  }, [])
-
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    syncScroll()
-    el.addEventListener("scroll", syncScroll, { passive: true })
-    const ro = new ResizeObserver(syncScroll)
+    const handleSyncScroll = () => {
+      setCanLeft(el.scrollLeft > 4)
+      setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+    }
+
+    handleSyncScroll()
+    el.addEventListener("scroll", handleSyncScroll, { passive: true })
+    const ro = new ResizeObserver(handleSyncScroll)
     ro.observe(el)
     return () => {
-      el.removeEventListener("scroll", syncScroll)
+      el.removeEventListener("scroll", handleSyncScroll)
       ro.disconnect()
     }
-  }, [syncScroll])
+  }, [])
 
   const scroll = (dir: "left" | "right") =>
     scrollRef.current?.scrollBy({

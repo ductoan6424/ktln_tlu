@@ -64,7 +64,6 @@ function MessagesPageInner() {
   const [conversations, setConversations] = useState<ChatConversationItem[]>([])
   const [optimisticConversationId, setOptimisticConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageItem[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isBooting, setIsBooting] = useState(true)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
@@ -77,6 +76,7 @@ function MessagesPageInner() {
   const activeConversationIdRef = useRef<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  const nextCursorRef = useRef<string | null>(null)
   const isPrependingRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
 
@@ -243,7 +243,7 @@ function MessagesPageInner() {
     const fetchInitialMessages = async () => {
       if (!activeConversationId) {
         setMessages([])
-        setNextCursor(null)
+        nextCursorRef.current = null
         setHasMore(false)
         setIsLoadingMessages(false)
         return
@@ -252,7 +252,7 @@ function MessagesPageInner() {
       const conversationId = activeConversationId
       setIsLoadingMessages(true)
       setMessages([])
-      setNextCursor(null)
+      nextCursorRef.current = null
       setHasMore(false)
 
       if (isDisposed || activeConversationIdRef.current !== conversationId) {
@@ -264,12 +264,12 @@ function MessagesPageInner() {
       if (!isDisposed && activeConversationIdRef.current === conversationId) {
         if (!data) {
           setMessages([])
-          setNextCursor(null)
+          nextCursorRef.current = null
           setHasMore(false)
           setIsLoadingMessages(false)
         } else {
           setMessages(data.items)
-          setNextCursor(data.nextCursor)
+          nextCursorRef.current = data.nextCursor
           setHasMore(data.hasMore)
           setIsLoadingMessages(false)
 
@@ -306,6 +306,7 @@ function MessagesPageInner() {
   }, [activeConversationId, isLoadingMessages, messages.length, rowVirtualizer])
 
   const handleLoadOlder = useCallback(async () => {
+    const nextCursor = nextCursorRef.current
     if (!activeConversationId || !nextCursor || isLoadingMore) {
       return
     }
@@ -327,7 +328,7 @@ function MessagesPageInner() {
     }
 
     setMessages((prev) => [...data.items, ...prev])
-    setNextCursor(data.nextCursor)
+    nextCursorRef.current = data.nextCursor
     setHasMore(data.hasMore)
 
     requestAnimationFrame(() => {
@@ -341,7 +342,7 @@ function MessagesPageInner() {
       currentContainer.scrollTop = Math.max(currentContainer.scrollTop + delta, 0)
       isPrependingRef.current = false
     })
-  }, [activeConversationId, isLoadingMore, loadMessages, nextCursor])
+  }, [activeConversationId, isLoadingMore, loadMessages])
 
   const handleSendMessage = useCallback(
     async ({
