@@ -128,7 +128,7 @@ export default async function ManageCoursePage({
                 </p>
               </div>
               <div className="p-4 sm:p-5">
-                <AddStudentForm courseId={course.id} />
+                <AddStudentForm courseId={course.id} courseHref={href} />
               </div>
             </CardContent>
           </Card>

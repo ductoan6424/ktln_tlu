@@ -1,9 +1,14 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { ListPlus, UserPlus } from "lucide-react"
+import { type ChangeEvent, useEffect, useId, useState, useTransition } from "react"
+import Image from "next/image"
+import { FileSpreadsheet, ListPlus, QrCode, Search, Upload, UserPlus } from "lucide-react"
 
-import { addStudentToCourse, addStudentsToCourseByCodes } from "@/actions/courses"
+import {
+  addStudentToCourse,
+  addStudentsToCourseByCodes,
+  searchCourseStudentCandidates,
+} from "@/actions/courses"
 import {
   facebookPrimaryButton,
   facebookSecondaryButton,
@@ -12,10 +17,161 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { parseCsvRows, parseStudentCodesFromRows } from "@/lib/courses/student-import"
 
-export function AddStudentForm({ courseId }: { courseId: string }) {
+type StudentSuggestion = {
+  userId: string
+  displayName: string
+  email: string
+  avatarUrl: string | null
+  studentId: string | null
+}
+
+type AddStudentFormProps = {
+  courseId: string
+  courseHref?: string
+}
+
+function formatBulkSummary(result: {
+  added: string[]
+  alreadyMember: string[]
+  notFound: string[]
+}) {
+  return [
+    `Đã thêm ${result.added.length}`,
+    `Đã có ${result.alreadyMember.length}`,
+    `Không tìm thấy ${result.notFound.length}`,
+  ].join(" · ")
+}
+
+function getAbsoluteCourseUrl(courseHref: string) {
+  if (typeof window === "undefined") return courseHref
+  if (/^https?:\/\//i.test(courseHref)) return courseHref
+  return `${window.location.origin}${courseHref}`
+}
+
+async function parseRowsFromFile(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase()
+  if (extension === "csv") {
+    return parseCsvRows(await file.text())
+  }
+
+  const { default: readXlsxFile } = await import("read-excel-file/browser")
+  return (await readXlsxFile(file)) as unknown[][]
+}
+
+export function AddStudentForm({
+  courseId,
+  courseHref = `/courses/${courseId}`,
+}: AddStudentFormProps) {
+  const studentInputId = useId()
+  const bulkInputId = useId()
+  const importInputId = useId()
   const [pending, startTransition] = useTransition()
   const [summary, setSummary] = useState<string | null>(null)
+  const [studentId, setStudentId] = useState("")
+  const [suggestions, setSuggestions] = useState<StudentSuggestion[]>([])
+  const [suggestionError, setSuggestionError] = useState<string | null>(null)
+  const [suggestionPending, setSuggestionPending] = useState(false)
+  const [importPending, setImportPending] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const [courseJoinUrl, setCourseJoinUrl] = useState(courseHref)
+
+  useEffect(() => {
+    setCourseJoinUrl(getAbsoluteCourseUrl(courseHref))
+  }, [courseHref])
+
+  useEffect(() => {
+    let cancelled = false
+    const query = studentId.trim()
+
+    if (query.length < 2) {
+      setSuggestions([])
+      setSuggestionError(null)
+      setSuggestionPending(false)
+      return
+    }
+
+    setSuggestionPending(true)
+    const timer = window.setTimeout(async () => {
+      const result = await searchCourseStudentCandidates({ courseId, query })
+      if (cancelled) return
+
+      setSuggestionPending(false)
+      if (!result.success) {
+        setSuggestions([])
+        setSuggestionError(result.error ?? "Không thể tải gợi ý sinh viên.")
+        return
+      }
+
+      setSuggestionError(null)
+      setSuggestions(result.data ?? [])
+    }, 250)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [courseId, studentId])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function renderQrCode() {
+      const QRCode = await import("qrcode")
+      const dataUrl = await QRCode.toDataURL(courseJoinUrl, {
+        width: 180,
+        margin: 1,
+      })
+
+      if (!cancelled) setQrDataUrl(dataUrl)
+    }
+
+    renderQrCode().catch(() => {
+      if (!cancelled) setQrDataUrl(null)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [courseJoinUrl])
+
+  async function handleImportFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    const extension = file.name.split(".").pop()?.toLowerCase()
+    if (!extension || !["csv", "xlsx"].includes(extension)) {
+      setSummary("Chỉ hỗ trợ file CSV hoặc XLSX.")
+      return
+    }
+
+    setImportPending(true)
+    try {
+      const rows = await parseRowsFromFile(file)
+      const codes = parseStudentCodesFromRows(rows)
+      if (codes.length === 0) {
+        setSummary("Không tìm thấy mã sinh viên hợp lệ trong file.")
+        return
+      }
+
+      const result = await addStudentsToCourseByCodes({
+        courseId,
+        studentCodesText: codes.join("\n"),
+      })
+      if (!result.success || !result.data) {
+        setSummary(result.error ?? "Không thể import danh sách sinh viên.")
+        return
+      }
+
+      setSummary(formatBulkSummary(result.data))
+    } catch {
+      setSummary("Không thể đọc file. Vui lòng kiểm tra lại định dạng.")
+    } finally {
+      setImportPending(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -32,20 +188,54 @@ export function AddStudentForm({ courseId }: { courseId: string }) {
                 ? "Đã thêm sinh viên."
                 : result.error ?? "Không thể thêm sinh viên.",
             )
+            if (result.success) {
+              setStudentId("")
+              setSuggestions([])
+            }
           })
         }}
       >
-        <label className="block space-y-2" htmlFor="field-app-main-courses-courseid-manage-add-student-form-1">
+        <label className="block space-y-2" htmlFor={studentInputId}>
           <span className="text-sm font-semibold text-[#050505]">Mã sinh viên</span>
-          <Input
-            name="studentId"
-            placeholder="A46287"
-            required
-            className={manageInput}
-          id="field-app-main-courses-courseid-manage-add-student-form-1"
-
-          />
+          <span className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#65676b]" />
+            <Input
+              id={studentInputId}
+              name="studentId"
+              value={studentId}
+              onChange={(event) => setStudentId(event.target.value)}
+              placeholder="A46287"
+              required
+              autoComplete="off"
+              className={`${manageInput} pl-9`}
+            />
+          </span>
         </label>
+
+        {suggestionPending ? (
+          <p className="text-xs text-[#65676b]">Đang tìm sinh viên...</p>
+        ) : suggestionError ? (
+          <p className="text-xs text-destructive">{suggestionError}</p>
+        ) : suggestions.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border border-[#dddfe2]">
+            {suggestions.map((student) => (
+              <button
+                key={student.userId}
+                type="button"
+                className="flex w-full flex-col gap-0.5 border-b border-[#e4e6eb] px-3 py-2 text-left last:border-b-0 hover:bg-[#f2f4f7]"
+                onClick={() => setStudentId(student.studentId ?? "")}
+              >
+                <span className="text-sm font-semibold text-[#050505]">
+                  {student.studentId} · {student.displayName}
+                </span>
+                <span className="text-xs text-[#65676b]">{student.email}</span>
+              </button>
+            ))}
+          </div>
+        ) : studentId.trim().length >= 2 ? (
+          <p className="text-xs text-[#65676b]">Không có gợi ý phù hợp.</p>
+        ) : null}
+
         <Button
           type="submit"
           disabled={pending}
@@ -55,6 +245,64 @@ export function AddStudentForm({ courseId }: { courseId: string }) {
           {pending ? "Đang thêm..." : "Thêm sinh viên"}
         </Button>
       </form>
+
+      <div className="space-y-3 border-t border-[#e4e6eb] pt-4">
+        <div className="flex items-start gap-3 rounded-lg border border-[#dddfe2] bg-white p-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e7f3ff] text-[#1877f2]">
+            <QrCode className="size-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-[#050505]">QR tham gia lớp</p>
+              <p className="text-xs leading-5 text-[#65676b]">
+                Sinh viên quét mã để mở trang lớp và gửi yêu cầu tham gia.
+              </p>
+            </div>
+            {qrDataUrl ? (
+              <Image
+                src={qrDataUrl}
+                alt="QR tham gia lớp học"
+                width={144}
+                height={144}
+                unoptimized
+                className="size-36 rounded-md border border-[#dddfe2] bg-white p-2"
+              />
+            ) : (
+              <div className="flex size-36 items-center justify-center rounded-md border border-dashed border-[#dddfe2] text-xs text-[#65676b]">
+                Đang tạo QR...
+              </div>
+            )}
+            <p className="break-all text-xs text-[#65676b]">{courseJoinUrl}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 border-t border-[#e4e6eb] pt-4">
+        <label className="block space-y-2" htmlFor={importInputId}>
+          <span className="text-sm font-semibold text-[#050505]">Import CSV/Excel</span>
+          <span className="text-xs leading-5 text-[#65676b]">
+            Nhận cột studentId, student_id, mã sinh viên hoặc ma sinh vien; nếu không có header sẽ lấy cột đầu tiên.
+          </span>
+          <Input
+            id={importInputId}
+            type="file"
+            accept=".csv,.xlsx"
+            onChange={handleImportFile}
+            disabled={importPending || pending}
+            className={manageInput}
+          />
+        </label>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={importPending || pending}
+          className={facebookSecondaryButton}
+          onClick={() => document.getElementById(importInputId)?.click()}
+        >
+          <Upload data-icon="inline-start" />
+          {importPending ? "Đang import..." : "Chọn file import"}
+        </Button>
+      </div>
 
       <form
         className="space-y-3 border-t border-[#e4e6eb] pt-4"
@@ -69,26 +317,19 @@ export function AddStudentForm({ courseId }: { courseId: string }) {
               return
             }
 
-            setSummary(
-              [
-                `Đã thêm ${result.data.added.length}`,
-                `Đã có ${result.data.alreadyMember.length}`,
-                `Không tìm thấy ${result.data.notFound.length}`,
-              ].join(" · "),
-            )
+            setSummary(formatBulkSummary(result.data))
           })
         }}
       >
-        <label className="block space-y-2" htmlFor="field-app-main-courses-courseid-manage-add-student-form-2">
+        <label className="block space-y-2" htmlFor={bulkInputId}>
           <span className="text-sm font-semibold text-[#050505]">
             Thêm nhiều mã sinh viên
           </span>
           <Textarea
+            id={bulkInputId}
             name="studentCodesText"
             placeholder="A46287, A46288 hoặc mỗi mã một dòng"
             className={`${manageInput} min-h-28`}
-          id="field-app-main-courses-courseid-manage-add-student-form-2"
-
           />
         </label>
         <Button
@@ -102,7 +343,12 @@ export function AddStudentForm({ courseId }: { courseId: string }) {
         </Button>
       </form>
 
-      {summary ? <p className="text-sm text-[#65676b]">{summary}</p> : null}
+      {summary ? (
+        <p className="flex items-center gap-2 text-sm text-[#65676b]">
+          <FileSpreadsheet className="size-4" aria-hidden="true" />
+          <span>{summary}</span>
+        </p>
+      ) : null}
     </div>
   )
 }
