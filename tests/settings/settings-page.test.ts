@@ -1,4 +1,5 @@
 import { createElement } from "react"
+import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -18,7 +19,7 @@ vi.mock("next/link", () => ({
     children,
     href,
   }: {
-    children: unknown
+    children: ReactNode
     href: string
   }) => createElement("a", { href }, children),
 }))
@@ -37,6 +38,7 @@ vi.mock("@/lib/prisma/client", () => ({
 
 vi.mock("@/actions/profile", () => ({
   updateUserAvatar: vi.fn(),
+  updateUserProfile: vi.fn(),
 }))
 
 vi.mock("@/components/ui/use-toast", () => ({

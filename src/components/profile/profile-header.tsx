@@ -1,14 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { CoverUploader } from "@/components/profile/cover-uploader"
 import { FollowButton } from "@/components/profile/follow-button"
+import { ProfileShareButton } from "@/components/profile/profile-share-button"
 import { MessageButton } from "@/components/messages/message-button"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Pencil, Share2 } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Pencil } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 import type { FollowStatus } from "@/lib/follows/queries"
 
 const EMPTY_CLUBS: string[] = []
@@ -117,14 +120,14 @@ export function ProfileHeader({
 
           <div className="flex flex-wrap items-center gap-2">
             {isOwnProfile && (
-              <Button
-                variant="outline"
-                className="gap-2 font-semibold"
+              <Link
+                href="/settings?section=profile"
+                className={cn(buttonVariants({ variant: "outline" }), "gap-2 font-semibold")}
                 data-profile-action="edit"
               >
                 <Pencil className="size-4" />
                 Sửa hồ sơ
-              </Button>
+              </Link>
             )}
             {!isOwnProfile && targetUserId && followStatus && (
               <>
@@ -135,14 +138,10 @@ export function ProfileHeader({
                 />
               </>
             )}
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Chia sẻ"
-              className="rounded-lg"
-            >
-              <Share2 className="size-5" />
-            </Button>
+            <ProfileShareButton
+              profileUserId={targetUserId ?? ""}
+              displayName={name}
+            />
           </div>
         </div>
       </CardContent>
