@@ -2,9 +2,10 @@ import {
   getAdminRoleDescription,
   getAdminRoleLabel,
 } from "@/lib/admin/admin-role-labels"
-import { getBaseRoleLabel, type BaseRole } from "@/lib/auth/base-role"
+import { assertBaseRole, getBaseRoleLabel, type BaseRole } from "@/lib/auth/base-role"
 import { prisma } from "@/lib/prisma/client"
 import { USERS_ADMIN_MODULE } from "@/lib/admin/modules/users"
+import type { UserAccountModerationStatus } from "@prisma/client"
 import type {
   AdminDetailSection,
   AdminModuleDefinition,
@@ -55,8 +56,103 @@ export type UserAccessEditorData = {
   }>
 }
 
+export type AdminUserAccountStatus = UserAccountModerationStatus
+
+export type AdminUserAccountState = {
+  status: AdminUserAccountStatus
+  label: string
+  lockedUntil: string | null
+  reason: string | null
+  note: string | null
+  createdAt: string | null
+  createdBy: string | null
+}
+
+export type AdminUserDetail = {
+  user: {
+    userId: string
+    email: string
+    displayName: string
+    avatarUrl: string | null
+    baseRole: BaseRole
+    baseRoleLabel: string
+    major: string | null
+    studentId: string | null
+    year: number | null
+    joinedAt: string
+    adminRoleNames: string[]
+  }
+  accountState: AdminUserAccountState
+  recentPosts: Array<{
+    id: string
+    excerpt: string
+    status: string
+    deleted: boolean
+    createdAt: string
+  }>
+  recentComments: Array<{
+    id: string
+    postId: string
+    excerpt: string
+    deleted: boolean
+    createdAt: string
+  }>
+  relatedReports: Array<{ id: string; reason: string; status: string; createdAt: string }>
+  adminHistory: Array<{
+    id: string
+    action: string
+    actorName: string
+    reason: string | null
+    createdAt: string
+  }>
+}
+
+const ACCOUNT_STATUS_LABELS: Record<AdminUserAccountStatus, string> = {
+  ACTIVE: "Đang hoạt động",
+  TEMP_LOCKED: "Khóa tạm thời",
+  LOCKED: "Đã khóa",
+}
+
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10)
+}
+
+function getActiveAccountState(): AdminUserAccountState {
+  return {
+    status: "ACTIVE",
+    label: ACCOUNT_STATUS_LABELS.ACTIVE,
+    lockedUntil: null,
+    reason: null,
+    note: null,
+    createdAt: null,
+    createdBy: null,
+  }
+}
+
+function toExcerpt(value: string, max = 90) {
+  if (value.length <= max) {
+    return value
+  }
+
+  return `${value.slice(0, max - 3)}...`
+}
+
+function buildRelatedReportWhere(userId: string, postIds: string[], commentIds: string[]) {
+  const OR: Array<
+    | { reporterId: string }
+    | { contentType: "POST"; contentId: { in: string[] } }
+    | { contentType: "COMMENT"; contentId: { in: string[] } }
+  > = [{ reporterId: userId }]
+
+  if (postIds.length > 0) {
+    OR.push({ contentType: "POST", contentId: { in: postIds } })
+  }
+
+  if (commentIds.length > 0) {
+    OR.push({ contentType: "COMMENT", contentId: { in: commentIds } })
+  }
+
+  return { OR }
 }
 
 function getUserStatus(profile: Pick<AdminUserProfile, "deletedAt" | "emailVerifications">) {
@@ -249,6 +345,173 @@ export async function getUserAccessEditorData(
       ...role,
       name: getAdminRoleLabel(role.code, role.name),
       description: getAdminRoleDescription(role.code, role.description),
+    })),
+  }
+}
+
+export async function getUserAccountModerationState(
+  userId: string,
+  now: Date = new Date(),
+): Promise<AdminUserAccountState> {
+  const latest = await prisma.userAccountModeration.findFirst({
+    where: { userId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: {
+      status: true,
+      lockedUntil: true,
+      reason: true,
+      note: true,
+      createdAt: true,
+      creator: { select: { displayName: true } },
+    },
+  })
+
+  if (!latest || latest.status === "ACTIVE") {
+    return getActiveAccountState()
+  }
+
+  if (
+    latest.status === "TEMP_LOCKED" &&
+    latest.lockedUntil &&
+    latest.lockedUntil.getTime() <= now.getTime()
+  ) {
+    return getActiveAccountState()
+  }
+
+  const status: AdminUserAccountStatus = latest.status
+
+  return {
+    status,
+    label: ACCOUNT_STATUS_LABELS[status],
+    lockedUntil: latest.lockedUntil?.toISOString() ?? null,
+    reason: latest.reason,
+    note: latest.note,
+    createdAt: latest.createdAt.toISOString(),
+    createdBy: latest.creator?.displayName ?? null,
+  }
+}
+
+export async function getAdminUserDetail(userId: string): Promise<AdminUserDetail | null> {
+  const profile = await prisma.userProfile.findUnique({
+    where: { userId },
+    include: {
+      userAdminRoles: {
+        include: {
+          adminRole: {
+            select: {
+              code: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!profile) {
+    return null
+  }
+
+  const [accountState, recentPosts, recentComments, accountHistory] = await Promise.all([
+    getUserAccountModerationState(userId),
+    prisma.post.findMany({
+      where: { authorId: userId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 5,
+      select: {
+        id: true,
+        content: true,
+        communityStatus: true,
+        deletedAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.comment.findMany({
+      where: { authorId: userId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 5,
+      select: {
+        id: true,
+        postId: true,
+        content: true,
+        deletedAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.userAccountModeration.findMany({
+      where: { userId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 10,
+      select: {
+        id: true,
+        status: true,
+        reason: true,
+        createdAt: true,
+        creator: { select: { displayName: true } },
+      },
+    }),
+  ])
+  const relatedReports = await prisma.communityReport.findMany({
+    where: buildRelatedReportWhere(
+      userId,
+      recentPosts.map((post) => post.id),
+      recentComments.map((comment) => comment.id),
+    ),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 5,
+    select: {
+      id: true,
+      reason: true,
+      status: true,
+      createdAt: true,
+    },
+  })
+
+  const baseRole = assertBaseRole(profile.role)
+
+  return {
+    user: {
+      userId: profile.userId,
+      email: profile.email,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+      baseRole,
+      baseRoleLabel: getBaseRoleLabel(baseRole),
+      major: profile.major,
+      studentId: profile.studentId,
+      year: profile.year,
+      joinedAt: profile.createdAt.toISOString(),
+      adminRoleNames: profile.userAdminRoles.map(({ adminRole }) =>
+        getAdminRoleLabel(adminRole.code, adminRole.name),
+      ),
+    },
+    accountState,
+    recentPosts: recentPosts.map((post) => ({
+      id: post.id,
+      excerpt: toExcerpt(post.content),
+      status: post.communityStatus,
+      deleted: Boolean(post.deletedAt),
+      createdAt: post.createdAt.toISOString(),
+    })),
+    recentComments: recentComments.map((comment) => ({
+      id: comment.id,
+      postId: comment.postId,
+      excerpt: toExcerpt(comment.content),
+      deleted: Boolean(comment.deletedAt),
+      createdAt: comment.createdAt.toISOString(),
+    })),
+    relatedReports: relatedReports.map((report) => ({
+      id: report.id,
+      reason: report.reason,
+      status: report.status,
+      createdAt: report.createdAt.toISOString(),
+    })),
+    adminHistory: accountHistory.map((entry) => ({
+      id: entry.id,
+      action: entry.status,
+      actorName: entry.creator?.displayName ?? "Không xác định",
+      reason: entry.reason,
+      createdAt: entry.createdAt.toISOString(),
     })),
   }
 }
