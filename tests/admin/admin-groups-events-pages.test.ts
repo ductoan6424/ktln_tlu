@@ -1,4 +1,5 @@
 import { Children, createElement, isValidElement } from "react"
+import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -18,7 +19,7 @@ vi.mock("next/link", () => ({
     children,
     href,
   }: {
-    children: unknown
+    children: ReactNode
     href: string
   }) => createElement("a", { href }, children),
 }))
@@ -106,6 +107,13 @@ function findElementByName(node: unknown, name: string): Record<string, unknown>
 
   if (elementProps.name === name) {
     return elementProps
+  }
+
+  if (typeof node.type === "function") {
+    return findElementByName(
+      (node.type as (props: Record<string, unknown>) => ReactNode)(elementProps),
+      name,
+    )
   }
 
   return Children.toArray(elementProps.children).reduce<Record<string, unknown> | undefined>(
