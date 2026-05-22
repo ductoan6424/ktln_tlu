@@ -5,7 +5,7 @@ import {
 import { assertBaseRole, getBaseRoleLabel, type BaseRole } from "@/lib/auth/base-role"
 import { prisma } from "@/lib/prisma/client"
 import { USERS_ADMIN_MODULE } from "@/lib/admin/modules/users"
-import type { UserAccountModerationStatus } from "@prisma/client"
+import type { Prisma, UserAccountModerationStatus } from "@prisma/client"
 import type {
   AdminDetailSection,
   AdminModuleDefinition,
@@ -32,6 +32,12 @@ type AdminUserProfile = {
       code: string
       name: string
     }
+  }>
+  accountModerations: Array<{
+    id: string
+    status: UserAccountModerationStatus
+    lockedUntil: Date | null
+    releasedAt: Date | null
   }>
 }
 
@@ -107,6 +113,14 @@ export type AdminUserDetail = {
   }>
 }
 
+export type AdminUserStatusFilter = "all" | "active" | "pending" | "locked" | "deleted"
+
+export type AdminUsersListFilters = {
+  query?: string
+  role?: BaseRole | "all"
+  status?: AdminUserStatusFilter
+}
+
 const ACCOUNT_STATUS_LABELS: Record<AdminUserAccountStatus, string> = {
   ACTIVE: "Đang hoạt động",
   TEMP_LOCKED: "Khóa tạm thời",
@@ -155,9 +169,67 @@ function buildRelatedReportWhere(userId: string, postIds: string[], commentIds: 
   return { OR }
 }
 
-function getUserStatus(profile: Pick<AdminUserProfile, "deletedAt" | "emailVerifications">) {
+function buildActiveAccountModerationWhere(now = new Date()): Prisma.UserAccountModerationWhereInput {
+  return {
+    releasedAt: null,
+    OR: [{ status: "LOCKED" }, { status: "TEMP_LOCKED", lockedUntil: { gt: now } }],
+  }
+}
+
+function buildUserProfileWhere(
+  filters: AdminUsersListFilters,
+  now = new Date(),
+): Prisma.UserProfileWhereInput {
+  const where: Prisma.UserProfileWhereInput = {}
+  const query = filters.query?.trim()
+
+  if (filters.role && filters.role !== "all") {
+    where.role = filters.role
+  }
+
+  if (query) {
+    where.OR = [
+      { displayName: { contains: query, mode: "insensitive" } },
+      { email: { contains: query, mode: "insensitive" } },
+      { studentId: { contains: query, mode: "insensitive" } },
+    ]
+  }
+
+  if (filters.status === "deleted") {
+    where.deletedAt = { not: null }
+  } else {
+    where.deletedAt = null
+  }
+
+  if (filters.status === "locked") {
+    where.accountModerations = {
+      some: buildActiveAccountModerationWhere(now),
+    }
+  }
+
+  if (filters.status === "active") {
+    where.accountModerations = {
+      none: buildActiveAccountModerationWhere(now),
+    }
+    where.emailVerifications = { none: {} }
+  }
+
+  if (filters.status === "pending") {
+    where.emailVerifications = { some: {} }
+  }
+
+  return where
+}
+
+function getUserStatus(
+  profile: Pick<AdminUserProfile, "deletedAt" | "emailVerifications" | "accountModerations">,
+) {
   if (profile.deletedAt) {
-    return "blocked" as const
+    return "deleted" as const
+  }
+
+  if (profile.accountModerations.length > 0) {
+    return "locked" as const
   }
 
   if (profile.emailVerifications.length > 0) {
@@ -169,8 +241,10 @@ function getUserStatus(profile: Pick<AdminUserProfile, "deletedAt" | "emailVerif
 
 function getUserStatusLabel(status: ReturnType<typeof getUserStatus>) {
   switch (status) {
-    case "blocked":
-      return "Đã chặn"
+    case "deleted":
+      return "Đã xóa"
+    case "locked":
+      return "Đã khóa"
     case "pending":
       return "Chờ xác minh"
     default:
@@ -241,20 +315,20 @@ function buildStats(profiles: AdminUserProfile[]): AdminStatItem[] {
       acc[status] += 1
       return acc
     },
-    { total: 0, active: 0, pending: 0, blocked: 0 },
+    { total: 0, active: 0, pending: 0, locked: 0, deleted: 0 },
   )
 
   return [
     { label: "Tổng người dùng", value: String(totals.total) },
     { label: "Đang hoạt động", value: String(totals.active) },
     { label: "Chờ xác minh", value: String(totals.pending) },
-    { label: "Đã chặn", value: String(totals.blocked) },
+    { label: "Đã khóa", value: String(totals.locked) },
   ]
 }
 
-async function listAdminUserProfiles() {
+async function listAdminUserProfiles(filters: AdminUsersListFilters, now = new Date()) {
   return prisma.userProfile.findMany({
-    where: {},
+    where: buildUserProfileWhere(filters, now),
     orderBy: { createdAt: "desc" },
     include: {
       emailVerifications: {
@@ -271,12 +345,23 @@ async function listAdminUserProfiles() {
           },
         },
       },
+      accountModerations: {
+        where: buildActiveAccountModerationWhere(now),
+        select: {
+          id: true,
+          status: true,
+          lockedUntil: true,
+          releasedAt: true,
+        },
+      },
     },
   }) as Promise<AdminUserProfile[]>
 }
 
-export async function getUsersAdminModule(): Promise<AdminModuleDefinition<UserCells>> {
-  const profiles = await listAdminUserProfiles()
+export async function getUsersAdminModule(
+  filters: AdminUsersListFilters = {},
+): Promise<AdminModuleDefinition<UserCells>> {
+  const profiles = await listAdminUserProfiles(filters)
   const records = profiles.map(mapProfileToRecord)
   const sectionsById = new Map(
     profiles.map((profile) => [profile.userId, buildDetailSections(profile)]),
@@ -285,6 +370,13 @@ export async function getUsersAdminModule(): Promise<AdminModuleDefinition<UserC
   return {
     ...USERS_ADMIN_MODULE,
     stats: buildStats(profiles),
+    tabs: [
+      { label: "Tất cả", value: "all", href: "/admin/users?tab=all" },
+      { label: "Đang hoạt động", value: "active", href: "/admin/users?tab=active" },
+      { label: "Chờ xác minh", value: "pending", href: "/admin/users?tab=pending" },
+      { label: "Đã khóa", value: "locked", href: "/admin/users?tab=locked" },
+      { label: "Đã xóa", value: "deleted", href: "/admin/users?tab=deleted" },
+    ],
     records,
     getRecord: (id) => records.find((record) => record.id === id),
     getDetailSections: (id) => sectionsById.get(id),

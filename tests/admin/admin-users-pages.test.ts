@@ -180,7 +180,15 @@ describe("admin users pages", () => {
     const newPage = await import("@/app/admin/users/new/page")
     const settingsPage = await import("@/app/admin/users/settings/page")
 
-    const listMarkup = renderToStaticMarkup(await listPage.default())
+    const listMarkup = renderToStaticMarkup(
+      await listPage.default({
+        searchParams: Promise.resolve({
+          tab: "locked",
+          role: "STUDENT",
+          q: "Nguyễn",
+        }),
+      }),
+    )
     const newMarkup = renderToStaticMarkup(await newPage.default())
     const settingsMarkup = renderToStaticMarkup(await settingsPage.default())
 
@@ -189,6 +197,11 @@ describe("admin users pages", () => {
     expect(newMarkup).toContain("Thêm người dùng")
     expect(settingsMarkup).toContain("Cài đặt người dùng")
     expect(requireAdminPermission).toHaveBeenCalledWith("admin.users.manage")
+    expect(getUsersAdminModule).toHaveBeenCalledWith({
+      query: "Nguyễn",
+      role: "STUDENT",
+      status: "locked",
+    })
   })
 
   it("renders detail and edit routes from Prisma-backed helpers and calls notFound for missing ids", async () => {
