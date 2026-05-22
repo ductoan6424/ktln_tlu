@@ -354,7 +354,11 @@ export async function getUserAccountModerationState(
   now: Date = new Date(),
 ): Promise<AdminUserAccountState> {
   const latest = await prisma.userAccountModeration.findFirst({
-    where: { userId },
+    where: {
+      userId,
+      releasedAt: null,
+      OR: [{ status: "LOCKED" }, { status: "TEMP_LOCKED", lockedUntil: { gt: now } }],
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
       status: true,
@@ -366,15 +370,7 @@ export async function getUserAccountModerationState(
     },
   })
 
-  if (!latest || latest.status === "ACTIVE") {
-    return getActiveAccountState()
-  }
-
-  if (
-    latest.status === "TEMP_LOCKED" &&
-    latest.lockedUntil &&
-    latest.lockedUntil.getTime() <= now.getTime()
-  ) {
+  if (!latest) {
     return getActiveAccountState()
   }
 

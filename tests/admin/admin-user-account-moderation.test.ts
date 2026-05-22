@@ -6,14 +6,23 @@ import {
 } from "@/lib/admin/users/users-admin-data"
 
 const prisma = vi.hoisted(() => ({
-  userAccountModeration: { findFirst: vi.fn(), findMany: vi.fn() },
+  $executeRaw: vi.fn(),
+  $transaction: vi.fn(),
+  userAccountModeration: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   userProfile: { findUnique: vi.fn() },
   post: { findMany: vi.fn() },
   comment: { findMany: vi.fn() },
   communityReport: { findMany: vi.fn() },
   communityModerationLog: { findMany: vi.fn() },
 }))
+const requireAdminPermission = vi.hoisted(() => vi.fn())
+const revalidatePath = vi.hoisted(() => vi.fn())
 
+vi.mock("next/cache", () => ({ revalidatePath }))
+vi.mock("@/lib/auth/authorization", () => ({
+  requireAdminPermission,
+  requireSystemAdmin: vi.fn(),
+}))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 
 const now = new Date("2026-05-22T03:00:00.000Z")
@@ -37,7 +46,41 @@ describe("getUserAccountModerationState", () => {
     })
     expect(prisma.userAccountModeration.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: {
+          userId: "user-1",
+          releasedAt: null,
+          OR: [
+            { status: "LOCKED" },
+            { status: "TEMP_LOCKED", lockedUntil: { gt: now } },
+          ],
+        },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    )
+  })
+
+  it("returns ACTIVE when a locked record has been released", async () => {
+    prisma.userAccountModeration.findFirst.mockResolvedValue(null)
+
+    await expect(getUserAccountModerationState("user-1", now)).resolves.toEqual({
+      status: "ACTIVE",
+      label: "Đang hoạt động",
+      lockedUntil: null,
+      reason: null,
+      note: null,
+      createdAt: null,
+      createdBy: null,
+    })
+    expect(prisma.userAccountModeration.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user-1",
+          releasedAt: null,
+          OR: [
+            { status: "LOCKED" },
+            { status: "TEMP_LOCKED", lockedUntil: { gt: now } },
+          ],
+        },
       }),
     )
   })
@@ -66,14 +109,7 @@ describe("getUserAccountModerationState", () => {
   })
 
   it("treats expired TEMP_LOCKED as ACTIVE and clears lock metadata", async () => {
-    prisma.userAccountModeration.findFirst.mockResolvedValue({
-      status: "TEMP_LOCKED",
-      lockedUntil: new Date("2026-05-21T03:00:00.000Z"),
-      reason: "Spam",
-      note: "Expired",
-      createdAt: new Date("2026-05-20T03:00:00.000Z"),
-      creator: { displayName: "Admin One" },
-    })
+    prisma.userAccountModeration.findFirst.mockResolvedValue(null)
 
     await expect(getUserAccountModerationState("user-1", now)).resolves.toEqual({
       status: "ACTIVE",
@@ -84,6 +120,18 @@ describe("getUserAccountModerationState", () => {
       createdAt: null,
       createdBy: null,
     })
+    expect(prisma.userAccountModeration.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user-1",
+          releasedAt: null,
+          OR: [
+            { status: "LOCKED" },
+            { status: "TEMP_LOCKED", lockedUntil: { gt: now } },
+          ],
+        },
+      }),
+    )
   })
 
   it("preserves an active lock with a nullable creator", async () => {
@@ -250,5 +298,215 @@ describe("getAdminUserDetail", () => {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     )
+  })
+})
+
+describe("account moderation actions", () => {
+  beforeEach(() => {
+    requireAdminPermission.mockResolvedValue({ profile: { userId: "admin-1" }, baseRole: "ADMIN" })
+    prisma.userProfile.findUnique.mockResolvedValue({
+      userId: "user-1",
+      displayName: "Student One",
+      deletedAt: null,
+    })
+    prisma.userAccountModeration.findFirst.mockResolvedValue(null)
+    prisma.userAccountModeration.updateMany.mockResolvedValue({ count: 1 })
+    prisma.$executeRaw.mockResolvedValue(1)
+    prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+      callback(prisma),
+    )
+  })
+
+  it("lockUserAccount creates a temporary lock with expiration", async () => {
+    const { lockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await lockUserAccount({
+      userId: "user-1",
+      status: "TEMP_LOCKED",
+      lockedUntil: "2026-06-01T00:00:00.000Z",
+      reason: "Spam trong lớp",
+      note: "Nhắc nhở lần một",
+    })
+
+    expect(result).toEqual({ success: true, data: { userId: "user-1" } })
+    expect(prisma.$transaction).toHaveBeenCalled()
+    expect(prisma.$executeRaw).toHaveBeenCalled()
+    expect(prisma.userAccountModeration.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: "user-1",
+        status: "TEMP_LOCKED",
+        reason: "Spam trong lớp",
+        createdBy: "admin-1",
+      }),
+    })
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/users/user-1")
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/moderation")
+  })
+
+  it("lockUserAccount rejects temporary locks without expiration", async () => {
+    const { lockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await lockUserAccount({
+      userId: "user-1",
+      status: "TEMP_LOCKED",
+      reason: "Spam trong lớp",
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("VALIDATION_ERROR")
+  })
+
+  it("lockUserAccount rejects temporary locks with past expiration", async () => {
+    const { lockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await lockUserAccount({
+      userId: "user-1",
+      status: "TEMP_LOCKED",
+      lockedUntil: "2020-01-01T00:00:00.000Z",
+      reason: "Spam trong lớp",
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Khóa tạm thời cần thời hạn mở khóa trong tương lai",
+      code: "VALIDATION_ERROR",
+    })
+    expect(prisma.userAccountModeration.create).not.toHaveBeenCalled()
+  })
+
+  it("lockUserAccount ignores expired temporary locks when checking active locks", async () => {
+    const { lockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await lockUserAccount({
+      userId: "user-1",
+      status: "LOCKED",
+      reason: "Spam trong lớp",
+    })
+
+    expect(result).toEqual({ success: true, data: { userId: "user-1" } })
+    expect(prisma.$executeRaw).toHaveBeenCalled()
+    expect(prisma.userAccountModeration.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user-1",
+          releasedAt: null,
+          OR: [
+            { status: "LOCKED" },
+            { status: "TEMP_LOCKED", lockedUntil: { gt: expect.any(Date) } },
+          ],
+        },
+      }),
+    )
+    expect(prisma.userAccountModeration.create).toHaveBeenCalled()
+  })
+
+  it("lockUserAccount rejects existing active locks and does not create another lock", async () => {
+    prisma.userAccountModeration.findFirst.mockResolvedValue({ id: "lock-1" })
+    const { lockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await lockUserAccount({
+      userId: "user-1",
+      status: "LOCKED",
+      reason: "Spam trong lớp",
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Tài khoản này đang bị khóa",
+      code: "ACCOUNT_ALREADY_LOCKED",
+    })
+    expect(prisma.userAccountModeration.create).not.toHaveBeenCalled()
+  })
+
+  it("lockUserAccount rejects permanent self lock", async () => {
+    requireAdminPermission.mockResolvedValue({ profile: { userId: "user-1" }, baseRole: "ADMIN" })
+    const { lockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await lockUserAccount({
+      userId: "user-1",
+      status: "LOCKED",
+      reason: "Spam trong lớp",
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Không thể khóa vĩnh viễn tài khoản của chính mình",
+      code: "FORBIDDEN",
+    })
+  })
+
+  it("unlockUserAccount creates an ACTIVE record and releases the current lock", async () => {
+    prisma.userAccountModeration.findFirst.mockResolvedValue({ id: "lock-1", status: "LOCKED" })
+    const { unlockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await unlockUserAccount({
+      userId: "user-1",
+      reason: "Đã xử lý khiếu nại",
+    })
+
+    expect(result).toEqual({ success: true, data: { userId: "user-1" } })
+    expect(prisma.$executeRaw).toHaveBeenCalled()
+    expect(prisma.userAccountModeration.updateMany).toHaveBeenCalledWith({
+      where: { id: "lock-1", releasedAt: null },
+      data: expect.objectContaining({
+        releasedBy: "admin-1",
+        releasedAt: expect.any(Date),
+      }),
+    })
+    expect(prisma.userAccountModeration.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: "user-1",
+        status: "ACTIVE",
+        reason: "Đã xử lý khiếu nại",
+        createdBy: "admin-1",
+      }),
+    })
+  })
+
+  it("unlockUserAccount returns ACCOUNT_NOT_LOCKED when no active lock exists", async () => {
+    const { unlockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await unlockUserAccount({
+      userId: "user-1",
+      reason: "Đã xử lý khiếu nại",
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Tài khoản này không ở trạng thái khóa",
+      code: "ACCOUNT_NOT_LOCKED",
+    })
+    expect(prisma.userAccountModeration.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user-1",
+          releasedAt: null,
+          OR: [
+            { status: "LOCKED" },
+            { status: "TEMP_LOCKED", lockedUntil: { gt: expect.any(Date) } },
+          ],
+        },
+      }),
+    )
+    expect(prisma.userAccountModeration.updateMany).not.toHaveBeenCalled()
+    expect(prisma.userAccountModeration.create).not.toHaveBeenCalled()
+  })
+
+  it("unlockUserAccount does not create ACTIVE when concurrent release already happened", async () => {
+    prisma.userAccountModeration.findFirst.mockResolvedValue({ id: "lock-1", status: "LOCKED" })
+    prisma.userAccountModeration.updateMany.mockResolvedValue({ count: 0 })
+    const { unlockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await unlockUserAccount({
+      userId: "user-1",
+      reason: "Đã xử lý khiếu nại",
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Tài khoản này không ở trạng thái khóa",
+      code: "ACCOUNT_NOT_LOCKED",
+    })
+    expect(prisma.userAccountModeration.create).not.toHaveBeenCalled()
   })
 })
