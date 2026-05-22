@@ -18,6 +18,12 @@ enum UserRole {
   ADMIN
 }
 
+enum UserAccountModerationStatus {
+  ACTIVE
+  TEMP_LOCKED
+  LOCKED
+}
+
 enum PostVisibility {
   PUBLIC
   FRIENDS
@@ -200,12 +206,15 @@ model UserProfile {
   userAdminRoles       UserAdminRole[]
   grantedAdminRoles    UserAdminRole[] @relation("AdminRoleGrantor")
 
-  hiddenPosts            HiddenPost[]
-  savedPosts             SavedPost[]
-  savedAnnouncements     SavedAnnouncement[]
-  deletedPosts           Post[]              @relation("PostDeletedBy")
-  reviewedCommunityPosts Post[]              @relation("PostCommunityReviewer")
-  moderationActions      PostModerationLog[] @relation("ModerationActor")
+  hiddenPosts                 HiddenPost[]
+  savedPosts                  SavedPost[]
+  savedAnnouncements          SavedAnnouncement[]
+  deletedPosts                Post[]                  @relation("PostDeletedBy")
+  reviewedCommunityPosts      Post[]                  @relation("PostCommunityReviewer")
+  moderationActions           PostModerationLog[]     @relation("ModerationActor")
+  accountModerations          UserAccountModeration[] @relation("AccountModerationTarget")
+  createdAccountModerations   UserAccountModeration[] @relation("AccountModerationCreator")
+  releasedAccountModerations  UserAccountModeration[] @relation("AccountModerationReleaser")
 
   initiatedFriendships Friendship[] @relation("FriendshipRequester")
   receivedFriendships  Friendship[] @relation("FriendshipAddressee")
@@ -757,6 +766,29 @@ model UserAdminRole {
   @@index([adminRoleId])
   @@index([grantedBy])
   @@map("user_admin_roles")
+}
+
+model UserAccountModeration {
+  id          String                      @id @default(cuid()) @map("account_moderation_id")
+  userId      String                      @map("user_id")
+  status      UserAccountModerationStatus @map("status")
+  lockedUntil DateTime?                   @map("locked_until")
+  reason      String                      @map("reason")
+  note        String?                     @map("note")
+  createdBy   String?                     @map("created_by")
+  createdAt   DateTime                    @default(now()) @map("created_at")
+  releasedBy  String?                     @map("released_by")
+  releasedAt  DateTime?                   @map("released_at")
+
+  user     UserProfile  @relation("AccountModerationTarget", fields: [userId], references: [userId], onDelete: Cascade)
+  creator  UserProfile? @relation("AccountModerationCreator", fields: [createdBy], references: [userId], onDelete: SetNull)
+  releaser UserProfile? @relation("AccountModerationReleaser", fields: [releasedBy], references: [userId], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdBy])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([lockedUntil])
+  @@map("user_account_moderations")
 }
 
 model HiddenPost {

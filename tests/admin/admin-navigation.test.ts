@@ -18,6 +18,7 @@ describe("admin navigation", () => {
   it("exports core nav items in the expected order", () => {
     expect(ADMIN_CORE_NAV_ITEMS.map((item) => item.href)).toEqual([
       "/admin/dashboard",
+      "/admin/moderation",
       "/admin/announcements",
       "/admin/analytics",
       "/admin/settings",
@@ -34,6 +35,7 @@ describe("admin navigation", () => {
 
     expect(ADMIN_CORE_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Bảng điều khiển",
+      "Kiểm duyệt",
       "Thông báo",
       "Phân tích",
       "Cài đặt hệ thống",

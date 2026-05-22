@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Settings,
+  ShieldAlert,
   Users,
   UsersRound,
 } from "lucide-react"
@@ -78,6 +79,11 @@ export const ADMIN_CORE_NAV_ITEMS = [
     icon: LayoutDashboard,
     label: "Bảng điều khiển",
     href: "/admin/dashboard",
+  },
+  {
+    icon: ShieldAlert,
+    label: "Kiểm duyệt",
+    href: "/admin/moderation",
   },
   {
     icon: Megaphone,

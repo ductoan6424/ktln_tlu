@@ -11,6 +11,7 @@ const EDIT_BREADCRUMB_LABEL = "Chỉnh sửa"
 
 const STATIC_BREADCRUMBS: Record<string, AdminBreadcrumbItem[]> = {
   "/admin/dashboard": [ADMIN_ROOT, { label: "Bảng điều khiển" }],
+  "/admin/moderation": [ADMIN_ROOT, { label: "Kiểm duyệt" }],
   "/admin/announcements": [ADMIN_ROOT, { label: "Thông báo" }],
   "/admin/analytics": [ADMIN_ROOT, { label: "Phân tích" }],
   "/admin/settings": [ADMIN_ROOT, { label: "Cài đặt hệ thống" }],
