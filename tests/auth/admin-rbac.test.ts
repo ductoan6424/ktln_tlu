@@ -51,7 +51,8 @@ describe("admin RBAC authorization context", () => {
             code: "CONTENT_MODERATOR",
             adminRolePermissions: [
               { adminPermission: { code: "admin.access" } },
-              { adminPermission: { code: "admin.posts.moderate" } },
+              { adminPermission: { code: "admin.moderation.read" } },
+              { adminPermission: { code: "admin.moderation.manage" } },
             ],
           },
         },
@@ -64,7 +65,8 @@ describe("admin RBAC authorization context", () => {
     expect(context?.isAdmin).toBe(true)
     expect(context?.permissionCodes).toEqual([
       "admin.access",
-      "admin.posts.moderate",
+      "admin.moderation.manage",
+      "admin.moderation.read",
       "admin.users.manage",
     ])
   })
