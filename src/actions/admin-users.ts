@@ -31,8 +31,30 @@ const unlockUserAccountSchema = z.object({
   reason: z.string().trim().min(3, "Lý do tối thiểu 3 ký tự").max(500),
 })
 
+function normalizeDateTimeLocalInput(value: FormDataEntryValue | undefined) {
+  if (typeof value !== "string") return undefined
+
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
+    return new Date(trimmed).toISOString()
+  }
+
+  return trimmed
+}
+
 function normalizeAccountModerationInput(rawInput: unknown) {
-  if (rawInput instanceof FormData) return Object.fromEntries(rawInput.entries())
+  if (rawInput instanceof FormData) {
+    const entries = Object.fromEntries(rawInput.entries())
+
+    return {
+      ...entries,
+      status: entries.status ?? entries.action,
+      lockedUntil: normalizeDateTimeLocalInput(entries.lockedUntil),
+    }
+  }
+
   return rawInput
 }
 

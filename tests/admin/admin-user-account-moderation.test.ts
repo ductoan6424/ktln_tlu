@@ -343,6 +343,28 @@ describe("account moderation actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/admin/moderation")
   })
 
+  it("lockUserAccount accepts account status from form action buttons", async () => {
+    const formData = new FormData()
+    formData.set("userId", "user-1")
+    formData.set("action", "TEMP_LOCKED")
+    formData.set("lockedUntil", "2026-06-01T00:00")
+    formData.set("reason", "Spam trong lớp")
+
+    const { lockUserAccount } = await import("@/actions/admin-users")
+
+    const result = await lockUserAccount(formData)
+
+    expect(result).toEqual({ success: true, data: { userId: "user-1" } })
+    expect(prisma.userAccountModeration.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: "user-1",
+        status: "TEMP_LOCKED",
+        lockedUntil: expect.any(Date),
+        reason: "Spam trong lớp",
+      }),
+    })
+  })
+
   it("lockUserAccount rejects temporary locks without expiration", async () => {
     const { lockUserAccount } = await import("@/actions/admin-users")
 
