@@ -9,7 +9,7 @@ const prisma = vi.hoisted(() => ({
   $executeRaw: vi.fn(),
   $transaction: vi.fn(),
   userAccountModeration: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
-  userProfile: { findUnique: vi.fn() },
+  userProfile: { findUnique: vi.fn(), findMany: vi.fn() },
   post: { findMany: vi.fn() },
   comment: { findMany: vi.fn() },
   communityReport: { findMany: vi.fn() },
@@ -296,6 +296,32 @@ describe("getAdminUserDetail", () => {
     expect(prisma.userAccountModeration.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    )
+  })
+})
+
+describe("getUsersAdminModule filters", () => {
+  it("passes search, role, and locked status into Prisma user profile query", async () => {
+    const { getUsersAdminModule } = await import("@/lib/admin/users/users-admin-data")
+    prisma.userProfile.findMany.mockResolvedValue([])
+
+    await getUsersAdminModule({
+      query: "nguyen",
+      role: "STUDENT",
+      status: "locked",
+    })
+
+    expect(prisma.userProfile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          role: "STUDENT",
+          accountModerations: {
+            some: expect.objectContaining({
+              releasedAt: null,
+            }),
+          },
+        }),
       }),
     )
   })
