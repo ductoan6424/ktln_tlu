@@ -1,15 +1,8 @@
 import type { Metadata, Viewport } from "next"
-import { Be_Vietnam_Pro } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toast"
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register"
 import { InstallPrompt } from "@/components/pwa/install-prompt"
-
-const beVietnamPro = Be_Vietnam_Pro({
-  subsets: ["latin", "vietnamese"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  variable: "--font-be-vietnam-pro",
-})
 
 const APP_NAME = "TLU Community"
 const APP_DESCRIPTION = "Cổng thông tin sinh viên Đại học Thăng Long"
@@ -51,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className={`${beVietnamPro.className} antialiased`}>
+      <body className="antialiased">
         {children}
         <Toaster />
         <ServiceWorkerRegister />

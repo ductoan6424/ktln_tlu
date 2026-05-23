@@ -243,10 +243,10 @@ export const USERS_ADMIN_MODULE: AdminModuleDefinition<UserCells> = {
   records: USERS_RECORDS,
   quickActions: [
     {
-      label: "Mời người dùng",
-      href: "/admin/users/new",
+      label: "Import tài khoản",
+      href: "/admin/users/import",
       icon: "Users",
-      description: "Khởi tạo lời mời tài khoản mới",
+      description: "Upload CSV/XLSX để tạo tài khoản trường",
     },
     {
       label: "Mở cài đặt",
@@ -261,7 +261,7 @@ export const USERS_ADMIN_MODULE: AdminModuleDefinition<UserCells> = {
   settingsSections,
   buildDetailPath: (id) => `/admin/users/${id}`,
   buildEditPath: (id) => `/admin/users/${id}/edit`,
-  buildNewPath: () => "/admin/users/new",
+  buildNewPath: () => "/admin/users/import",
   buildSettingsPath: () => "/admin/users/settings",
   getRecord: (id) => USERS_RECORDS.find((record) => record.id === id),
 }

@@ -1,11 +1,11 @@
-// src/app/(auth)/login/page.tsx
 import type { Metadata } from "next"
-import { LoginForm } from "@/components/auth/login-form"
 import Link from "next/link"
 
+import { LoginForm } from "@/components/auth/login-form"
+
 export const metadata: Metadata = {
-  title: "Đăng nhập — TLU Community",
-  description: "Đăng nhập vào cổng thông tin sinh viên Đại học Thủy lợi",
+  title: "Đăng nhập - TLU Community",
+  description: "Đăng nhập bằng tài khoản trường được cấp",
 }
 
 export default function LoginPage() {
@@ -14,21 +14,12 @@ export default function LoginPage() {
       <LoginForm />
       <div className="text-center space-y-3">
         <p className="text-sm text-muted-foreground">
-          Chưa có tài khoản?{" "}
-          <Link
-            href="/register"
-            className="text-primary font-medium hover:underline underline-offset-4"
-          >
-            Đăng ký ngay
-          </Link>
-        </p>
-        <p className="text-sm text-muted-foreground">
           Cần hỗ trợ?{" "}
           <Link
             href="/support"
             className="text-primary font-medium hover:underline underline-offset-4"
           >
-            Liên hệ quản trị hệ thống
+            Liên hệ quản trị viên
           </Link>
         </p>
         <p className="text-xs text-muted-foreground mt-1">
