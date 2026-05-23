@@ -26,6 +26,8 @@ type AdminUserProfile = {
   createdAt: Date
   deletedAt: Date | null
   emailVerifications: Array<{ id: string }>
+  contactEmail: { email: string; verifiedAt: Date } | null
+  contactEmailVerifications: Array<{ id: string; email: string; consumedAt: Date | null }>
   userAdminRoles: Array<{
     adminRole: {
       id: string
@@ -283,6 +285,15 @@ function buildDetailSections(profile: AdminUserProfile): AdminDetailSection[] {
       items: [
         { label: "Họ và tên", value: profile.displayName },
         { label: "Email", value: profile.email },
+        { label: "Email liên hệ", value: profile.contactEmail?.email ?? "Chưa xác thực" },
+        {
+          label: "Trạng thái email liên hệ",
+          value: profile.contactEmail
+            ? "Đã xác thực"
+            : profile.contactEmailVerifications.length > 0
+              ? "Đang chờ xác thực"
+              : "Chưa xác thực",
+        },
         { label: "Vai trò nền", value: getBaseRoleLabel(profile.role) },
         { label: "Trạng thái", value: getUserStatusLabel(status) },
       ],
@@ -333,6 +344,13 @@ async function listAdminUserProfiles(filters: AdminUsersListFilters, now = new D
     include: {
       emailVerifications: {
         select: { id: true },
+      },
+      contactEmail: {
+        select: { email: true, verifiedAt: true },
+      },
+      contactEmailVerifications: {
+        where: { consumedAt: null },
+        select: { id: true, email: true, consumedAt: true },
       },
       userAdminRoles: {
         include: {

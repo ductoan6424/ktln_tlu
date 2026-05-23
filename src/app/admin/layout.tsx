@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 
 import { getBaseRoleLabel } from "@/lib/auth/base-role"
+import { getAccountGateStatus } from "@/lib/auth/account-gate"
 import { requireAdminAccess } from "@/lib/auth/authorization"
 import { AppError } from "@/lib/errors"
 
@@ -24,6 +25,10 @@ export default async function AdminLayout({
   if (!context) {
     redirect("/feed")
   }
+
+  const gateStatus = await getAccountGateStatus(context.profile.userId)
+  if (gateStatus === "INACTIVE") redirect("/account-inactive")
+  if (gateStatus === "CONTACT_EMAIL_REQUIRED") redirect("/complete-contact-email")
 
   return (
     <AdminLayoutClient
