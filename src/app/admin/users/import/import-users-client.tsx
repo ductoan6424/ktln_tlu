@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/components/ui/use-toast"
 
 type PreviewState = {
   batchId: string
@@ -25,58 +26,78 @@ export function ImportUsersClient() {
   const [preview, setPreview] = useState<PreviewState>(null)
   const [mode, setMode] = useState<"CREATE" | "UPDATE_EXISTING">("CREATE")
   const [passwordCsv, setPasswordCsv] = useState("")
-  const [message, setMessage] = useState("")
-  const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
+  const { toast } = useToast()
 
   const handlePreview = () => {
     const file = fileInputRef.current?.files?.[0]
     if (!file) {
-      setError("Vui lòng chọn file CSV hoặc Excel.")
+      toast({
+        title: "Chưa chọn file",
+        description: "Vui lòng chọn file CSV hoặc Excel.",
+        variant: "destructive",
+      })
       return
     }
 
     const formData = new FormData()
     formData.set("file", file)
     formData.set("mode", mode)
-    setError("")
-    setMessage("")
     setPasswordCsv("")
 
     startTransition(async () => {
       const result = await createSchoolIdentityImportPreview(formData)
       if (!result.success || !result.data) {
         setPreview(null)
-        setError(result.error ?? "Không thể tạo bản xem trước.")
+        toast({
+          title: "Không thể tạo bản xem trước",
+          description: result.error ?? "Vui lòng thử lại.",
+          variant: "destructive",
+        })
         return
       }
 
       setPreview(result.data)
       if (result.data.failedCount > 0) {
-        setError("File import có lỗi. Vui lòng kiểm tra dữ liệu và upload lại.")
+        toast({
+          title: "File import có lỗi",
+          description: `Có ${result.data.failedCount} dòng lỗi. Vui lòng kiểm tra dữ liệu và upload lại.`,
+          variant: "destructive",
+        })
       } else {
-        setMessage("Bản xem trước hợp lệ. Bạn có thể xác nhận để tạo tài khoản.")
+        toast({
+          title: "Bản xem trước hợp lệ",
+          description: "Bạn có thể xác nhận để tạo tài khoản.",
+        })
       }
     })
   }
 
   const handleConfirm = () => {
     if (!preview) return
-    setError("")
-    setMessage("")
 
     startTransition(async () => {
       const result = await confirmSchoolIdentityImport(preview.batchId)
       if (!result.success || !result.data) {
-        setError(result.error ?? "Không thể xác nhận import.")
+        toast({
+          title: "Không thể xác nhận import",
+          description: result.error ?? "Vui lòng thử lại.",
+          variant: "destructive",
+        })
         return
       }
 
       setPasswordCsv(result.data.csv)
       if (mode === "CREATE") {
-        setMessage(`Đã tạo ${result.data.createdCount} tài khoản. Hãy tải file mật khẩu ngay.`)
+        toast({
+          title: `Đã tạo ${result.data.createdCount} tài khoản`,
+          description: "Hãy tải file mật khẩu ngay để chuyển cho người dùng.",
+        })
       } else {
-        setMessage("Đã cập nhật dữ liệu tài khoản trong kho trường.")
+        toast({
+          title: "Đã cập nhật dữ liệu",
+          description: "Tài khoản trong kho trường đã được cập nhật.",
+        })
       }
     })
   }
@@ -155,9 +176,6 @@ export function ImportUsersClient() {
               </div>
             </div>
           )}
-
-          {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-          {message && <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{message}</p>}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button
