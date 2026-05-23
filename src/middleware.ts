@@ -7,6 +7,9 @@ const PUBLIC_ROUTES = [
   "/register",
   "/forgot-password",
   "/verify-email",
+  "/complete-contact-email",
+  "/verify-contact-email",
+  "/account-inactive",
   "/reset-password",
   "/support",
 ]

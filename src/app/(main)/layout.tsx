@@ -5,8 +5,10 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
 import { TopNavbar } from "@/components/layout/top-navbar"
 import type { ModuleFlagKey } from "@/lib/config/system-settings"
 import { prisma } from "@/lib/prisma/client"
+import { getAccountGateStatus } from "@/lib/auth/account-gate"
 import { getModuleFlags } from "@/lib/settings/queries"
 import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 
 const NAV_HREF_TO_FLAG: Record<string, ModuleFlagKey> = {
   "/feed": "feed",
@@ -56,6 +58,12 @@ export default async function MainLayout({
     getModuleFlags(),
   ])
   const { authUser, profile } = authContext
+
+  if (authUser) {
+    const gateStatus = await getAccountGateStatus(authUser.id)
+    if (gateStatus === "INACTIVE") redirect("/account-inactive")
+    if (gateStatus === "CONTACT_EMAIL_REQUIRED") redirect("/complete-contact-email")
+  }
 
   const sessionUser = buildSessionUser(authUser, profile)
   const visibleNavItems = filterNavItemsByFlags(MAIN_NAV_ITEMS, moduleFlags)

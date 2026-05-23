@@ -11,7 +11,8 @@
     "lint": "eslint",
     "prebuild": "npm run prisma:generate",
     "postinstall": "npm run prisma:generate",
-    "pwa:icons": "node scripts/generate-pwa-icons.mjs"
+    "pwa:icons": "node scripts/generate-pwa-icons.mjs",
+    "seed:admin": "node scripts/seed-admin.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

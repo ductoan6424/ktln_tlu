@@ -1,6 +1,11 @@
 // src/lib/email/sender.ts
 import { transporter } from "@/lib/email/client"
-import { emailVerificationTemplate, passwordResetTemplate } from "@/lib/email/templates"
+import {
+  contactEmailVerificationTemplate,
+  contactEmailVerifiedTemplate,
+  emailVerificationTemplate,
+  passwordResetTemplate,
+} from "@/lib/email/templates"
 
 interface SendEmailOptions {
   to: string
@@ -39,5 +44,23 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`
   const template = passwordResetTemplate(name, resetUrl)
+  await sendEmail({ to, ...template })
+}
+
+export async function sendContactEmailVerificationEmail(
+  to: string,
+  name: string,
+  token: string
+): Promise<void> {
+  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-contact-email?token=${token}`
+  const template = contactEmailVerificationTemplate(name, verifyUrl)
+  await sendEmail({ to, ...template })
+}
+
+export async function sendContactEmailVerifiedEmail(
+  to: string,
+  name: string
+): Promise<void> {
+  const template = contactEmailVerifiedTemplate(name)
   await sendEmail({ to, ...template })
 }
