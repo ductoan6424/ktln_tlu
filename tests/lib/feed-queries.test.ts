@@ -36,6 +36,7 @@ vi.mock("@/lib/feed/config", () => ({
 vi.mock("@/lib/auth/post-permissions", () => ({
   resolveDeleteRole: vi.fn().mockResolvedValue(null),
   canHidePost: vi.fn().mockReturnValue(false),
+  resolveDeleteRolesBatch: vi.fn().mockResolvedValue(new Map()),
 }));
 
 import { getFeedPosts, INITIAL_FEED_CURSOR } from "@/lib/feed/queries";

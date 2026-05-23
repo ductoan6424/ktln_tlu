@@ -1,7 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma/client";
 import { formatRelativeTime } from "@/utils/formatters";
-import { canHidePost, resolveDeleteRole } from "@/lib/auth/post-permissions";
+import {
+  canHidePost,
+  resolveDeleteRolesBatch,
+  type DeleteRole,
+} from "@/lib/auth/post-permissions";
 import { getPollsForPosts } from "@/lib/polls/queries";
 import type { PollView } from "@/lib/polls/types";
 import { getFeedFanoutConfig } from "@/lib/feed/config";
@@ -232,34 +236,33 @@ function buildPostInclude(viewerId: string | null) {
   } as const;
 }
 
-async function mapRawPost(
+function buildFeedPermissions(
   post: RawFeedPost,
   viewerId: string | null,
-  isFromFollowed: boolean,
-  poll: PollView | null,
-): Promise<FeedPostDto> {
-  let permissions: FeedPostPermissions = {
-    canDelete: false,
-    canHide: false,
-    deleteRole: null,
-  };
-
-  if (viewerId) {
-    const ctx = {
+  role: DeleteRole | null,
+): FeedPostPermissions {
+  if (!viewerId) {
+    return { canDelete: false, canHide: false, deleteRole: null };
+  }
+  return {
+    canDelete: role !== null,
+    canHide: canHidePost(viewerId, {
       postId: post.id,
       authorId: post.authorId,
       clubId: post.clubId,
       groupId: post.groupId,
-    };
-    const role = await resolveDeleteRole(viewerId, ctx);
-    permissions = {
-      canDelete: role !== null,
-      canHide: canHidePost(viewerId, ctx),
-      deleteRole:
-        role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
-    };
-  }
+    }),
+    deleteRole:
+      role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
+  };
+}
 
+function mapRawPost(
+  post: RawFeedPost,
+  isFromFollowed: boolean,
+  poll: PollView | null,
+  permissions: FeedPostPermissions,
+): FeedPostDto {
   const sharedPost =
     post.sharedPost && !post.sharedPost.deletedAt
       ? {
@@ -383,14 +386,33 @@ export async function getCommunityDetailPosts(input: {
     orderBy: { createdAt: "desc" },
     take: input.pageSize ?? 20,
   })) as RawFeedPost[];
-  const pollMap = await getPollsForPosts(
-    posts.map((post) => post.id),
-    input.viewerId,
-  );
 
-  return Promise.all(
-    posts.map((post) =>
-      mapRawPost(post, input.viewerId, false, pollMap.get(post.id) ?? null),
+  const postIds = posts.map((post) => post.id);
+  const [pollMap, permissionsMap] = await Promise.all([
+    getPollsForPosts(postIds, input.viewerId),
+    input.viewerId
+      ? resolveDeleteRolesBatch(
+          input.viewerId,
+          posts.map((post) => ({
+            postId: post.id,
+            authorId: post.authorId,
+            clubId: post.clubId,
+            groupId: post.groupId,
+          })),
+        )
+      : Promise.resolve(new Map<string, DeleteRole | null>()),
+  ]);
+
+  return posts.map((post) =>
+    mapRawPost(
+      post,
+      false,
+      pollMap.get(post.id) ?? null,
+      buildFeedPermissions(
+        post,
+        input.viewerId,
+        permissionsMap.get(post.id) ?? null,
+      ),
     ),
   );
 }
@@ -796,16 +818,27 @@ export async function getFeedPosts(
   const orderedFullPosts = selectedIds
     .map((id) => fullPostById.get(id))
     .filter((post): post is RawFeedPost => Boolean(post));
-  const pollMap = await getPollsForPosts(selectedIds, viewerId);
+  const [pollMap, permissionsMap] = await Promise.all([
+    getPollsForPosts(selectedIds, viewerId),
+    viewerId
+      ? resolveDeleteRolesBatch(
+          viewerId,
+          orderedFullPosts.map((post) => ({
+            postId: post.id,
+            authorId: post.authorId,
+            clubId: post.clubId,
+            groupId: post.groupId,
+          })),
+        )
+      : Promise.resolve(new Map<string, DeleteRole | null>()),
+  ]);
 
-  const posts = await Promise.all(
-    orderedFullPosts.map((post) =>
-      mapRawPost(
-        post,
-        viewerId,
-        selectedById.get(post.id)?.isFromFollowed ?? false,
-        pollMap.get(post.id) ?? null,
-      ),
+  const posts = orderedFullPosts.map((post) =>
+    mapRawPost(
+      post,
+      selectedById.get(post.id)?.isFromFollowed ?? false,
+      pollMap.get(post.id) ?? null,
+      buildFeedPermissions(post, viewerId, permissionsMap.get(post.id) ?? null),
     ),
   );
 

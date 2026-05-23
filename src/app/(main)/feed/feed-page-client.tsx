@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { memo, useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item"
@@ -159,6 +159,10 @@ export function FeedPageClient({
   const sentinelRef = useRef<HTMLDivElement>(null)
   const rollbackRef = useRef<FeedPost[] | null>(null)
   const openingDirectConversationsRef = useRef(new Set<string>())
+  const postsRef = useRef<FeedPost[]>(posts)
+  useEffect(() => {
+    postsRef.current = posts
+  }, [posts])
   const { toast } = useToast()
   const { openConversation } = useChatDock()
 
@@ -226,17 +230,19 @@ export function FeedPageClient({
     })
   }, [deepLinkPostId, posts, currentUser, toast])
 
+  const currentUserIdValue = currentUser?.userId ?? null
   const handleLike = useCallback(
     async (postId: string) => {
-      const post = posts.find((p) => p.id === postId)
+      const snapshot = postsRef.current
+      const post = snapshot.find((p) => p.id === postId)
       if (!post) return
 
-      if (currentUser && post.authorId === currentUser.userId) return
+      if (currentUserIdValue && post.authorId === currentUserIdValue) return
 
-      rollbackRef.current = posts
+      rollbackRef.current = snapshot
 
       replacePosts(
-        posts.map((p) =>
+        snapshot.map((p) =>
           p.id === postId
             ? {
                 ...p,
@@ -260,7 +266,14 @@ export function FeedPageClient({
         }
       }
     },
-    [posts, currentUser, replacePosts, toast]
+    [currentUserIdValue, replacePosts, toast]
+  )
+
+  const handleRemovePost = useCallback(
+    (postId: string) => {
+      replacePosts(postsRef.current.filter((p) => p.id !== postId))
+    },
+    [replacePosts],
   )
 
   const loadMore = useCallback(async () => {
@@ -433,33 +446,12 @@ export function FeedPageClient({
               ) : (
                 <>
                   {posts.map((post) => (
-                    <PostCard
+                    <FeedPostCardRow
                       key={post.id}
-                      postId={post.id}
-                      authorName={post.author.displayName}
-                      authorAvatar={post.author.avatarUrl ?? undefined}
-                      authorCover={post.author.coverUrl ?? undefined}
-                      createdAt={post.createdAt}
-                      content={post.content}
-                      imageUrl={post.imageUrl ?? undefined}
-                      likes={post.likes}
-                      comments={undefined}
-                      isLiked={post.isLiked}
-                      isSaved={post.isSaved}
+                      post={post}
                       currentUser={currentUser}
-                      currentUserId={currentUser?.userId ?? null}
-                      authorId={post.authorId}
-                      onLike={() => handleLike(post.id)}
-                      permissions={post.permissions}
-                      communityContext={post.communityContext ?? null}
-                      onDeleted={() =>
-                        replacePosts(posts.filter((p) => p.id !== post.id))
-                      }
-                      onHidden={() =>
-                        replacePosts(posts.filter((p) => p.id !== post.id))
-                      }
-                      sharedPost={post.sharedPost}
-                      poll={post.poll}
+                      onLike={handleLike}
+                      onRemove={handleRemovePost}
                     />
                   ))}
 
@@ -572,11 +564,11 @@ export function FeedPageClient({
           communityContext={deepLinkData.communityContext ?? null}
           onDeleted={() => {
             setDeepLinkState((state) => ({ ...state, isOpen: false }))
-            replacePosts(posts.filter((p) => p.id !== deepLinkData.postId))
+            handleRemovePost(deepLinkData.postId)
           }}
           onHidden={() => {
             setDeepLinkState((state) => ({ ...state, isOpen: false }))
-            replacePosts(posts.filter((p) => p.id !== deepLinkData.postId))
+            handleRemovePost(deepLinkData.postId)
           }}
           sharedPost={deepLinkData.sharedPost}
         />
@@ -584,3 +576,46 @@ export function FeedPageClient({
     </>
   )
 }
+
+interface FeedPostCardRowProps {
+  post: FeedPost
+  currentUser: FeedPageClientProps["currentUser"]
+  onLike: (postId: string) => void
+  onRemove: (postId: string) => void
+}
+
+const FeedPostCardRow = memo(function FeedPostCardRow({
+  post,
+  currentUser,
+  onLike,
+  onRemove,
+}: FeedPostCardRowProps) {
+  const handleLike = useCallback(() => onLike(post.id), [onLike, post.id])
+  const handleRemove = useCallback(() => onRemove(post.id), [onRemove, post.id])
+
+  return (
+    <PostCard
+      postId={post.id}
+      authorName={post.author.displayName}
+      authorAvatar={post.author.avatarUrl ?? undefined}
+      authorCover={post.author.coverUrl ?? undefined}
+      createdAt={post.createdAt}
+      content={post.content}
+      imageUrl={post.imageUrl ?? undefined}
+      likes={post.likes}
+      comments={undefined}
+      isLiked={post.isLiked}
+      isSaved={post.isSaved}
+      currentUser={currentUser}
+      currentUserId={currentUser?.userId ?? null}
+      authorId={post.authorId}
+      onLike={handleLike}
+      permissions={post.permissions}
+      communityContext={post.communityContext ?? null}
+      onDeleted={handleRemove}
+      onHidden={handleRemove}
+      sharedPost={post.sharedPost}
+      poll={post.poll}
+    />
+  )
+})

@@ -50,6 +50,7 @@ type ActiveFriendsState = {
   isSearching: boolean
   isSearchOpen: boolean
   isCreateGroupOpen: boolean
+  hasOpenedCreateGroup: boolean
   query: string
 }
 
@@ -78,6 +79,7 @@ const initialActiveFriendsState: ActiveFriendsState = {
   isSearching: false,
   isSearchOpen: false,
   isCreateGroupOpen: false,
+  hasOpenedCreateGroup: false,
   query: "",
 }
 
@@ -113,7 +115,12 @@ function activeFriendsReducer(
     case "setSearchOpen":
       return { ...state, isSearchOpen: action.isSearchOpen }
     case "setCreateGroupOpen":
-      return { ...state, isCreateGroupOpen: action.isCreateGroupOpen }
+      return {
+        ...state,
+        isCreateGroupOpen: action.isCreateGroupOpen,
+        hasOpenedCreateGroup:
+          state.hasOpenedCreateGroup || action.isCreateGroupOpen,
+      }
     case "setQuery":
       return { ...state, query: action.query }
     case "closeSearch":
@@ -145,6 +152,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
     isSearching,
     isSearchOpen,
     isCreateGroupOpen,
+    hasOpenedCreateGroup,
     query,
   } = state
   const normalizedQuery = normalizeSearch(query)
@@ -345,23 +353,26 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
 
   return (
     <>
-      <CreateGroupDialog
-        open={isCreateGroupOpen}
-        onOpenChange={(isCreateGroupOpen) => dispatch({ type: "setCreateGroupOpen", isCreateGroupOpen })}
-        onCreated={(conversation) => {
-          dispatch({
-            type: "groupCreated",
-            group: {
-              id: conversation.id,
-              name: conversation.name,
-              participantCount: conversation.participantCount,
-              lastMessage: conversation.lastMessage,
-              lastMessageAt: conversation.lastMessageAt,
-              unreadCount: conversation.unreadCount,
-            },
-          })
-        }}
-      />
+      {/* Lazy mount: chỉ render sau lần mở đầu tiên; giữ mount cho animation đóng */}
+      {hasOpenedCreateGroup && (
+        <CreateGroupDialog
+          open={isCreateGroupOpen}
+          onOpenChange={(isCreateGroupOpen) => dispatch({ type: "setCreateGroupOpen", isCreateGroupOpen })}
+          onCreated={(conversation) => {
+            dispatch({
+              type: "groupCreated",
+              group: {
+                id: conversation.id,
+                name: conversation.name,
+                participantCount: conversation.participantCount,
+                lastMessage: conversation.lastMessage,
+                lastMessageAt: conversation.lastMessageAt,
+                unreadCount: conversation.unreadCount,
+              },
+            })
+          }}
+        />
+      )}
 
       <Card className={cn("border-none bg-transparent shadow-none", className)}>
         <CardContent className="p-0">
