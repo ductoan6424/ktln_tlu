@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { SectionHeader } from "@/components/shared/section-header"
+import { useToast } from "@/components/ui/use-toast"
 
 interface ContactEmailSectionProps {
   currentEmail?: string | null
@@ -16,20 +17,24 @@ interface ContactEmailSectionProps {
 export function ContactEmailSection({ currentEmail }: ContactEmailSectionProps) {
   const [email, setEmail] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
-  const [message, setMessage] = useState("")
-  const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
+  const { toast } = useToast()
 
   const submit = () => {
-    setError("")
-    setMessage("")
     startTransition(async () => {
       const result = await requestContactEmailChangeVerification(email, currentPassword)
       if (!result.success) {
-        setError(result.error ?? "Không thể gửi email xác thực.")
+        toast({
+          title: "Không thể gửi email xác thực",
+          description: result.error ?? "Vui lòng thử lại.",
+          variant: "destructive",
+        })
         return
       }
-      setMessage("Đã gửi link xác thực đến email mới.")
+      toast({
+        title: "Đã gửi link xác thực",
+        description: "Vui lòng kiểm tra hộp thư của email mới để hoàn tất thay đổi.",
+      })
       setEmail("")
       setCurrentPassword("")
     })
@@ -74,9 +79,6 @@ export function ContactEmailSection({ currentEmail }: ContactEmailSectionProps) 
             />
           </div>
         </div>
-
-        {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-        {message && <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{message}</p>}
 
         <div className="flex justify-end">
           <Button type="button" onClick={submit} disabled={isPending}>
