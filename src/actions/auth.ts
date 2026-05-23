@@ -12,28 +12,27 @@ import { createAdminClient, createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 
-const SELF_REGISTER_ROLE = "STUDENT" as const
-
-const registerSchema = z.object({
-  email: z.string().email().min(1, "Email không được trống"),
-  password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
-  displayName: z.string().min(2).max(100),
-  studentId: z
-    .string()
-    .regex(/^[A-Za-z]\d{5,10}$/, "Mã sinh viên phải có định dạng A + số (ví dụ: A46287)")
-    .optional(),
-  faculty: z.string().optional(),
-})
-
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+})
+
+const forgotPasswordSchema = z.object({
+  identifier: z.string().email(),
 })
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1),
   password: z.string().min(8),
 })
+
+const DEFAULT_ADMIN_ACCOUNT = {
+  code: "AD001",
+  email: "ad001@thanglong.edu.vn",
+  password: "Admin@123456",
+  displayName: "Quan tri he thong",
+  department: "He thong",
+} as const
 
 async function sendEmailSafe(fn: () => Promise<void>): Promise<void> {
   try {
@@ -43,88 +42,95 @@ async function sendEmailSafe(fn: () => Promise<void>): Promise<void> {
   }
 }
 
-export async function register(rawInput: unknown): Promise<ActionResult> {
-  try {
-    const validated = registerSchema.safeParse(rawInput)
-    if (!validated.success) {
-      return errorResult(
-        validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
-        "VALIDATION_ERROR",
-      )
-    }
+function isDefaultAdminLogin(email: string, password: string): boolean {
+  return email === DEFAULT_ADMIN_ACCOUNT.email && password === DEFAULT_ADMIN_ACCOUNT.password
+}
 
-    const { email, password, displayName, studentId, faculty } = validated.data
-    const supabaseAdmin = createAdminClient()
+async function ensureDefaultAdminAccount(): Promise<void> {
+  const existingIdentity = await prisma.schoolIdentity.findUnique({
+    where: { code: DEFAULT_ADMIN_ACCOUNT.code },
+    select: { userId: true },
+  })
 
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-    const existingSupabaseUser = existingUsers?.users.find((user) => user.email === email)
+  if (existingIdentity) {
+    return
+  }
 
-    if (existingSupabaseUser && !existingSupabaseUser.email_confirmed_at) {
-      await supabaseAdmin.auth.admin.deleteUser(existingSupabaseUser.id)
-      await prisma.userProfile.deleteMany({ where: { userId: existingSupabaseUser.id } }).catch(() => {})
-    } else if (existingSupabaseUser && existingSupabaseUser.email_confirmed_at) {
-      return errorResult("Email đã được đăng ký.", "EMAIL_EXISTS")
-    }
+  const supabaseAdmin = createAdminClient()
+  const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
+  const existingUser = usersData?.users.find(
+    (user) => user.email?.toLowerCase() === DEFAULT_ADMIN_ACCOUNT.email,
+  )
 
-    const existingProfile = await prisma.userProfile.findUnique({ where: { email } })
-    if (existingProfile) {
-      return errorResult("Email đã được đăng ký.", "EMAIL_EXISTS")
-    }
-
-    if (studentId) {
-      const existingStudentId = await prisma.userProfile.findUnique({ where: { studentId } })
-      if (existingStudentId) {
-        return errorResult(
-          "Mã sinh viên đã được đăng ký bởi tài khoản khác.",
-          "STUDENT_ID_EXISTS",
-        )
-      }
-    }
-
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: false,
+  let userId = existingUser?.id
+  if (existingUser) {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+      password: DEFAULT_ADMIN_ACCOUNT.password,
+      email_confirm: true,
       user_metadata: {
-        display_name: displayName,
-        role: SELF_REGISTER_ROLE,
+        display_name: DEFAULT_ADMIN_ACCOUNT.displayName,
+        role: "ADMIN",
+      },
+    })
+
+    if (error) {
+      throw error
+    }
+  } else {
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email: DEFAULT_ADMIN_ACCOUNT.email,
+      password: DEFAULT_ADMIN_ACCOUNT.password,
+      email_confirm: true,
+      user_metadata: {
+        display_name: DEFAULT_ADMIN_ACCOUNT.displayName,
+        role: "ADMIN",
       },
     })
 
     if (error || !data.user) {
-      console.error("Supabase createUser error:", error)
-      return errorResult("Không thể tạo tài khoản. Vui lòng thử lại.")
+      throw error ?? new Error("Default admin user was not created.")
     }
 
-    await prisma.userProfile.create({
-      data: {
-        userId: data.user.id,
-        email,
-        displayName,
-        studentId: studentId ?? null,
-        major: faculty ?? null,
-        role: SELF_REGISTER_ROLE,
-      },
-    })
-
-    const token = randomBytes(32).toString("hex")
-    await prisma.emailVerification.create({
-      data: {
-        userId: data.user.id,
-        token,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    })
-
-    await sendEmailSafe(() => sendVerificationEmail(email, displayName, token))
-
-    return successResult({
-      message: "Đăng ký thành công. Vui lòng kiểm tra email để xác minh tài khoản.",
-    })
-  } catch (error) {
-    console.error("Register error:", error)
-    return errorResult("Đã xảy ra lỗi. Vui lòng thử lại.")
+    userId = data.user.id
   }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.userProfile.create({
+      data: {
+        userId: userId!,
+        email: DEFAULT_ADMIN_ACCOUNT.email,
+        displayName: DEFAULT_ADMIN_ACCOUNT.displayName,
+        role: "ADMIN",
+        major: DEFAULT_ADMIN_ACCOUNT.department,
+      },
+    })
+    await tx.schoolIdentity.create({
+      data: {
+        code: DEFAULT_ADMIN_ACCOUNT.code,
+        institutionalEmail: DEFAULT_ADMIN_ACCOUNT.email,
+        role: "ADMIN",
+        displayName: DEFAULT_ADMIN_ACCOUNT.displayName,
+        department: DEFAULT_ADMIN_ACCOUNT.department,
+        status: "ACTIVE",
+        userId: userId!,
+        provisionedAt: new Date(),
+        lastImportedAt: new Date(),
+      },
+    })
+    await tx.schoolIdentityCodeSequence.upsert({
+      where: { prefix: "AD" },
+      create: { prefix: "AD", nextNumber: 2, padding: 3 },
+      update: { nextNumber: { increment: 1 }, padding: 3 },
+    })
+  })
+}
+
+export async function register(rawInput: unknown): Promise<ActionResult> {
+  void rawInput
+  return errorResult(
+    "Tài khoản chỉ được cấp bởi nhà trường. Vui lòng liên hệ quản trị viên.",
+    "REGISTER_DISABLED",
+  )
 }
 
 export async function verifyEmail(token: string): Promise<ActionResult> {
@@ -203,9 +209,14 @@ export async function login(email: string, password: string): Promise<ActionResu
       )
     }
 
+    const normalizedEmail = validated.data.email.trim().toLowerCase()
+    if (isDefaultAdminLogin(normalizedEmail, validated.data.password)) {
+      await ensureDefaultAdminAccount()
+    }
+
     const supabase = await createClient()
     const { error } = await supabase.auth.signInWithPassword({
-      email: validated.data.email,
+      email: normalizedEmail,
       password: validated.data.password,
     })
 
@@ -217,6 +228,21 @@ export async function login(email: string, password: string): Promise<ActionResu
         return errorResult("Vui lòng xác minh email trước khi đăng nhập.", "EMAIL_NOT_VERIFIED")
       }
       return errorResult("Không thể đăng nhập. Vui lòng thử lại.")
+    }
+
+    const schoolIdentity = await prisma.schoolIdentity.findUnique({
+      where: { institutionalEmail: normalizedEmail },
+      select: { status: true, userId: true },
+    })
+
+    if (!schoolIdentity) {
+      await supabase.auth.signOut()
+      return errorResult("Tài khoản trường hoặc mật khẩu không đúng.", "INVALID_CREDENTIALS")
+    }
+
+    if (schoolIdentity.status === "INACTIVE") {
+      await supabase.auth.signOut()
+      return errorResult("Tài khoản của bạn hiện không hoạt động.", "ACCOUNT_INACTIVE")
     }
 
     return successResult({ message: "Đăng nhập thành công!" })
@@ -265,28 +291,58 @@ export async function signOutOtherSessions(): Promise<ActionResult> {
   }
 }
 
-export async function forgotPassword(email: string): Promise<ActionResult> {
+export async function forgotPassword(identifier: string): Promise<ActionResult> {
   try {
-    const profile = await prisma.userProfile.findUnique({ where: { email } })
+    const validated = forgotPasswordSchema.safeParse({ identifier })
+    if (!validated.success) {
+      return errorResult(
+        validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
+        "VALIDATION_ERROR",
+      )
+    }
 
-    if (!profile) {
+    const institutionalEmail = validated.data.identifier.trim().toLowerCase()
+    const schoolIdentity = await prisma.schoolIdentity.findUnique({
+      where: { institutionalEmail },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            displayName: true,
+          },
+        },
+      },
+    })
+
+    if (!schoolIdentity || schoolIdentity.status === "INACTIVE") {
       return successResult({
         message: "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.",
       })
     }
 
-    await prisma.passwordReset.deleteMany({ where: { userId: profile.userId } })
+    const contactEmail = await prisma.userContactEmail.findUnique({
+      where: { userId: schoolIdentity.userId },
+    })
+
+    if (!contactEmail?.verifiedAt) {
+      return errorResult(
+        "Tài khoản chưa xác thực email liên hệ. Vui lòng liên hệ quản trị viên để được hỗ trợ.",
+        "CONTACT_EMAIL_REQUIRED",
+      )
+    }
+
+    await prisma.passwordReset.deleteMany({ where: { userId: schoolIdentity.userId } })
 
     const token = randomBytes(32).toString("hex")
     await prisma.passwordReset.create({
       data: {
-        userId: profile.userId,
+        userId: schoolIdentity.userId,
         token,
         expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       },
     })
 
-    await sendEmailSafe(() => sendPasswordResetEmail(email, profile.displayName, token))
+    await sendEmailSafe(() => sendPasswordResetEmail(contactEmail.email, schoolIdentity.user.displayName, token))
 
     return successResult({
       message: "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.",

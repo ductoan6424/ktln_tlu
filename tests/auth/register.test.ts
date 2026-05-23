@@ -51,27 +51,7 @@ beforeEach(() => {
 })
 
 describe("register", () => {
-  it("always creates self-registered accounts as STUDENT even when role is supplied", async () => {
-    const listUsers = vi.fn().mockResolvedValue({ data: { users: [] } })
-    const createUser = vi.fn().mockResolvedValue({
-      data: {
-        user: {
-          id: "user-1",
-          email: "student@example.edu",
-        },
-      },
-      error: null,
-    })
-
-    createAdminClient.mockReturnValue({
-      auth: {
-        admin: {
-          listUsers,
-          createUser,
-        },
-      },
-    })
-
+  it("rejects self-registration because accounts must be provisioned by school identity import", async () => {
     const result = await register({
       email: "student@example.edu",
       password: "12345678",
@@ -81,25 +61,9 @@ describe("register", () => {
       role: "ADMIN",
     })
 
-    expect(result.success).toBe(true)
-    expect(createUser).toHaveBeenCalledWith({
-      email: "student@example.edu",
-      password: "12345678",
-      email_confirm: false,
-      user_metadata: {
-        display_name: "Student User",
-        role: "STUDENT",
-      },
-    })
-    expect(prisma.userProfile.create).toHaveBeenCalledWith({
-      data: {
-        userId: "user-1",
-        email: "student@example.edu",
-        displayName: "Student User",
-        studentId: "A46287",
-        major: "CNTT",
-        role: "STUDENT",
-      },
-    })
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("REGISTER_DISABLED")
+    expect(createAdminClient).not.toHaveBeenCalled()
+    expect(prisma.userProfile.create).not.toHaveBeenCalled()
   })
 })

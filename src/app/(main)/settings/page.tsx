@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { SectionHeader } from "@/components/shared/section-header"
 import { PushDevicesManager } from "@/components/pwa/push-devices-manager"
 import { SignOutOthersButton } from "@/components/auth/sign-out-others-button"
+import { ContactEmailSection } from "@/components/settings/contact-email-section"
 import { ProfileSection, type UserProfile } from "./profile-section"
 import {
   User,
@@ -51,6 +52,13 @@ async function getUserProfile(userId: string): Promise<UserProfile | null> {
   })
 }
 
+async function getContactEmail(userId: string) {
+  return prisma.userContactEmail.findUnique({
+    where: { userId },
+    select: { email: true },
+  })
+}
+
 export default async function SettingsPage({
   searchParams,
 }: {
@@ -60,9 +68,10 @@ export default async function SettingsPage({
   const { data: authData } = await supabase.auth.getUser()
   if (!authData.user) redirect("/login")
 
-  const [{ section: activeSection = "profile" }, profile] = await Promise.all([
+  const [{ section: activeSection = "profile" }, profile, contactEmail] = await Promise.all([
     searchParams,
     getUserProfile(authData.user.id),
+    getContactEmail(authData.user.id),
   ])
 
   return (
@@ -127,7 +136,7 @@ export default async function SettingsPage({
             <ProfileSection profile={profile} />
           )}
           {activeSection === "notifications" && <NotificationsSection />}
-          {activeSection === "security" && <SecuritySection />}
+          {activeSection === "security" && <SecuritySection contactEmail={contactEmail?.email ?? null} />}
           {activeSection === "appearance" && <AppearanceSection />}
           {activeSection === "language" && <LanguageSection />}
         </section>
@@ -205,9 +214,11 @@ function NotificationsSection() {
 /* ------------------------------------------------------------------ */
 /* Bảo mật                                                             */
 /* ------------------------------------------------------------------ */
-function SecuritySection() {
+function SecuritySection({ contactEmail }: { contactEmail: string | null }) {
   return (
     <div className="space-y-6">
+      <ContactEmailSection currentEmail={contactEmail} />
+
       {/* Đổi mật khẩu */}
       <Card>
         <CardContent className="p-6 space-y-4">
