@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { PostHeader, PostHeaderSkeleton } from "@/components/feed/post-header"
 import { PostActions } from "@/components/feed/post-actions"
@@ -69,7 +69,7 @@ interface PostCardProps {
   poll?: PollView | null
 }
 
-export function PostCard({
+function PostCardImpl({
   postId,
   authorName,
   authorAvatar,
@@ -103,10 +103,20 @@ export function PostCard({
   poll,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [hasOpenedDetail, setHasOpenedDetail] = useState(false)
 
-  const handleOpenDetail = () => setIsDetailOpen(true)
+  const handleOpenDetail = useCallback(() => {
+    setIsDetailOpen(true)
+    setHasOpenedDetail(true)
+  }, [])
 
-  // Normalize userId vs id field
+  const handleDetailOpenChange = useCallback((nextOpen: boolean) => {
+    setIsDetailOpen(nextOpen)
+    if (nextOpen) {
+      setHasOpenedDetail(true)
+    }
+  }, [])
+
   const resolvedCurrentUser = currentUser
     ? {
         id: currentUser.id ?? currentUser.userId ?? "",
@@ -232,39 +242,43 @@ export function PostCard({
         </CardContent>
       </Card>
 
-      {/* Dialog chi tiết bài đăng */}
-      <PostDetailDialog
-        open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-        postId={postId}
-        authorName={authorName}
-        authorAvatar={authorAvatar}
-        authorCover={authorCover}
-        createdAt={createdAt}
-        content={content}
-        imageUrl={imageUrl}
-        tag={tag}
-        tagVariant={tagVariant}
-        isVerified={isVerified}
-        subtitle={subtitle}
-        likes={likes}
-        comments={comments}
-        shares={shares}
-        isLiked={isLiked}
-        currentUser={resolvedCurrentUser}
-        currentUserId={currentUserId}
-        authorId={authorId}
-        onLike={onLike}
-        permissions={permissions}
-        onDeleted={onDeleted}
-        onHidden={onHidden}
-        sharedPost={sharedPost}
-        communityContext={communityContext}
-        poll={poll}
-      />
+      {/* Lazy mount: chỉ render PostDetailDialog khi user đã mở ít nhất 1 lần */}
+      {hasOpenedDetail && (
+        <PostDetailDialog
+          open={isDetailOpen}
+          onOpenChange={handleDetailOpenChange}
+          postId={postId}
+          authorName={authorName}
+          authorAvatar={authorAvatar}
+          authorCover={authorCover}
+          createdAt={createdAt}
+          content={content}
+          imageUrl={imageUrl}
+          tag={tag}
+          tagVariant={tagVariant}
+          isVerified={isVerified}
+          subtitle={subtitle}
+          likes={likes}
+          comments={comments}
+          shares={shares}
+          isLiked={isLiked}
+          currentUser={resolvedCurrentUser}
+          currentUserId={currentUserId}
+          authorId={authorId}
+          onLike={onLike}
+          permissions={permissions}
+          onDeleted={onDeleted}
+          onHidden={onHidden}
+          sharedPost={sharedPost}
+          communityContext={communityContext}
+          poll={poll}
+        />
+      )}
     </>
   )
 }
+
+export const PostCard = memo(PostCardImpl)
 
 export function PostCardSkeleton() {
   return (
