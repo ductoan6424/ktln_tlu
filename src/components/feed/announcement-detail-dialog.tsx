@@ -31,6 +31,7 @@ export interface AnnouncementDetailDialogProps {
   publishedAt: string
   pinToTop?: boolean
   isSaved?: boolean
+  scopeLabels?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,7 @@ export function AnnouncementDetailDialog({
   publishedAt,
   pinToTop = false,
   isSaved = false,
+  scopeLabels = [],
 }: AnnouncementDetailDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,6 +127,11 @@ export function AnnouncementDetailDialog({
                   GHIM
                 </StatusBadge>
               )}
+              {scopeLabels.map((label) => (
+                <StatusBadge key={label} variant="info" size="sm">
+                  {label}
+                </StatusBadge>
+              ))}
             </div>
 
             {/* Đường kẻ phân cách — dùng Separator */}

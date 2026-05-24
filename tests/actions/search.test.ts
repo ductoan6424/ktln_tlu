@@ -12,6 +12,9 @@ const listRecentSearches = vi.hoisted(() => vi.fn())
 const recordRecentSearch = vi.hoisted(() => vi.fn())
 const deleteRecentSearch = vi.hoisted(() => vi.fn())
 const userProfileFindUnique = vi.hoisted(() => vi.fn())
+const courseMemberFindMany = vi.hoisted(() => vi.fn())
+const clubMemberFindMany = vi.hoisted(() => vi.fn())
+const groupMemberFindMany = vi.hoisted(() => vi.fn())
 
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
 vi.mock("@/lib/search/queries", () => ({
@@ -31,6 +34,15 @@ vi.mock("@/lib/prisma/client", () => ({
   prisma: {
     userProfile: {
       findUnique: userProfileFindUnique,
+    },
+    courseMember: {
+      findMany: courseMemberFindMany,
+    },
+    clubMember: {
+      findMany: clubMemberFindMany,
+    },
+    groupMember: {
+      findMany: groupMemberFindMany,
     },
   },
 }))
@@ -53,7 +65,12 @@ function mockSession(userId: string | null) {
       }),
     },
   } as unknown as SupabaseClient)
-  userProfileFindUnique.mockResolvedValue(userId ? { role: "STUDENT" } : null)
+  userProfileFindUnique.mockResolvedValue(
+    userId ? { role: "STUDENT", facultyId: "fac-cntt", year: 38 } : null,
+  )
+  courseMemberFindMany.mockResolvedValue(userId ? [{ courseId: "course-1" }] : [])
+  clubMemberFindMany.mockResolvedValue(userId ? [{ clubId: "club-1" }] : [])
+  groupMemberFindMany.mockResolvedValue(userId ? [{ groupId: "group-1" }] : [])
 }
 
 describe("search actions", () => {
@@ -138,7 +155,7 @@ describe("search actions", () => {
     expect(deleteRecentSearch).toHaveBeenCalledWith("user-1", "Nguyễn Văn A")
   })
 
-  it("loads announcement suggestions with the viewer role", async () => {
+  it("loads announcement suggestions with the viewer target context", async () => {
     mockSession("user-1")
     searchUsers.mockResolvedValue([])
     searchPosts.mockResolvedValue([])
@@ -149,7 +166,15 @@ describe("search actions", () => {
 
     await searchSuggestions({ query: "hoc phi" })
 
-    expect(searchAnnouncements).toHaveBeenCalledWith("hoc phi", "STUDENT", { limit: 4 })
+    expect(searchAnnouncements).toHaveBeenCalledWith("hoc phi", "STUDENT", { limit: 4 }, {
+      userId: "user-1",
+      role: "STUDENT",
+      facultyId: "fac-cntt",
+      year: 38,
+      courseIds: ["course-1"],
+      clubIds: ["club-1"],
+      groupIds: ["group-1"],
+    })
   })
 
   it("omits empty groups from all search results", async () => {

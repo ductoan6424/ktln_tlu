@@ -244,7 +244,7 @@ describe("updateUserProfile", () => {
 
     expect(result).toEqual({
       success: false,
-      error: "Báº¡n cáº§n Ä‘Äƒng nháº­p Ä‘á»ƒ thá»±c hiá»‡n",
+      error: "Bạn cần đăng nhập để thực hiện",
       code: "UNAUTHORIZED",
     })
     expect(prisma.userProfile.update).not.toHaveBeenCalled()
@@ -260,7 +260,7 @@ describe("updateUserProfile", () => {
 
     expect(result).toEqual({
       success: false,
-      error: "Há» vĂ  tĂªn pháº£i cĂ³ tá»« 2 Ä‘áº¿n 100 kĂ½ tá»±.",
+      error: "Họ và tên phải có từ 2 đến 100 ký tự.",
       code: "VALIDATION_ERROR",
     })
     expect(prisma.userProfile.update).not.toHaveBeenCalled()

@@ -1,11 +1,12 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ForbiddenError } from "@/lib/errors"
 import { isSidebarItemActive } from "@/components/layout/main-sidebar"
 
 const requireAdminAccess = vi.hoisted(() => vi.fn())
+const getAccountGateStatus = vi.hoisted(() => vi.fn())
 const redirect = vi.hoisted(() =>
   vi.fn((href: string) => {
     throw new Error(`REDIRECT:${href}`)
@@ -35,7 +36,15 @@ vi.mock("@/lib/auth/authorization", () => ({
   requireAdminAccess,
 }))
 
+vi.mock("@/lib/auth/account-gate", () => ({
+  getAccountGateStatus,
+}))
+
 describe("admin layout", () => {
+  beforeEach(() => {
+    getAccountGateStatus.mockResolvedValue("OK")
+  })
+
   it("keeps nested admin routes active against their module root", () => {
     expect(isSidebarItemActive("/admin/users/user-001/edit", "/admin/users")).toBe(true)
     expect(isSidebarItemActive("/admin/users/settings", "/admin/users")).toBe(true)
@@ -46,6 +55,7 @@ describe("admin layout", () => {
     requireAdminAccess.mockResolvedValue({
       baseRole: "ADMIN",
       profile: {
+        userId: "admin-user-001",
         displayName: "Phạm Gia Huy",
         avatarUrl: null,
       },

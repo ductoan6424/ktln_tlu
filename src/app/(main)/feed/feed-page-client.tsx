@@ -118,6 +118,7 @@ interface FeedPageClientProps {
   initialCursor: FeedCursor
   initialHasMore: boolean
   deepLinkPostId?: string | null
+  deepLinkAnnouncementId?: string | null
   announcements?: AnnouncementStripItem[]
   upcomingEvents?: EventSidebarItem[]
   sidebarGroups?: FeedSidebarGroup[]
@@ -130,6 +131,7 @@ export function FeedPageClient({
   initialCursor,
   initialHasMore,
   deepLinkPostId,
+  deepLinkAnnouncementId,
   announcements = EMPTY_ANNOUNCEMENTS,
   upcomingEvents = EMPTY_EVENTS,
   sidebarGroups = EMPTY_SIDEBAR_GROUPS,
@@ -436,7 +438,10 @@ export function FeedPageClient({
               />
 
               {announcements.length > 0 && (
-                <AnnouncementStrip announcements={announcements} />
+                <AnnouncementStrip
+                  announcements={announcements}
+                  deepLinkAnnouncementId={deepLinkAnnouncementId}
+                />
               )}
 
               <DividerLabel label="Cập nhật gần đây" />
