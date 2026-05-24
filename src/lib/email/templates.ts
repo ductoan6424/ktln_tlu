@@ -30,6 +30,15 @@ function wrapTemplate(title: string, content: string): string {
 </html>`
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+}
+
 export function emailVerificationTemplate(
   name: string,
   verifyUrl: string
@@ -92,5 +101,31 @@ export function contactEmailVerifiedTemplate(name: string): EmailTemplate {
       <p>Email lien he cua ban da duoc xac thuc thanh cong. Tu bay gio email nay se duoc dung cho thong bao va khoi phuc mat khau.</p>
     `),
     text: `Xin chao ${name}! Email lien he cua ban da duoc xac thuc thanh cong.`,
+  }
+}
+
+export function announcementEmailTemplate(
+  name: string,
+  title: string,
+  content: string,
+  announcementUrl: string,
+): EmailTemplate {
+  const safeName = escapeHtml(name)
+  const safeTitle = escapeHtml(title)
+  const safeContent = escapeHtml(content)
+
+  return {
+    subject: `${title} - Thông báo TLU`,
+    html: wrapTemplate("Thông báo chính thức", `
+      <h2 style="margin-top:0;">Xin chào, ${safeName}!</h2>
+      <p>Đại học Thăng Long vừa gửi một thông báo mới tới bạn:</p>
+      <h3 style="margin: 20px 0 8px;">${safeTitle}</h3>
+      <p style="white-space:pre-wrap;line-height:1.6;">${safeContent}</p>
+      <p style="text-align:center; margin: 32px 0;">
+        <a href="${announcementUrl}" class="button">Xem thông báo</a>
+      </p>
+      <div class="notice">Email này chỉ được gửi khi quản trị viên bật tuỳ chọn gửi email cho thông báo.</div>
+    `),
+    text: `Xin chao ${name}! Dai hoc Thang Long co thong bao moi: ${title}\n\n${content}\n\nXem thong bao: ${announcementUrl}`,
   }
 }

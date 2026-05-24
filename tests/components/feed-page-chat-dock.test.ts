@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const openConversation = vi.hoisted(() => vi.fn())
 const openDirectConversation = vi.hoisted(() => vi.fn())
+const announcementStripProps = vi.hoisted(() => vi.fn())
 
 vi.mock("@/components/layout/chat-dock", () => ({
   useChatDock: () => ({ openConversation }),
@@ -93,8 +94,21 @@ vi.mock("@/components/feed/post-composer", () => ({
   PostComposer: Stub,
 }))
 
-vi.mock("@/components/feed/announcement-feed-card", () => ({
-  AnnouncementFeedCard: Stub,
+vi.mock("@/components/feed/announcement-strip", () => ({
+  AnnouncementStrip: (props: {
+    announcements: Array<{ id: string; title: string }>
+    deepLinkAnnouncementId?: string | null
+  }) => {
+    announcementStripProps(props)
+    return createElement(
+      "div",
+      {
+        "data-testid": "announcement-strip",
+        "data-deep-link": props.deepLinkAnnouncementId ?? "",
+      },
+      props.announcements.map((item) => item.title).join(","),
+    )
+  },
 }))
 
 vi.mock("@/components/dashboard/trending-item", () => ({
@@ -131,7 +145,12 @@ const reactActGlobal = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean
 }
 
-async function renderFeedPage() {
+async function renderFeedPage(
+  overrides: Partial<{
+    deepLinkAnnouncementId: string | null
+    announcements: Array<{ id: string; title: string; content: string; publishedAt: string }>
+  }> = {},
+) {
   const { FeedPageClient } = await import("@/app/(main)/feed/feed-page-client")
   const container = document.createElement("div")
   document.body.appendChild(container)
@@ -156,6 +175,8 @@ async function renderFeedPage() {
           followedExhausted: false,
         },
         initialHasMore: false,
+        deepLinkAnnouncementId: overrides.deepLinkAnnouncementId ?? null,
+        announcements: overrides.announcements ?? [],
       }),
     )
   })
@@ -172,6 +193,26 @@ describe("FeedPageClient chat dock migration", () => {
       disconnect() {}
       unobserve() {}
     } as unknown as typeof IntersectionObserver
+  })
+
+  it("passes announcement deep links to the announcement strip", async () => {
+    const container = await renderFeedPage({
+      deepLinkAnnouncementId: "ann-1",
+      announcements: [
+        {
+          id: "ann-1",
+          title: "Thông báo học phí",
+          content: "Nội dung",
+          publishedAt: "2026-05-23T08:00:00.000Z",
+        },
+      ],
+    })
+
+    expect(container.querySelector('[data-testid="announcement-strip"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="announcement-strip"]')?.getAttribute("data-deep-link")).toBe("ann-1")
+    expect(announcementStripProps).toHaveBeenCalledWith(
+      expect.objectContaining({ deepLinkAnnouncementId: "ann-1" }),
+    )
   })
 
   afterEach(async () => {

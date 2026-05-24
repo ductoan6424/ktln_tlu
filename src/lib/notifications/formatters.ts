@@ -46,8 +46,11 @@ export function buildNotificationLink(input: {
   actorId?: string | null
   postId?: string | null
   commentId?: string | null
+  announcementId?: string | null
 }): string | null {
   switch (input.type) {
+    case "ANNOUNCEMENT":
+      return input.announcementId ? `/feed?announcement=${input.announcementId}` : null
     case "FOLLOW":
     case "FRIENDSHIP":
       return input.actorId ? `/profile/${input.actorId}` : null
@@ -106,6 +109,7 @@ export type NotificationRenderInput = {
   postExcerpt?: string | null
   commentExcerpt?: string | null
   pollQuestion?: string | null
+  announcementTitle?: string | null
 }
 
 export type NotificationRenderResult = {
@@ -162,6 +166,10 @@ export function renderNotification(
     case "POLL_CLOSED":
       title = "Khảo sát bạn tham gia đã đóng"
       content = input.pollQuestion ?? "Nhấn để xem kết quả cuối cùng."
+      break
+    case "ANNOUNCEMENT":
+      title = "Thông báo chính thức"
+      content = input.announcementTitle ?? "Nhấn để xem thông báo."
       break
     default:
       title = nameSuffix

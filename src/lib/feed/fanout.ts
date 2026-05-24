@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma/client"
 import { redis } from "@/lib/redis/client"
 import { getFeedFanoutConfig } from "@/lib/feed/config"
+import type { FeedFanoutConfig } from "@/lib/config/posts"
 
 export const FEED_CELEBRITY_AUTHORS_KEY = "feed:celebrity_authors"
 
@@ -22,10 +23,11 @@ export function getUserFeedKey(userId: string): string {
 async function writePostsToUserFeed(
   userId: string,
   posts: FeedPostReference[],
+  configOverride?: FeedFanoutConfig,
 ): Promise<void> {
   if (posts.length === 0) return
 
-  const config = await getFeedFanoutConfig()
+  const config = configOverride ?? (await getFeedFanoutConfig())
   const key = getUserFeedKey(userId)
   const pipeline = redis.pipeline()
 
@@ -35,6 +37,27 @@ async function writePostsToUserFeed(
 
   pipeline.zremrangebyrank(key, 0, -(config.feedCacheSize + 1))
   pipeline.expire(key, config.feedCacheTtlSeconds)
+  await pipeline.exec()
+}
+
+async function writePostToManyUserFeeds(
+  userIds: string[],
+  post: FeedPostReference,
+  config: FeedFanoutConfig,
+): Promise<void> {
+  if (userIds.length === 0) return
+
+  const pipeline = redis.pipeline()
+  const score = post.createdAt.getTime()
+  const trimIndex = -(config.feedCacheSize + 1)
+
+  for (const userId of userIds) {
+    const key = getUserFeedKey(userId)
+    pipeline.zadd(key, score, post.postId)
+    pipeline.zremrangebyrank(key, 0, trimIndex)
+    pipeline.expire(key, config.feedCacheTtlSeconds)
+  }
+
   await pipeline.exec()
 }
 
@@ -48,7 +71,7 @@ export async function distributePostToFeeds(
       createdAt: payload.createdAt,
     }
 
-    await writePostsToUserFeed(payload.authorId, [postReference])
+    await writePostsToUserFeed(payload.authorId, [postReference], config)
 
     const followerCount = await prisma.follow.count({
       where: {
@@ -71,9 +94,11 @@ export async function distributePostToFeeds(
       take: config.followerThreshold,
     })
 
-    for (const follower of followers) {
-      await writePostsToUserFeed(follower.followerId, [postReference])
-    }
+    await writePostToManyUserFeeds(
+      followers.map((follower) => follower.followerId),
+      postReference,
+      config,
+    )
   } catch {
   }
 }

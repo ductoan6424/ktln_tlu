@@ -7,6 +7,7 @@ import {
   AnnouncementForm,
   type AnnouncementFormInitialValues,
 } from "@/components/admin/announcement-form"
+import type { AnnouncementTargetOptions } from "@/components/admin/announcement-target-selector"
 import { AnnouncementPreview } from "@/components/admin/announcement-preview"
 import {
   AnnouncementList,
@@ -36,16 +37,19 @@ const STATUS_FILTERS: Array<{ label: string; value: StatusFilter }> = [
 interface AnnouncementsClientProps {
   initialItems: AdminAnnouncementItem[]
   initialTotal: number
+  targetOptions: AnnouncementTargetOptions
 }
 
 export default function AnnouncementsClient({
   initialItems,
   initialTotal,
+  targetOptions,
 }: AnnouncementsClientProps) {
   const { refresh } = useRouter()
   const [activeTab, setActiveTab] = useState<TabValue>("compose")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
   const [editTarget, setEditTarget] = useState<AnnouncementFormInitialValues | null>(null)
+  const [draftPreview, setDraftPreview] = useState<AnnouncementFormInitialValues | null>(null)
 
   const filteredItems = useMemo(() => {
     if (statusFilter === "ALL") return initialItems
@@ -58,24 +62,30 @@ export default function AnnouncementsClient({
       title: item.title,
       content: item.content,
       audience: item.audience,
+      targets: item.targets,
+      scopeLabels: item.scopeLabels,
       pinToTop: item.pinToTop,
       expiresAt: item.expiresAt,
       status: item.status,
     })
+    setDraftPreview(null)
     setActiveTab("compose")
   }
 
   function handleSaved() {
     setEditTarget(null)
+    setDraftPreview(null)
     refresh()
   }
 
   function handleNewCompose() {
     setEditTarget(null)
+    setDraftPreview(null)
     setActiveTab("compose")
   }
 
   const formValues = activeTab === "compose" ? editTarget ?? undefined : undefined
+  const previewValues = activeTab === "compose" ? draftPreview ?? formValues : undefined
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -104,15 +114,18 @@ export default function AnnouncementsClient({
             <AnnouncementForm
               key={editTarget?.id ?? "new"}
               initialValues={formValues}
+              targetOptions={targetOptions}
               onSaved={handleSaved}
+              onDraftChange={setDraftPreview}
             />
           </div>
           <div className="w-full lg:w-[380px] shrink-0 space-y-4 lg:sticky lg:top-4 lg:self-start">
             <AnnouncementPreview
-              title={formValues?.title}
-              content={formValues?.content}
-              audience={formValues?.audience ?? "ALL"}
-              pinToTop={formValues?.pinToTop ?? false}
+              title={previewValues?.title}
+              content={previewValues?.content}
+              audience={previewValues?.audience ?? "ALL"}
+              scopeLabels={previewValues?.scopeLabels}
+              pinToTop={previewValues?.pinToTop ?? false}
             />
           </div>
         </div>

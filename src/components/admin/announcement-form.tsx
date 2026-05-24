@@ -1,12 +1,16 @@
 "use client"
 
-import { useReducer, useTransition } from "react"
+import { useEffect, useReducer, useTransition } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { AudienceSelector } from "@/components/admin/audience-selector"
+import {
+  AnnouncementTargetSelector,
+  type AnnouncementTargetOptions,
+  type AnnouncementTargetValue,
+} from "@/components/admin/announcement-target-selector"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
 import { Send, Save, Loader2 } from "lucide-react"
@@ -23,6 +27,8 @@ export interface AnnouncementFormInitialValues {
   title: string
   content: string
   audience: AnnouncementAudienceValue
+  targets?: AnnouncementTargetValue[]
+  scopeLabels?: string[]
   pinToTop: boolean
   expiresAt?: string | null
   status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"
@@ -30,20 +36,18 @@ export interface AnnouncementFormInitialValues {
 
 interface AnnouncementFormProps {
   initialValues?: AnnouncementFormInitialValues
+  targetOptions: AnnouncementTargetOptions
   onSaved?: () => void
+  onDraftChange?: (values: AnnouncementFormInitialValues) => void
 }
-
-const AUDIENCE_OPTIONS = [
-  { value: "ALL", label: "Tất cả" },
-  { value: "STUDENTS", label: "Sinh viên" },
-  { value: "FACULTY", label: "Giảng viên" },
-]
 
 type AnnouncementFormState = {
   title: string
   content: string
   audience: AnnouncementAudienceValue
+  targets: AnnouncementTargetValue[]
   pinToTop: boolean
+  sendEmail: boolean
   expiresAt: string
   activeAction: "draft" | "publish" | null
 }
@@ -55,7 +59,9 @@ function getInitialAnnouncementFormState(
     title: initialValues?.title ?? "",
     content: initialValues?.content ?? "",
     audience: initialValues?.audience ?? "ALL",
+    targets: initialValues?.targets ?? [],
     pinToTop: initialValues?.pinToTop ?? false,
+    sendEmail: false,
     expiresAt: formatDateTimeLocal(initialValues?.expiresAt),
     activeAction: null,
   }
@@ -69,18 +75,88 @@ function formatDateTimeLocal(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormProps) {
+const AUDIENCE_SCOPE_LABELS: Record<AnnouncementAudienceValue, string> = {
+  ALL: "Toàn trường",
+  STUDENTS: "Sinh viên",
+  FACULTY: "Giảng viên",
+}
+
+const ROLE_SCOPE_LABELS: Record<string, string> = {
+  STUDENT: "Sinh viên",
+  LECTURER: "Giảng viên",
+  ADMIN: "Quản trị viên",
+}
+
+function buildDraftScopeLabels(
+  targets: AnnouncementTargetValue[],
+  audience: AnnouncementAudienceValue,
+  targetOptions: AnnouncementTargetOptions,
+) {
+  if (targets.length === 0) return [AUDIENCE_SCOPE_LABELS[audience]]
+
+  const labels = targets
+    .filter((target) => target.type !== "USER")
+    .map((target) => {
+      if (target.type === "ROLE") return ROLE_SCOPE_LABELS[target.value] ?? target.value
+      if (target.type === "COHORT") return `K${target.value}`
+      if (target.type === "FACULTY") {
+        const faculty = targetOptions.faculties.find((item) => item.id === target.value)
+        return faculty ? `Khoa ${faculty.code}` : `Khoa ${target.value}`
+      }
+      if (target.type === "COURSE") {
+        const course = targetOptions.courses.find((item) => item.id === target.value)
+        return course ? `Lớp ${course.code}` : `Lớp ${target.value}`
+      }
+      if (target.type === "CLUB") return `CLB ${target.value}`
+      if (target.type === "GROUP") return `Nhóm ${target.value}`
+      return target.value
+    })
+
+  return labels.length > 0 ? labels : ["Người nhận riêng"]
+}
+
+export function AnnouncementForm({
+  initialValues,
+  targetOptions,
+  onSaved,
+  onDraftChange,
+}: AnnouncementFormProps) {
   const [state, setState] = useReducer(
     (current: AnnouncementFormState, next: Partial<AnnouncementFormState>) => ({ ...current, ...next }),
     initialValues,
     getInitialAnnouncementFormState,
   )
   const [isPending, startTransition] = useTransition()
-  const { title, content, audience, pinToTop, expiresAt, activeAction } = state
+  const { title, content, audience, targets, pinToTop, sendEmail, expiresAt, activeAction } = state
   const { toast } = useToast()
 
   const isEditing = Boolean(initialValues?.id)
   const isPublished = initialValues?.status === "PUBLISHED"
+
+  useEffect(() => {
+    onDraftChange?.({
+      id: initialValues?.id,
+      title,
+      content,
+      audience,
+      targets,
+      scopeLabels: buildDraftScopeLabels(targets, audience, targetOptions),
+      pinToTop,
+      expiresAt: expiresAt || null,
+      status: initialValues?.status,
+    })
+  }, [
+    audience,
+    content,
+    expiresAt,
+    initialValues?.id,
+    initialValues?.status,
+    onDraftChange,
+    pinToTop,
+    targetOptions,
+    targets,
+    title,
+  ])
 
   function buildPayload() {
     const expiresIso = expiresAt ? new Date(expiresAt).toISOString() : ""
@@ -88,8 +164,9 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
       title: title.trim(),
       content: content.trim(),
       audience,
+      targets,
       pinToTop,
-      sendEmail: false,
+      sendEmail,
       expiresAt: expiresIso,
     }
   }
@@ -120,7 +197,7 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
         }
 
         if (mode === "publish" && !isPublished) {
-          const publishResult = await publishAnnouncement(initialValues.id)
+          const publishResult = await publishAnnouncement(initialValues.id, { sendEmail })
           if (!publishResult.success) {
             toast({ title: "Lỗi", description: publishResult.error, variant: "destructive" })
             setState({ activeAction: null })
@@ -153,7 +230,9 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
             title: "",
             content: "",
             audience: "ALL",
+            targets: [],
             pinToTop: false,
+            sendEmail: false,
             expiresAt: "",
           })
         }
@@ -229,13 +308,13 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <p className="text-sm font-semibold mb-3">Đối tượng nhận</p>
-              <AudienceSelector
-                value={audience}
-                onChange={(v) => setState({ audience: v as AnnouncementAudienceValue })}
-                options={AUDIENCE_OPTIONS}
+              <AnnouncementTargetSelector
+                value={targets}
+                onChange={(targets) => setState({ targets })}
+                options={targetOptions}
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Chọn nhóm người dùng sẽ nhận được thông báo này.
+                Để trống để gửi toàn trường. Khi chọn nhiều nhóm, cùng loại là OR, khác loại là AND.
               </p>
             </div>
 
@@ -248,6 +327,15 @@ export function AnnouncementForm({ initialValues, onSaved }: AnnouncementFormPro
                     <p className="text-xs text-muted-foreground">Nổi bật thông báo ở đầu feed</p>
                   </div>
                   <Switch checked={pinToTop} onCheckedChange={(pinToTop) => setState({ pinToTop })} />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <p className="text-sm font-medium">Gửi email</p>
+                    <p className="text-xs text-muted-foreground">
+                      Mặc định tắt để bảo vệ hạ tầng
+                    </p>
+                  </div>
+                  <Switch checked={sendEmail} onCheckedChange={(sendEmail) => setState({ sendEmail })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground" htmlFor="announcement-expires-at">

@@ -1,11 +1,15 @@
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const queryRaw = vi.hoisted(() => vi.fn())
 const hiddenPostFindMany = vi.hoisted(() => vi.fn())
+const announcementFindMany = vi.hoisted(() => vi.fn())
 
 vi.mock("@/lib/prisma/client", () => ({
   prisma: {
     $queryRaw: queryRaw,
+    announcement: {
+      findMany: announcementFindMany,
+    },
     hiddenPost: {
       findMany: hiddenPostFindMany,
     },
@@ -27,6 +31,12 @@ import {
 } from "@/lib/search/queries"
 
 describe("search queries", () => {
+  beforeEach(() => {
+    queryRaw.mockReset()
+    hiddenPostFindMany.mockReset()
+    announcementFindMany.mockReset()
+  })
+
   it("returns no keyword results when the normalized query is too short", async () => {
     await expect(searchUsers("a", { limit: 5 })).resolves.toEqual([])
     expect(queryRaw).not.toHaveBeenCalled()
@@ -49,15 +59,61 @@ describe("search queries", () => {
     expect(queryRaw).not.toHaveBeenCalled()
   })
 
-  it("queries only published announcements allowed for the viewer role", async () => {
-    queryRaw.mockResolvedValue([])
+  it("filters announcement candidates with structured target semantics", async () => {
+    queryRaw.mockResolvedValue([
+      {
+        id: "ann-visible",
+        title: "Thông báo học phí",
+        subtitle: "Trường Đại Học Thăng Long",
+        href: "/feed?announcement=ann-visible",
+        avatar_url: "/logo.svg",
+        excerpt: "Nội dung",
+        exact_score: 0,
+        prefix_score: 0,
+        token_coverage: 1,
+        text_rank: 1,
+        similarity_score: 0,
+      },
+      {
+        id: "ann-hidden",
+        title: "Thông báo khoa khác",
+        subtitle: "Trường Đại Học Thăng Long",
+        href: "/feed?announcement=ann-hidden",
+        avatar_url: "/logo.svg",
+        excerpt: "Nội dung",
+        exact_score: 0,
+        prefix_score: 0,
+        token_coverage: 1,
+        text_rank: 1,
+        similarity_score: 0,
+      },
+    ])
+    announcementFindMany.mockResolvedValue([
+      {
+        id: "ann-visible",
+        audience: "ALL",
+        targets: [{ type: "FACULTY", value: "fac-cntt" }],
+      },
+      {
+        id: "ann-hidden",
+        audience: "ALL",
+        targets: [{ type: "FACULTY", value: "fac-kt" }],
+      },
+    ])
 
-    await searchAnnouncements("hoc phi", "LECTURER", { limit: 5 })
+    const results = await searchAnnouncements("hoc phi", "STUDENT", { limit: 5 }, {
+      facultyId: "fac-cntt",
+      year: 38,
+      courseIds: [],
+      clubIds: [],
+      groupIds: [],
+    })
 
     const sql = queryRaw.mock.calls.at(-1)?.[0]
-    expect(sql.values).toEqual(expect.arrayContaining(["hoc phi", "ALL", "FACULTY", 5, 0]))
+    expect(sql.values).toEqual(expect.arrayContaining(["hoc phi", 20]))
     expect(sql.strings.join(" ")).toContain("FROM announcements")
     expect(sql.strings.join(" ")).toContain("status = 'PUBLISHED'")
-    expect(sql.strings.join(" ")).not.toContain("expires_at")
+    expect(sql.strings.join(" ")).toContain("expires_at")
+    expect(results.map((result) => result.id)).toEqual(["ann-visible"])
   })
 })

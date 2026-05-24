@@ -97,6 +97,12 @@ describe("buildNotificationLink", () => {
       buildNotificationLink({ type: "POLL_CLOSED", postId: "p1" }),
     ).toBe("/feed?post=p1")
   })
+
+  it("ANNOUNCEMENT trỏ về deep-link announcement", () => {
+    expect(
+      buildNotificationLink({ type: "ANNOUNCEMENT", announcementId: "ann-1" }),
+    ).toBe("/feed?announcement=ann-1")
+  })
 })
 
 describe("mergeAggregateMetadata", () => {
@@ -225,5 +231,17 @@ describe("renderNotification", () => {
 
     expect(rendered.title).toBe("Khảo sát bạn tham gia đã đóng")
     expect(rendered.content).toBe("Chọn địa điểm sự kiện")
+  })
+
+  it("ANNOUNCEMENT hiển thị tiêu đề chính thức và excerpt", () => {
+    const rendered = renderNotification({
+      type: "ANNOUNCEMENT",
+      actors: [],
+      totalActorCount: 0,
+      announcementTitle: "Lịch thi học kỳ",
+    })
+
+    expect(rendered.title).toBe("Thông báo chính thức")
+    expect(rendered.content).toBe("Lịch thi học kỳ")
   })
 })

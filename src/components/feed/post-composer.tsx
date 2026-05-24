@@ -40,6 +40,7 @@ export function PostComposer({
   const [error, setError] = useState<string | null>(null)
   const [poll, setPoll] = useState<PollDraft | null>(null)
   const [isPollModalOpen, setIsPollModalOpen] = useState(false)
+  const [hasOpenedPollModal, setHasOpenedPollModal] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { refresh } = useRouter()
@@ -240,7 +241,10 @@ export function PostComposer({
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2 text-[12px]"
-                      onClick={() => setIsPollModalOpen(true)}
+                      onClick={() => {
+                        setHasOpenedPollModal(true)
+                        setIsPollModalOpen(true)
+                      }}
                     >
                       Sửa
                     </Button>
@@ -285,7 +289,10 @@ export function PostComposer({
                     "gap-2 text-muted-foreground",
                     poll && "text-primary",
                   )}
-                  onClick={() => setIsPollModalOpen(true)}
+                  onClick={() => {
+                    setHasOpenedPollModal(true)
+                    setIsPollModalOpen(true)
+                  }}
                 >
                   <BarChart3 className="size-4" />
                   <span className="hidden md:inline">
@@ -323,13 +330,16 @@ export function PostComposer({
         </div>
       </CardContent>
 
-      <PollComposerModal
-        open={isPollModalOpen}
-        onOpenChange={setIsPollModalOpen}
-        initialValue={poll}
-        onSubmit={(draft) => setPoll(draft)}
-        onRemove={() => setPoll(null)}
-      />
+      {/* Lazy mount: chỉ render modal sau khi user mở lần đầu; giữ mount để animation đóng mượt */}
+      {hasOpenedPollModal && (
+        <PollComposerModal
+          open={isPollModalOpen}
+          onOpenChange={setIsPollModalOpen}
+          initialValue={poll}
+          onSubmit={(draft) => setPoll(draft)}
+          onRemove={() => setPoll(null)}
+        />
+      )}
     </Card>
   )
 }

@@ -3,7 +3,7 @@
 import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, MessageSquareDashed, MessagesSquare } from "lucide-react"
 
 import {
   getChatSessionUser,
@@ -12,16 +12,17 @@ import {
   markConversationAsRead,
   sendConversationMessage,
 } from "@/actions/chat"
-import { ChatBubble } from "@/components/messages/chat-bubble"
+import { ChatBubble, ChatBubbleSkeleton } from "@/components/messages/chat-bubble"
 import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { ChatHeader } from "@/components/messages/chat-header"
 import { CreateGroupDialog } from "@/components/messages/create-group-dialog"
-import { ConversationItem } from "@/components/messages/conversation-item"
+import { ConversationItem, ConversationItemSkeleton } from "@/components/messages/conversation-item"
 import { ConversationList } from "@/components/messages/conversation-list"
 import { GroupInfoDialog } from "@/components/messages/group-info-dialog"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/shared/empty-state"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
 import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/contacts/events"
 import type { ChatConversationItem, ChatMessageItem, ChatSessionUser } from "@/types/chat"
@@ -71,7 +72,9 @@ function MessagesPageInner() {
   const [isSending, setIsSending] = useState(false)
   const [activeFilter, setActiveFilter] = useState("all")
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
+  const [hasOpenedCreateGroup, setHasOpenedCreateGroup] = useState(false)
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false)
+  const [hasOpenedGroupInfo, setHasOpenedGroupInfo] = useState(false)
 
   const activeConversationIdRef = useRef<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -497,23 +500,29 @@ function MessagesPageInner() {
 
   return (
     <>
-      <CreateGroupDialog
-        open={isCreateGroupOpen}
-        onOpenChange={setIsCreateGroupOpen}
-        onCreated={(conversation) => {
-          setConversations((prev) => [conversation, ...prev])
-          setOptimisticConversationId(conversation.id)
-          setActiveFilter("all")
-          push(getConversationHref(conversation.id), { scroll: false })
-        }}
-      />
+      {/* Lazy mount: chỉ render sau khi user mở lần đầu; giữ mount cho animation đóng */}
+      {hasOpenedCreateGroup && (
+        <CreateGroupDialog
+          open={isCreateGroupOpen}
+          onOpenChange={setIsCreateGroupOpen}
+          onCreated={(conversation) => {
+            setConversations((prev) => [conversation, ...prev])
+            setOptimisticConversationId(conversation.id)
+            setActiveFilter("all")
+            push(getConversationHref(conversation.id), { scroll: false })
+          }}
+        />
+      )}
 
       <div className="flex h-[calc(100dvh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-hidden lg:h-[calc(100dvh-4rem)]">
       <div className={activeConversationId ? "hidden lg:flex" : "flex w-full lg:w-auto"}>
         <ConversationList
           activeTab={activeFilter}
           onTabChange={setActiveFilter}
-          onCreateGroupClick={() => setIsCreateGroupOpen(true)}
+          onCreateGroupClick={() => {
+            setHasOpenedCreateGroup(true)
+            setIsCreateGroupOpen(true)
+          }}
         >
           {visibleConversations.map((conv) => (
             <div
@@ -540,8 +549,26 @@ function MessagesPageInner() {
               />
             </div>
           ))}
+          {isBooting && (
+            <div className="divide-y divide-border" aria-busy="true" aria-label="Đang tải hội thoại">
+              <ConversationItemSkeleton />
+              <ConversationItemSkeleton />
+              <ConversationItemSkeleton />
+              <ConversationItemSkeleton />
+            </div>
+          )}
           {!isBooting && visibleConversations.length === 0 && (
-            <p className="px-4 py-6 text-sm text-muted-foreground">Bạn chưa có hội thoại nào.</p>
+            <EmptyState
+              icon={MessagesSquare}
+              title={
+                activeFilter === "unread"
+                  ? "Không có hội thoại chưa đọc"
+                  : activeFilter === "groups"
+                    ? "Chưa có nhóm chat"
+                    : "Chưa có hội thoại"
+              }
+              description="Hãy bắt đầu một cuộc hội thoại để kết nối với bạn bè và nhóm của bạn."
+            />
           )}
         </ConversationList>
       </div>
@@ -580,7 +607,14 @@ function MessagesPageInner() {
               }
               isGroup={activeConversation.isGroup}
               participantCount={activeConversation.participantCount}
-              onInfoClick={activeConversation.isGroup ? () => setIsGroupInfoOpen(true) : undefined}
+              onInfoClick={
+                activeConversation.isGroup
+                  ? () => {
+                      setHasOpenedGroupInfo(true)
+                      setIsGroupInfoOpen(true)
+                    }
+                  : undefined
+              }
               className="lg:pl-4 pl-12"
             />
 
@@ -596,11 +630,26 @@ function MessagesPageInner() {
               }}
             >
               {isLoadingMore && hasMore && (
-                  <p className="text-xs text-muted-foreground text-center mb-3">Đang tải tin nhắn cũ hơn…</p>
+                <div className="mb-3 flex flex-col gap-2" aria-busy="true" aria-label="Đang tải tin nhắn cũ hơn">
+                  <ChatBubbleSkeleton />
+                  <ChatBubbleSkeleton isOwn />
+                </div>
               )}
 
               {isLoadingMessages ? (
-                  <p className="text-sm text-muted-foreground">Đang tải tin nhắn…</p>
+                <div className="flex flex-col gap-3" aria-busy="true" aria-label="Đang tải tin nhắn">
+                  <ChatBubbleSkeleton />
+                  <ChatBubbleSkeleton isOwn />
+                  <ChatBubbleSkeleton />
+                  <ChatBubbleSkeleton isOwn />
+                  <ChatBubbleSkeleton />
+                </div>
+              ) : messages.length === 0 ? (
+                <EmptyState
+                  icon={MessageSquareDashed}
+                  title="Chưa có tin nhắn nào"
+                  description="Hãy gửi tin nhắn đầu tiên để bắt đầu cuộc trò chuyện."
+                />
               ) : (
                 <div
                   style={{
@@ -656,19 +705,25 @@ function MessagesPageInner() {
             />
           </>
         ) : (
-          <div className="h-full flex items-center justify-center text-muted-foreground">
-            Chọn một hội thoại để bắt đầu nhắn tin.
-          </div>
+          <EmptyState
+            icon={MessagesSquare}
+            title="Chọn một hội thoại"
+            description="Chọn hội thoại bên trái để bắt đầu nhắn tin với bạn bè và nhóm."
+            className="h-full"
+          />
         )}
       </section>
-      <GroupInfoDialog
-        conversationId={activeConversation?.isGroup ? activeConversation.id : null}
-        open={isGroupInfoOpen}
-        onOpenChange={setIsGroupInfoOpen}
-        onGroupRenamed={handleGroupRenamed}
-        onGroupMembersChanged={handleGroupMembersChanged}
-        onLeftGroup={handleLeftGroup}
-      />
+      {/* Lazy mount: chỉ render khi user đã mở lần đầu và đang xem nhóm */}
+      {hasOpenedGroupInfo && (
+        <GroupInfoDialog
+          conversationId={activeConversation?.isGroup ? activeConversation.id : null}
+          open={isGroupInfoOpen}
+          onOpenChange={setIsGroupInfoOpen}
+          onGroupRenamed={handleGroupRenamed}
+          onGroupMembersChanged={handleGroupMembersChanged}
+          onLeftGroup={handleLeftGroup}
+        />
+      )}
       </div>
     </>
   )

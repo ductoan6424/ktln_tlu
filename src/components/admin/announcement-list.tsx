@@ -31,12 +31,15 @@ import {
   OFFICIAL_SCHOOL_DISPLAY_NAME,
 } from "@/lib/config/announcements"
 import { cn } from "@/lib/utils"
+import type { AnnouncementTargetValue } from "@/components/admin/announcement-target-selector"
 
 export interface AdminAnnouncementItem {
   id: string
   title: string
   content: string
   audience: "ALL" | "STUDENTS" | "FACULTY"
+  targets: Array<AnnouncementTargetValue & { label?: string | null }>
+  scopeLabels: string[]
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED"
   pinToTop: boolean
   publishedAt: string | null
@@ -177,9 +180,14 @@ export function AnnouncementList({ items, onEdit }: AnnouncementListProps) {
                         Ghim
                       </StatusBadge>
                     )}
-                    <StatusBadge variant="info" size="sm">
-                      {AUDIENCE_LABELS[item.audience]}
-                    </StatusBadge>
+                    {(item.scopeLabels.length > 0
+                      ? item.scopeLabels
+                      : [AUDIENCE_LABELS[item.audience]]
+                    ).map((label) => (
+                      <StatusBadge key={label} variant="info" size="sm">
+                        {label}
+                      </StatusBadge>
+                    ))}
                   </div>
 
                   <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">

@@ -24,6 +24,7 @@ import type {
   SearchEntityType,
   SearchResultsPayload,
 } from "@/lib/search/types"
+import type { AnnouncementViewerContext } from "@/lib/announcements/targeting"
 
 const querySchema = z.object({
   query: z.string().trim().max(120),
@@ -41,13 +42,40 @@ async function getViewerContext() {
   const profile = viewerId
     ? await prisma.userProfile.findUnique({
         where: { userId: viewerId },
-        select: { role: true },
+        select: { role: true, facultyId: true, year: true },
       })
     : null
+  const [courseMemberships, clubMemberships, groupMemberships] = viewerId
+    ? await Promise.all([
+        prisma.courseMember.findMany({
+          where: { userId: viewerId },
+          select: { courseId: true },
+        }),
+        prisma.clubMember.findMany({
+          where: { userId: viewerId },
+          select: { clubId: true },
+        }),
+        prisma.groupMember.findMany({
+          where: { userId: viewerId },
+          select: { groupId: true },
+        }),
+      ])
+    : [[], [], []]
+  const viewerRole = profile?.role ?? "STUDENT"
+  const announcementViewerContext: AnnouncementViewerContext = {
+    userId: viewerId,
+    role: viewerRole,
+    facultyId: profile?.facultyId ?? null,
+    year: profile?.year ?? null,
+    courseIds: courseMemberships.map((membership) => membership.courseId),
+    clubIds: clubMemberships.map((membership) => membership.clubId),
+    groupIds: groupMemberships.map((membership) => membership.groupId),
+  }
 
   return {
     viewerId,
-    viewerRole: profile?.role ?? "STUDENT",
+    viewerRole,
+    announcementViewerContext,
   } as const
 }
 
@@ -89,14 +117,14 @@ export async function removeRecentSearch(rawInput: unknown) {
 
 export async function searchSuggestions(rawInput: unknown) {
   const input = querySchema.parse(rawInput)
-  const { viewerId, viewerRole } = await getViewerContext()
+  const { viewerId, viewerRole, announcementViewerContext } = await getViewerContext()
   const [users, posts, groups, clubs, courses, announcements] = await Promise.all([
     searchUsers(input.query, { limit: 6 }),
     searchPosts(input.query, viewerId, { limit: 4 }),
     searchGroups(input.query, { limit: 4 }),
     searchClubs(input.query, { limit: 4 }),
     searchCourses(input.query, { limit: 4 }),
-    searchAnnouncements(input.query, viewerRole, { limit: 4 }),
+    searchAnnouncements(input.query, viewerRole, { limit: 4 }, announcementViewerContext),
   ])
 
   return successResult(
@@ -108,7 +136,7 @@ export async function searchSuggestions(rawInput: unknown) {
 
 export async function searchResults(rawInput: unknown) {
   const input = resultSchema.parse(rawInput)
-  const { viewerId, viewerRole } = await getViewerContext()
+  const { viewerId, viewerRole, announcementViewerContext } = await getViewerContext()
   const pageSize = 20
   const previewSize = 5
   const offset = (input.page - 1) * pageSize
@@ -121,7 +149,8 @@ export async function searchResults(rawInput: unknown) {
     GROUP: (page) => searchGroups(input.query, page),
     CLUB: (page) => searchClubs(input.query, page),
     COURSE: (page) => searchCourses(input.query, page),
-    ANNOUNCEMENT: (page) => searchAnnouncements(input.query, viewerRole, page),
+    ANNOUNCEMENT: (page) =>
+      searchAnnouncements(input.query, viewerRole, page, announcementViewerContext),
   }
 
   if (input.type === "ALL") {

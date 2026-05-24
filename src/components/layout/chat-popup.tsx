@@ -9,7 +9,7 @@ import {
   markConversationAsRead,
   sendConversationMessage,
 } from "@/actions/chat"
-import { ChatBubble } from "@/components/messages/chat-bubble"
+import { ChatBubble, ChatBubbleSkeleton } from "@/components/messages/chat-bubble"
 import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { ChatHeader } from "@/components/messages/chat-header"
 import { MessageInput } from "@/components/messages/message-input"
@@ -316,11 +316,18 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
         onScroll={handleMessagesScroll}
       >
         {isLoadingMore && hasMore && (
-          <p className="text-xs text-muted-foreground text-center">Đang tải tin nhắn cũ hơn…</p>
+          <div className="flex flex-col gap-2" aria-busy="true" aria-label="Đang tải tin nhắn cũ hơn">
+            <ChatBubbleSkeleton />
+            <ChatBubbleSkeleton isOwn />
+          </div>
         )}
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Đang tải hội thoại…</p>
+          <div className="flex flex-col gap-2" aria-busy="true" aria-label="Đang tải hội thoại">
+            <ChatBubbleSkeleton />
+            <ChatBubbleSkeleton isOwn />
+            <ChatBubbleSkeleton />
+          </div>
         ) : loadError ? (
           <p className="text-sm text-muted-foreground" role="alert">{loadError}</p>
         ) : (
