@@ -7,6 +7,7 @@ import type { ModuleFlagKey } from "@/lib/config/system-settings"
 import { prisma } from "@/lib/prisma/client"
 import { getAccountGateStatus } from "@/lib/auth/account-gate"
 import { getModuleFlags } from "@/lib/settings/queries"
+import { DEFAULT_USER_SETTINGS, getUserSettings } from "@/lib/settings/user-settings"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
@@ -67,9 +68,17 @@ export default async function MainLayout({
 
   const sessionUser = buildSessionUser(authUser, profile)
   const visibleNavItems = filterNavItemsByFlags(MAIN_NAV_ITEMS, moduleFlags)
+  const appearanceSettings = authUser
+    ? await getUserSettings(authUser.id)
+    : DEFAULT_USER_SETTINGS
 
   return (
-    <div className="min-h-dvh bg-muted/30">
+    <div
+      className="min-h-dvh bg-muted/30"
+      data-theme-preference={appearanceSettings.theme.toLowerCase()}
+      data-density={appearanceSettings.compactMode ? "compact" : "comfortable"}
+      data-reduced-motion={appearanceSettings.reducedMotion ? "true" : "false"}
+    >
       <ChatDock userId={authUser?.id ?? null}>
         <TopNavbar
           navItems={visibleNavItems}

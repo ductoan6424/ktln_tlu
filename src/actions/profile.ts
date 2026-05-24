@@ -70,7 +70,12 @@ export async function updateUserProfile(
   const bio = parsed.data.bio?.trim() ? parsed.data.bio.trim() : null
 
   try {
-    const updatedProfile = await prisma.userProfile.update({
+    const previousProfile = await prisma.userProfile.findUnique({
+      where: { userId },
+      select: { displayName: true, bio: true },
+    })
+
+    const updatedProfile = await prisma.userProfile.update({
       where: { userId },
       data: {
         displayName,
@@ -86,7 +91,22 @@ export async function updateUserProfile(
       data: { display_name: updatedProfile.displayName },
     })
 
-    if (result.error) {
+    if (result.error) {
+      try {
+        await prisma.userProfile.updateMany({
+          where: {
+            userId,
+            displayName: updatedProfile.displayName,
+            bio: updatedProfile.bio,
+          },
+          data: {
+            displayName: previousProfile?.displayName ?? displayName,
+            bio: previousProfile?.bio ?? null,
+          },
+        })
+      } catch (rollbackError) {
+        console.error("updateUserProfile rollback error:", rollbackError)
+      }
       return errorResult(
         "Không thể cập nhật hồ sơ. Vui lòng thử lại.",
         "PROFILE_UPDATE_ERROR"

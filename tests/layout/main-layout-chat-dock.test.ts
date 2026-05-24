@@ -16,4 +16,13 @@ describe("MainLayout chat dock wiring", () => {
     expect(MAIN_LAYOUT_SOURCE).toContain("<ChatDock userId={authUser?.id ?? null}>")
     expect(MAIN_LAYOUT_SOURCE).toContain("</ChatDock>")
   })
+
+  it("applies user appearance settings as layout data attributes", () => {
+    expect(MAIN_LAYOUT_SOURCE).toContain('from "@/lib/settings/user-settings"')
+    expect(MAIN_LAYOUT_SOURCE).toContain("getUserSettings(authUser.id)")
+    expect(MAIN_LAYOUT_SOURCE).toContain("DEFAULT_USER_SETTINGS")
+    expect(MAIN_LAYOUT_SOURCE).toContain('data-theme-preference={appearanceSettings.theme.toLowerCase()}')
+    expect(MAIN_LAYOUT_SOURCE).toContain('data-density={appearanceSettings.compactMode ? "compact" : "comfortable"}')
+    expect(MAIN_LAYOUT_SOURCE).toContain('data-reduced-motion={appearanceSettings.reducedMotion ? "true" : "false"}')
+  })
 })
