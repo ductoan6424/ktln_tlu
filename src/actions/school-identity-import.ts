@@ -18,6 +18,10 @@ import {
   parseSchoolIdentityImportRows,
   type SchoolIdentityImportMode,
 } from "@/lib/school-identities/importer"
+import {
+  normalizeFacultyCode,
+  parseCohortYear,
+} from "@/lib/school-identities/profile-fields"
 import { errorResult, successResult, type ActionResult } from "@/types/api"
 import type { SchoolIdentityImportStatus, UserRole } from "@prisma/client"
 
@@ -84,6 +88,14 @@ function buildPasswordCsv(rows: Array<{
     ].map(csvEscape).join(","),
   )
   return [header, ...body].join("\n")
+}
+
+function buildFacultyCreateInput(department: string) {
+  const code = normalizeFacultyCode(department) || department.trim().toUpperCase()
+  return {
+    code,
+    name: department.trim(),
+  }
 }
 
 export async function createSchoolIdentityImportPreview(
@@ -232,6 +244,14 @@ export async function confirmSchoolIdentityImport(
             throw new Error(`Mã ${row.code} chưa tồn tại trong kho dữ liệu trường.`)
           }
 
+          const facultyInput = buildFacultyCreateInput(row.department!)
+          const faculty = await tx.faculty.upsert({
+            where: { code: facultyInput.code },
+            update: { name: facultyInput.name },
+            create: facultyInput,
+            select: { id: true },
+          })
+
           await tx.schoolIdentity.update({
             where: { code: row.code! },
             data: {
@@ -251,6 +271,8 @@ export async function confirmSchoolIdentityImport(
               displayName: row.displayName!,
               role: row.role!,
               major: row.department!,
+              facultyId: faculty.id,
+              year: parseCohortYear(row.cohort),
               studentId: row.role === "STUDENT" ? row.code : null,
             },
           })
@@ -337,6 +359,14 @@ export async function confirmSchoolIdentityImport(
 
     await prisma.$transaction(async (tx) => {
       for (const row of createdRows) {
+        const facultyInput = buildFacultyCreateInput(row.department)
+        const faculty = await tx.faculty.upsert({
+          where: { code: facultyInput.code },
+          update: { name: facultyInput.name },
+          create: facultyInput,
+          select: { id: true },
+        })
+
         await tx.userProfile.create({
           data: {
             userId: row.userId,
@@ -345,6 +375,8 @@ export async function confirmSchoolIdentityImport(
             role: row.role,
             studentId: row.role === "STUDENT" ? row.code : null,
             major: row.department,
+            facultyId: faculty.id,
+            year: parseCohortYear(row.cohort),
           },
         })
         await tx.schoolIdentity.create({

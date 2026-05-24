@@ -140,6 +140,16 @@ enum AnnouncementAudience {
   FACULTY
 }
 
+enum AnnouncementTargetType {
+  ROLE
+  FACULTY
+  COHORT
+  COURSE
+  CLUB
+  GROUP
+  USER
+}
+
 enum AnnouncementStatus {
   DRAFT
   PUBLISHED
@@ -214,6 +224,7 @@ model UserProfile {
   role                 UserRole  @default(STUDENT) @map("role")
   major                String?   @map("major")
   year                 Int?      @map("year")
+  facultyId            String?   @map("faculty_id")
   searchTextNormalized String    @default("") @map("search_text_normalized")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
@@ -256,6 +267,7 @@ model UserProfile {
   emailVerifications EmailVerification[]
   passwordResets     PasswordReset[]
   schoolIdentity      SchoolIdentity?
+  faculty             Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
   contactEmail        UserContactEmail?
   contactEmailVerifications UserContactEmailVerification[]
   schoolIdentityImports SchoolIdentityImportBatch[] @relation("SchoolIdentityImportActor")
@@ -278,6 +290,18 @@ model UserProfile {
   searchHistories            SearchHistory[]
 
   @@map("user_profiles")
+}
+
+model Faculty {
+  id        String   @id @default(cuid()) @map("faculty_id")
+  code      String   @unique @map("code")
+  name      String   @map("name")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users UserProfile[]
+
+  @@map("faculties")
 }
 
 model SchoolIdentity {
@@ -1137,11 +1161,27 @@ model Announcement {
   author   UserProfile @relation("AnnouncementAuthor", fields: [authorId], references: [userId], onDelete: Cascade)
 
   savedBy SavedAnnouncement[]
+  targets AnnouncementTarget[]
 
   @@index([status, publishedAt(sort: Desc)])
   @@index([authorId])
   @@index([createdAt(sort: Desc)])
   @@map("announcements")
+}
+
+model AnnouncementTarget {
+  id             String                 @id @default(cuid()) @map("announcement_target_id")
+  announcementId String                 @map("announcement_id")
+  type           AnnouncementTargetType @map("type")
+  value          String                 @map("value")
+  createdAt      DateTime               @default(now()) @map("created_at")
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, type, value])
+  @@index([announcementId])
+  @@index([type, value])
+  @@map("announcement_targets")
 }
 
 model Event {

@@ -4,6 +4,7 @@ import { FeedPageClient } from "./feed-page-client"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
 import { INITIAL_FEED_CURSOR, getFeedPosts } from "@/lib/feed/queries"
 import {
+  getVisibleAnnouncementForViewer,
   listActiveAnnouncementsForViewer,
   type ViewerRole,
 } from "@/lib/announcements/queries"
@@ -15,12 +16,14 @@ import {
 } from "@/lib/feed/sidebar-queries"
 
 interface FeedPageProps {
-  searchParams: Promise<{ post?: string }>
+  searchParams: Promise<{ post?: string; announcement?: string }>
 }
 
 export default async function FeedPage({ searchParams }: FeedPageProps) {
   const params = await searchParams
   const deepLinkPostId = typeof params.post === "string" ? params.post : null
+  const deepLinkAnnouncementId =
+    typeof params.announcement === "string" ? params.announcement : null
   const supabase = await createClient()
   const { data: authData } = await supabase.auth.getUser()
   const currentUserId = authData.user?.id ?? null
@@ -30,12 +33,21 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     displayName: string
     avatarUrl: string | null
     role: ViewerRole
+    facultyId: string | null
+    year: number | null
   } | null = null
 
   if (authData.user) {
     const profile = await prisma.userProfile.findUnique({
       where: { userId: authData.user.id },
-      select: { userId: true, displayName: true, avatarUrl: true, role: true },
+      select: {
+        userId: true,
+        displayName: true,
+        avatarUrl: true,
+        role: true,
+        facultyId: true,
+        year: true,
+      },
     })
     if (profile) {
       currentUser = {
@@ -43,23 +55,70 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         displayName: profile.displayName,
         avatarUrl: profile.avatarUrl,
         role: profile.role as ViewerRole,
+        facultyId: profile.facultyId,
+        year: profile.year,
       }
     }
+  }
+
+  const [courseMemberships, clubMemberships, groupMemberships] = currentUserId
+    ? await Promise.all([
+        prisma.courseMember.findMany({
+          where: { userId: currentUserId },
+          select: { courseId: true },
+        }),
+        prisma.clubMember.findMany({
+          where: { userId: currentUserId },
+          select: { clubId: true },
+        }),
+        prisma.groupMember.findMany({
+          where: { userId: currentUserId },
+          select: { groupId: true },
+        }),
+      ])
+    : [[], [], []]
+
+  const announcementViewerContext = {
+    facultyId: currentUser?.facultyId ?? null,
+    year: currentUser?.year ?? null,
+    courseIds: courseMemberships.map((membership) => membership.courseId),
+    clubIds: clubMemberships.map((membership) => membership.clubId),
+    groupIds: groupMemberships.map((membership) => membership.groupId),
   }
 
   const [
     initialFeed,
     announcements,
+    deepLinkedAnnouncement,
     upcomingEvents,
     sidebarGroups,
     trendingSearches,
   ] = await Promise.all([
     getFeedPosts(currentUserId, INITIAL_FEED_CURSOR, FEED_PAGE_SIZE),
-    listActiveAnnouncementsForViewer(currentUser?.role ?? null, 5, currentUserId),
+    listActiveAnnouncementsForViewer(
+      currentUser?.role ?? null,
+      5,
+      currentUserId,
+      announcementViewerContext,
+    ),
+    deepLinkAnnouncementId
+      ? getVisibleAnnouncementForViewer(
+          deepLinkAnnouncementId,
+          currentUser?.role ?? null,
+          currentUserId,
+          announcementViewerContext,
+        )
+      : Promise.resolve(null),
     listUpcomingEventsForSidebar({ take: FEED_SIDEBAR_EVENTS_LIMIT }),
     listFeedSidebarGroups(currentUser?.userId ?? null),
     listTrendingSearches(),
   ])
+
+  const visibleAnnouncements =
+    deepLinkedAnnouncement &&
+    !announcements.some((announcement) => announcement.id === deepLinkedAnnouncement.id)
+      ? [deepLinkedAnnouncement, ...announcements]
+      : announcements
 
   const initialPosts = initialFeed.posts.map((post) => ({
     id: post.id,
@@ -98,13 +157,15 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
       initialCursor={initialFeed.nextCursor}
       initialHasMore={initialFeed.hasMore}
       deepLinkPostId={deepLinkPostId}
-      announcements={announcements.map((a) => ({
+      deepLinkAnnouncementId={deepLinkAnnouncementId}
+      announcements={visibleAnnouncements.map((a) => ({
         id: a.id,
         title: a.title,
         content: a.content,
         publishedAt: a.publishedAt,
         pinToTop: a.pinToTop,
         isSaved: a.isSaved,
+        scopeLabels: a.scopeLabels,
       }))}
       upcomingEvents={upcomingEvents}
       sidebarGroups={sidebarGroups}

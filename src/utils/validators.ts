@@ -4,6 +4,7 @@ import {
   ANNOUNCEMENT_TITLE_MAX,
   ANNOUNCEMENT_CONTENT_MAX,
 } from "@/lib/config/announcements";
+import { TLU_LATEST_COHORT } from "@/lib/announcements/targeting";
 import {
   EVENT_CAPACITY_MAX,
   EVENT_DESCRIPTION_MAX,
@@ -111,6 +112,43 @@ export const pollInputSchema = z
 
 // Validation schema cho thông báo chính thức
 export const announcementAudienceSchema = z.enum(["ALL", "STUDENTS", "FACULTY"]);
+export const announcementTargetTypeSchema = z.enum([
+  "ROLE",
+  "FACULTY",
+  "COHORT",
+  "COURSE",
+  "CLUB",
+  "GROUP",
+  "USER",
+]);
+
+const announcementTargetValueSchema = z.string().trim().min(1, "Đối tượng nhận không hợp lệ");
+
+export const announcementTargetInputSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("ROLE"),
+    value: z.enum(["STUDENT", "LECTURER", "ADMIN"], {
+      message: "Vai trò nhận thông báo không hợp lệ",
+    }),
+  }),
+  z.object({
+    type: z.literal("COHORT"),
+    value: announcementTargetValueSchema
+      .regex(/^\d+$/, "Khoá nhận thông báo không hợp lệ")
+      .refine(
+        (value) => {
+          const cohort = Number(value)
+          return Number.isInteger(cohort) && cohort >= 1 && cohort <= TLU_LATEST_COHORT
+        },
+        `Khoá nhận thông báo phải từ K1 đến K${TLU_LATEST_COHORT}`,
+      ),
+  }),
+  z.object({ type: z.literal("FACULTY"), value: announcementTargetValueSchema }),
+  z.object({ type: z.literal("COURSE"), value: announcementTargetValueSchema }),
+  z.object({ type: z.literal("CLUB"), value: announcementTargetValueSchema }),
+  z.object({ type: z.literal("GROUP"), value: announcementTargetValueSchema }),
+  z.object({ type: z.literal("USER"), value: announcementTargetValueSchema }),
+]);
 
 export const announcementInputSchema = z.object({
   title: z
@@ -124,6 +162,7 @@ export const announcementInputSchema = z.object({
     .min(1, "Nội dung không được để trống")
     .max(ANNOUNCEMENT_CONTENT_MAX, `Nội dung tối đa ${ANNOUNCEMENT_CONTENT_MAX} ký tự`),
   audience: announcementAudienceSchema.default("ALL"),
+  targets: z.array(announcementTargetInputSchema).default([]),
   pinToTop: z.boolean().default(false),
   sendEmail: z.boolean().default(false),
   expiresAt: z
@@ -199,6 +238,7 @@ export type CommentInput = z.infer<typeof commentSchema>;
 export type PostDeleteReasonInput = z.infer<typeof postDeleteReasonSchema>;
 export type AnnouncementInput = z.infer<typeof announcementInputSchema>;
 export type AnnouncementAudienceInput = z.infer<typeof announcementAudienceSchema>;
+export type AnnouncementTargetInput = z.infer<typeof announcementTargetInputSchema>;
 export type EventInput = z.infer<typeof eventInputSchema>;
 export type EventTypeInput = z.infer<typeof eventTypeSchema>;
 export type EventRegistrationStatusInput = z.infer<typeof eventRegistrationStatusSchema>;

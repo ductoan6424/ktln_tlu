@@ -12,6 +12,7 @@ interface AnnouncementPreviewProps {
   title?: string
   content?: string
   audience?: "ALL" | "STUDENTS" | "FACULTY"
+  scopeLabels?: string[]
   pinToTop?: boolean
 }
 
@@ -25,6 +26,7 @@ export function AnnouncementPreview({
   title,
   content,
   audience = "ALL",
+  scopeLabels,
   pinToTop = false,
 }: AnnouncementPreviewProps) {
   const hasContent = Boolean(title && title.trim()) || Boolean(content && content.trim())
@@ -60,7 +62,8 @@ export function AnnouncementPreview({
                 </StatusBadge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Vừa xong • Dành cho {AUDIENCE_LABEL[audience]}
+                Vừa xong • Dành cho{" "}
+                {(scopeLabels?.length ? scopeLabels : [AUDIENCE_LABEL[audience]]).join(", ")}
               </p>
             </div>
           </div>

@@ -101,6 +101,7 @@ export function SavedPostsClient({
           publishedAt={announcement.publishedAt}
           pinToTop={announcement.pinToTop}
           isSaved
+          scopeLabels={announcement.scopeLabels}
           onUnsave={() => handleUnsaveAnnouncement(announcement.announcementId)}
         />
       ))}
