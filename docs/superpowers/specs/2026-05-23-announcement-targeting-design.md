@@ -101,8 +101,8 @@ Targets of the same type are OR:
 
 Targets of different types are AND:
 
-- `ROLE=STUDENT` + `FACULTY=CNTT` + `COHORT=K62`
-- Meaning: students in the CNTT faculty and K62 cohort.
+- `ROLE=STUDENT` + `FACULTY=CNTT` + `COHORT=K38`
+- Meaning: students in the CNTT faculty and K38 cohort.
 
 `USER` targets are direct recipients and are added to the final recipient set. They do not narrow the grouped target query.
 
@@ -194,7 +194,7 @@ The admin list displays readable target summaries:
 - `Toàn trường`
 - `Sinh viên`
 - `Khoa CNTT`
-- `K62`
+- `K38`
 - `Lớp INT2207`
 
 ## Feed UI
@@ -203,7 +203,7 @@ Announcement cards show scope badges near the official announcement badge:
 
 - `Toàn trường`
 - `Khoa CNTT`
-- `Khoá K62`
+- `Khoá K38`
 - `Lớp INT2207`
 
 The badge is informational only. Access control stays server-side in the query and fanout resolver.

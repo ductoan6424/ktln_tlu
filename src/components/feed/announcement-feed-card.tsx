@@ -20,6 +20,7 @@ export interface AnnouncementFeedCardProps {
   publishedAt: string
   pinToTop?: boolean
   isSaved?: boolean
+  scopeLabels?: string[]
   onUnsave?: () => void
   className?: string
 }
@@ -27,12 +28,12 @@ export interface AnnouncementFeedCardProps {
 const EXPAND_THRESHOLD = 280
 
 export function AnnouncementFeedCard({
-  id: _id,
   title,
   content,
   publishedAt,
   pinToTop = false,
   isSaved = false,
+  scopeLabels = [],
   onUnsave,
   className,
 }: AnnouncementFeedCardProps) {
@@ -78,6 +79,11 @@ export function AnnouncementFeedCard({
                   Ghim
                 </StatusBadge>
               )}
+              {scopeLabels.slice(0, 2).map((label) => (
+                <StatusBadge key={label} variant="info" size="sm">
+                  {label}
+                </StatusBadge>
+              ))}
             </div>
             <p className="text-xs text-muted-foreground">
               <RelativeTime date={publishedAt} fallback={publishedAt} />

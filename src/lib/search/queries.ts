@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client"
-import { audiencesForViewer, OFFICIAL_AUTHOR } from "@/lib/announcements/queries"
+import { OFFICIAL_AUTHOR } from "@/lib/announcements/queries"
 import type { ViewerRole } from "@/lib/announcements/queries"
+import {
+  matchesAnnouncementTargets,
+  type AnnouncementViewerContext,
+} from "@/lib/announcements/targeting"
 import { prisma } from "@/lib/prisma/client"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import { getJoinedCommunityIds } from "@/lib/feed/queries"
@@ -307,12 +311,13 @@ export async function searchAnnouncements(
   rawQuery: string,
   viewerRole: ViewerRole | null,
   { limit, offset = 0 }: SearchPageInput,
+  viewerContextOverride?: Partial<AnnouncementViewerContext>,
 ): Promise<SearchCandidate[]> {
   const query = normalizeSearchText(rawQuery)
   if (query.length < 2) return []
 
   const tokens = splitSearchTokens(query)
-  const audiences = audiencesForViewer(viewerRole)
+  const candidateLimit = Math.max((offset + limit) * 4, limit)
   const rows = await prisma.$queryRaw<RawCandidateRow[]>(Prisma.sql`
     SELECT
       announcement_id AS id,
@@ -334,16 +339,48 @@ export async function searchAnnouncements(
     FROM announcements
     WHERE status = 'PUBLISHED'
       AND deleted_at IS NULL
-      AND audience IN (${Prisma.join(audiences)})
+      AND (expires_at IS NULL OR expires_at > NOW())
       AND (
         search_vector @@ plainto_tsquery('simple', ${query})
         OR search_text_normalized LIKE ${toContainsPattern(query)}
         OR (${query.length} >= 4 AND search_text_normalized % ${query})
       )
     ORDER BY exact_score DESC, prefix_score DESC, text_rank DESC, similarity_score DESC, published_at DESC NULLS LAST
-    LIMIT ${limit}
-    OFFSET ${offset}
+    LIMIT ${candidateLimit}
+    OFFSET 0
   `)
 
-  return rows.map((row) => mapCandidate("ANNOUNCEMENT", row))
+  if (rows.length === 0) return []
+
+  const targetRows = await prisma.announcement.findMany({
+    where: { id: { in: rows.map((row) => row.id) } },
+    select: {
+      id: true,
+      audience: true,
+      targets: { select: { type: true, value: true } },
+    },
+  })
+  const targetsByAnnouncementId = new Map(targetRows.map((row) => [row.id, row]))
+  const viewerContext: AnnouncementViewerContext = {
+    userId: viewerContextOverride?.userId ?? null,
+    role: viewerRole,
+    facultyId: viewerContextOverride?.facultyId ?? null,
+    year: viewerContextOverride?.year ?? null,
+    courseIds: viewerContextOverride?.courseIds ?? [],
+    clubIds: viewerContextOverride?.clubIds ?? [],
+    groupIds: viewerContextOverride?.groupIds ?? [],
+  }
+
+  return rows
+    .filter((row) => {
+      const targetRow = targetsByAnnouncementId.get(row.id)
+      if (!targetRow) return false
+      return matchesAnnouncementTargets(
+        viewerContext,
+        targetRow.targets,
+        targetRow.audience,
+      )
+    })
+    .slice(offset, offset + limit)
+    .map((row) => mapCandidate("ANNOUNCEMENT", row))
 }

@@ -10,6 +10,10 @@ import {
   parseSchoolIdentityImportRows,
   type SchoolIdentityImportInput,
 } from "@/lib/school-identities/importer"
+import {
+  normalizeFacultyCode,
+  parseCohortYear,
+} from "@/lib/school-identities/profile-fields"
 
 describe("school identity code generation", () => {
   it("formats role-specific codes with the agreed prefixes and padding", () => {
@@ -107,6 +111,20 @@ describe("school identity import parser", () => {
         message: "Trang thai khong hop le",
       },
     ])
+  })
+})
+
+describe("school identity profile fields", () => {
+  it("normalizes department names into stable faculty codes", () => {
+    expect(normalizeFacultyCode(" Công nghệ thông tin ")).toBe("CONGNGHETHONGTIN")
+    expect(normalizeFacultyCode("CNTT")).toBe("CNTT")
+  })
+
+  it("extracts cohort year values for UserProfile.year", () => {
+    expect(parseCohortYear("K38")).toBe(38)
+    expect(parseCohortYear("Khóa 2026")).toBe(2026)
+    expect(parseCohortYear(null)).toBeNull()
+    expect(parseCohortYear("")).toBeNull()
   })
 })
 

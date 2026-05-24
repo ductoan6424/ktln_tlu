@@ -23,7 +23,7 @@ enum AnnouncementAudience {
 Chỉ có **3 lựa chọn cứng**: toàn trường / chỉ sinh viên / chỉ giảng viên. **Không thể** nhắm tới:
 
 - Khoa cụ thể (CNTT, Kế toán, ...)
-- Khoá (K61, K62, ...)
+- Khoá (K37, K38, ...)
 - Lớp học phần (`Course`)
 - CLB / Nhóm
 - Một danh sách user cụ thể (vd: ban cán sự lớp)
@@ -125,7 +125,7 @@ Và thêm `UserProfile.facultyId String?` FK (giữ `major` String cho legacy/mi
 
 **Lợi ích**:
 
-- 1 thông báo có thể nhắm **đồng thời** "Sinh viên Khoa CNTT khoá K62" (AND giữa các loại target) hoặc gửi nhiều khoa cùng lúc (OR)
+- 1 thông báo có thể nhắm **đồng thời** "Sinh viên Khoa CNTT khoá K38" (AND giữa các loại target) hoặc gửi nhiều khoa cùng lúc (OR)
 - Không cần migration schema mỗi khi thêm loại target mới
 - Fanout vẫn nhanh nhờ index `(type, value)`
 - Có thể "gửi riêng" cho 1 list user (vd: ban cán sự lớp)
@@ -172,7 +172,7 @@ admin.announcements.manage.course    // Giảng viên — chỉ lớp môn mình
 ### 2.4 UX feed phía sinh viên
 
 - **Lọc đúng** theo `(role × facultyId × year × courseIds × clubIds × groupIds)` của viewer
-- **Badge nhỏ** trên card hiển thị scope: "Dành cho Khoa CNTT" / "K62" / "Lớp INT2207" — để sinh viên biết tại sao họ thấy thông báo này
+- **Badge nhỏ** trên card hiển thị scope: "Dành cho Khoa CNTT" / "K38" / "Lớp INT2207" — để sinh viên biết tại sao họ thấy thông báo này
 - **Tab filter** trong list dialog: Tất cả / Của khoa tôi / Của khoá tôi / Của lớp tôi
 
 ---

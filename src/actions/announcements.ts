@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { fanoutAnnouncementNotification } from "@/lib/announcements/fanout"
+import { validateAnnouncementTargetReferences } from "@/lib/announcements/target-validation"
+import {
+  deriveLegacyAudienceFromTargets,
+  normalizeAnnouncementTargets,
+} from "@/lib/announcements/targeting"
 import { requireAdminPermission } from "@/lib/auth/authorization"
 import { AppError } from "@/lib/errors"
 import { prisma } from "@/lib/prisma/client"
@@ -13,12 +18,23 @@ import { announcementInputSchema } from "@/utils/validators"
 
 type CreateInput = z.infer<typeof announcementInputSchema>
 
+function parseTargetsFromFormData(rawValue: FormDataEntryValue | null): CreateInput["targets"] {
+  if (typeof rawValue !== "string" || rawValue.trim().length === 0) return []
+  try {
+    const parsed = JSON.parse(rawValue) as CreateInput["targets"]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 function normalizeInput(rawInput: unknown): CreateInput | null {
   if (rawInput instanceof FormData) {
     return {
       title: String(rawInput.get("title") ?? "").trim(),
       content: String(rawInput.get("content") ?? "").trim(),
       audience: (rawInput.get("audience") as CreateInput["audience"] | null) ?? "ALL",
+      targets: parseTargetsFromFormData(rawInput.get("targets")),
       pinToTop: rawInput.get("pinToTop") === "true" || rawInput.get("pinToTop") === "on",
       sendEmail: rawInput.get("sendEmail") === "true" || rawInput.get("sendEmail") === "on",
       expiresAt: (rawInput.get("expiresAt") as string | null) ?? undefined,
@@ -37,6 +53,13 @@ function parseExpiresAt(value: string | undefined | null): Date | null {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return null
   return date
+}
+
+function toTargetCreateManyData(targets: CreateInput["targets"]) {
+  return normalizeAnnouncementTargets(targets).map((target) => ({
+    type: target.type,
+    value: target.value,
+  }))
 }
 
 export async function createAnnouncement(
@@ -60,30 +83,53 @@ export async function createAnnouncement(
 
     const publish = Boolean(options.publish)
     const now = new Date()
+    const targets = toTargetCreateManyData(validated.data.targets)
+    const targetValidationError = await validateAnnouncementTargetReferences(targets)
+    if (targetValidationError) {
+      return errorResult(targetValidationError, "VALIDATION_ERROR")
+    }
+
+    const fallbackAudience =
+      targets.length > 0
+        ? deriveLegacyAudienceFromTargets(targets)
+        : validated.data.audience
 
     const created = await prisma.announcement.create({
       data: {
         title: validated.data.title,
         content: validated.data.content,
-        audience: validated.data.audience,
+        audience: fallbackAudience,
         pinToTop: validated.data.pinToTop,
         sentEmail: false,
         expiresAt: parseExpiresAt(validated.data.expiresAt),
         status: publish ? "PUBLISHED" : "DRAFT",
         publishedAt: publish ? now : null,
         authorId: actor.profile.userId,
+        targets:
+          targets.length > 0
+            ? { createMany: { data: targets, skipDuplicates: true } }
+            : undefined,
       },
       select: { id: true, status: true },
     })
 
     if (publish) {
-      await fanoutAnnouncementNotification({
+      const fanoutResult = await fanoutAnnouncementNotification({
         announcementId: created.id,
         title: validated.data.title,
-        audience: validated.data.audience,
+        content: validated.data.content,
+        sendEmail: validated.data.sendEmail,
       }).catch((error) => {
         console.error("Fan-out announcement notifications failed:", error)
+        return { recipients: 0, emailsSent: 0 }
       })
+
+      if (fanoutResult.emailsSent > 0) {
+        await prisma.announcement.update({
+          where: { id: created.id },
+          data: { sentEmail: true },
+        })
+      }
     }
 
     revalidatePath("/admin/announcements")
@@ -124,16 +170,44 @@ export async function updateAnnouncement(
       return errorResult("Thông báo không tồn tại.", "NOT_FOUND")
     }
 
-    await prisma.announcement.update({
-      where: { id: parsed.data.id },
-      data: {
-        title: parsed.data.title,
-        content: parsed.data.content,
-        audience: parsed.data.audience,
-        pinToTop: parsed.data.pinToTop,
-        expiresAt: parseExpiresAt(parsed.data.expiresAt),
-      },
-    })
+    const targets = toTargetCreateManyData(parsed.data.targets)
+    const targetValidationError = await validateAnnouncementTargetReferences(targets)
+    if (targetValidationError) {
+      return errorResult(targetValidationError, "VALIDATION_ERROR")
+    }
+
+    const fallbackAudience =
+      targets.length > 0
+        ? deriveLegacyAudienceFromTargets(targets)
+        : parsed.data.audience
+
+    await prisma.$transaction([
+      prisma.announcement.update({
+        where: { id: parsed.data.id },
+        data: {
+          title: parsed.data.title,
+          content: parsed.data.content,
+          audience: fallbackAudience,
+          pinToTop: parsed.data.pinToTop,
+          expiresAt: parseExpiresAt(parsed.data.expiresAt),
+        },
+      }),
+      prisma.announcementTarget.deleteMany({
+        where: { announcementId: parsed.data.id },
+      }),
+      ...(targets.length > 0
+        ? [
+            prisma.announcementTarget.createMany({
+              data: targets.map((target) => ({
+                announcementId: parsed.data.id,
+                type: target.type,
+                value: target.value,
+              })),
+              skipDuplicates: true,
+            }),
+          ]
+        : []),
+    ])
 
     revalidatePath("/admin/announcements")
     revalidatePath("/feed")
@@ -148,6 +222,7 @@ export async function updateAnnouncement(
 
 export async function publishAnnouncement(
   announcementId: string,
+  options: { sendEmail?: boolean } = {},
 ): Promise<ActionResult<{ id: string; recipients: number }>> {
   try {
     await requireAdminPermission("admin.announcements.manage")
@@ -156,6 +231,7 @@ export async function publishAnnouncement(
       select: {
         id: true,
         title: true,
+        content: true,
         audience: true,
         status: true,
         deletedAt: true,
@@ -174,11 +250,19 @@ export async function publishAnnouncement(
       data: { status: "PUBLISHED", publishedAt: now },
     })
 
-    const { recipients } = await fanoutAnnouncementNotification({
+    const { recipients, emailsSent } = await fanoutAnnouncementNotification({
       announcementId,
       title: existing.title,
-      audience: existing.audience,
+      content: existing.content,
+      sendEmail: options.sendEmail ?? false,
     })
+
+    if (emailsSent > 0) {
+      await prisma.announcement.update({
+        where: { id: announcementId },
+        data: { sentEmail: true },
+      })
+    }
 
     revalidatePath("/admin/announcements")
     revalidatePath("/feed")

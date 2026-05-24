@@ -3,6 +3,7 @@ import { transporter } from "@/lib/email/client"
 import {
   contactEmailVerificationTemplate,
   contactEmailVerifiedTemplate,
+  announcementEmailTemplate,
   emailVerificationTemplate,
   passwordResetTemplate,
 } from "@/lib/email/templates"
@@ -62,5 +63,18 @@ export async function sendContactEmailVerifiedEmail(
   name: string
 ): Promise<void> {
   const template = contactEmailVerifiedTemplate(name)
+  await sendEmail({ to, ...template })
+}
+
+export async function sendAnnouncementEmail(
+  to: string,
+  name: string,
+  title: string,
+  content: string,
+  announcementPath: string,
+): Promise<void> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+  const announcementUrl = new URL(announcementPath, appUrl).toString()
+  const template = announcementEmailTemplate(name, title, content, announcementUrl)
   await sendEmail({ to, ...template })
 }

@@ -37,10 +37,12 @@ export interface AnnouncementStripItem {
   publishedAt: string
   pinToTop?: boolean
   isSaved?: boolean
+  scopeLabels?: string[]
 }
 
 interface AnnouncementStripProps {
   announcements: AnnouncementStripItem[]
+  deepLinkAnnouncementId?: string | null
   className?: string
 }
 
@@ -54,12 +56,22 @@ const SCROLL_STEP = 272
 // Main section
 // ---------------------------------------------------------------------------
 
-export function AnnouncementStrip({ announcements, className }: AnnouncementStripProps) {
+export function AnnouncementStrip({
+  announcements,
+  deepLinkAnnouncementId = null,
+  className,
+}: AnnouncementStripProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canLeft, setCanLeft] = useState(false)
   const [canRight, setCanRight] = useState(false)
   const [selected, setSelected] = useState<AnnouncementStripItem | null>(null)
+  const [dismissedDeepLinkId, setDismissedDeepLinkId] = useState<string | null>(null)
   const [listOpen, setListOpen] = useState(false)
+  const deepLinkedAnnouncement =
+    deepLinkAnnouncementId && dismissedDeepLinkId !== deepLinkAnnouncementId
+      ? announcements.find((announcement) => announcement.id === deepLinkAnnouncementId) ?? null
+      : null
+  const activeSelection = selected ?? deepLinkedAnnouncement
 
   useEffect(() => {
     const el = scrollRef.current
@@ -166,16 +178,24 @@ export function AnnouncementStrip({ announcements, className }: AnnouncementStri
       />
 
       {/* Detail dialog */}
-      {selected && (
+      {activeSelection && (
         <AnnouncementDetailDialog
-          open={selected !== null}
-          onOpenChange={(open) => { if (!open) setSelected(null) }}
-          id={selected.id}
-          title={selected.title}
-          content={selected.content}
-          publishedAt={selected.publishedAt}
-          pinToTop={selected.pinToTop}
-          isSaved={selected.isSaved}
+          open={activeSelection !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              if (activeSelection.id === deepLinkAnnouncementId) {
+                setDismissedDeepLinkId(activeSelection.id)
+              }
+              setSelected(null)
+            }
+          }}
+          id={activeSelection.id}
+          title={activeSelection.title}
+          content={activeSelection.content}
+          publishedAt={activeSelection.publishedAt}
+          pinToTop={activeSelection.pinToTop}
+          isSaved={activeSelection.isSaved}
+          scopeLabels={activeSelection.scopeLabels}
         />
       )}
     </>
@@ -438,6 +458,11 @@ function AnnouncementListRow({
               GHIM
             </StatusBadge>
           )}
+          {item.scopeLabels?.slice(0, 2).map((label) => (
+            <StatusBadge key={label} variant="info" size="sm">
+              {label}
+            </StatusBadge>
+          ))}
         </div>
 
         {/* Dòng 2: Thời gian */}
@@ -481,6 +506,7 @@ function AnnouncementCard({
   content,
   publishedAt,
   pinToTop = false,
+  scopeLabels = [],
   onClick,
 }: AnnouncementStripItem & { onClick: () => void }) {
   return (
@@ -542,6 +568,11 @@ function AnnouncementCard({
               GHIM
             </StatusBadge>
           )}
+          {scopeLabels.slice(0, 2).map((label) => (
+            <StatusBadge key={label} variant="info" size="sm">
+              {label}
+            </StatusBadge>
+          ))}
         </div>
 
         {/* Title + content */}
