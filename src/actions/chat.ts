@@ -13,6 +13,7 @@ import { getCommunityBySlugId, getViewerMembershipRole } from "@/lib/communities
 import type { CommunityType } from "@/lib/communities/types"
 import { prisma } from "@/lib/prisma/client"
 import { sendPushToUser } from "@/lib/push/service"
+import { shouldSendMessageDisturbance } from "@/lib/settings/user-settings"
 import { createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
@@ -1474,6 +1475,16 @@ export async function sendConversationMessage(
     const recipientIds = activeParticipants
       .map((p) => p.userId)
       .filter((id) => id !== currentUser.userId)
+    const disturbanceRecipientIds = (
+      await Promise.all(
+        recipientIds.map(async (recipientId) => ({
+          recipientId,
+          allowed: await shouldSendMessageDisturbance(recipientId),
+        })),
+      )
+    )
+      .filter((recipient) => recipient.allowed)
+      .map((recipient) => recipient.recipientId)
     const conversationType = deliveryInfo?.type ?? "DIRECT"
     const inboxNotification: ChatInboxNotification = {
       conversationId: input.conversationId,
@@ -1498,7 +1509,7 @@ export async function sendConversationMessage(
         .publish("message.new", payload)
 
       await Promise.allSettled(
-        recipientIds.map((recipientId) =>
+        disturbanceRecipientIds.map((recipientId) =>
           ably.channels
             .get(getUserInboxChannelName(recipientId))
             .publish("chat.incoming", inboxNotification),
@@ -1507,7 +1518,7 @@ export async function sendConversationMessage(
     } catch {
     }
 
-    if (recipientIds.length > 0) {
+    if (disturbanceRecipientIds.length > 0) {
       const pushPayload = {
         title: formatChatPushTitle({
           senderName: currentUser.displayName,
@@ -1522,7 +1533,7 @@ export async function sendConversationMessage(
       }
 
       await Promise.allSettled(
-        recipientIds.map((recipientId) => sendPushToUser(recipientId, pushPayload)),
+        disturbanceRecipientIds.map((recipientId) => sendPushToUser(recipientId, pushPayload)),
       )
     }
 

@@ -305,4 +305,42 @@ describe("updateUserProfile", () => {
       },
     })
   })
+
+  it("rolls editable profile fields back when Supabase metadata sync fails", async () => {
+    const { updateUser } = mockWithSession("user-self")
+    prisma.userProfile.findUnique.mockResolvedValue({
+      displayName: "Nguyen Van A",
+      bio: "Bio cu",
+    })
+    prisma.userProfile.update.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Nguyen Van B",
+      bio: "Bio moi",
+    })
+    prisma.userProfile.updateMany.mockResolvedValue({ count: 1 })
+    updateUser.mockResolvedValue({ data: null, error: { message: "sync failed" } })
+
+    const result = await updateUserProfile({
+      displayName: "Nguyen Van B",
+      bio: "Bio moi",
+    })
+
+    expect(prisma.userProfile.findUnique).toHaveBeenCalledWith({
+      where: { userId: "user-self" },
+      select: { displayName: true, bio: true },
+    })
+    expect(prisma.userProfile.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-self",
+        displayName: "Nguyen Van B",
+        bio: "Bio moi",
+      },
+      data: {
+        displayName: "Nguyen Van A",
+        bio: "Bio cu",
+      },
+    })
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("PROFILE_UPDATE_ERROR")
+  })
 })
