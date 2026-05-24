@@ -18,6 +18,12 @@ enum UserRole {
   ADMIN
 }
 
+enum UserTheme {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
 enum UserAccountModerationStatus {
   ACTIVE
   TEMP_LOCKED
@@ -278,6 +284,7 @@ model UserProfile {
   eventRegistrations    EventRegistration[]
 
   pushSubscriptions PushSubscription[]
+  settings          UserSettings?
 
   communityJoinRequests      CommunityJoinRequest[]   @relation("CommunityJoinRequester")
   reviewedCommunityRequests  CommunityJoinRequest[]   @relation("CommunityJoinReviewer")
@@ -290,6 +297,23 @@ model UserProfile {
   searchHistories            SearchHistory[]
 
   @@map("user_profiles")
+}
+
+model UserSettings {
+  userId                 String    @id @map("user_id")
+  theme                  UserTheme @default(SYSTEM) @map("theme")
+  compactMode            Boolean   @default(false) @map("compact_mode")
+  reducedMotion          Boolean   @default(false) @map("reduced_motion")
+  notifyMessages         Boolean   @default(true) @map("notify_messages")
+  notifyPostInteractions Boolean   @default(true) @map("notify_post_interactions")
+  notifyEvents           Boolean   @default(true) @map("notify_events")
+  notifySystem           Boolean   @default(true) @map("notify_system")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  user UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("user_settings")
 }
 
 model Faculty {
