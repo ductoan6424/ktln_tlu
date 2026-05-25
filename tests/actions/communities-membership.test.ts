@@ -66,7 +66,7 @@ describe("joinCommunity", () => {
       type: "GROUP",
       id: "group-1",
       shortId: "abc123",
-      name: "NhÃ³m Python",
+      name: "Nhóm Python",
       visibility: "PUBLIC",
       requirePostApproval: false,
       chatEnabled: true,

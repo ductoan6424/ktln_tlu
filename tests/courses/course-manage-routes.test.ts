@@ -34,16 +34,16 @@ describe("course manage routes", () => {
     vi.clearAllMocks()
     requireCourseCreator.mockResolvedValue({
       profile: {
-        displayName: "LÃª Minh Anh",
+        displayName: "Lê Minh Anh",
       },
     })
     requireCourseManagementAccess.mockResolvedValue({
       course: {
         id: "course-1",
         shortId: "c12345",
-        name: "Láº­p trÃ¬nh Python",
+        name: "Lập trình Python",
         code: "CS101",
-        description: "MÃ´ táº£ lá»›p há»c",
+        description: "Mô tả lớp học",
         requirePostApproval: false,
         chatEnabled: true,
         chatMode: "OPEN",

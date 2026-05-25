@@ -253,7 +253,7 @@ export async function cancelCommunityInvite(
     const auth = await getAuthorizedCommunity(input)
     if (auth.error) return auth.error
     if (!auth.target || !auth.permissions?.canManage) {
-      return errorResult("Báº¡n khÃ´ng cÃ³ quyá»n huá»· lá»i má»i", "FORBIDDEN")
+      return errorResult("Bạn không có quyền huỷ lời mời", "FORBIDDEN")
     }
 
     const invite = await prisma.communityInvite.findFirst({
@@ -266,7 +266,7 @@ export async function cancelCommunityInvite(
       select: { id: true },
     })
     if (!invite) {
-      return errorResult("KhÃ´ng tÃ¬m tháº¥y lá»i má»i Ä‘ang chá»", "NOT_FOUND")
+      return errorResult("Không tìm thấy lời mời đang chờ", "NOT_FOUND")
     }
 
     await prisma.communityInvite.update({
@@ -284,7 +284,7 @@ export async function cancelCommunityInvite(
     return successResult({ inviteId: invite.id })
   } catch (error) {
     if (error instanceof z.ZodError) return validationError(error)
-    return errorResult("KhÃ´ng thá»ƒ huá»· lá»i má»i", "UPDATE_FAILED")
+    return errorResult("Không thể huỷ lời mời", "UPDATE_FAILED")
   }
 }
 
