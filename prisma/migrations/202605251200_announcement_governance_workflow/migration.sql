@@ -149,10 +149,13 @@ CREATE INDEX "announcement_unit_members_user_id_is_active_idx" ON "announcement_
 
 CREATE UNIQUE INDEX "announcements_active_revision_id_key" ON "announcements"("active_revision_id");
 CREATE UNIQUE INDEX "announcements_published_revision_id_key" ON "announcements"("published_revision_id");
+CREATE UNIQUE INDEX "announcements_announcement_id_active_revision_id_key" ON "announcements"("announcement_id", "active_revision_id");
+CREATE UNIQUE INDEX "announcements_announcement_id_published_revision_id_key" ON "announcements"("announcement_id", "published_revision_id");
 CREATE INDEX "announcements_issuing_unit_id_idx" ON "announcements"("issuing_unit_id");
 CREATE INDEX "announcements_supersedes_id_idx" ON "announcements"("supersedes_id");
 
 CREATE UNIQUE INDEX "announcement_revisions_announcement_id_version_key" ON "announcement_revisions"("announcement_id", "version");
+CREATE UNIQUE INDEX "announcement_revisions_announcement_id_revision_id_key" ON "announcement_revisions"("announcement_id", "revision_id");
 CREATE INDEX "announcement_revisions_author_id_idx" ON "announcement_revisions"("author_id");
 CREATE INDEX "announcement_revisions_issuing_unit_id_idx" ON "announcement_revisions"("issuing_unit_id");
 CREATE INDEX "announcement_revision_targets_type_value_idx" ON "announcement_revision_targets"("type", "value");
@@ -219,13 +222,13 @@ ALTER TABLE "announcement_revisions"
 
 ALTER TABLE "announcements"
   ADD CONSTRAINT "announcements_active_revision_id_fkey"
-  FOREIGN KEY ("active_revision_id") REFERENCES "announcement_revisions"("revision_id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY ("announcement_id", "active_revision_id") REFERENCES "announcement_revisions"("announcement_id", "revision_id")
+  ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 ALTER TABLE "announcements"
   ADD CONSTRAINT "announcements_published_revision_id_fkey"
-  FOREIGN KEY ("published_revision_id") REFERENCES "announcement_revisions"("revision_id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY ("announcement_id", "published_revision_id") REFERENCES "announcement_revisions"("announcement_id", "revision_id")
+  ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 ALTER TABLE "announcement_revision_targets"
   ADD CONSTRAINT "announcement_revision_targets_revision_id_fkey"
@@ -239,8 +242,8 @@ ALTER TABLE "announcement_approvals"
 
 ALTER TABLE "announcement_approvals"
   ADD CONSTRAINT "announcement_approvals_revision_id_fkey"
-  FOREIGN KEY ("revision_id") REFERENCES "announcement_revisions"("revision_id")
-  ON DELETE CASCADE ON UPDATE CASCADE;
+  FOREIGN KEY ("announcement_id", "revision_id") REFERENCES "announcement_revisions"("announcement_id", "revision_id")
+  ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 ALTER TABLE "announcement_approvals"
   ADD CONSTRAINT "announcement_approvals_reviewer_id_fkey"
@@ -254,8 +257,8 @@ ALTER TABLE "announcement_attachments"
 
 ALTER TABLE "announcement_attachments"
   ADD CONSTRAINT "announcement_attachments_revision_id_fkey"
-  FOREIGN KEY ("revision_id") REFERENCES "announcement_revisions"("revision_id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY ("announcement_id", "revision_id") REFERENCES "announcement_revisions"("announcement_id", "revision_id")
+  ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 ALTER TABLE "announcement_recipients"
   ADD CONSTRAINT "announcement_recipients_announcement_id_fkey"
@@ -264,8 +267,8 @@ ALTER TABLE "announcement_recipients"
 
 ALTER TABLE "announcement_recipients"
   ADD CONSTRAINT "announcement_recipients_revision_id_fkey"
-  FOREIGN KEY ("revision_id") REFERENCES "announcement_revisions"("revision_id")
-  ON DELETE CASCADE ON UPDATE CASCADE;
+  FOREIGN KEY ("announcement_id", "revision_id") REFERENCES "announcement_revisions"("announcement_id", "revision_id")
+  ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 ALTER TABLE "announcement_recipients"
   ADD CONSTRAINT "announcement_recipients_user_id_fkey"
@@ -279,8 +282,8 @@ ALTER TABLE "announcement_audit_events"
 
 ALTER TABLE "announcement_audit_events"
   ADD CONSTRAINT "announcement_audit_events_revision_id_fkey"
-  FOREIGN KEY ("revision_id") REFERENCES "announcement_revisions"("revision_id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY ("announcement_id", "revision_id") REFERENCES "announcement_revisions"("announcement_id", "revision_id")
+  ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 ALTER TABLE "announcement_audit_events"
   ADD CONSTRAINT "announcement_audit_events_actor_id_fkey"

@@ -1297,8 +1297,8 @@ model Announcement {
   authorId          String                @map("author_id")
   author            UserProfile           @relation("AnnouncementAuthor", fields: [authorId], references: [userId], onDelete: Cascade)
   issuingUnit       OrganizationUnit?     @relation(fields: [issuingUnitId], references: [id], onDelete: SetNull)
-  activeRevision    AnnouncementRevision? @relation("AnnouncementActiveRevision", fields: [activeRevisionId], references: [id], onDelete: SetNull)
-  publishedRevision AnnouncementRevision? @relation("AnnouncementPublishedRevision", fields: [publishedRevisionId], references: [id], onDelete: SetNull)
+  activeRevision    AnnouncementRevision? @relation("AnnouncementActiveRevision", fields: [id, activeRevisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
+  publishedRevision AnnouncementRevision? @relation("AnnouncementPublishedRevision", fields: [id, publishedRevisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
   replacementSource Announcement?         @relation("AnnouncementReplacements", fields: [supersedesId], references: [id], onDelete: SetNull)
   replacements      Announcement[]        @relation("AnnouncementReplacements")
 
@@ -1310,6 +1310,8 @@ model Announcement {
   recipients  AnnouncementRecipient[]
   auditEvents AnnouncementAuditEvent[]
 
+  @@unique([id, activeRevisionId])
+  @@unique([id, publishedRevisionId])
   @@index([status, publishedAt(sort: Desc)])
   @@index([authorId])
   @@index([issuingUnitId])
@@ -1365,6 +1367,7 @@ model AnnouncementRevision {
   publishedFor Announcement?                @relation("AnnouncementPublishedRevision")
 
   @@unique([announcementId, version])
+  @@unique([announcementId, id])
   @@index([authorId])
   @@index([issuingUnitId])
   @@map("announcement_revisions")
@@ -1393,7 +1396,7 @@ model AnnouncementApproval {
   createdAt      DateTime                     @default(now()) @map("created_at")
 
   announcement Announcement         @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  revision     AnnouncementRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  revision     AnnouncementRevision @relation(fields: [announcementId, revisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
   reviewer     UserProfile          @relation("AnnouncementApprovalReviewer", fields: [reviewerId], references: [userId], onDelete: Restrict)
 
   @@unique([revisionId, stage])
@@ -1415,7 +1418,7 @@ model AnnouncementAttachment {
   createdAt      DateTime                     @default(now()) @map("created_at")
 
   announcement Announcement          @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  revision     AnnouncementRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  revision     AnnouncementRevision? @relation(fields: [announcementId, revisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([announcementId])
   @@index([revisionId])
@@ -1435,7 +1438,7 @@ model AnnouncementRecipient {
   createdAt                DateTime  @default(now()) @map("created_at")
 
   announcement Announcement         @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  revision     AnnouncementRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  revision     AnnouncementRevision @relation(fields: [announcementId, revisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
   user         UserProfile          @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@id([announcementId, userId])
@@ -1454,7 +1457,7 @@ model AnnouncementAuditEvent {
   createdAt      DateTime @default(now()) @map("created_at")
 
   announcement Announcement          @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  revision     AnnouncementRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  revision     AnnouncementRevision? @relation(fields: [announcementId, revisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
   actor        UserProfile?          @relation("AnnouncementAuditActor", fields: [actorId], references: [userId], onDelete: SetNull)
 
   @@index([announcementId, createdAt(sort: Desc)])
