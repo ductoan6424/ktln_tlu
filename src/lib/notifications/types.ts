@@ -130,6 +130,25 @@ export type NotifyCommunityModerationPayload =
 
 export type NotifyCourseStudentAddedPayload = CommunityNotificationBasePayload
 
+export type NotifyCourseAnnouncementPublishedPayload =
+  CommunityNotificationBasePayload & {
+    announcementId: string
+    announcementTitle: string
+  }
+
+export type NotifyCourseAssignmentPublishedPayload =
+  CommunityNotificationBasePayload & {
+    assignmentId: string
+    assignmentTitle: string
+  }
+
+export type NotifyAssignmentSubmissionGradedPayload =
+  CommunityNotificationBasePayload & {
+    assignmentId: string
+    assignmentTitle: string
+    submissionId: string
+  }
+
 export type NotificationListItem = {
   id: string
   type: NotificationType

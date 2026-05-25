@@ -62,6 +62,10 @@ export function buildNotificationLink(input: {
     case "POLL_VOTE":
     case "POLL_CLOSED":
       return input.postId ? `/feed?post=${input.postId}` : null
+    case "SYSTEM":
+      title = "Cap nhat he thong"
+      content = input.postExcerpt ?? "Nhan de xem chi tiet."
+      break
     default:
       return null
   }
