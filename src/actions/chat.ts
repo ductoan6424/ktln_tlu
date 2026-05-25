@@ -20,6 +20,7 @@ import type { ActionResult } from "@/types/api"
 import type {
   ChatInboxNotification,
   ChatConversationItem,
+  ChatDirectDetails,
   ChatGroupDetails,
   ChatMessagesPage,
   ChatMessageItem,
@@ -410,6 +411,68 @@ async function mapGroupDetails(conversationId: string, currentUserId: string): P
       isAdmin: participant.isAdmin,
       joinedAt: participant.joinedAt.toISOString(),
     })),
+  }
+}
+
+async function mapDirectDetails(conversationId: string, currentUserId: string): Promise<ChatDirectDetails | null> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      id: true,
+      type: true,
+      createdAt: true,
+      participants: {
+        orderBy: { joinedAt: "asc" },
+        include: {
+          user: {
+            select: {
+              userId: true,
+              displayName: true,
+              username: true,
+              avatarUrl: true,
+              bio: true,
+              role: true,
+              studentId: true,
+              major: true,
+              year: true,
+              createdAt: true,
+              deletedAt: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!conversation || conversation.type !== "DIRECT") {
+    return null
+  }
+
+  const activeParticipants = conversation.participants.filter((participant) => !participant.user.deletedAt)
+  const currentParticipant = activeParticipants.find((participant) => participant.userId === currentUserId)
+  const peerParticipant = activeParticipants.find((participant) => participant.userId !== currentUserId)
+
+  if (!currentParticipant || !peerParticipant) {
+    return null
+  }
+
+  const { user } = peerParticipant
+
+  return {
+    conversationId: conversation.id,
+    createdAt: conversation.createdAt.toISOString(),
+    peer: {
+      userId: user.userId,
+      displayName: user.displayName,
+      username: user.username,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      role: user.role,
+      studentId: user.studentId,
+      major: user.major,
+      year: user.year,
+      createdAt: user.createdAt.toISOString(),
+    },
   }
 }
 
@@ -843,6 +906,33 @@ export async function getGroupConversationDetails(
     }
 
     return errorResult("Không thể tải thông tin nhóm", "FETCH_FAILED")
+  }
+}
+
+export async function getDirectConversationDetails(
+  rawInput: unknown,
+): Promise<ActionResult<ChatDirectDetails>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const input = groupConversationIdInputSchema.parse(rawInput)
+    const details = await mapDirectDetails(input.conversationId, currentUser.userId)
+
+    if (!details) {
+      return errorResult("Không tìm thấy cuộc trò chuyện", "NOT_FOUND")
+    }
+
+    return successResult(details)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể tải thông tin cuộc trò chuyện", "FETCH_FAILED")
   }
 }
 

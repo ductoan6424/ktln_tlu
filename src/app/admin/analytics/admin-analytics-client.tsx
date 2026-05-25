@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
@@ -22,10 +22,10 @@ import {
 import type { AnalyticsOverview } from "@/lib/admin/stats-queries"
 
 const TIME_TABS = [
-  { label: "7 ngÃ y", value: "7d" },
-  { label: "30 ngÃ y", value: "30d" },
-  { label: "90 ngÃ y", value: "90d" },
-  { label: "NÄƒm nay", value: "year" },
+  { label: "7 ngày", value: "7d" },
+  { label: "30 ngày", value: "30d" },
+  { label: "90 ngày", value: "90d" },
+  { label: "Năm nay", value: "year" },
 ]
 
 interface AdminAnalyticsClientProps {
@@ -55,9 +55,9 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
   const statCards = [
     {
       icon: Users,
-      label: "Tá»•ng ngÆ°á»i dÃ¹ng",
+      label: "Tổng người dùng",
       value: overview.totalUsers.toLocaleString("vi-VN"),
-      sub: `${overview.newUsers.toLocaleString("vi-VN")} má»›i`,
+      sub: `${overview.newUsers.toLocaleString("vi-VN")} mới`,
       change: userTrend.label,
       positive: userTrend.positive,
       color: "text-blue-600",
@@ -65,9 +65,9 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
     },
     {
       icon: FileText,
-      label: "BÃ i viáº¿t",
+      label: "Bài viết",
       value: overview.totalPosts.toLocaleString("vi-VN"),
-      sub: `${overview.newPosts.toLocaleString("vi-VN")} má»›i`,
+      sub: `${overview.newPosts.toLocaleString("vi-VN")} mới`,
       change: postTrend.label,
       positive: postTrend.positive,
       color: "text-green-600",
@@ -75,9 +75,9 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
     },
     {
       icon: MessageSquare,
-      label: "BÃ¬nh luáº­n",
+      label: "Bình luận",
       value: overview.totalComments.toLocaleString("vi-VN"),
-      sub: `${overview.newComments.toLocaleString("vi-VN")} má»›i trong ká»³`,
+      sub: `${overview.newComments.toLocaleString("vi-VN")} mới trong kỳ`,
       change: "",
       positive: true,
       color: "text-purple-600",
@@ -85,9 +85,9 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
     },
     {
       icon: Heart,
-      label: "LÆ°á»£t thÃ­ch",
+      label: "Lượt thích",
       value: overview.totalLikes.toLocaleString("vi-VN"),
-      sub: `${overview.activeUsers.toLocaleString("vi-VN")} ngÆ°á»i Ä‘Äƒng bÃ i`,
+      sub: `${overview.activeUsers.toLocaleString("vi-VN")} người đăng bài`,
       change: "",
       positive: true,
       color: "text-orange-600",
@@ -99,9 +99,9 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">PhÃ¢n tÃ­ch</h1>
+          <h1 className="text-2xl font-semibold">Phân tích</h1>
           <p className="text-sm text-muted-foreground">
-            Dá»¯ liá»‡u thá»±c tá»« cÆ¡ sá»Ÿ dá»¯ liá»‡u UniConnect â€” cáº­p nháº­t theo khoáº£ng thá»i gian báº¡n chá»n
+            Dữ liệu thực từ cơ sở dữ liệu UniConnect — cập nhật theo khoảng thời gian bạn chọn
           </p>
         </div>
         <TabNavigation
@@ -147,17 +147,17 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
         <Card className="lg:col-span-3">
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <SectionHeader title="Hoáº¡t Ä‘á»™ng theo thá»i gian" />
+              <SectionHeader title="Hoạt động theo thời gian" />
               <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
                 <TrendingUp className="size-3.5" />
-                Sá»‘ bÃ i viáº¿t theo ngÃ y
+                Số bài viết theo ngày
               </div>
             </div>
             <SimpleBarChart
               data={overview.activityByDay.map((d) => ({
                 label: d.label,
                 value: d.posts,
-                tooltip: `${d.label}: ${d.posts} bÃ i, ${d.users} ngÆ°á»i má»›i`,
+                tooltip: `${d.label}: ${d.posts} bài, ${d.users} người mới`,
               }))}
               height={220}
             />
@@ -167,11 +167,11 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
         <Card className="lg:col-span-2">
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <SectionHeader title="PhÃ¢n bá»• theo vai trÃ²" />
+              <SectionHeader title="Phân bổ theo vai trò" />
               <UserCircle className="size-4 text-muted-foreground" />
             </div>
             {overview.usersByRole.length === 0 ? (
-              <EmptyState icon={UserCircle} title="ChÆ°a cÃ³ dá»¯ liá»‡u" />
+              <EmptyState icon={UserCircle} title="Chưa có dữ liệu" />
             ) : (
               <div className="space-y-4">
                 {overview.usersByRole.map((role) => (
@@ -195,14 +195,14 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
         <Card>
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <SectionHeader title="PhÃ¢n bá»• theo khoa/chuyÃªn ngÃ nh" />
+              <SectionHeader title="Phân bổ theo khoa/chuyên ngành" />
               <Building2 className="size-4 text-muted-foreground" />
             </div>
             {overview.usersByMajor.length === 0 ? (
               <EmptyState
                 icon={Building2}
-                title="ChÆ°a cÃ³ dá»¯ liá»‡u"
-                description="NgÆ°á»i dÃ¹ng chÆ°a cáº­p nháº­t thÃ´ng tin chuyÃªn ngÃ nh"
+                title="Chưa có dữ liệu"
+                description="Người dùng chưa cập nhật thông tin chuyên ngành"
               />
             ) : (
               <div className="space-y-4">
@@ -224,9 +224,9 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
 
         <Card>
           <CardContent className="p-5 space-y-4">
-            <SectionHeader title="BÃ i viáº¿t ná»•i báº­t trong ká»³" />
+            <SectionHeader title="Bài viết nổi bật trong kỳ" />
             {overview.topPosts.length === 0 ? (
-              <EmptyState icon={FileText} title="ChÆ°a cÃ³ bÃ i viáº¿t" />
+              <EmptyState icon={FileText} title="Chưa có bài viết" />
             ) : (
               <div className="space-y-3">
                 {overview.topPosts.map((post, index) => (
@@ -237,7 +237,7 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{post.title}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {post.authorName} â€¢ {post.likes} thÃ­ch â€¢ {post.comments} bÃ¬nh luáº­n
+                        {post.authorName} • {post.likes} thích • {post.comments} bình luận
                       </p>
                     </div>
                   </div>
