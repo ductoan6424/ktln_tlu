@@ -57,6 +57,10 @@ function normalizeAnnouncementUnitAssignmentsInput(rawInput: unknown) {
   }
 }
 
+function buildAnnouncementUnitAssignmentsLockKey(userId: string) {
+  return `announcement-unit-assignments:${userId}`
+}
+
 export async function updateAnnouncementUnitAssignments(
   rawInput: unknown,
 ): Promise<ActionResult<{ userId: string }>> {
@@ -69,37 +73,41 @@ export async function updateAnnouncementUnitAssignments(
       new Set(input.assignments.map(({ unitId }) => unitId)),
     )
 
-    const [targetUser, units] = await Promise.all([
-      prisma.userProfile.findUnique({
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${buildAnnouncementUnitAssignmentsLockKey(input.userId)}))`
+
+      const targetUser = await tx.userProfile.findUnique({
         where: { userId: input.userId },
         select: { userId: true, deletedAt: true },
-      }),
-      unitIds.length > 0
-        ? prisma.organizationUnit.findMany({
-            where: {
-              id: { in: unitIds },
-              isActive: true,
-            },
-            select: { id: true },
-          })
-        : Promise.resolve([]),
-    ])
+      })
 
-    if (!targetUser || targetUser.deletedAt) {
-      return errorResult(
-        "Không tìm thấy người dùng cần cập nhật thẩm quyền thông báo",
-        "NOT_FOUND",
-      )
-    }
+      if (!targetUser || targetUser.deletedAt) {
+        throw new AppError(
+          "Không tìm thấy người dùng cần cập nhật thẩm quyền thông báo",
+          "NOT_FOUND",
+          404,
+        )
+      }
 
-    if (units.length !== unitIds.length) {
-      return errorResult(
-        "Một hoặc nhiều đơn vị ban hành không hợp lệ",
-        "VALIDATION_ERROR",
-      )
-    }
+      const units =
+        unitIds.length > 0
+          ? await tx.organizationUnit.findMany({
+              where: {
+                id: { in: unitIds },
+                isActive: true,
+              },
+              select: { id: true },
+            })
+          : []
 
-    await prisma.$transaction(async (tx) => {
+      if (units.length !== unitIds.length) {
+        throw new AppError(
+          "Một hoặc nhiều đơn vị ban hành không hợp lệ",
+          "VALIDATION_ERROR",
+          400,
+        )
+      }
+
       await tx.announcementUnitMember.deleteMany({
         where: { userId: input.userId },
       })
