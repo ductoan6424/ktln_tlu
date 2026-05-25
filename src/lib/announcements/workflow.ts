@@ -32,7 +32,7 @@ function isFacultyLocalScope({
     return false
   }
 
-  if (targets.some((target) => ["CLUB", "GROUP", "USER"].includes(target.type))) {
+  if (targets.some((target) => target.type === "USER")) {
     return false
   }
 
@@ -41,18 +41,17 @@ function isFacultyLocalScope({
     return false
   }
 
+  if (facultyTargets.length > 0) {
+    return true
+  }
+
   const courseTargets = targets.filter((target) => target.type === "COURSE")
-  const hasVerifiedCourses =
+  return (
     courseTargets.length > 0 &&
     courseFacultyIds !== undefined &&
     courseFacultyIds.length === courseTargets.length &&
     courseFacultyIds.every((facultyId) => facultyId === unit.facultyId)
-
-  if (courseTargets.length > 0 && !hasVerifiedCourses) {
-    return false
-  }
-
-  return facultyTargets.length > 0 || hasVerifiedCourses
+  )
 }
 
 function isOrganizationLocalScope(
@@ -63,14 +62,22 @@ function isOrganizationLocalScope(
     return false
   }
 
+  if (targets.some((target) => target.type === "USER")) {
+    return false
+  }
+
+  const clubTargets = targets.filter((target) => target.type === "CLUB")
+  const groupTargets = targets.filter((target) => target.type === "GROUP")
   const isExactClubScope =
     unit.clubId !== null &&
-    targets.every(
+    clubTargets.length > 0 &&
+    clubTargets.every(
       (target) => target.type === "CLUB" && target.value === unit.clubId,
     )
   const isExactGroupScope =
     unit.groupId !== null &&
-    targets.every(
+    groupTargets.length > 0 &&
+    groupTargets.every(
       (target) => target.type === "GROUP" && target.value === unit.groupId,
     )
 
@@ -92,12 +99,27 @@ export function isEditableAnnouncementStatus(status: AnnouncementStatus): boolea
 export function nextStatusAfterApproval(
   stages: AnnouncementApprovalStage[],
   approvedStage: AnnouncementApprovalStage,
+  currentStatus: AnnouncementStatus,
 ): AnnouncementStatus {
-  if (stages[0] !== "UNIT" || !stages.includes(approvedStage)) {
-    throw new Error("Approval stage is not part of the required route")
+  const isUnitOnlyRoute = stages.length === 1 && stages[0] === "UNIT"
+  const isAdminRoute =
+    stages.length === 2 && stages[0] === "UNIT" && stages[1] === "ADMIN"
+
+  if (!isUnitOnlyRoute && !isAdminRoute) {
+    throw new Error("Approval route is invalid")
   }
 
-  return approvedStage === "UNIT" && stages.includes("ADMIN")
-    ? "PENDING_ADMIN_REVIEW"
-    : "APPROVED"
+  if (approvedStage === "UNIT" && currentStatus === "PENDING_UNIT_REVIEW") {
+    return isAdminRoute ? "PENDING_ADMIN_REVIEW" : "APPROVED"
+  }
+
+  if (
+    isAdminRoute &&
+    approvedStage === "ADMIN" &&
+    currentStatus === "PENDING_ADMIN_REVIEW"
+  ) {
+    return "APPROVED"
+  }
+
+  throw new Error("Approval stage does not match current review status")
 }
