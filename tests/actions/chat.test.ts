@@ -42,7 +42,7 @@ vi.mock("@/lib/cloudinary/upload", () => ({
   uploadChatAttachment,
 }))
 
-import { getChatSessionUser, sendConversationMessage } from "@/actions/chat"
+import { getChatSessionUser, getDirectConversationDetails, sendConversationMessage } from "@/actions/chat"
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -86,6 +86,81 @@ describe("getChatSessionUser", () => {
       success: false,
       error: "Bạn cần đăng nhập để sử dụng chat",
       code: "UNAUTHORIZED",
+    })
+  })
+})
+
+describe("getDirectConversationDetails", () => {
+  it("returns the peer profile for a direct conversation the current user belongs to", async () => {
+    mockWithSession("user-self")
+    prisma.userProfile.findUnique.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Bạn",
+      avatarUrl: null,
+      deletedAt: null,
+    })
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: "conv-1",
+      type: "DIRECT",
+      createdAt: new Date("2026-04-24T12:00:00.000Z"),
+      participants: [
+        {
+          userId: "user-self",
+          joinedAt: new Date("2026-04-24T12:00:00.000Z"),
+          user: {
+            userId: "user-self",
+            displayName: "Bạn",
+            username: "ban",
+            avatarUrl: null,
+            bio: null,
+            role: "STUDENT",
+            studentId: "SV001",
+            major: "CNTT",
+            year: 2024,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            deletedAt: null,
+          },
+        },
+        {
+          userId: "user-peer",
+          joinedAt: new Date("2026-04-24T12:00:00.000Z"),
+          user: {
+            userId: "user-peer",
+            displayName: "Nguyễn An",
+            username: "nguyen-an",
+            avatarUrl: "https://cdn.example.com/an.png",
+            bio: "Yêu thích học nhóm.",
+            role: "LECTURER",
+            studentId: null,
+            major: "Khoa học máy tính",
+            year: null,
+            createdAt: new Date("2025-08-01T00:00:00.000Z"),
+            deletedAt: null,
+          },
+        },
+      ],
+    })
+
+    const result = await getDirectConversationDetails({ conversationId: "conv-1" })
+
+    expect(result).toEqual({
+      success: true,
+      data: {
+        conversationId: "conv-1",
+        createdAt: "2026-04-24T12:00:00.000Z",
+        peer: {
+          userId: "user-peer",
+          displayName: "Nguyễn An",
+          username: "nguyen-an",
+          avatarUrl: "https://cdn.example.com/an.png",
+          bio: "Yêu thích học nhóm.",
+          role: "LECTURER",
+          studentId: null,
+          major: "Khoa học máy tính",
+          year: null,
+          createdAt: "2025-08-01T00:00:00.000Z",
+        },
+      },
     })
   })
 })
@@ -380,7 +455,7 @@ describe("sendConversationMessage", () => {
 
     prisma.userProfile.findUnique.mockResolvedValue({
       userId: "user-self",
-      displayName: "Báº¡n",
+      displayName: "Bạn",
       avatarUrl: null,
       deletedAt: null,
     })
@@ -415,7 +490,7 @@ describe("sendConversationMessage", () => {
             createdAt: new Date("2026-04-24T12:00:00.000Z"),
             sender: {
               userId: "user-self",
-              displayName: "Báº¡n",
+              displayName: "Bạn",
               avatarUrl: null,
             },
           }),
