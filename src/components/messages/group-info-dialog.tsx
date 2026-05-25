@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import {
@@ -131,8 +131,8 @@ export function GroupInfoDialog({
         } else {
           setDetails(null)
           toast({
-            title: "KhÃ´ng thá»ƒ táº£i nhÃ³m",
-            description: result.error ?? "Vui lÃ²ng thá»­ láº¡i.",
+            title: "Không thể tải nhóm",
+            description: result.error ?? "Vui lòng thử lại.",
             variant: "destructive",
           })
         }
@@ -233,16 +233,16 @@ export function GroupInfoDialog({
 
   const getMemberSubtitle = (member: NonNullable<ChatGroupDetails["members"][number]>) => {
     if (member.isAdmin) {
-      return "NgÆ°á»i táº¡o nhÃ³m"
+      return "Người tạo nhóm"
     }
 
     if (!leader) {
-      return "ThÃ nh viÃªn"
+      return "Thành viên"
     }
 
     return leader.userId === details?.currentUserId
-      ? "Do báº¡n thÃªm"
-      : `${leader.displayName} Ä‘Ã£ thÃªm`
+      ? "Do bạn thêm"
+      : `${leader.displayName} đã thêm`
   }
 
   const handleRename = async () => {
@@ -257,8 +257,8 @@ export function GroupInfoDialog({
 
     if (!result.success || !result.data) {
       toast({
-        title: "KhÃ´ng thá»ƒ Ä‘á»•i tÃªn",
-        description: result.error ?? "Vui lÃ²ng thá»­ láº¡i.",
+        title: "Không thể đổi tên",
+        description: result.error ?? "Vui lòng thử lại.",
         variant: "destructive",
       })
       return
@@ -272,7 +272,7 @@ export function GroupInfoDialog({
     })
     onGroupRenamed?.(conversationId, result.data.name)
     setIsRenameOpen(false)
-    toast({ description: "ÄÃ£ Ä‘á»•i tÃªn nhÃ³m." })
+    toast({ description: "Đã đổi tên nhóm." })
   }
 
   const handleAddMembers = async () => {
@@ -287,8 +287,8 @@ export function GroupInfoDialog({
 
     if (!result.success || !result.data) {
       toast({
-        title: "KhÃ´ng thá»ƒ thÃªm thÃ nh viÃªn",
-        description: result.error ?? "Vui lÃ²ng thá»­ láº¡i.",
+        title: "Không thể thêm thành viên",
+        description: result.error ?? "Vui lòng thử lại.",
         variant: "destructive",
       })
       return
@@ -315,8 +315,8 @@ export function GroupInfoDialog({
 
     if (!result.success || !result.data) {
       toast({
-        title: "KhÃ´ng thá»ƒ xoÃ¡ thÃ nh viÃªn",
-        description: result.error ?? "Vui lÃ²ng thá»­ láº¡i.",
+        title: "Không thể xoá thành viên",
+        description: result.error ?? "Vui lòng thử lại.",
         variant: "destructive",
       })
       return
@@ -339,8 +339,8 @@ export function GroupInfoDialog({
 
     if (!result.success || !result.data) {
       toast({
-        title: "KhÃ´ng thá»ƒ rá»i nhÃ³m",
-        description: result.error ?? "Vui lÃ²ng thá»­ láº¡i.",
+        title: "Không thể rời nhóm",
+        description: result.error ?? "Vui lòng thử lại.",
         variant: "destructive",
       })
       return
@@ -363,8 +363,8 @@ export function GroupInfoDialog({
 
     if (!result.success || !result.data) {
       toast({
-        title: "KhÃ´ng thá»ƒ xoÃ¡ nhÃ³m",
-        description: result.error ?? "Vui lÃ²ng thá»­ láº¡i.",
+        title: "Không thể xoá nhóm",
+        description: result.error ?? "Vui lòng thử lại.",
         variant: "destructive",
       })
       return
@@ -390,21 +390,21 @@ export function GroupInfoDialog({
         type="button"
         variant="ghost"
         className="fixed inset-0 z-40 size-auto rounded-none bg-background/60 p-0 backdrop-blur-sm hover:bg-background/60 lg:hidden"
-        aria-label="ÄÃ³ng thÃ´ng tin nhÃ³m"
+        aria-label="Đóng thông tin nhóm"
         onClick={() => handleOpenChange(false)}
       />
       <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
         <header className="flex h-16 shrink-0 items-start justify-between border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold">{details?.name ?? "NhÃ³m chat"}</h2>
+            <h2 className="truncate text-base font-semibold">{details?.name ?? "Nhóm chat"}</h2>
             <p className="truncate text-xs text-muted-foreground">
-              {details ? `${details.participantCount} thÃ nh viÃªn` : "Äang táº£i thÃ´ng tin"}
+              {details ? `${details.participantCount} thành viên` : "Đang tải thông tin"}
             </p>
           </div>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="ÄÃ³ng thÃ´ng tin nhÃ³m"
+            aria-label="Đóng thông tin nhóm"
             onClick={() => handleOpenChange(false)}
           >
             <X className="size-4" />
@@ -414,7 +414,7 @@ export function GroupInfoDialog({
         {isLoading || !details ? (
           <div className="flex items-center gap-2 px-5 py-8 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            Äang táº£i thÃ´ng tin nhÃ³mâ€¦
+            Đang tải thông tin nhóm…
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-3 py-4">
@@ -426,18 +426,18 @@ export function GroupInfoDialog({
                 onClick={() => handleRenameOpenChange(true)}
               >
                 <Pencil className="size-5 text-foreground" />
-                <span className="text-[15px] font-semibold">Äá»•i tÃªn nhÃ³m</span>
+                <span className="text-[15px] font-semibold">Đổi tên nhóm</span>
               </Button>
             )}
 
             <section className="space-y-1">
               <div className="flex h-9 items-center justify-between px-2">
-                <h3 className="text-base font-semibold">ThÃ nh viÃªn trong Ä‘oáº¡n chat</h3>
+                <h3 className="text-base font-semibold">Thành viên trong đoạn chat</h3>
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={isMemberSearchOpen ? "ÄÃ³ng tÃ¬m kiáº¿m thÃ nh viÃªn" : "TÃ¬m thÃ nh viÃªn"}
+                    aria-label={isMemberSearchOpen ? "Đóng tìm kiếm thành viên" : "Tìm thành viên"}
                     onClick={() => {
                       setIsMemberSearchOpen((isOpen) => !isOpen)
                       setAreMembersVisible(true)
@@ -451,7 +451,7 @@ export function GroupInfoDialog({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={areMembersVisible ? "áº¨n thÃ nh viÃªn" : "Hiá»‡n thÃ nh viÃªn"}
+                    aria-label={areMembersVisible ? "Ẩn thành viên" : "Hiện thành viên"}
                     onClick={() => setAreMembersVisible((visible) => !visible)}
                   >
                     {areMembersVisible ? (
@@ -470,7 +470,7 @@ export function GroupInfoDialog({
                     <Input
                       value={memberSearchQuery}
                       onChange={(event) => setMemberSearchQuery(event.target.value)}
-                      placeholder="TÃ¬m trong nhÃ³m"
+                      placeholder="Tìm trong nhóm"
                       className="pl-8"
                     />
                   </div>
@@ -503,7 +503,7 @@ export function GroupInfoDialog({
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              aria-label={`TÃ¹y chá»n cho ${member.displayName}`}
+                              aria-label={`Tùy chọn cho ${member.displayName}`}
                               disabled={pendingMemberId === member.userId}
                             />
                           }
@@ -522,7 +522,7 @@ export function GroupInfoDialog({
                             }}
                           >
                             <Trash2 className="size-4" />
-                            XÃ³a khá»i nhÃ³m
+                            Xóa khỏi nhóm
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -532,7 +532,7 @@ export function GroupInfoDialog({
               })}
 
               {areMembersVisible && filteredMembers.length === 0 && (
-                <p className="px-2 py-4 text-sm text-muted-foreground">KhÃ´ng tÃ¬m tháº¥y thÃ nh viÃªn phÃ¹ há»£p.</p>
+                <p className="px-2 py-4 text-sm text-muted-foreground">Không tìm thấy thành viên phù hợp.</p>
               )}
 
               {details.currentUserIsAdmin && (
@@ -543,7 +543,7 @@ export function GroupInfoDialog({
                   onClick={() => handleAddMembersOpenChange(true)}
                 >
                   <UserPlus className="size-6 text-foreground" />
-                  <span className="text-[15px] font-semibold">ThÃªm ngÆ°á»i</span>
+                  <span className="text-[15px] font-semibold">Thêm người</span>
                 </Button>
               )}
             </section>
@@ -559,7 +559,7 @@ export function GroupInfoDialog({
               disabled={isDeletingGroup}
             >
               <Trash2 className="size-3.5" />
-              XÃ³a nhÃ³m
+              Xóa nhóm
             </Button>
           )}
             <Button
@@ -571,17 +571,17 @@ export function GroupInfoDialog({
               {isLeaving ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="size-4 animate-spin" />
-                  Äang rá»i
+                  Đang rời
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2">
                   <LogOut className="size-4" />
-                  Rá»i nhÃ³m
+                  Rời nhóm
                 </span>
               )}
             </Button>
             <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              ÄÃ³ng
+              Đóng
             </Button>
         </footer>
       </aside>
@@ -589,23 +589,23 @@ export function GroupInfoDialog({
       <Dialog open={isRenameOpen} onOpenChange={handleRenameOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Äá»•i tÃªn nhÃ³m</DialogTitle>
+            <DialogTitle>Đổi tên nhóm</DialogTitle>
           </DialogHeader>
           <Input
             value={groupName}
             onChange={(event) => setGroupName(event.target.value)}
             maxLength={80}
-            placeholder="TÃªn nhÃ³m"
+            placeholder="Tên nhóm"
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => handleRenameOpenChange(false)}>
-              Há»§y
+              Hủy
             </Button>
             <Button
               onClick={handleRename}
               disabled={isSavingName || !groupName.trim() || groupName.trim() === details?.name}
             >
-              {isSavingName ? <Loader2 className="size-4 animate-spin" /> : "LÆ°u"}
+              {isSavingName ? <Loader2 className="size-4 animate-spin" /> : "Lưu"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -614,7 +614,7 @@ export function GroupInfoDialog({
       <Dialog open={isAddMembersOpen} onOpenChange={handleAddMembersOpenChange}>
         <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden">
           <DialogHeader className="px-5 pt-5 pb-4">
-            <DialogTitle>ThÃªm ngÆ°á»i</DialogTitle>
+            <DialogTitle>Thêm người</DialogTitle>
           </DialogHeader>
 
           <div className="px-5 pb-4 space-y-3">
@@ -640,7 +640,7 @@ export function GroupInfoDialog({
               <Input
                 value={addMemberQuery}
                 onChange={(event) => setAddMemberQuery(event.target.value)}
-                placeholder="TÃ¬m thÃ nh viÃªn"
+                placeholder="Tìm thành viên"
                 className="pl-8"
               />
             </div>
@@ -649,11 +649,11 @@ export function GroupInfoDialog({
               {isLoadingUsers ? (
                 <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
-                  Äang tÃ¬mâ€¦
+                  Đang tìm…
                 </div>
               ) : availableUsers.length === 0 ? (
                 <p className="px-3 py-4 text-sm text-muted-foreground">
-                  KhÃ´ng cÃ³ thÃ nh viÃªn phÃ¹ há»£p.
+                  Không có thành viên phù hợp.
                 </p>
               ) : (
                 availableUsers.map((user) => {
@@ -700,7 +700,7 @@ export function GroupInfoDialog({
 
           <DialogFooter className="px-5">
             <Button variant="outline" onClick={() => handleAddMembersOpenChange(false)}>
-              Há»§y
+              Hủy
             </Button>
             <Button
               onClick={handleAddMembers}
@@ -709,10 +709,10 @@ export function GroupInfoDialog({
               {isAddingMembers ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="size-4 animate-spin" />
-                  Äang thÃªm
+                  Đang thêm
                 </span>
               ) : (
-                "ThÃªm"
+                "Thêm"
               )}
             </Button>
           </DialogFooter>
@@ -722,14 +722,14 @@ export function GroupInfoDialog({
       <Dialog open={isDeleteGroupOpen} onOpenChange={setIsDeleteGroupOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>XÃ³a nhÃ³m</DialogTitle>
+            <DialogTitle>Xóa nhóm</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            HÃ nh Ä‘á»™ng nÃ y sáº½ xÃ³a nhÃ³m, thÃ nh viÃªn vÃ  toÃ n bá»™ tin nháº¯n trong nhÃ³m. KhÃ´ng thá»ƒ hoÃ n tÃ¡c.
+            Hành động này sẽ xóa nhóm, thành viên và toàn bộ tin nhắn trong nhóm. Không thể hoàn tác.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteGroupOpen(false)}>
-              Há»§y
+              Hủy
             </Button>
             <Button
               variant="destructive"
@@ -739,10 +739,10 @@ export function GroupInfoDialog({
               {isDeletingGroup ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="size-4 animate-spin" />
-                  Äang xÃ³a
+                  Đang xóa
                 </span>
               ) : (
-                "XÃ³a nhÃ³m"
+                "Xóa nhóm"
               )}
             </Button>
           </DialogFooter>

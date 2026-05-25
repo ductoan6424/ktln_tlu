@@ -18,6 +18,7 @@ import { ChatHeader } from "@/components/messages/chat-header"
 import { CreateGroupDialog } from "@/components/messages/create-group-dialog"
 import { ConversationItem, ConversationItemSkeleton } from "@/components/messages/conversation-item"
 import { ConversationList } from "@/components/messages/conversation-list"
+import { DirectInfoDialog } from "@/components/messages/direct-info-dialog"
 import { GroupInfoDialog } from "@/components/messages/group-info-dialog"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
@@ -75,6 +76,8 @@ function MessagesPageInner() {
   const [hasOpenedCreateGroup, setHasOpenedCreateGroup] = useState(false)
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false)
   const [hasOpenedGroupInfo, setHasOpenedGroupInfo] = useState(false)
+  const [isDirectInfoOpen, setIsDirectInfoOpen] = useState(false)
+  const [hasOpenedDirectInfo, setHasOpenedDirectInfo] = useState(false)
 
   const activeConversationIdRef = useRef<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -132,6 +135,12 @@ function MessagesPageInner() {
       setIsGroupInfoOpen(false)
     }
   }, [activeConversation?.isGroup, isGroupInfoOpen])
+
+  useEffect(() => {
+    if ((activeConversation?.isGroup || !activeConversation) && isDirectInfoOpen) {
+      setIsDirectInfoOpen(false)
+    }
+  }, [activeConversation, isDirectInfoOpen])
 
   const mergeIncomingMessage = useCallback((message: ChatMessageItem) => {
     setMessages((prev) => {
@@ -613,7 +622,10 @@ function MessagesPageInner() {
                       setHasOpenedGroupInfo(true)
                       setIsGroupInfoOpen(true)
                     }
-                  : undefined
+                  : () => {
+                      setHasOpenedDirectInfo(true)
+                      setIsDirectInfoOpen(true)
+                    }
               }
               className="lg:pl-4 pl-12"
             />
@@ -722,6 +734,18 @@ function MessagesPageInner() {
           onGroupRenamed={handleGroupRenamed}
           onGroupMembersChanged={handleGroupMembersChanged}
           onLeftGroup={handleLeftGroup}
+        />
+      )}
+      {hasOpenedDirectInfo && (
+        <DirectInfoDialog
+          conversationId={!activeConversation?.isGroup ? activeConversation?.id ?? null : null}
+          open={isDirectInfoOpen}
+          isOnline={
+            activeConversation?.peerUserId
+              ? onlineUserIds.has(activeConversation.peerUserId)
+              : false
+          }
+          onOpenChange={setIsDirectInfoOpen}
         />
       )}
       </div>

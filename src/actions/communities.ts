@@ -458,11 +458,11 @@ export async function updateCommunityMemberRole(
 > {
   try {
     const context = await getAuthorizationContext()
-    if (!context) return errorResult("Báº¡n cáº§n Ä‘Äƒng nháº­p", "UNAUTHORIZED")
+    if (!context) return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
 
     const input = updateMemberRoleSchema.parse(normalizeFormInput(rawInput))
     const target = await getCommunityBySlugId(input.type, input.slugId)
-    if (!target) return errorResult("KhÃ´ng tÃ¬m tháº¥y khÃ´ng gian nÃ y", "NOT_FOUND")
+    if (!target) return errorResult("Không tìm thấy không gian này", "NOT_FOUND")
 
     const membershipRole = await getViewerMembershipRole(
       target.type,
@@ -476,10 +476,10 @@ export async function updateCommunityMemberRole(
       membershipRole,
     })
     if (!permissions.canManage) {
-      return errorResult("Báº¡n khÃ´ng cÃ³ quyá»n cáº­p nháº­t vai trÃ²", "FORBIDDEN")
+      return errorResult("Bạn không có quyền cập nhật vai trò", "FORBIDDEN")
     }
     if (input.memberId === context.profile.userId && input.role !== "ADMIN") {
-      return errorResult("Báº¡n khÃ´ng thá»ƒ tá»± háº¡ quyá»n cá»§a mÃ¬nh", "FORBIDDEN")
+      return errorResult("Bạn không thể tự hạ quyền của mình", "FORBIDDEN")
     }
 
     if (input.type === "GROUP") {
@@ -518,8 +518,8 @@ export async function updateCommunityMemberRole(
     return successResult({ targetId: target.id, memberId: input.memberId, role: input.role })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return errorResult(error.issues[0]?.message ?? "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡", "VALIDATION_ERROR")
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
     }
-    return errorResult("KhÃ´ng thá»ƒ cáº­p nháº­t vai trÃ²", "UPDATE_FAILED")
+    return errorResult("Không thể cập nhật vai trò", "UPDATE_FAILED")
   }
 }

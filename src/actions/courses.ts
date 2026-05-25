@@ -369,11 +369,11 @@ export async function updateCourseSettings(
     return successResult({ courseId: updated.id, href: newHref })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return errorResult(error.issues[0]?.message ?? "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡", "VALIDATION_ERROR")
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
     }
 
     return errorResult(
-      error instanceof Error ? error.message : "KhÃ´ng thá»ƒ cáº­p nháº­t lá»›p há»c",
+      error instanceof Error ? error.message : "Không thể cập nhật lớp học",
       "UPDATE_FAILED",
     )
   }
