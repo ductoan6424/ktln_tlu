@@ -12,8 +12,15 @@ import {
 import type { CommunityContext } from "@/lib/communities/types"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import { getCourseDetail } from "@/lib/courses/course-queries"
+import {
+  listCourseAnnouncements,
+  listCourseAssignments,
+} from "@/lib/courses/course-learning"
 import { getCommunityDetailPosts } from "@/lib/feed/queries"
 import { prisma } from "@/lib/prisma/client"
+
+import { CourseAnnouncementsPanel } from "./course-announcements-panel"
+import { CourseAssignmentsPanel } from "./course-assignments-panel"
 
 export const dynamic = "force-dynamic"
 
@@ -25,7 +32,11 @@ function getParam(params: SearchParams, key: string) {
 }
 
 function normalizeDetailTab(value: string): CommunityDetailTab {
-  return value === "members" || value === "about" || value === "chat"
+  return value === "members" ||
+    value === "about" ||
+    value === "chat" ||
+    value === "announcements" ||
+    value === "assignments"
     ? value
     : "feed"
 }
@@ -81,7 +92,7 @@ export default async function CourseDetailPage({
     target,
     membershipRole,
   })
-  const [chatConversation, posts] = await Promise.all([
+  const [chatConversation, posts, announcements, assignments] = await Promise.all([
     permissions.canViewPosts && target.chatEnabled
       ? getOrCreateCommunityConversation("COURSE", courseId)
       : null,
@@ -93,6 +104,8 @@ export default async function CourseDetailPage({
           pageSize: 20,
         })
       : [],
+    permissions.canViewPosts ? listCourseAnnouncements(course.id) : [],
+    permissions.canViewPosts ? listCourseAssignments(course.id) : [],
   ])
   const chat =
     chatConversation?.success && chatConversation.data
@@ -141,6 +154,22 @@ export default async function CourseDetailPage({
       }))}
       posts={posts}
       chat={chat}
+      learningPanels={{
+        announcements: (
+          <CourseAnnouncementsPanel
+            courseId={course.id}
+            canManage={permissions.canManage}
+            announcements={announcements}
+          />
+        ),
+        assignments: (
+          <CourseAssignmentsPanel
+            courseId={course.id}
+            canManage={permissions.canManage}
+            assignments={assignments}
+          />
+        ),
+      }}
     />
   )
 }
