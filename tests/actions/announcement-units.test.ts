@@ -19,6 +19,13 @@ const prisma = vi.hoisted(() => ({
 }))
 
 const tx = {
+  $executeRaw: vi.fn(),
+  userProfile: {
+    findUnique: vi.fn(),
+  },
+  organizationUnit: {
+    findMany: vi.fn(),
+  },
   announcementUnitMember: {
     deleteMany: vi.fn(),
     createMany: vi.fn(),
@@ -72,6 +79,12 @@ beforeEach(() => {
   prisma.$transaction.mockImplementation(
     async (callback: (client: typeof tx) => Promise<void>) => callback(tx),
   )
+  tx.$executeRaw.mockResolvedValue(1)
+  tx.userProfile.findUnique.mockResolvedValue({
+    userId: "user-1",
+    deletedAt: null,
+  })
+  tx.organizationUnit.findMany.mockResolvedValue(activeUnits)
   tx.announcementUnitMember.deleteMany.mockResolvedValue({ count: 0 })
   tx.announcementUnitMember.createMany.mockResolvedValue({ count: 1 })
 })
@@ -143,7 +156,7 @@ describe("announcement unit queries and authorization", () => {
 })
 
 describe("updateAnnouncementUnitAssignments", () => {
-  it("replaces current assignments with active AUTHOR and APPROVER memberships", async () => {
+  it("locks before transaction-scoped validation and replacing current assignments", async () => {
     const result = await updateAnnouncementUnitAssignments({
       userId: "user-1",
       assignments: [
@@ -153,11 +166,18 @@ describe("updateAnnouncementUnitAssignments", () => {
     })
 
     expect(result).toEqual({ success: true, data: { userId: "user-1" } })
-    expect(prisma.userProfile.findUnique).toHaveBeenCalledWith({
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1)
+    expect(tx.$executeRaw.mock.calls[0]?.[0]?.join("")).toBe(
+      "SELECT pg_advisory_xact_lock(hashtext())",
+    )
+    expect(tx.$executeRaw.mock.calls[0]?.[1]).toBe(
+      "announcement-unit-assignments:user-1",
+    )
+    expect(tx.userProfile.findUnique).toHaveBeenCalledWith({
       where: { userId: "user-1" },
       select: { userId: true, deletedAt: true },
     })
-    expect(prisma.organizationUnit.findMany).toHaveBeenCalledWith({
+    expect(tx.organizationUnit.findMany).toHaveBeenCalledWith({
       where: {
         id: { in: ["unit-faculty-it", "unit-student-affairs"] },
         isActive: true,
@@ -183,6 +203,15 @@ describe("updateAnnouncementUnitAssignments", () => {
         },
       ],
     })
+    const lockOrder = tx.$executeRaw.mock.invocationCallOrder[0]!
+    const deleteOrder = tx.announcementUnitMember.deleteMany.mock.invocationCallOrder[0]!
+    expect(lockOrder).toBeLessThan(tx.userProfile.findUnique.mock.invocationCallOrder[0]!)
+    expect(lockOrder).toBeLessThan(tx.organizationUnit.findMany.mock.invocationCallOrder[0]!)
+    expect(lockOrder).toBeLessThan(deleteOrder)
+    expect(tx.userProfile.findUnique.mock.invocationCallOrder[0]!).toBeLessThan(deleteOrder)
+    expect(tx.organizationUnit.findMany.mock.invocationCallOrder[0]!).toBeLessThan(deleteOrder)
+    expect(prisma.userProfile.findUnique).not.toHaveBeenCalled()
+    expect(prisma.organizationUnit.findMany).not.toHaveBeenCalled()
     expect(revalidatePath).toHaveBeenCalledWith("/admin/users/user-1/edit")
     expect(revalidatePath).toHaveBeenCalledWith("/admin/announcements")
   })
@@ -194,7 +223,9 @@ describe("updateAnnouncementUnitAssignments", () => {
     })
 
     expect(result).toEqual({ success: true, data: { userId: "user-1" } })
-    expect(prisma.organizationUnit.findMany).not.toHaveBeenCalled()
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1)
+    expect(tx.userProfile.findUnique).toHaveBeenCalled()
+    expect(tx.organizationUnit.findMany).not.toHaveBeenCalled()
     expect(tx.announcementUnitMember.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
     })
@@ -202,7 +233,7 @@ describe("updateAnnouncementUnitAssignments", () => {
   })
 
   it("normalizes checkbox assignment values submitted as FormData", async () => {
-    prisma.organizationUnit.findMany.mockResolvedValueOnce([activeUnits[0]])
+    tx.organizationUnit.findMany.mockResolvedValueOnce([activeUnits[0]])
     const formData = new FormData()
     formData.set("userId", "user-1")
     formData.append(
@@ -247,7 +278,7 @@ describe("updateAnnouncementUnitAssignments", () => {
     ["a missing", null],
     ["a deleted", { userId: "user-1", deletedAt: new Date("2026-05-01") }],
   ])("returns NOT_FOUND for %s target user", async (_, targetUser) => {
-    prisma.userProfile.findUnique.mockResolvedValueOnce(targetUser)
+    tx.userProfile.findUnique.mockResolvedValueOnce(targetUser)
 
     const result = await updateAnnouncementUnitAssignments({
       userId: "user-1",
@@ -256,13 +287,15 @@ describe("updateAnnouncementUnitAssignments", () => {
 
     expect(result.success).toBe(false)
     expect(result.code).toBe("NOT_FOUND")
-    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1)
+    expect(tx.userProfile.findUnique).toHaveBeenCalled()
+    expect(tx.announcementUnitMember.deleteMany).not.toHaveBeenCalled()
   })
 
   it.each(["missing", "inactive"])(
     "returns VALIDATION_ERROR when an assignment references a %s unit",
     async () => {
-      prisma.organizationUnit.findMany.mockResolvedValueOnce([])
+      tx.organizationUnit.findMany.mockResolvedValueOnce([])
 
       const result = await updateAnnouncementUnitAssignments({
         userId: "user-1",
@@ -271,7 +304,9 @@ describe("updateAnnouncementUnitAssignments", () => {
 
       expect(result.success).toBe(false)
       expect(result.code).toBe("VALIDATION_ERROR")
-      expect(prisma.$transaction).not.toHaveBeenCalled()
+      expect(tx.$executeRaw).toHaveBeenCalledTimes(1)
+      expect(tx.organizationUnit.findMany).toHaveBeenCalled()
+      expect(tx.announcementUnitMember.deleteMany).not.toHaveBeenCalled()
     },
   )
 
