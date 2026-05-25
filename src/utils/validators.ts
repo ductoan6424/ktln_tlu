@@ -112,6 +112,17 @@ export const pollInputSchema = z
 
 // Validation schema cho thông báo chính thức
 export const announcementAudienceSchema = z.enum(["ALL", "STUDENTS", "FACULTY"]);
+export const announcementCategorySchema = z.enum([
+  "ACADEMIC",
+  "TUITION",
+  "EXAMINATION",
+  "STUDENT_AFFAIRS",
+  "EVENT",
+  "SYSTEM",
+  "EMERGENCY",
+  "OTHER",
+]);
+export const announcementPrioritySchema = z.enum(["NORMAL", "IMPORTANT", "URGENT"]);
 export const announcementTargetTypeSchema = z.enum([
   "ROLE",
   "FACULTY",
@@ -150,6 +161,44 @@ export const announcementTargetInputSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("USER"), value: announcementTargetValueSchema }),
 ]);
 
+export const announcementLinkSchema = z.object({
+  source: z.literal("LINK"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Ten lien ket khong duoc de trong")
+    .max(200, "Ten lien ket toi da 200 ky tu"),
+  url: z
+    .string()
+    .url("Lien ket khong hop le")
+    .refine(
+      (url) => {
+        try {
+          return new URL(url).protocol === "https:";
+        } catch {
+          return false;
+        }
+      },
+      "Lien ket phai dung HTTPS",
+    ),
+});
+
+export const announcementDecisionSchema = z
+  .object({
+    announcementId: z.string().trim().min(1, "Thong bao khong hop le"),
+    decision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REJECTED"]),
+    comment: z.string().trim().max(1000, "Ly do toi da 1000 ky tu").optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.decision !== "APPROVED" && !value.comment) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["comment"],
+        message: "Can nhap ly do",
+      });
+    }
+  });
+
 export const announcementInputSchema = z.object({
   title: z
     .string()
@@ -161,15 +210,30 @@ export const announcementInputSchema = z.object({
     .trim()
     .min(1, "Nội dung không được để trống")
     .max(ANNOUNCEMENT_CONTENT_MAX, `Nội dung tối đa ${ANNOUNCEMENT_CONTENT_MAX} ký tự`),
+  issuingUnitId: z.string().trim().min(1, "Can chon don vi ban hanh"),
+  category: announcementCategorySchema.default("OTHER"),
+  priority: announcementPrioritySchema.default("NORMAL"),
   audience: announcementAudienceSchema.default("ALL"),
   targets: z.array(announcementTargetInputSchema).default([]),
   pinToTop: z.boolean().default(false),
   sendEmail: z.boolean().default(false),
+  requiresAcknowledgement: z.boolean().default(false),
+  scheduledAt: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .or(z.literal("")),
+  actionDeadlineAt: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .or(z.literal("")),
   expiresAt: z
     .string()
     .datetime({ offset: true })
     .optional()
     .or(z.literal("")),
+  links: z.array(announcementLinkSchema).default([]),
 });
 
 export const eventTypeSchema = z.enum([
@@ -238,7 +302,11 @@ export type CommentInput = z.infer<typeof commentSchema>;
 export type PostDeleteReasonInput = z.infer<typeof postDeleteReasonSchema>;
 export type AnnouncementInput = z.infer<typeof announcementInputSchema>;
 export type AnnouncementAudienceInput = z.infer<typeof announcementAudienceSchema>;
+export type AnnouncementCategoryInput = z.infer<typeof announcementCategorySchema>;
+export type AnnouncementPriorityInput = z.infer<typeof announcementPrioritySchema>;
 export type AnnouncementTargetInput = z.infer<typeof announcementTargetInputSchema>;
+export type AnnouncementLinkInput = z.infer<typeof announcementLinkSchema>;
+export type AnnouncementDecisionInput = z.infer<typeof announcementDecisionSchema>;
 export type EventInput = z.infer<typeof eventInputSchema>;
 export type EventTypeInput = z.infer<typeof eventTypeSchema>;
 export type EventRegistrationStatusInput = z.infer<typeof eventRegistrationStatusSchema>;
