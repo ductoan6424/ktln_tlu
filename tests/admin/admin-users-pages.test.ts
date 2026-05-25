@@ -255,6 +255,8 @@ describe("admin users pages", () => {
     expect(editMarkup).toContain("Khoa Công nghệ thông tin")
     expect(editMarkup).toContain("AUTHOR")
     expect(editMarkup).toContain("APPROVER")
+    expect(editMarkup).toMatch(/id="announcement-unit-unit-faculty-it-AUTHOR"[^>]*checked=""/)
+    expect(editMarkup).not.toMatch(/id="announcement-unit-unit-faculty-it-APPROVER"[^>]*checked=""/)
     expect(requireSystemAdmin).toHaveBeenCalled()
     expect(listActiveAnnouncementUnitAssignmentsForUser).toHaveBeenCalledWith("user-001")
 
