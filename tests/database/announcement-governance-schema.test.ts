@@ -250,6 +250,60 @@ describe("announcement governance schema", () => {
     }
   })
 
+  it("enforces revision links within the owning announcement", () => {
+    const schema = readPrismaSchema()
+    const migration = readGovernanceMigration()
+    const announcement = block(schema, "model", "Announcement")
+    const revision = block(schema, "model", "AnnouncementRevision")
+    const approval = block(schema, "model", "AnnouncementApproval")
+    const attachment = block(schema, "model", "AnnouncementAttachment")
+    const recipient = block(schema, "model", "AnnouncementRecipient")
+    const auditEvent = block(schema, "model", "AnnouncementAuditEvent")
+
+    expect(revision).toContain("@@unique([announcementId, id])")
+    expect(announcement).toMatch(
+      /activeRevision\s+AnnouncementRevision\?\s+@relation\("AnnouncementActiveRevision", fields: \[id, activeRevisionId\], references: \[announcementId, id\], onDelete: NoAction, onUpdate: NoAction\)/,
+    )
+    expect(announcement).toMatch(
+      /publishedRevision\s+AnnouncementRevision\?\s+@relation\("AnnouncementPublishedRevision", fields: \[id, publishedRevisionId\], references: \[announcementId, id\], onDelete: NoAction, onUpdate: NoAction\)/,
+    )
+    expect(announcement).toContain("@@unique([id, activeRevisionId])")
+    expect(announcement).toContain("@@unique([id, publishedRevisionId])")
+
+    for (const model of [approval, attachment, recipient, auditEvent]) {
+      expect(model).toMatch(
+        /revision\s+AnnouncementRevision\??\s+@relation\(fields: \[announcementId, revisionId\], references: \[announcementId, id\], onDelete: NoAction, onUpdate: NoAction\)/,
+      )
+    }
+
+    expect(migration).toContain(
+      'CREATE UNIQUE INDEX "announcement_revisions_announcement_id_revision_id_key" ON "announcement_revisions"("announcement_id", "revision_id");',
+    )
+    expect(migration).toContain(
+      'CREATE UNIQUE INDEX "announcements_announcement_id_active_revision_id_key" ON "announcements"("announcement_id", "active_revision_id");',
+    )
+    expect(migration).toContain(
+      'CREATE UNIQUE INDEX "announcements_announcement_id_published_revision_id_key" ON "announcements"("announcement_id", "published_revision_id");',
+    )
+
+    const revisionOwnershipForeignKeys = [
+      ["announcements_active_revision_id_fkey", "announcement_id", "active_revision_id"],
+      ["announcements_published_revision_id_fkey", "announcement_id", "published_revision_id"],
+      ["announcement_approvals_revision_id_fkey", "announcement_id", "revision_id"],
+      ["announcement_attachments_revision_id_fkey", "announcement_id", "revision_id"],
+      ["announcement_recipients_revision_id_fkey", "announcement_id", "revision_id"],
+      ["announcement_audit_events_revision_id_fkey", "announcement_id", "revision_id"],
+    ]
+
+    for (const [constraint, announcementColumn, revisionColumn] of revisionOwnershipForeignKeys) {
+      expect(migration).toMatch(
+        new RegExp(
+          `ADD CONSTRAINT "${constraint}"\\s+FOREIGN KEY \\("${announcementColumn}", "${revisionColumn}"\\) REFERENCES "announcement_revisions"\\("announcement_id", "revision_id"\\)\\s+ON DELETE NO ACTION ON UPDATE NO ACTION;`,
+        ),
+      )
+    }
+  })
+
   it("migrates the persistence layer and seeds units and delegated permissions", () => {
     const migration = readGovernanceMigration()
     const existingRbacMigration = readAdminRbacMigration()
