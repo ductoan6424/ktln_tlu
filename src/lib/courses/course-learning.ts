@@ -55,7 +55,24 @@ function scoreToNumber(value: unknown): number | null {
   return Number.isFinite(numeric) ? numeric : null
 }
 
-function mapSubmission(row: any): AssignmentSubmissionDto {
+type SubmissionRow = {
+  id: string
+  studentId: string
+  content: string | null
+  attachmentUrls: unknown
+  submittedAt: Date
+  score: unknown
+  feedback: string | null
+  gradedAt: Date | null
+  student?: {
+    studentId: string | null
+    displayName: string
+    email: string
+    avatarUrl: string | null
+  } | null
+}
+
+function mapSubmission(row: SubmissionRow): AssignmentSubmissionDto {
   return {
     id: row.id,
     studentId: row.studentId,

@@ -25,6 +25,21 @@ function scoreLabel(score: number | null) {
   return score === null ? "Chua cham" : `${score}/10`
 }
 
+async function createAssignmentFormAction(formData: FormData) {
+  "use server"
+  await createCourseAssignment(formData)
+}
+
+async function submitAssignmentFormAction(formData: FormData) {
+  "use server"
+  await submitAssignment(formData)
+}
+
+async function gradeSubmissionFormAction(formData: FormData) {
+  "use server"
+  await gradeAssignmentSubmission(formData)
+}
+
 export function CourseAssignmentsPanel({
   courseId,
   canManage,
@@ -75,7 +90,7 @@ export function CourseAssignmentsPanel({
                         ) : null}
                       </div>
                     ) : null}
-                    <form action={submitAssignment} className="mt-3 space-y-2" encType="multipart/form-data">
+                    <form action={submitAssignmentFormAction} className="mt-3 space-y-2" encType="multipart/form-data">
                       <input type="hidden" name="assignmentId" value={assignment.id} />
                       <Textarea name="content" placeholder="Ghi chu bai nop" rows={3} />
                       <Input name="attachments" type="file" multiple />
@@ -98,7 +113,7 @@ export function CourseAssignmentsPanel({
                         {submission.content ? (
                           <p className="mt-2 whitespace-pre-wrap text-sm">{submission.content}</p>
                         ) : null}
-                        <form action={gradeAssignmentSubmission} className="mt-3 grid gap-2 sm:grid-cols-[90px_minmax(0,1fr)_auto]">
+                        <form action={gradeSubmissionFormAction} className="mt-3 grid gap-2 sm:grid-cols-[90px_minmax(0,1fr)_auto]">
                           <input type="hidden" name="submissionId" value={submission.id} />
                           <Input name="score" type="number" min="0" max="10" step="0.1" defaultValue={submission.score ?? ""} placeholder="Diem" />
                           <Input name="feedback" defaultValue={submission.feedback ?? ""} placeholder="Nhan xet" />
@@ -120,7 +135,7 @@ export function CourseAssignmentsPanel({
             <CardTitle className="text-base">Tao bai tap</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createCourseAssignment} className="space-y-3" encType="multipart/form-data">
+            <form action={createAssignmentFormAction} className="space-y-3" encType="multipart/form-data">
               <input type="hidden" name="courseId" value={courseId} />
               <Input name="title" placeholder="Tieu de" required />
               <Textarea name="description" placeholder="Mo ta" rows={5} required />
