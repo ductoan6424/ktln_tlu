@@ -561,7 +561,7 @@ export async function notifyCourseAssignmentPublished(
 ) {
   await createNotification(
     {
-      type: "SYSTEM",
+      type: "CLUB",
       recipientId: payload.recipientId,
       actor: payload.actor,
       groupKey: buildCommunityGroupKey({
@@ -595,7 +595,7 @@ export async function notifyAssignmentSubmissionGraded(
 ) {
   await createNotification(
     {
-      type: "SYSTEM",
+      type: "CLUB",
       recipientId: payload.recipientId,
       actor: payload.actor,
       groupKey: buildCommunityGroupKey({

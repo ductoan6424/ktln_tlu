@@ -21,6 +21,11 @@ function typeLabel(type: CourseAnnouncementDto["type"]) {
   return labels[type]
 }
 
+async function createAnnouncementFormAction(formData: FormData) {
+  "use server"
+  await createCourseAnnouncement(formData)
+}
+
 export function CourseAnnouncementsPanel({
   courseId,
   canManage,
@@ -60,7 +65,7 @@ export function CourseAnnouncementsPanel({
             <CardTitle className="text-base">Tao thong bao</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createCourseAnnouncement} className="space-y-3">
+            <form action={createAnnouncementFormAction} className="space-y-3">
               <input type="hidden" name="courseId" value={courseId} />
               <Input name="title" placeholder="Tieu de" required />
               <Textarea name="content" placeholder="Noi dung" rows={5} required />
