@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ExternalLink, Loader2, X } from "lucide-react"
+import { ExternalLink, X } from "lucide-react"
 
 import { getDirectConversationDetails } from "@/actions/chat"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
 import { getBaseRoleLabel } from "@/lib/auth/base-role"
 import { formatDateShort } from "@/utils/formatters"
@@ -31,6 +32,56 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
       <span className="min-w-0 break-words text-right text-sm font-medium text-foreground">{value}</span>
     </div>
+  )
+}
+
+export function DirectInfoSkeletonPanel({ onClose }: { onClose: () => void }) {
+  return (
+    <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
+      <header className="flex min-h-20 shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <Skeleton className="size-12 rounded-full" />
+          <div className="min-w-0 space-y-2">
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="ĐA�ng thA�ng tin cuộc trA� chuyện"
+          onClick={onClose}
+        >
+          <X className="size-4" />
+        </Button>
+      </header>
+
+      <div className="flex-1 overflow-y-auto px-3 py-4">
+        <div className="mb-4 flex h-12 items-center gap-4 px-2">
+          <Skeleton className="size-5" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+
+        <section className="space-y-3 px-2">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="h-16 w-full" />
+        </section>
+
+        <section className="mt-6 space-y-3 px-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </section>
+      </div>
+
+      <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-3">
+        <Skeleton className="h-9 w-20" />
+      </footer>
+    </aside>
   )
 }
 
@@ -190,12 +241,14 @@ export function DirectInfoDialog({
         aria-label="Đóng thông tin cuộc trò chuyện"
         onClick={handleClose}
       />
-      {isLoading || !details ? (
+      {isLoading || (!details && !loadError) ? (
+        <DirectInfoSkeletonPanel onClose={handleClose} />
+      ) : !details ? (
         <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
           <header className="flex h-16 shrink-0 items-start justify-between border-b border-border px-5 py-4">
             <div className="min-w-0">
               <h2 className="truncate text-base font-semibold">Thông tin</h2>
-              <p className="truncate text-xs text-muted-foreground">Đang tải thông tin</p>
+              <p className="truncate text-xs text-muted-foreground">Không thể tải thông tin</p>
             </div>
             <Button
               variant="ghost"
@@ -206,16 +259,9 @@ export function DirectInfoDialog({
               <X className="size-4" />
             </Button>
           </header>
-          {isLoading ? (
-            <div className="flex items-center gap-2 px-5 py-8 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Đang tải thông tin...
-            </div>
-          ) : (
-            <p className="px-5 py-8 text-sm text-muted-foreground">
-              {loadError ?? "Không có thông tin để hiển thị."}
-            </p>
-          )}
+          <p className="px-5 py-8 text-sm text-muted-foreground">
+            {loadError ?? "Không có thông tin để hiển thị."}
+          </p>
         </aside>
       ) : (
         <DirectInfoPanel details={details} isOnline={isOnline} onClose={handleClose} />

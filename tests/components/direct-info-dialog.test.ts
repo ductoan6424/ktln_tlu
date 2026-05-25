@@ -5,6 +5,19 @@ import { describe, expect, it } from "vitest"
 import type { ChatDirectDetails } from "@/types/chat"
 
 describe("DirectInfoPanel", () => {
+  it("renders skeleton placeholders for the loading state", async () => {
+    const { DirectInfoSkeletonPanel } = await import("@/components/messages/direct-info-dialog")
+
+    const html = renderToStaticMarkup(
+      createElement(DirectInfoSkeletonPanel, {
+        onClose: () => undefined,
+      }),
+    )
+
+    expect(html).toContain('data-slot="skeleton"')
+    expect(html).not.toContain("Đang tải thông tin")
+  })
+
   it("renders profile details with a link to the peer profile", async () => {
     const { DirectInfoPanel } = await import("@/components/messages/direct-info-dialog")
     const details: ChatDirectDetails = {
