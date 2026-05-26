@@ -18,6 +18,10 @@ export interface SavedAnnouncementItem {
   savedAtRelative: string
   title: string
   content: string
+  status: "PUBLISHED" | "WITHDRAWN" | "SUPERSEDED"
+  issuingUnitName: string | null
+  priority: "NORMAL" | "IMPORTANT" | "URGENT"
+  withdrawalReason: string | null
   publishedAt: string
   pinToTop: boolean
   scopeLabels: string[]
@@ -118,12 +122,36 @@ function isAnnouncementVisibleToViewer(
     deletedAt?: Date | null
     status?: string
     expiresAt?: Date | null
+    publishedRevisionId?: string | null
+    recipients?: Array<{ userId: string }>
     audience: "ALL" | "STUDENTS" | "FACULTY"
     targets: Array<{ type: "ROLE" | "FACULTY" | "COHORT" | "COURSE" | "CLUB" | "GROUP" | "USER"; value: string }>
   },
   viewerContext: AnnouncementViewerContext,
 ) {
   if (announcement.deletedAt) return false
+  if (announcement.publishedRevisionId) {
+    if (
+      announcement.status !== "PUBLISHED" &&
+      announcement.status !== "WITHDRAWN" &&
+      announcement.status !== "SUPERSEDED"
+    ) {
+      return false
+    }
+    if (
+      announcement.status === "PUBLISHED" &&
+      announcement.expiresAt &&
+      announcement.expiresAt <= new Date()
+    ) {
+      return false
+    }
+    return Boolean(
+      viewerContext.userId &&
+        announcement.recipients?.some(
+          (recipient) => recipient.userId === viewerContext.userId,
+        ),
+    )
+  }
   if (announcement.status && announcement.status !== "PUBLISHED") return false
   if (announcement.expiresAt && announcement.expiresAt <= new Date()) return false
   return matchesAnnouncementTargets(
@@ -153,8 +181,13 @@ export async function toggleSaveAnnouncement(
       deletedAt: true,
       status: true,
       expiresAt: true,
+      publishedRevisionId: true,
       audience: true,
       targets: { select: { type: true, value: true } },
+      recipients: {
+        where: { userId },
+        select: { userId: true },
+      },
     },
   })
   if (!announcement || !isAnnouncementVisibleToViewer(announcement, viewerContext)) {
@@ -194,16 +227,13 @@ export async function loadSavedAnnouncements(): Promise<ActionResult<SavedAnnoun
   if (!viewerContext) {
     return errorResult("Bạn cần đăng nhập để thực hiện", "UNAUTHORIZED")
   }
-  const now = new Date()
-
   try {
     const rows = await prisma.savedAnnouncement.findMany({
       where: {
         userId,
         announcement: {
           deletedAt: null,
-          status: "PUBLISHED",
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          status: { in: ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] },
         },
       },
       include: {
@@ -212,12 +242,31 @@ export async function loadSavedAnnouncements(): Promise<ActionResult<SavedAnnoun
             id: true,
             title: true,
             content: true,
+            status: true,
+            deletedAt: true,
+            publishedRevisionId: true,
+            priority: true,
+            withdrawalReason: true,
+            issuingUnit: { select: { name: true } },
             publishedAt: true,
             pinToTop: true,
             audience: true,
             expiresAt: true,
             targets: {
               select: { type: true, value: true },
+            },
+            publishedRevision: {
+              select: {
+                title: true,
+                content: true,
+                audience: true,
+                priority: true,
+                targets: { select: { type: true, value: true } },
+              },
+            },
+            recipients: {
+              where: { userId },
+              select: { userId: true },
             },
           },
         },
@@ -232,23 +281,37 @@ export async function loadSavedAnnouncements(): Promise<ActionResult<SavedAnnoun
       isAnnouncementVisibleToViewer(r.announcement, viewerContext),
     )
     const labelMaps = await buildTargetLabelMaps(
-      visibleRows.flatMap((row) => row.announcement.targets),
+      visibleRows.flatMap(
+        (row) => row.announcement.publishedRevision?.targets ?? row.announcement.targets,
+      ),
     )
 
     const items: SavedAnnouncementItem[] = visibleRows
-      .map((r) => ({
-        announcementId: r.announcementId,
-        savedAt: r.savedAt.toISOString(),
-        savedAtRelative: formatRelativeTime(r.savedAt),
-        title: r.announcement.title,
-        content: r.announcement.content,
-        publishedAt: r.announcement.publishedAt?.toISOString() ?? r.savedAt.toISOString(),
-        pinToTop: r.announcement.pinToTop,
-        scopeLabels: getAnnouncementScopeLabels(
-          withTargetLabels(r.announcement.targets, labelMaps),
-          r.announcement.audience,
-        ),
-      }))
+      .map((r) => {
+        const revision = r.announcement.publishedRevision
+        const audience = revision?.audience ?? r.announcement.audience
+        const targets = revision?.targets ?? r.announcement.targets
+
+        return {
+          announcementId: r.announcementId,
+          savedAt: r.savedAt.toISOString(),
+          savedAtRelative: formatRelativeTime(r.savedAt),
+          title: revision?.title ?? r.announcement.title,
+          content: revision?.content ?? r.announcement.content,
+          status:
+            (r.announcement.status as "PUBLISHED" | "WITHDRAWN" | "SUPERSEDED") ??
+            "PUBLISHED",
+          issuingUnitName: r.announcement.issuingUnit?.name ?? null,
+          priority: revision?.priority ?? r.announcement.priority ?? "NORMAL",
+          withdrawalReason: r.announcement.withdrawalReason ?? null,
+          publishedAt: r.announcement.publishedAt?.toISOString() ?? r.savedAt.toISOString(),
+          pinToTop: r.announcement.pinToTop,
+          scopeLabels: getAnnouncementScopeLabels(
+            withTargetLabels(targets, labelMaps),
+            audience,
+          ),
+        }
+      })
 
     return successResult(items)
   } catch (error) {

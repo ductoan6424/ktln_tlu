@@ -116,4 +116,45 @@ describe("search queries", () => {
     expect(sql.strings.join(" ")).toContain("expires_at")
     expect(results.map((result) => result.id)).toEqual(["ann-visible"])
   })
+
+  it("uses frozen recipient membership for published workflow announcement search results", async () => {
+    queryRaw.mockResolvedValue([
+      {
+        id: "ann-workflow",
+        title: "Lịch thi K38",
+        subtitle: "Trường Đại Học Thăng Long",
+        href: "/feed?announcement=ann-workflow",
+        avatar_url: "/logo.svg",
+        excerpt: "Nội dung",
+        exact_score: 0,
+        prefix_score: 0,
+        token_coverage: 1,
+        text_rank: 1,
+        similarity_score: 0,
+      },
+    ])
+    announcementFindMany.mockResolvedValue([
+      {
+        id: "ann-workflow",
+        publishedRevisionId: "rev-1",
+        audience: "ALL",
+        targets: [{ type: "FACULTY", value: "fac-khac" }],
+        recipients: [{ userId: "viewer-1" }],
+      },
+    ])
+
+    const results = await searchAnnouncements("lich thi", "STUDENT", { limit: 5 }, {
+      userId: "viewer-1",
+      facultyId: "fac-cntt",
+      year: 38,
+      courseIds: [],
+      clubIds: [],
+      groupIds: [],
+    })
+
+    expect(results.map((result) => result.id)).toEqual(["ann-workflow"])
+    expect(queryRaw.mock.calls.at(-1)?.[0].strings.join(" ")).toContain(
+      "announcement_recipients",
+    )
+  })
 })

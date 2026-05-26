@@ -15,7 +15,10 @@ const requireSystemAdmin = vi.hoisted(() => vi.fn())
 const getUsersAdminModule = vi.hoisted(() => vi.fn())
 const getUserAccessEditorData = vi.hoisted(() => vi.fn())
 const getAdminUserDetail = vi.hoisted(() => vi.fn())
+const listActiveOrganizationUnits = vi.hoisted(() => vi.fn())
+const listActiveAnnouncementUnitAssignmentsForUser = vi.hoisted(() => vi.fn())
 const updateUserAccess = vi.hoisted(() => vi.fn())
+const updateAnnouncementUnitAssignments = vi.hoisted(() => vi.fn())
 const lockUserAccount = vi.hoisted(() => vi.fn())
 const unlockUserAccount = vi.hoisted(() => vi.fn())
 
@@ -42,10 +45,19 @@ vi.mock("@/lib/admin/users/users-admin-data", () => ({
   getAdminUserDetail,
 }))
 
+vi.mock("@/lib/announcements/units", () => ({
+  listActiveOrganizationUnits,
+  listActiveAnnouncementUnitAssignmentsForUser,
+}))
+
 vi.mock("@/actions/admin-users", () => ({
   updateUserAccess,
   lockUserAccount,
   unlockUserAccount,
+}))
+
+vi.mock("@/actions/announcement-units", () => ({
+  updateAnnouncementUnitAssignments,
 }))
 
 const records = [
@@ -111,6 +123,20 @@ beforeEach(() => {
       },
     ],
   })
+  listActiveOrganizationUnits.mockResolvedValue([
+    {
+      id: "unit-faculty-it",
+      code: "FACULTY_IT",
+      name: "Khoa Công nghệ thông tin",
+      type: "FACULTY",
+      facultyId: "faculty-it",
+      clubId: null,
+      groupId: null,
+    },
+  ])
+  listActiveAnnouncementUnitAssignmentsForUser.mockResolvedValue([
+    { unitId: "unit-faculty-it", role: "AUTHOR" },
+  ])
   getAdminUserDetail.mockResolvedValue({
     user: {
       userId: "user-001",
@@ -225,7 +251,14 @@ describe("admin users pages", () => {
     expect(editMarkup).toContain("Cập nhật Nguyễn Đức Toàn")
     expect(editMarkup).toContain("Vai trò nền")
     expect(editMarkup).toContain("User Admin")
+    expect(editMarkup).toContain("Thẩm quyền thông báo chính thức")
+    expect(editMarkup).toContain("Khoa Công nghệ thông tin")
+    expect(editMarkup).toContain("AUTHOR")
+    expect(editMarkup).toContain("APPROVER")
+    expect(editMarkup).toMatch(/id="announcement-unit-unit-faculty-it-AUTHOR"[^>]*checked=""/)
+    expect(editMarkup).not.toMatch(/id="announcement-unit-unit-faculty-it-APPROVER"[^>]*checked=""/)
     expect(requireSystemAdmin).toHaveBeenCalled()
+    expect(listActiveAnnouncementUnitAssignmentsForUser).toHaveBeenCalledWith("user-001")
 
     getUsersAdminModule.mockResolvedValueOnce({
       ...USERS_ADMIN_MODULE,
