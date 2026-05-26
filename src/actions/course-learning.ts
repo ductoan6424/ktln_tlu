@@ -74,6 +74,13 @@ const submitAssignmentSchema = z.object({
   attachmentUrls: stringArraySchema,
 })
 
+export type SubmitAssignmentFormState = {
+  status: "idle" | "success" | "error"
+  message: string | null
+}
+
+const emptySubmissionMessage = "Chưa nộp bài. Vui lòng nhập nội dung hoặc chọn tệp."
+
 const gradeSubmissionSchema = z.object({
   submissionId: z.string().min(1),
   score: z.coerce.number().min(0).max(10),
@@ -90,6 +97,14 @@ function normalizeFormInput(rawInput: unknown) {
 
 function isUploadFile(value: FormDataEntryValue): value is File {
   return typeof File !== "undefined" && value instanceof File && value.size > 0
+}
+
+function hasUploadFile(rawInput: unknown) {
+  return rawInput instanceof FormData && rawInput.getAll("attachments").some(isUploadFile)
+}
+
+function hasSubmissionPayload(input: { content?: string | null; attachmentUrls?: string[] }) {
+  return Boolean(input.content?.trim()) || Boolean(input.attachmentUrls?.length)
 }
 
 async function attachmentUrlsFromInput(rawInput: unknown) {
@@ -250,12 +265,22 @@ export async function submitAssignment(
   rawInput: unknown,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const uploadedUrls = await attachmentUrlsFromInput(rawInput)
     const normalized = normalizeFormInput(rawInput) as Record<string, unknown>
+    const previewInput = submitAssignmentSchema.parse({
+      ...normalized,
+      attachmentUrls: normalized?.attachmentUrls,
+    })
+    if (!hasSubmissionPayload(previewInput) && !hasUploadFile(rawInput)) {
+      return errorResult(emptySubmissionMessage, "EMPTY_SUBMISSION")
+    }
+    const uploadedUrls = await attachmentUrlsFromInput(rawInput)
     const input = submitAssignmentSchema.parse({
       ...normalized,
       attachmentUrls: uploadedUrls ?? normalized?.attachmentUrls,
     })
+    if (!hasSubmissionPayload(input)) {
+      return errorResult(emptySubmissionMessage, "EMPTY_SUBMISSION")
+    }
     const assignment = await prisma.courseAssignment.findUnique({
       where: { id: input.assignmentId },
       select: {
@@ -314,6 +339,25 @@ export async function submitAssignment(
       return errorResult(error.issues[0]?.message ?? "Invalid data", "VALIDATION_ERROR")
     }
     return errorResult("Cannot submit assignment", "SUBMIT_FAILED")
+  }
+}
+
+export async function submitAssignmentForm(
+  _previousState: SubmitAssignmentFormState,
+  formData: FormData,
+): Promise<SubmitAssignmentFormState> {
+  const result = await submitAssignment(formData)
+
+  if (!result.success) {
+    return {
+      status: "error",
+      message: result.error ?? "Không thể nộp bài.",
+    }
+  }
+
+  return {
+    status: "success",
+    message: "Đã nộp bài.",
   }
 }
 

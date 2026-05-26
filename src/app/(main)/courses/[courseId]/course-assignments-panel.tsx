@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import type { CourseAssignmentDto } from "@/lib/courses/course-learning"
 
+import { CourseAssignmentSubmitForm } from "./course-assignment-submit-form"
+
 type CourseAssignmentsPanelProps = {
   courseId: string
   canManage: boolean
@@ -40,11 +42,6 @@ function datetimeLocalMinValue(value = new Date()) {
 async function createAssignmentFormAction(formData: FormData) {
   "use server"
   await createCourseAssignment(formData)
-}
-
-async function submitAssignmentFormAction(formData: FormData) {
-  "use server"
-  await submitAssignment(formData)
 }
 
 async function gradeSubmissionFormAction(formData: FormData) {
@@ -105,12 +102,7 @@ export function CourseAssignmentsPanel({
                         ) : null}
                       </div>
                     ) : null}
-                    <form action={submitAssignmentFormAction} className="mt-3 space-y-2">
-                      <input type="hidden" name="assignmentId" value={assignment.id} />
-                      <Textarea name="content" placeholder="Ghi chú bài nộp" rows={3} />
-                      <Input name="attachments" type="file" multiple />
-                      <Button type="submit" size="sm">Nộp bài</Button>
-                    </form>
+                    <CourseAssignmentSubmitForm assignmentId={assignment.id} />
                   </div>
                 ) : null}
 
