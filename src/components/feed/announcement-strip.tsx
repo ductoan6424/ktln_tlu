@@ -34,6 +34,24 @@ export interface AnnouncementStripItem {
   id: string
   title: string
   content: string
+  status?: "PUBLISHED" | "WITHDRAWN" | "SUPERSEDED"
+  issuingUnitName?: string | null
+  category?: string
+  priority?: "NORMAL" | "IMPORTANT" | "URGENT"
+  actionDeadlineAt?: string | null
+  requiresAcknowledgement?: boolean
+  acknowledgedAt?: string | null
+  attachments?: Array<{
+    id: string
+    source: "UPLOAD" | "LINK"
+    url: string
+    name: string
+    type: string | null
+    mimeType: string | null
+    sizeBytes: number | null
+  }>
+  withdrawalReason?: string | null
+  replacementId?: string | null
   publishedAt: string
   pinToTop?: boolean
   isSaved?: boolean
@@ -192,6 +210,16 @@ export function AnnouncementStrip({
           id={activeSelection.id}
           title={activeSelection.title}
           content={activeSelection.content}
+          status={activeSelection.status}
+          issuingUnitName={activeSelection.issuingUnitName}
+          category={activeSelection.category}
+          priority={activeSelection.priority}
+          actionDeadlineAt={activeSelection.actionDeadlineAt}
+          requiresAcknowledgement={activeSelection.requiresAcknowledgement}
+          acknowledgedAt={activeSelection.acknowledgedAt}
+          attachments={activeSelection.attachments}
+          withdrawalReason={activeSelection.withdrawalReason}
+          replacementId={activeSelection.replacementId}
           publishedAt={activeSelection.publishedAt}
           pinToTop={activeSelection.pinToTop}
           isSaved={activeSelection.isSaved}
@@ -453,6 +481,16 @@ function AnnouncementListRow({
             className="size-3.5 shrink-0 text-primary fill-primary stroke-primary-foreground"
             aria-label="Tài khoản chính thức"
           />
+          {item.issuingUnitName && (
+            <StatusBadge variant="info" size="sm">
+              {item.issuingUnitName}
+            </StatusBadge>
+          )}
+          {item.status && item.status !== "PUBLISHED" && (
+            <StatusBadge variant="warning" size="sm">
+              {item.status === "WITHDRAWN" ? "ĐÃ THU HỒI" : "ĐÃ THAY THẾ"}
+            </StatusBadge>
+          )}
           {item.pinToTop && (
             <StatusBadge variant="warning" size="sm">
               GHIM
@@ -504,6 +542,9 @@ function AnnouncementListRow({
 function AnnouncementCard({
   title,
   content,
+  status = "PUBLISHED",
+  issuingUnitName,
+  priority = "NORMAL",
   publishedAt,
   pinToTop = false,
   scopeLabels = [],
@@ -563,6 +604,21 @@ function AnnouncementCard({
             <Megaphone className="size-3 mr-1 inline-block" />
             THÔNG BÁO
           </StatusBadge>
+          {issuingUnitName && (
+            <StatusBadge variant="info" size="sm">
+              {issuingUnitName}
+            </StatusBadge>
+          )}
+          {status !== "PUBLISHED" && (
+            <StatusBadge variant="warning" size="sm">
+              {status === "WITHDRAWN" ? "ĐÃ THU HỒI" : "ĐÃ THAY THẾ"}
+            </StatusBadge>
+          )}
+          {priority === "URGENT" && (
+            <StatusBadge variant="accent" size="sm">
+              KHẨN CẤP
+            </StatusBadge>
+          )}
           {pinToTop && (
             <StatusBadge variant="warning" size="sm">
               GHIM

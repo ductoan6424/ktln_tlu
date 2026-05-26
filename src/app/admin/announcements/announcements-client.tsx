@@ -1,73 +1,135 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-
-import {
-  AnnouncementForm,
-  type AnnouncementFormInitialValues,
-} from "@/components/admin/announcement-form"
-import type { AnnouncementTargetOptions } from "@/components/admin/announcement-target-selector"
-import { AnnouncementPreview } from "@/components/admin/announcement-preview"
-import {
-  AnnouncementList,
-  type AdminAnnouncementItem,
-} from "@/components/admin/announcement-list"
-import { TabNavigation } from "@/components/shared/tab-navigation"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { ListFilter, Plus } from "lucide-react"
 
-type TabValue = "compose" | "manage"
+import {
+  createReplacementAnnouncement,
+  publishAnnouncement,
+  withdrawAnnouncement,
+} from "@/actions/announcements"
+import type { AnnouncementDto } from "@/lib/announcements/queries"
+import {
+  AnnouncementForm,
+  type AnnouncementAuthorUnit,
+  type AnnouncementFormInitialValues,
+} from "@/components/admin/announcement-form"
+import { AnnouncementList } from "@/components/admin/announcement-list"
+import { AnnouncementPreview } from "@/components/admin/announcement-preview"
+import { AnnouncementReviewPanel } from "@/components/admin/announcement-review-panel"
+import { AnnouncementTimeline } from "@/components/admin/announcement-timeline"
+import type { AnnouncementTargetOptions } from "@/components/admin/announcement-target-selector"
+import { TabNavigation } from "@/components/shared/tab-navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/components/ui/use-toast"
 
-type StatusFilter = "ALL" | "PUBLISHED" | "DRAFT" | "ARCHIVED"
+type WorkspaceTab = "compose" | "queue"
+type QueueTab =
+  | "ALL"
+  | "DRAFT"
+  | "CHANGES_REQUESTED"
+  | "PENDING_UNIT_REVIEW"
+  | "PENDING_ADMIN_REVIEW"
+  | "APPROVED"
+  | "SCHEDULED"
+  | "PUBLISHED"
+  | "WITHDRAWN"
 
-const TABS = [
-  { label: "Soạn thảo", value: "compose" as const },
-  { label: "Quản lý", value: "manage" as const },
+const WORKSPACE_TABS = [
+  { label: "Soan thao", value: "compose" },
+  { label: "Hang doi va lich su", value: "queue" },
 ]
 
-const STATUS_FILTERS: Array<{ label: string; value: StatusFilter }> = [
-  { label: "Tất cả", value: "ALL" },
-  { label: "Đã đăng", value: "PUBLISHED" },
-  { label: "Bản nháp", value: "DRAFT" },
-  { label: "Đã ẩn", value: "ARCHIVED" },
+const QUEUE_TABS: Array<{ label: string; value: QueueTab }> = [
+  { label: "Tat ca", value: "ALL" },
+  { label: "Ban nhap", value: "DRAFT" },
+  { label: "Can sua", value: "CHANGES_REQUESTED" },
+  { label: "Cho duyet don vi", value: "PENDING_UNIT_REVIEW" },
+  { label: "Cho admin duyet", value: "PENDING_ADMIN_REVIEW" },
+  { label: "Da duyet", value: "APPROVED" },
+  { label: "Da len lich", value: "SCHEDULED" },
+  { label: "Da phat hanh", value: "PUBLISHED" },
+  { label: "Da thu hoi", value: "WITHDRAWN" },
 ]
 
-interface AnnouncementsClientProps {
-  initialItems: AdminAnnouncementItem[]
+type AnnouncementsClientProps = {
+  initialItems: AnnouncementDto[]
   initialTotal: number
+  authorUnits: AnnouncementAuthorUnit[]
+  approverUnitIds: string[]
+  isSystemAdmin: boolean
   targetOptions: AnnouncementTargetOptions
+}
+
+function toFormValues(item: AnnouncementDto): AnnouncementFormInitialValues {
+  return {
+    id: item.id,
+    title: item.title,
+    content: item.content,
+    issuingUnitId: item.issuingUnit?.id ?? null,
+    category: item.category,
+    priority: item.priority,
+    audience: item.audience,
+    targets: item.targets,
+    scopeLabels: item.scopeLabels,
+    pinToTop: item.pinToTop,
+    requestEmailDelivery: item.requestEmailDelivery,
+    requiresAcknowledgement: item.requiresAcknowledgement,
+    scheduledAt: item.scheduledAt,
+    actionDeadlineAt: item.actionDeadlineAt,
+    expiresAt: item.expiresAt,
+    attachments: item.attachments,
+    status: item.status,
+  }
 }
 
 export default function AnnouncementsClient({
   initialItems,
   initialTotal,
+  authorUnits,
+  approverUnitIds,
+  isSystemAdmin,
   targetOptions,
 }: AnnouncementsClientProps) {
-  const { refresh } = useRouter()
-  const [activeTab, setActiveTab] = useState<TabValue>("compose")
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
-  const [editTarget, setEditTarget] = useState<AnnouncementFormInitialValues | null>(null)
-  const [draftPreview, setDraftPreview] = useState<AnnouncementFormInitialValues | null>(null)
+  const router = useRouter()
+  const { toast } = useToast()
+  const [isPending, startTransition] = useTransition()
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("compose")
+  const [queueTab, setQueueTab] = useState<QueueTab>("ALL")
+  const [editTarget, setEditTarget] =
+    useState<AnnouncementFormInitialValues | null>(null)
+  const [draftPreview, setDraftPreview] =
+    useState<AnnouncementFormInitialValues | null>(null)
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
+  const [withdrawTarget, setWithdrawTarget] = useState<AnnouncementDto | null>(null)
+  const [withdrawReason, setWithdrawReason] = useState("")
 
   const filteredItems = useMemo(() => {
-    if (statusFilter === "ALL") return initialItems
-    return initialItems.filter((item) => item.status === statusFilter)
-  }, [initialItems, statusFilter])
+    if (queueTab === "ALL") return initialItems
+    return initialItems.filter((item) => item.status === queueTab)
+  }, [initialItems, queueTab])
+  const selectedReview =
+    initialItems.find((item) => item.id === selectedReviewId) ?? null
 
-  function handleEdit(item: AdminAnnouncementItem) {
-    setEditTarget({
-      id: item.id,
-      title: item.title,
-      content: item.content,
-      audience: item.audience,
-      targets: item.targets,
-      scopeLabels: item.scopeLabels,
-      pinToTop: item.pinToTop,
-      expiresAt: item.expiresAt,
-      status: item.status,
-    })
+  function canReview(item: AnnouncementDto) {
+    if (item.status === "PENDING_ADMIN_REVIEW") return isSystemAdmin
+    return (
+      item.status === "PENDING_UNIT_REVIEW" &&
+      Boolean(item.issuingUnit && approverUnitIds.includes(item.issuingUnit.id))
+    )
+  }
+
+  function handleEdit(item: AnnouncementDto) {
+    setEditTarget(toFormValues(item))
+    setDraftPreview(null)
+    setActiveTab("compose")
+  }
+
+  function handleNew() {
+    setEditTarget(null)
     setDraftPreview(null)
     setActiveTab("compose")
   }
@@ -75,51 +137,125 @@ export default function AnnouncementsClient({
   function handleSaved() {
     setEditTarget(null)
     setDraftPreview(null)
-    refresh()
+    router.refresh()
   }
 
-  function handleNewCompose() {
-    setEditTarget(null)
-    setDraftPreview(null)
-    setActiveTab("compose")
+  function handlePublish(item: AnnouncementDto) {
+    startTransition(async () => {
+      const result = await publishAnnouncement(item.id)
+      if (!result.success) {
+        toast({
+          title: "Khong the phat hanh",
+          description: result.error,
+          variant: "destructive",
+        })
+        return
+      }
+      toast({
+        title:
+          result.data?.status === "SCHEDULED" ? "Da len lich" : "Da phat hanh",
+        description:
+          result.data?.status === "SCHEDULED"
+            ? "Thong bao se phat theo lich da duoc duyet."
+            : `Da tao ${result.data?.recipients ?? 0} ban ghi nguoi nhan.`,
+      })
+      router.refresh()
+    })
   }
 
-  const formValues = activeTab === "compose" ? editTarget ?? undefined : undefined
-  const previewValues = activeTab === "compose" ? draftPreview ?? formValues : undefined
+  function requestWithdrawal(item: AnnouncementDto) {
+    setWithdrawTarget(item)
+    setWithdrawReason("")
+  }
+
+  function handleWithdraw() {
+    if (!withdrawTarget) return
+    if (!withdrawReason.trim()) {
+      toast({
+        title: "Can nhap ly do thu hoi",
+        description: "Ly do duoc luu trong lich su kiem toan va hien thi cho nguoi nhan.",
+        variant: "destructive",
+      })
+      return
+    }
+    startTransition(async () => {
+      const result = await withdrawAnnouncement(withdrawTarget.id, withdrawReason)
+      if (!result.success) {
+        toast({
+          title: "Khong the thu hoi",
+          description: result.error,
+          variant: "destructive",
+        })
+        return
+      }
+      toast({
+        title: "Da thu hoi thong bao",
+        description: "Nguoi nhan van thay ban ghi da giao kem ly do thu hoi.",
+      })
+      setWithdrawTarget(null)
+      setWithdrawReason("")
+      router.refresh()
+    })
+  }
+
+  function handleCreateReplacement(item: AnnouncementDto) {
+    startTransition(async () => {
+      const result = await createReplacementAnnouncement(item.id)
+      if (!result.success) {
+        toast({
+          title: "Khong the tao ban thay the",
+          description: result.error,
+          variant: "destructive",
+        })
+        return
+      }
+      toast({
+        title: "Da tao ban nhap thay the",
+        description: "Ban thay the phai di qua quy trinh duyet truoc khi phat hanh.",
+      })
+      setQueueTab("DRAFT")
+      router.refresh()
+    })
+  }
+
+  const formValues = editTarget ?? undefined
+  const previewValues = draftPreview ?? formValues
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Thông báo chính thức</h1>
+          <h1 className="text-2xl font-semibold">
+            Thong bao chinh thuc - Dai hoc Thang Long
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Tạo và quản lý thông báo hiển thị ở bảng tin của sinh viên và giảng viên
+            Thong bao phai duoc duyet theo don vi ban hanh va cap truong khi
+            vuot pham vi.
           </p>
         </div>
-        <Button variant="outline" onClick={handleNewCompose}>
-          <Plus className="size-4 mr-2" />
-          Tạo mới
+        <Button type="button" variant="outline" onClick={handleNew}>
+          <Plus data-icon="inline-start" />
+          Tao thong bao
         </Button>
       </div>
 
       <TabNavigation
-        tabs={TABS}
+        tabs={WORKSPACE_TABS}
         activeTab={activeTab}
-        onTabChange={(v) => setActiveTab(v as TabValue)}
+        onTabChange={(value) => setActiveTab(value as WorkspaceTab)}
       />
 
       {activeTab === "compose" && (
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 min-w-0">
-            <AnnouncementForm
-              key={editTarget?.id ?? "new"}
-              initialValues={formValues}
-              targetOptions={targetOptions}
-              onSaved={handleSaved}
-              onDraftChange={setDraftPreview}
-            />
-          </div>
-          <div className="w-full lg:w-[380px] shrink-0 space-y-4 lg:sticky lg:top-4 lg:self-start">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <AnnouncementForm
+            key={editTarget?.id ?? "new"}
+            initialValues={formValues}
+            authorUnits={authorUnits}
+            targetOptions={targetOptions}
+            onSaved={handleSaved}
+            onDraftChange={setDraftPreview}
+          />
+          <aside className="lg:sticky lg:top-4 lg:self-start">
             <AnnouncementPreview
               title={previewValues?.title}
               content={previewValues?.content}
@@ -127,28 +263,101 @@ export default function AnnouncementsClient({
               scopeLabels={previewValues?.scopeLabels}
               pinToTop={previewValues?.pinToTop ?? false}
             />
-          </div>
+          </aside>
         </div>
       )}
 
-      {activeTab === "manage" && (
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <ListFilter className="size-4" />
-                <span>{initialTotal} thông báo</span>
-              </div>
+      {activeTab === "queue" && (
+        <div className="flex flex-col gap-4">
+          <Card size="sm">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ListFilter data-icon="inline-start" />
+                {initialTotal} ho so thong bao
+              </span>
               <TabNavigation
-                tabs={STATUS_FILTERS}
-                activeTab={statusFilter}
-                onTabChange={(v) => setStatusFilter(v as StatusFilter)}
+                tabs={QUEUE_TABS}
+                activeTab={queueTab}
+                onTabChange={(value) => setQueueTab(value as QueueTab)}
                 variant="pill"
               />
             </CardContent>
           </Card>
 
-          <AnnouncementList items={filteredItems} onEdit={handleEdit} />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_25rem]">
+            <div className="flex flex-col gap-4">
+              {withdrawTarget && (
+                <Card size="sm">
+                  <CardContent className="flex flex-col gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">
+                        Thu hoi: {withdrawTarget.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Ban ghi nguoi nhan se duoc giu lai lam bang chung giao nhan.
+                      </p>
+                    </div>
+                    <label htmlFor="announcement-withdrawal-reason" className="text-sm font-medium">
+                      Ly do thu hoi
+                    </label>
+                    <Textarea
+                      id="announcement-withdrawal-reason"
+                      value={withdrawReason}
+                      onChange={(event) => setWithdrawReason(event.target.value)}
+                      placeholder="Nhap ly do de thong bao ro cho nguoi nhan"
+                      maxLength={1000}
+                    />
+                    <div className="flex gap-2">
+                      <Button type="button" disabled={isPending} onClick={handleWithdraw}>
+                        Xac nhan thu hoi
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setWithdrawTarget(null)}
+                      >
+                        Huy
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              <AnnouncementList
+                items={filteredItems}
+                onEdit={handleEdit}
+                onPublish={handlePublish}
+                onReview={(item) => setSelectedReviewId(item.id)}
+                onWithdraw={requestWithdrawal}
+                onCreateReplacement={handleCreateReplacement}
+                canReview={canReview}
+              />
+            </div>
+            {selectedReview &&
+              canReview(selectedReview) &&
+              (selectedReview.status === "PENDING_UNIT_REVIEW" ||
+                selectedReview.status === "PENDING_ADMIN_REVIEW") &&
+              selectedReview.activeRevision && (
+                <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
+                  <AnnouncementReviewPanel
+                    announcementId={selectedReview.id}
+                    status={selectedReview.status}
+                    revision={{
+                      version: selectedReview.activeRevision.version,
+                      title: selectedReview.activeRevision.title,
+                      content: selectedReview.activeRevision.content,
+                      attachments: selectedReview.activeRevision.attachments,
+                      scopeLabels: selectedReview.activeRevision.scopeLabels,
+                    }}
+                  />
+                  <AnnouncementTimeline entries={selectedReview.auditEvents} />
+                </aside>
+              )}
+          </div>
+          {isPending && (
+            <p className="text-sm text-muted-foreground">
+              Dang xu ly phat hanh...
+            </p>
+          )}
         </div>
       )}
     </div>

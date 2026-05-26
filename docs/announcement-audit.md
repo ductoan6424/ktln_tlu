@@ -1,243 +1,99 @@
-# Audit tính năng "Thông báo của trường"
+# Audit triển khai "Thông báo chính thức"
 
-> **Ngày:** 23/05/2026
-> **Trạng thái:** Báo cáo phân tích — chưa triển khai
-> **Mục đích:** Đề xuất hướng phát triển tính năng announcement cho phù hợp với nhu cầu thực tế (nhắm khoa/khoá/lớp) và bổ sung mục quản lý còn thiếu.
+> **Đơn vị:** Trường Đại học Thăng Long (TLU)
+> **Ngày cập nhật:** 26/05/2026
+> **Trạng thái:** Đã triển khai trong code, cần chạy migration và cấu hình hạ tầng khi phát hành production
+> **Dữ kiện nghiệp vụ:** Khóa mới nhất hiện tại là **K38**. Không tạo lựa chọn K39 trong luồng hiện hành.
 
----
+## 1. Luồng nghiệp vụ đã triển khai
 
-## 1. Hiện trạng
+### 1.1 Soạn thảo và thẩm quyền ban hành
 
-### 1.1 Phạm vi nhận (audience)
+- Thông báo chính thức luôn bắt đầu ở trạng thái `DRAFT`; không còn đường tắt đăng trực tiếp.
+- Người soạn phải có vai trò `AUTHOR` đang hoạt động trong đúng khoa/phòng/đơn vị ban hành.
+- Người quản trị hệ thống có thể duyệt cấp toàn trường, nhưng không tự nhận quyền tác giả của một đơn vị khi tạo bản thay thế.
+- Đối tượng nhận hỗ trợ vai trò, khoa, khóa, lớp học phần, câu lạc bộ, nhóm và người dùng cụ thể.
+- Validator giới hạn cohort tối đa là `K38`.
 
-`prisma/schema.prisma:137-141`:
+### 1.2 Duyệt thông báo chính thức
 
-```prisma
-enum AnnouncementAudience {
-  ALL
-  STUDENTS
-  FACULTY
-}
-```
+Mọi bản trình duyệt được đóng băng thành một `AnnouncementRevision`.
 
-Chỉ có **3 lựa chọn cứng**: toàn trường / chỉ sinh viên / chỉ giảng viên. **Không thể** nhắm tới:
-
-- Khoa cụ thể (CNTT, Kế toán, ...)
-- Khoá (K37, K38, ...)
-- Lớp học phần (`Course`)
-- CLB / Nhóm
-- Một danh sách user cụ thể (vd: ban cán sự lớp)
-
-### 1.2 Model dữ liệu thiếu
-
-`UserProfile` hiện có:
-
-| Trường | Kiểu | Vấn đề |
-|---|---|---|
-| `major` | `String?` (text tự do) | **Không phải FK** — không có bảng `Faculty/Khoa` chuẩn |
-| `year` | `Int?` | Đại diện cho khoá nhưng **không có bảng `Cohort`** |
-| `studentId` | `String?` | Mã sinh viên — OK |
-
-**Đã có sẵn**: `Course` + `CourseMember` (lớp môn) — sẵn sàng để target.
-
-### 1.3 Mục quản lý (admin)
-
-`src/app/admin/announcements/announcements-client.tsx`:
-
-**Đã có**:
-
-- Tab "Soạn thảo" (compose) + tab "Quản lý" (manage)
-- Filter theo status: Tất cả / Đã đăng / Bản nháp / Đã ẩn
-- Action: Đăng / Sửa / Ghim / Ẩn / Xoá
-- Preview side-by-side khi soạn
-
-**Thiếu**:
-
-| Hạng mục | Mức độ |
+| Phạm vi thông báo | Trình tự duyệt |
 |---|---|
-| Tìm kiếm theo tiêu đề/nội dung | Quan trọng |
-| Filter nâng cao (audience, author, khoảng thời gian) | Quan trọng |
-| Phân trang (hiện hardcode `take: 50`) | Quan trọng |
-| Lên lịch đăng (`publishedAt` tương lai + cron) | Quan trọng |
-| Audit log (ai sửa/đăng/ẩn khi nào) | Quan trọng |
-| Rich text editor (TipTap/Lexical) — hiện dùng Textarea thuần | Quan trọng |
-| Đính kèm file (PDF lịch học, biểu mẫu) | Trung bình |
-| Analytics: đã đọc / đã lưu / click-through-rate | Trung bình |
-| Bulk action (chọn nhiều rồi đăng/ẩn/xoá) | Trung bình |
-| Email integration — schema có cờ `sentEmail` nhưng `announcement-form.tsx:92` hardcode `sendEmail: false` | Trung bình |
-| AlertDialog thay `confirm()` native ở `announcement-list.tsx:113` | Thấp |
-| Giới hạn số bài "Ghim lên đầu" (max 3-5) — tránh admin pin hết | Thấp |
+| Trong phạm vi khoa/phòng/đơn vị ban hành | `UNIT` |
+| Toàn trường, K38 diện rộng, nhiều đơn vị hoặc vượt phạm vi ban hành | `UNIT` rồi `ADMIN` |
 
-### 1.4 Phân quyền
+- Tuyến duyệt được xác định khi gửi duyệt và ghi audit; không thể thu hẹp phạm vi sau đó để bỏ qua bước `ADMIN`.
+- Người duyệt có thể phê duyệt, yêu cầu sửa hoặc từ chối kèm ghi chú.
+- Nội dung đã phát hành lấy từ revision đã duyệt, không lấy lại bản nháp có thể thay đổi.
 
-Chỉ check 1 permission duy nhất:
+### 1.3 Tệp đính kèm và liên kết
 
-```ts
-await requireAdminPermission("admin.announcements.manage")
-```
+- Tệp được tải lên qua hạ tầng Cloudinary hiện có, thư mục mặc định `uniconnect/announcement-attachments`.
+- Có thể gắn thêm tài liệu dạng đường dẫn HTTPS có tên hiển thị.
+- Tệp và liên kết được đóng băng cùng revision khi gửi duyệt, rồi hiển thị lại cho người nhận.
 
-→ Mọi admin có quyền đều **thấy và sửa được tất cả thông báo**, không phân biệt scope. Trưởng khoa, cố vấn học tập không có phân quyền riêng.
+### 1.4 Phát hành, lịch gửi và giao nhận
 
----
+- Chỉ bản đã được duyệt mới được phát hành hoặc lên lịch.
+- Khi phát hành, hệ thống tạo snapshot `AnnouncementRecipient` từ revision đã duyệt. Quyền xem về sau dựa trên snapshot này, không bị thay đổi bởi việc người dùng đổi khoa/lớp.
+- Bản ghi thông báo trong ứng dụng là kênh mặc định; dịch vụ notification hiện có kích hoạt PWA push khi người dùng cho phép kênh này, đã đăng ký thiết bị và hệ thống có cấu hình VAPID.
+- Email là tùy chọn và mặc định **tắt** để bảo vệ hạ tầng; chỉ gửi khi người soạn bật trên bản duyệt.
+- Endpoint cron xử lý bản đến lịch, retry giao nhận chưa thành công và chuyển bản hết hiệu lực sang `EXPIRED`.
 
-## 2. Đề xuất
+### 1.5 Bằng chứng người nhận và sửa sai
 
-### 2.1 Mô hình audience đa-target (quan trọng nhất)
+- Người nhận có thể mở thông báo và, khi được yêu cầu, bấm **Xác nhận đã đọc**.
+- Admin xem được tổng số người nhận, bản ghi thông báo trong ứng dụng đã tạo, email đã gửi, đã xem và đã xác nhận. Web Push hiện là tác vụ nền best-effort, không được trình bày như biên nhận thiết bị.
+- Thông báo đã phát hành không chỉnh sửa trực tiếp.
+- Có thể thu hồi thông báo kèm lý do; bản đã giao vẫn hiển thị cho người nhận với trạng thái thu hồi để giữ bằng chứng.
+- Có thể tạo bản thay thế từ bản đang phát hành; bản thay thế phải đi qua quy trình duyệt mới. Bản cũ chỉ chuyển `SUPERSEDED` khi bản mới thực sự phát hành.
 
-Thay vì 1 enum cứng, dùng **bảng `AnnouncementTarget`** cho phép 1 announcement có nhiều rule:
+## 2. Thành phần đã thay đổi
 
-```prisma
-enum AnnouncementTargetType {
-  ROLE          // STUDENT / LECTURER / ADMIN
-  FACULTY       // Khoa
-  COHORT        // Khoá (year)
-  COURSE        // Lớp học phần
-  CLUB
-  GROUP
-  USER          // user cụ thể (gửi riêng)
-}
+| Khu vực | Nội dung |
+|---|---|
+| Dữ liệu | `OrganizationUnit`, membership tác giả/người duyệt, revision, approval, attachment, recipient, audit event, trạng thái thu hồi/thay thế |
+| RBAC | Quyền soạn và duyệt thông báo; cấu hình đơn vị ban hành cho người dùng quản trị |
+| Server action | Tạo/sửa nháp, gửi duyệt, duyệt, phát hành/lên lịch, xác nhận đã đọc, thu hồi, tạo bản thay thế |
+| Publication | Snapshot người nhận, fanout push/email, retry giao nhận, supersede an toàn |
+| Admin UI | Không gian soạn thảo, hàng đợi duyệt, timeline audit, thống kê giao nhận, thu hồi và tạo bản thay thế |
+| Recipient UI | Badge đơn vị/trạng thái, tài liệu đính kèm/link, xác nhận đã đọc, hiển thị bản thu hồi/thay thế |
+| Saved notices | Bản đã lưu dùng revision và snapshot người nhận, vẫn giữ bản thu hồi đã được giao |
 
-model AnnouncementTarget {
-  id             String                  @id @default(cuid())
-  announcementId String                  @map("announcement_id")
-  type           AnnouncementTargetType
-  value          String                  // role / facultyId / year / courseId / clubId / groupId / userId
+## 3. Checklist triển khai production
 
-  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+1. Áp dụng migration `prisma/migrations/202605251200_announcement_governance_workflow/migration.sql` bằng quy trình deploy database của môi trường.
+2. Xác minh các khoa/phòng TLU đã được tạo và gán `AUTHOR`/`APPROVER` cho đúng cán bộ trước khi cho phép soạn thông báo.
+3. Cấu hình Cloudinary đang dùng của hệ thống; có thể đặt `CLOUDINARY_ANNOUNCEMENT_ATTACHMENTS_FOLDER` nếu không dùng thư mục mặc định.
+4. Cấu hình biến môi trường `CRON_SECRET`.
+5. Cấu hình scheduler của hạ tầng gọi `GET /api/cron/announcements/publish` với header `Authorization: Bearer <CRON_SECRET>`. Repository chưa tự chọn nhà cung cấp hoặc tần suất cron production.
+6. Cấu hình `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` và tùy chọn `VAPID_SUBJECT`, sau đó xác minh PWA push trên thiết bị đã đăng ký. Email tiếp tục để mặc định tắt; chỉ bật theo từng thông báo khi đã có nhu cầu và năng lực gửi.
 
-  @@index([announcementId])
-  @@index([type, value])  // hỗ trợ fanout nhanh
-}
-```
+## 4. Xác minh kỹ thuật
 
-Đồng thời tạo model `Faculty` chuẩn:
+- `npx prisma validate`: đạt.
+- Bộ kiểm thử announcement/search/RBAC/feed liên quan: `132/132` đạt.
+- ESLint trên các tệp tính năng thay đổi: đạt.
+- `npx tsc --noEmit --incremental false --pretty false`: các tệp announcement không phát sinh lỗi; lệnh toàn repository vẫn thất bại do lỗi có sẵn ngoài phạm vi tại các test `follows`, `admin-*` và `avatar-uploader`.
 
-```prisma
-model Faculty {
-  id    String        @id @default(cuid())
-  code  String        @unique          // "CNTT", "KT"
-  name  String                          // "Công nghệ Thông tin"
-  users UserProfile[]
-}
-```
+## 5. Việc nâng cấp không chặn phát hành
 
-Và thêm `UserProfile.facultyId String?` FK (giữ `major` String cho legacy/migration).
+- Trình soạn nội dung giàu định dạng thay cho textarea.
+- Bộ lọc và phân trang lịch sử quản trị nâng cao.
+- Dashboard phân tích tỷ lệ click hoặc thời gian xác nhận chi tiết hơn.
 
-**Lợi ích**:
-
-- 1 thông báo có thể nhắm **đồng thời** "Sinh viên Khoa CNTT khoá K38" (AND giữa các loại target) hoặc gửi nhiều khoa cùng lúc (OR)
-- Không cần migration schema mỗi khi thêm loại target mới
-- Fanout vẫn nhanh nhờ index `(type, value)`
-- Có thể "gửi riêng" cho 1 list user (vd: ban cán sự lớp)
-
-**Lưu ý migration**:
-
-- Giữ `audience` enum cũ trong `Announcement` cho 1 thời gian quá độ
-- Migrate dữ liệu: với mỗi announcement cũ → tạo 1 row `AnnouncementTarget` tương ứng
-- Sau khi UI mới ổn định → deprecate column `audience`
-
-### 2.2 Bổ sung admin (theo độ ưu tiên)
-
-| Ưu tiên | Tính năng | Ghi chú |
-|---|---|---|
-| **Cao** | Search + filter audience/author/ngày + phân trang | Cần ngay để scale |
-| **Cao** | Lên lịch đăng (`publishedAt` tương lai + cron job) | Lịch học bắt buộc |
-| **Cao** | Rich text editor (TipTap / Lexical) | Nội dung dài có format |
-| **Cao** | Audit log (`AnnouncementHistory` table: ai sửa, sửa gì, khi nào) | Trách nhiệm pháp lý |
-| **Trung** | Đính kèm file (PDF/ảnh) — reuse Cloudinary | Lịch học/biểu mẫu |
-| **Trung** | Analytics: đã đọc/đã lưu/click | Track hiệu quả thông báo |
-| **Trung** | AlertDialog thay `confirm()` | UX |
-| **Trung** | Giới hạn số bài pin (max 3-5) | Tránh spam |
-| **Thấp** | Bulk action | Có sau khi pagination ổn |
-| **Thấp** | Email integration (kích hoạt cờ `sentEmail`) | Đã có schema |
-
-### 2.3 Phân quyền theo scope
-
-```ts
-// Hiện tại
-admin.announcements.manage
-
-// Đề xuất
-admin.announcements.manage.global    // BGH, phòng đào tạo — toàn trường
-admin.announcements.manage.faculty   // Trưởng khoa — chỉ trong khoa mình
-admin.announcements.manage.course    // Giảng viên — chỉ lớp môn mình dạy
-```
-
-**Logic validate khi tạo/sửa**:
-
-- Trưởng khoa CNTT chỉ tạo được announcement có target `FACULTY=CNTT` (hoặc subset của nó)
-- Giảng viên chỉ tạo được announcement có target `COURSE=` (lớp họ đang dạy)
-- Server-side validate trong `createAnnouncement`/`updateAnnouncement` để chống bypass UI
-
-### 2.4 UX feed phía sinh viên
-
-- **Lọc đúng** theo `(role × facultyId × year × courseIds × clubIds × groupIds)` của viewer
-- **Badge nhỏ** trên card hiển thị scope: "Dành cho Khoa CNTT" / "K38" / "Lớp INT2207" — để sinh viên biết tại sao họ thấy thông báo này
-- **Tab filter** trong list dialog: Tất cả / Của khoa tôi / Của khoá tôi / Của lớp tôi
-
----
-
-## 3. Lộ trình triển khai (đề xuất)
-
-### Giai đoạn 1 — Quick wins (không thay schema)
-
-Thời gian ước tính: 1-2 tuần
-
-- Search + filter + pagination cho admin list
-- Rich text editor (TipTap)
-- AlertDialog cho xoá
-- Giới hạn số bài pin
-- Lên lịch đăng (chỉ cần thêm cột `scheduledAt` + 1 cron đơn giản)
-
-### Giai đoạn 2 — Mở rộng phạm vi (thay schema)
-
-Thời gian ước tính: 2-3 tuần
-
-- Tạo model `Faculty`, `Cohort` (nếu cần)
-- Tạo bảng `AnnouncementTarget`
-- Migration dữ liệu cũ
-- UI chọn multi-target khi soạn thảo
-- Refactor fanout: query union các target → tập user nhận
-- Badge scope trên feed card
-- Filter feed theo scope của viewer
-
-### Giai đoạn 3 — Phân quyền + analytics
-
-Thời gian ước tính: 1-2 tuần
-
-- Tách permission `admin.announcements.manage.{global,faculty,course}`
-- Validate target khi tạo
-- Bảng `AnnouncementHistory` (audit log)
-- Tracking đã đọc / click → analytics dashboard
-- Email integration (kích hoạt `sentEmail`)
-
----
-
-## 4. Quyết định cần đưa ra
-
-1. **Hướng đi**: Mở rộng phạm vi trước, bổ sung quản lý trước, hay theo lộ trình 2-3 giai đoạn?
-2. **Model `Faculty`**: Tạo bảng mới hay tạm dùng `UserProfile.major` text?
-3. **Model `Cohort`**: Tạo bảng riêng hay dùng `UserProfile.year` Int?
-4. **Rich text**: TipTap, Lexical, hay giữ Textarea?
-5. **Phân quyền theo scope**: Có triển khai ngay hay để sau (giai đoạn 3)?
-
----
-
-## 5. Tham chiếu file
+## 6. Tham chiếu chính
 
 | Mô tả | File |
 |---|---|
-| Schema announcement | `prisma/schema.prisma:979-1003` |
-| Enum audience/status | `prisma/schema.prisma:137-147` |
+| Schema và quan hệ governance | `prisma/schema.prisma` |
+| Migration workflow | `prisma/migrations/202605251200_announcement_governance_workflow/migration.sql` |
+| Workflow duyệt | `src/lib/announcements/workflow.ts` |
+| Publication và snapshot | `src/lib/announcements/publication.ts` |
+| Truy vấn feed/admin | `src/lib/announcements/queries.ts` |
 | Server actions | `src/actions/announcements.ts` |
-| Query | `src/lib/announcements/queries.ts` |
-| Fanout notification | `src/lib/announcements/fanout.ts` |
-| Validator | `src/utils/validators.ts:112-134` |
-| Config | `src/lib/config/announcements.ts` |
-| Admin page | `src/app/admin/announcements/page.tsx` |
-| Admin client | `src/app/admin/announcements/announcements-client.tsx` |
-| Admin form | `src/components/admin/announcement-form.tsx` |
-| Admin list | `src/components/admin/announcement-list.tsx` |
-| Admin preview | `src/components/admin/announcement-preview.tsx` |
-| Feed strip | `src/components/feed/announcement-strip.tsx` |
-| Feed menu | `src/components/feed/announcement-menu.tsx` |
+| Cron publish/retry/expiry | `src/app/api/cron/announcements/publish/route.ts` |
+| Admin workspace | `src/app/admin/announcements/announcements-client.tsx` |
+| Feed người nhận | `src/components/feed/announcement-detail-dialog.tsx` |

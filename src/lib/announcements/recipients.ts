@@ -31,21 +31,11 @@ function uniqueUserIds(values: string[]): string[] {
   return Array.from(new Set(values))
 }
 
-export async function resolveAnnouncementRecipients(
-  announcementId: string,
+export async function resolveRecipientIdsFromTargets(
+  audience: AnnouncementAudience,
+  rawTargets: Array<{ type: AnnouncementTargetType; value: string }>,
 ): Promise<{ userIds: string[] }> {
-  const announcement = await prisma.announcement.findUnique({
-    where: { id: announcementId },
-    select: {
-      id: true,
-      audience: true,
-      targets: { select: { type: true, value: true } },
-    },
-  })
-
-  if (!announcement) return { userIds: [] }
-
-  const targets = normalizeAnnouncementTargets(announcement.targets)
+  const targets = normalizeAnnouncementTargets(rawTargets)
   const directUserIds = valuesByType(targets, "USER")
   const groupedTargets = targets.filter((target) => target.type !== "USER")
   const directOnly = () => ({ userIds: uniqueUserIds(directUserIds) })
@@ -53,7 +43,7 @@ export async function resolveAnnouncementRecipients(
   const where: Prisma.UserProfileWhereInput = { deletedAt: null }
 
   if (groupedTargets.length === 0) {
-    const roleFilter = roleFilterForLegacyAudience(announcement.audience)
+    const roleFilter = roleFilterForLegacyAudience(audience)
     if (roleFilter) where.role = { in: roleFilter }
   } else {
     const roleValues = valuesByType(groupedTargets, "ROLE")
@@ -97,4 +87,36 @@ export async function resolveAnnouncementRecipients(
   }
 
   return { userIds: Array.from(userIds) }
+}
+
+export async function resolveAnnouncementRecipients(
+  announcementId: string,
+): Promise<{ userIds: string[] }> {
+  const announcement = await prisma.announcement.findUnique({
+    where: { id: announcementId },
+    select: {
+      audience: true,
+      targets: { select: { type: true, value: true } },
+    },
+  })
+
+  if (!announcement) return { userIds: [] }
+
+  return resolveRecipientIdsFromTargets(announcement.audience, announcement.targets)
+}
+
+export async function resolveRevisionRecipients(
+  revisionId: string,
+): Promise<{ userIds: string[] }> {
+  const revision = await prisma.announcementRevision.findUnique({
+    where: { id: revisionId },
+    select: {
+      audience: true,
+      targets: { select: { type: true, value: true } },
+    },
+  })
+
+  if (!revision) return { userIds: [] }
+
+  return resolveRecipientIdsFromTargets(revision.audience, revision.targets)
 }

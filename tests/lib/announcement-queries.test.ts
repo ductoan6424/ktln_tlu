@@ -66,4 +66,102 @@ describe("announcement queries", () => {
 
     expect(hidden).toBeNull()
   })
+
+  it("uses frozen recipient evidence and published revision metadata for workflow notices", async () => {
+    prisma.announcement.findUnique.mockResolvedValue({
+      ...baseAnnouncement,
+      publishedRevisionId: "rev-1",
+      issuingUnit: { name: "Phong Dao tao" },
+      category: "ACADEMIC",
+      priority: "IMPORTANT",
+      actionDeadlineAt: new Date("2026-06-01T10:00:00.000Z"),
+      withdrawalReason: null,
+      publishedRevision: {
+        title: "Lich thi K38 da duyet",
+        content: "Noi dung revision da phat hanh",
+        audience: "STUDENTS",
+        category: "ACADEMIC",
+        priority: "IMPORTANT",
+        requiresAcknowledgement: true,
+        actionDeadlineAt: new Date("2026-06-01T10:00:00.000Z"),
+        targets: [{ type: "COHORT", value: "38" }],
+        attachments: [
+          {
+            id: "file-1",
+            source: "UPLOAD",
+            url: "https://cdn.example.com/huong-dan.pdf",
+            name: "Huong dan.pdf",
+            type: "FILE",
+            mimeType: "application/pdf",
+            sizeBytes: 2048,
+          },
+          {
+            id: "link-1",
+            source: "LINK",
+            url: "https://portal.thanglong.edu.vn/dang-ky",
+            name: "Cong dang ky",
+            type: "LINK",
+            mimeType: null,
+            sizeBytes: null,
+          },
+        ],
+      },
+      recipients: [{ userId: "u1", seenAt: null, acknowledgedAt: null }],
+      replacements: [],
+    })
+
+    const visible = await getVisibleAnnouncementForViewer("ann-1", "STUDENT", "u1", {
+      facultyId: "fac-khac",
+      year: 37,
+      courseIds: [],
+      clubIds: [],
+      groupIds: [],
+    })
+
+    expect(visible).toMatchObject({
+      title: "Lich thi K38 da duyet",
+      issuingUnitName: "Phong Dao tao",
+      category: "ACADEMIC",
+      priority: "IMPORTANT",
+      requiresAcknowledgement: true,
+      acknowledgedAt: null,
+      attachments: [
+        { source: "UPLOAD", name: "Huong dan.pdf" },
+        { source: "LINK", name: "Cong dang ky" },
+      ],
+    })
+
+    prisma.announcement.findUnique.mockResolvedValueOnce({
+      ...baseAnnouncement,
+      publishedRevisionId: "rev-1",
+      recipients: [],
+    })
+    const hidden = await getVisibleAnnouncementForViewer("ann-1", "STUDENT", "u2")
+    expect(hidden).toBeNull()
+  })
+
+  it("hides an expired active workflow notice even before scheduled expiry processing runs", async () => {
+    prisma.announcement.findUnique.mockResolvedValue({
+      ...baseAnnouncement,
+      publishedRevisionId: "rev-1",
+      expiresAt: new Date("2026-05-20T00:00:00.000Z"),
+      publishedRevision: {
+        title: "Lich thi da het han",
+        content: "Noi dung",
+        audience: "STUDENTS",
+        category: "ACADEMIC",
+        priority: "NORMAL",
+        requiresAcknowledgement: false,
+        actionDeadlineAt: null,
+        targets: [{ type: "COHORT", value: "38" }],
+        attachments: [],
+      },
+      recipients: [{ userId: "u1", seenAt: null, acknowledgedAt: null }],
+      replacements: [],
+    })
+
+    const result = await getVisibleAnnouncementForViewer("ann-1", "STUDENT", "u1")
+
+    expect(result).toBeNull()
+  })
 })
