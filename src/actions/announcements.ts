@@ -168,7 +168,7 @@ function revalidateAnnouncementSurfaces() {
 function actionFailure<T>(error: unknown, fallback: string): ActionResult<T> {
   if (error instanceof z.ZodError) {
     return errorResult(
-      error.issues[0]?.message ?? "Du lieu thong bao khong hop le",
+      error.issues[0]?.message ?? "Dữ liệu thông báo không hợp lệ",
       "VALIDATION_ERROR",
     )
   }
@@ -191,13 +191,13 @@ export async function createAnnouncement(
     const actor = await requireAdminPermission("admin.announcements.compose")
     const normalized = normalizeDraftInput(rawInput)
     if (!normalized) {
-      return errorResult("Du lieu thong bao khong hop le", "VALIDATION_ERROR")
+      return errorResult("Dữ liệu thông báo không hợp lệ", "VALIDATION_ERROR")
     }
 
     const validated = announcementInputSchema.safeParse(normalized.input)
     if (!validated.success) {
       return errorResult(
-        validated.error.issues[0]?.message ?? "Du lieu thong bao khong hop le",
+        validated.error.issues[0]?.message ?? "Dữ liệu thông báo không hợp lệ",
         "VALIDATION_ERROR",
       )
     }
@@ -270,7 +270,7 @@ export async function createAnnouncement(
     revalidateAnnouncementSurfaces()
     return successResult({ id: created.id, status: created.status })
   } catch (error) {
-    return actionFailure(error, "Khong the tao thong bao")
+    return actionFailure(error, "Không thể tạo thông báo")
   }
 }
 
@@ -285,13 +285,13 @@ export async function updateAnnouncement(
     const actor = await requireAdminPermission("admin.announcements.compose")
     const normalized = normalizeDraftInput(rawInput)
     if (!normalized) {
-      return errorResult("Du lieu thong bao khong hop le", "VALIDATION_ERROR")
+      return errorResult("Dữ liệu thông báo không hợp lệ", "VALIDATION_ERROR")
     }
 
     const parsed = updateSchema.safeParse(normalized.input)
     if (!parsed.success) {
       return errorResult(
-        parsed.error.issues[0]?.message ?? "Du lieu thong bao khong hop le",
+        parsed.error.issues[0]?.message ?? "Dữ liệu thông báo không hợp lệ",
         "VALIDATION_ERROR",
       )
     }
@@ -333,11 +333,11 @@ export async function updateAnnouncement(
         },
       })
       if (!existing || existing.deletedAt) {
-        throw new AppError("Thong bao khong ton tai.", "NOT_FOUND", 404)
+        throw new AppError("Thông báo không tồn tại.", "NOT_FOUND", 404)
       }
       if (!isEditableAnnouncementStatus(existing.status)) {
         throw new AppError(
-          "Thong bao da gui duyet hoac phat hanh khong the sua truc tiep.",
+          "Thông báo đã gửi duyệt hoặc phát hành không thể sửa trực tiếp.",
           "INVALID_STATUS",
           409,
         )
@@ -363,7 +363,7 @@ export async function updateAnnouncement(
         })
         if (!membership) {
           throw new AppError(
-            "Ban khong co tham quyen voi don vi ban hanh nay",
+            "Bạn không có thẩm quyền với đơn vị ban hành này",
             "FORBIDDEN",
             403,
           )
@@ -436,7 +436,7 @@ export async function updateAnnouncement(
     revalidateAnnouncementSurfaces()
     return successResult({ id: parsed.data.id })
   } catch (error) {
-    return actionFailure(error, "Khong the cap nhat thong bao")
+    return actionFailure(error, "Không thể cập nhật thông báo")
   }
 }
 
@@ -481,11 +481,11 @@ export async function submitAnnouncementForReview(
         },
       })
       if (!existing || existing.deletedAt || !existing.issuingUnit) {
-        throw new AppError("Thong bao khong ton tai.", "NOT_FOUND", 404)
+        throw new AppError("Thông báo không tồn tại.", "NOT_FOUND", 404)
       }
       if (!isEditableAnnouncementStatus(existing.status)) {
         throw new AppError(
-          "Chi ban nhap hoac ban bi tra lai moi co the gui duyet.",
+          "Chỉ bản nháp hoặc bản bị trả lại mới có thể gửi duyệt.",
           "INVALID_STATUS",
           409,
         )
@@ -503,7 +503,7 @@ export async function submitAnnouncementForReview(
       })
       if (!membership) {
         throw new AppError(
-          "Ban khong co tham quyen voi don vi ban hanh nay",
+          "Bạn không có thẩm quyền với đơn vị ban hành này",
           "FORBIDDEN",
           403,
         )
@@ -592,7 +592,7 @@ export async function submitAnnouncementForReview(
     revalidateAnnouncementSurfaces()
     return successResult({ id, status: "PENDING_UNIT_REVIEW" })
   } catch (error) {
-    return actionFailure(error, "Khong the gui thong bao de duyet")
+    return actionFailure(error, "Không thể gửi thông báo để duyệt")
   }
 }
 
@@ -602,7 +602,7 @@ export async function reviewAnnouncement(
   const parsed = announcementDecisionSchema.safeParse(normalizeReviewInput(rawInput))
   if (!parsed.success) {
     return errorResult(
-      parsed.error.issues[0]?.message ?? "Du lieu duyet khong hop le",
+      parsed.error.issues[0]?.message ?? "Dữ liệu duyệt không hợp lệ",
       "VALIDATION_ERROR",
     )
   }
@@ -644,7 +644,7 @@ export async function reviewAnnouncement(
         !existing.activeRevisionId ||
         !existing.activeRevision
       ) {
-        throw new AppError("Thong bao hoac phien ban duyet khong ton tai.", "NOT_FOUND", 404)
+        throw new AppError("Thông báo hoặc phiên bản duyệt không tồn tại.", "NOT_FOUND", 404)
       }
 
       let stage: "UNIT" | "ADMIN"
@@ -665,7 +665,7 @@ export async function reviewAnnouncement(
         })
         if (!membership) {
           throw new AppError(
-            "Ban khong co tham quyen duyet cho don vi ban hanh nay.",
+            "Bạn không có thẩm quyền duyệt cho đơn vị ban hành này.",
             "FORBIDDEN",
             403,
           )
@@ -679,19 +679,19 @@ export async function reviewAnnouncement(
         )
         if (!unitApproved) {
           throw new AppError(
-            "Thong bao chua co phe duyet cua don vi ban hanh.",
+            "Thông báo chưa có phê duyệt của đơn vị ban hành.",
             "INVALID_APPROVAL_ROUTE",
             409,
           )
         }
       } else {
-        throw new AppError("Thong bao khong o trang thai cho duyet.", "INVALID_STATUS", 409)
+        throw new AppError("Thông báo không ở trạng thái chờ duyệt.", "INVALID_STATUS", 409)
       }
 
       if (
         existing.activeRevision.approvals.some((approval) => approval.stage === stage)
       ) {
-        throw new AppError("Cap duyet nay da co quyet dinh.", "ALREADY_REVIEWED", 409)
+        throw new AppError("Cấp duyệt này đã có quyết định.", "ALREADY_REVIEWED", 409)
       }
 
       const submissionMetadata = existing.activeRevision.auditEvents[0]?.metadata
@@ -733,7 +733,7 @@ export async function reviewAnnouncement(
       }
 
       if (stage === "ADMIN" && !stages.includes("ADMIN")) {
-        throw new AppError("Thong bao khong can duyet cap truong.", "INVALID_APPROVAL_ROUTE", 409)
+        throw new AppError("Thông báo không cần duyệt cấp trường.", "INVALID_APPROVAL_ROUTE", 409)
       }
 
       let nextStatus: "PENDING_ADMIN_REVIEW" | "APPROVED" | "CHANGES_REQUESTED" | "REJECTED"
@@ -745,7 +745,7 @@ export async function reviewAnnouncement(
           }
           nextStatus = approvedStatus
         } catch {
-          throw new AppError("Thu tu duyet thong bao khong hop le.", "INVALID_APPROVAL_ROUTE", 409)
+          throw new AppError("Thứ tự duyệt thông báo không hợp lệ.", "INVALID_APPROVAL_ROUTE", 409)
         }
       } else {
         nextStatus =
@@ -784,7 +784,7 @@ export async function reviewAnnouncement(
     revalidateAnnouncementSurfaces()
     return successResult({ id: parsed.data.announcementId, status })
   } catch (error) {
-    return actionFailure(error, "Khong the duyet thong bao")
+    return actionFailure(error, "Không thể duyệt thông báo")
   }
 }
 
@@ -814,7 +814,7 @@ export async function publishAnnouncement(
         !announcement.activeRevision
       ) {
         throw new AppError(
-          "Thong bao chua duoc duyet de phat hanh.",
+          "Thông báo chưa được duyệt để phát hành.",
           "INVALID_STATUS",
           409,
         )
@@ -832,7 +832,7 @@ export async function publishAnnouncement(
       })
       if (!authorMembership) {
         throw new AppError(
-          "Ban khong co tham quyen phat hanh cho don vi ban hanh nay.",
+          "Bạn không có thẩm quyền phát hành cho đơn vị ban hành này.",
           "FORBIDDEN",
           403,
         )
@@ -870,7 +870,7 @@ export async function publishAnnouncement(
     revalidateAnnouncementSurfaces()
     return successResult({ id, status: "PUBLISHED", recipients: publication.recipients })
   } catch (error) {
-    return actionFailure(error, "Khong the phat hanh thong bao")
+    return actionFailure(error, "Không thể phát hành thông báo")
   }
 }
 
@@ -889,12 +889,12 @@ export async function markAnnouncementSeen(
       data: { seenAt: new Date() },
     })
     if (updated.count !== 1) {
-      return errorResult("Khong tim thay thong bao.", "NOT_FOUND")
+      return errorResult("Không tìm thấy thông báo.", "NOT_FOUND")
     }
     revalidatePath("/feed")
     return successResult({ id })
   } catch (error) {
-    return actionFailure(error, "Khong the ghi nhan da xem thong bao")
+    return actionFailure(error, "Không thể ghi nhận đã xem thông báo")
   }
 }
 
@@ -914,12 +914,12 @@ export async function acknowledgeAnnouncement(
       data: { acknowledgedAt: now, seenAt: now },
     })
     if (updated.count !== 1) {
-      return errorResult("Khong tim thay thong bao.", "NOT_FOUND")
+      return errorResult("Không tìm thấy thông báo.", "NOT_FOUND")
     }
     revalidatePath("/feed")
     return successResult({ id })
   } catch (error) {
-    return actionFailure(error, "Khong the xac nhan thong bao")
+    return actionFailure(error, "Không thể xác nhận thông báo")
   }
 }
 
@@ -945,7 +945,7 @@ export async function withdrawAnnouncement(
         },
       })
       if (!announcement || announcement.deletedAt || announcement.status !== "PUBLISHED") {
-        throw new AppError("Thong bao khong o trang thai co the thu hoi.", "INVALID_STATUS", 409)
+        throw new AppError("Thông báo không ở trạng thái có thể thu hồi.", "INVALID_STATUS", 409)
       }
       if (actor.baseRole !== "ADMIN") {
         const membership = await tx.announcementUnitMember.findFirst({
@@ -959,7 +959,7 @@ export async function withdrawAnnouncement(
           select: { unitId: true },
         })
         if (!membership) {
-          throw new AppError("Ban khong co tham quyen thu hoi thong bao nay.", "FORBIDDEN", 403)
+          throw new AppError("Bạn không có thẩm quyền thu hồi thông báo này.", "FORBIDDEN", 403)
         }
       }
       await tx.announcement.update({
@@ -980,7 +980,7 @@ export async function withdrawAnnouncement(
     revalidateAnnouncementSurfaces()
     return successResult({ id })
   } catch (error) {
-    return actionFailure(error, "Khong the thu hoi thong bao")
+    return actionFailure(error, "Không thể thu hồi thông báo")
   }
 }
 
@@ -1001,7 +1001,7 @@ export async function createReplacementAnnouncement(
         },
       })
       if (!source || source.deletedAt || source.status !== "PUBLISHED" || !source.publishedRevision) {
-        throw new AppError("Thong bao goc khong the tao ban thay the.", "INVALID_STATUS", 409)
+        throw new AppError("Thông báo gốc không thể tạo bản thay thế.", "INVALID_STATUS", 409)
       }
       const revision = source.publishedRevision
       const membership = await tx.announcementUnitMember.findFirst({
@@ -1015,7 +1015,7 @@ export async function createReplacementAnnouncement(
         select: { unitId: true },
       })
       if (!membership) {
-        throw new AppError("Ban khong co tham quyen tao ban thay the.", "FORBIDDEN", 403)
+        throw new AppError("Bạn không có thẩm quyền tạo bản thay thế.", "FORBIDDEN", 403)
       }
 
       const replacement = await tx.announcement.create({
@@ -1077,7 +1077,7 @@ export async function createReplacementAnnouncement(
     revalidateAnnouncementSurfaces()
     return successResult({ id: draft.id })
   } catch (error) {
-    return actionFailure(error, "Khong the tao thong bao thay the")
+    return actionFailure(error, "Không thể tạo thông báo thay thế")
   }
 }
 

@@ -53,7 +53,7 @@ export function emailVerificationTemplate(
       </p>
       <div class="notice">Liên kết có hiệu lực trong <strong>24 giờ</strong>. Nếu bạn không đăng ký tài khoản này, hãy bỏ qua email.</div>
     `),
-    text: `Xin chao ${name}! Truy cap ${verifyUrl} de xac minh email. Link co hieu luc trong 24 gio.`,
+    text: `Xin chào ${name}! Truy cập ${verifyUrl} để xác minh email. Liên kết có hiệu lực trong 24 giờ.`,
   }
 }
 
@@ -71,7 +71,7 @@ export function passwordResetTemplate(
       </p>
       <div class="notice">Liên kết có hiệu lực trong <strong>1 giờ</strong>. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.</div>
     `),
-    text: `Xin chao ${name}! Truy cap ${resetUrl} de dat lai mat khau. Link co hieu luc trong 1 gio.`,
+    text: `Xin chào ${name}! Truy cập ${resetUrl} để đặt lại mật khẩu. Liên kết có hiệu lực trong 1 giờ.`,
   }
 }
 
@@ -80,27 +80,27 @@ export function contactEmailVerificationTemplate(
   verifyUrl: string
 ): EmailTemplate {
   return {
-    subject: "Xac thuc email lien he - TLU Community",
+    subject: "Xác thực email liên hệ - TLU Community",
     html: wrapTemplate("TLU Community", `
-      <h2 style="margin-top:0;">Xin chao, ${name}!</h2>
-      <p>Vui long nhan nut ben duoi de xac thuc email lien he cho tai khoan TLU Community cua ban:</p>
+      <h2 style="margin-top:0;">Xin chào, ${name}!</h2>
+      <p>Vui lòng nhấn nút bên dưới để xác thực email liên hệ cho tài khoản TLU Community của bạn:</p>
       <p style="text-align:center; margin: 32px 0;">
-        <a href="${verifyUrl}" class="button">Xac thuc email lien he</a>
+        <a href="${verifyUrl}" class="button">Xác thực email liên hệ</a>
       </p>
-      <div class="notice">Lien ket co hieu luc trong <strong>24 gio</strong>. Neu ban khong thuc hien yeu cau nay, hay bo qua email.</div>
+      <div class="notice">Liên kết có hiệu lực trong <strong>24 giờ</strong>. Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.</div>
     `),
-    text: `Xin chao ${name}! Truy cap ${verifyUrl} de xac thuc email lien he. Link co hieu luc trong 24 gio.`,
+    text: `Xin chào ${name}! Truy cập ${verifyUrl} để xác thực email liên hệ. Liên kết có hiệu lực trong 24 giờ.`,
   }
 }
 
 export function contactEmailVerifiedTemplate(name: string): EmailTemplate {
   return {
-    subject: "Email lien he da duoc xac thuc - TLU Community",
+    subject: "Email liên hệ đã được xác thực - TLU Community",
     html: wrapTemplate("TLU Community", `
-      <h2 style="margin-top:0;">Xin chao, ${name}!</h2>
-      <p>Email lien he cua ban da duoc xac thuc thanh cong. Tu bay gio email nay se duoc dung cho thong bao va khoi phuc mat khau.</p>
+      <h2 style="margin-top:0;">Xin chào, ${name}!</h2>
+      <p>Email liên hệ của bạn đã được xác thực thành công. Từ bây giờ email này sẽ được dùng cho thông báo và khôi phục mật khẩu.</p>
     `),
-    text: `Xin chao ${name}! Email lien he cua ban da duoc xac thuc thanh cong.`,
+    text: `Xin chào ${name}! Email liên hệ của bạn đã được xác thực thành công.`,
   }
 }
 
@@ -126,6 +126,6 @@ export function announcementEmailTemplate(
       </p>
       <div class="notice">Email này chỉ được gửi khi quản trị viên bật tuỳ chọn gửi email cho thông báo.</div>
     `),
-    text: `Xin chao ${name}! Dai hoc Thang Long co thong bao moi: ${title}\n\n${content}\n\nXem thong bao: ${announcementUrl}`,
+    text: `Xin chào ${name}! Đại học Thăng Long có thông báo mới: ${title}\n\n${content}\n\nXem thông báo: ${announcementUrl}`,
   }
 }

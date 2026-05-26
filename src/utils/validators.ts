@@ -166,11 +166,11 @@ export const announcementLinkSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Ten lien ket khong duoc de trong")
-    .max(200, "Ten lien ket toi da 200 ky tu"),
+    .min(1, "Tên liên kết không được để trống")
+    .max(200, "Tên liên kết tối đa 200 ký tự"),
   url: z
     .string()
-    .url("Lien ket khong hop le")
+    .url("Liên kết không hợp lệ")
     .refine(
       (url) => {
         try {
@@ -179,22 +179,22 @@ export const announcementLinkSchema = z.object({
           return false;
         }
       },
-      "Lien ket phai dung HTTPS",
+      "Liên kết phải dùng HTTPS",
     ),
 });
 
 export const announcementDecisionSchema = z
   .object({
-    announcementId: z.string().trim().min(1, "Thong bao khong hop le"),
+    announcementId: z.string().trim().min(1, "Thông báo không hợp lệ"),
     decision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REJECTED"]),
-    comment: z.string().trim().max(1000, "Ly do toi da 1000 ky tu").optional(),
+    comment: z.string().trim().max(1000, "Lý do tối đa 1000 ký tự").optional(),
   })
   .superRefine((value, ctx) => {
     if (value.decision !== "APPROVED" && !value.comment) {
       ctx.addIssue({
         code: "custom",
         path: ["comment"],
-        message: "Can nhap ly do",
+        message: "Cần nhập lý do",
       });
     }
   });
@@ -210,7 +210,7 @@ export const announcementInputSchema = z.object({
     .trim()
     .min(1, "Nội dung không được để trống")
     .max(ANNOUNCEMENT_CONTENT_MAX, `Nội dung tối đa ${ANNOUNCEMENT_CONTENT_MAX} ký tự`),
-  issuingUnitId: z.string().trim().min(1, "Can chon don vi ban hanh"),
+  issuingUnitId: z.string().trim().min(1, "Cần chọn đơn vị ban hành"),
   category: announcementCategorySchema.default("OTHER"),
   priority: announcementPrioritySchema.default("NORMAL"),
   audience: announcementAudienceSchema.default("ALL"),

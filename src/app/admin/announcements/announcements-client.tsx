@@ -39,20 +39,20 @@ type QueueTab =
   | "WITHDRAWN"
 
 const WORKSPACE_TABS = [
-  { label: "Soan thao", value: "compose" },
-  { label: "Hang doi va lich su", value: "queue" },
+  { label: "Soạn thảo", value: "compose" },
+  { label: "Hàng đợi và lịch sử", value: "queue" },
 ]
 
 const QUEUE_TABS: Array<{ label: string; value: QueueTab }> = [
-  { label: "Tat ca", value: "ALL" },
-  { label: "Ban nhap", value: "DRAFT" },
-  { label: "Can sua", value: "CHANGES_REQUESTED" },
-  { label: "Cho duyet don vi", value: "PENDING_UNIT_REVIEW" },
-  { label: "Cho admin duyet", value: "PENDING_ADMIN_REVIEW" },
-  { label: "Da duyet", value: "APPROVED" },
-  { label: "Da len lich", value: "SCHEDULED" },
-  { label: "Da phat hanh", value: "PUBLISHED" },
-  { label: "Da thu hoi", value: "WITHDRAWN" },
+  { label: "Tất cả", value: "ALL" },
+  { label: "Bản nháp", value: "DRAFT" },
+  { label: "Cần sửa", value: "CHANGES_REQUESTED" },
+  { label: "Chờ duyệt đơn vị", value: "PENDING_UNIT_REVIEW" },
+  { label: "Chờ duyệt cấp trường", value: "PENDING_ADMIN_REVIEW" },
+  { label: "Đã duyệt", value: "APPROVED" },
+  { label: "Đã lên lịch", value: "SCHEDULED" },
+  { label: "Đã phát hành", value: "PUBLISHED" },
+  { label: "Đã thu hồi", value: "WITHDRAWN" },
 ]
 
 type AnnouncementsClientProps = {
@@ -145,7 +145,7 @@ export default function AnnouncementsClient({
       const result = await publishAnnouncement(item.id)
       if (!result.success) {
         toast({
-          title: "Khong the phat hanh",
+          title: "Không thể phát hành",
           description: result.error,
           variant: "destructive",
         })
@@ -153,11 +153,11 @@ export default function AnnouncementsClient({
       }
       toast({
         title:
-          result.data?.status === "SCHEDULED" ? "Da len lich" : "Da phat hanh",
+          result.data?.status === "SCHEDULED" ? "Đã lên lịch" : "Đã phát hành",
         description:
           result.data?.status === "SCHEDULED"
-            ? "Thong bao se phat theo lich da duoc duyet."
-            : `Da tao ${result.data?.recipients ?? 0} ban ghi nguoi nhan.`,
+            ? "Thông báo sẽ phát hành theo lịch đã được duyệt."
+            : `Đã tạo ${result.data?.recipients ?? 0} bản ghi người nhận.`,
       })
       router.refresh()
     })
@@ -172,8 +172,8 @@ export default function AnnouncementsClient({
     if (!withdrawTarget) return
     if (!withdrawReason.trim()) {
       toast({
-        title: "Can nhap ly do thu hoi",
-        description: "Ly do duoc luu trong lich su kiem toan va hien thi cho nguoi nhan.",
+        title: "Cần nhập lý do thu hồi",
+        description: "Lý do được lưu trong nhật ký kiểm toán và hiển thị cho người nhận.",
         variant: "destructive",
       })
       return
@@ -182,15 +182,15 @@ export default function AnnouncementsClient({
       const result = await withdrawAnnouncement(withdrawTarget.id, withdrawReason)
       if (!result.success) {
         toast({
-          title: "Khong the thu hoi",
+          title: "Không thể thu hồi",
           description: result.error,
           variant: "destructive",
         })
         return
       }
       toast({
-        title: "Da thu hoi thong bao",
-        description: "Nguoi nhan van thay ban ghi da giao kem ly do thu hoi.",
+        title: "Đã thu hồi thông báo",
+        description: "Người nhận vẫn thấy bản ghi đã giao kèm lý do thu hồi.",
       })
       setWithdrawTarget(null)
       setWithdrawReason("")
@@ -203,15 +203,15 @@ export default function AnnouncementsClient({
       const result = await createReplacementAnnouncement(item.id)
       if (!result.success) {
         toast({
-          title: "Khong the tao ban thay the",
+          title: "Không thể tạo bản thay thế",
           description: result.error,
           variant: "destructive",
         })
         return
       }
       toast({
-        title: "Da tao ban nhap thay the",
-        description: "Ban thay the phai di qua quy trinh duyet truoc khi phat hanh.",
+        title: "Đã tạo bản nháp thay thế",
+        description: "Bản thay thế phải đi qua quy trình duyệt trước khi phát hành.",
       })
       setQueueTab("DRAFT")
       router.refresh()
@@ -226,16 +226,16 @@ export default function AnnouncementsClient({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">
-            Thong bao chinh thuc - Dai hoc Thang Long
+            Thông báo chính thức - Đại học Thăng Long
           </h1>
           <p className="text-sm text-muted-foreground">
-            Thong bao phai duoc duyet theo don vi ban hanh va cap truong khi
-            vuot pham vi.
+            Thông báo phải được duyệt theo đơn vị ban hành và cấp trường khi
+            vượt phạm vi.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={handleNew}>
           <Plus data-icon="inline-start" />
-          Tao thong bao
+          Tạo thông báo
         </Button>
       </div>
 
@@ -273,7 +273,7 @@ export default function AnnouncementsClient({
             <CardContent className="flex flex-wrap items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
                 <ListFilter data-icon="inline-start" />
-                {initialTotal} ho so thong bao
+                {initialTotal} hồ sơ thông báo
               </span>
               <TabNavigation
                 tabs={QUEUE_TABS}
@@ -291,32 +291,32 @@ export default function AnnouncementsClient({
                   <CardContent className="flex flex-col gap-3">
                     <div>
                       <h3 className="text-sm font-semibold">
-                        Thu hoi: {withdrawTarget.title}
+                        Thu hồi: {withdrawTarget.title}
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        Ban ghi nguoi nhan se duoc giu lai lam bang chung giao nhan.
+                        Bản ghi người nhận sẽ được giữ lại làm bằng chứng giao nhận.
                       </p>
                     </div>
                     <label htmlFor="announcement-withdrawal-reason" className="text-sm font-medium">
-                      Ly do thu hoi
+                      Lý do thu hồi
                     </label>
                     <Textarea
                       id="announcement-withdrawal-reason"
                       value={withdrawReason}
                       onChange={(event) => setWithdrawReason(event.target.value)}
-                      placeholder="Nhap ly do de thong bao ro cho nguoi nhan"
+                      placeholder="Nhập lý do để thông báo rõ cho người nhận"
                       maxLength={1000}
                     />
                     <div className="flex gap-2">
                       <Button type="button" disabled={isPending} onClick={handleWithdraw}>
-                        Xac nhan thu hoi
+                        Xác nhận thu hồi
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => setWithdrawTarget(null)}
                       >
-                        Huy
+                        Hủy
                       </Button>
                     </div>
                   </CardContent>
@@ -355,7 +355,7 @@ export default function AnnouncementsClient({
           </div>
           {isPending && (
             <p className="text-sm text-muted-foreground">
-              Dang xu ly phat hanh...
+              Đang xử lý phát hành...
             </p>
           )}
         </div>

@@ -88,7 +88,7 @@ export async function createCourse(rawInput: unknown): Promise<ActionResult<{ co
       })
 
       if (!lecturer || lecturer.deletedAt || lecturer.role !== "LECTURER") {
-        return errorResult("Giang vien phu trach khong hop le", "VALIDATION_ERROR")
+        return errorResult("Giảng viên phu trach không hợp lệ", "VALIDATION_ERROR")
       }
 
       lecturerId = lecturer.userId

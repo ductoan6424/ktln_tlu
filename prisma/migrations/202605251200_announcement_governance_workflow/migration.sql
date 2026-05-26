@@ -291,9 +291,9 @@ ALTER TABLE "announcement_audit_events"
   ON DELETE SET NULL ON UPDATE CASCADE;
 
 INSERT INTO "organization_units" ("organization_unit_id", "code", "name", "type", "is_active", "created_at", "updated_at") VALUES
-  ('unit_department_dao_tao', 'DEPARTMENT_DAO_TAO', 'Phong Dao tao', 'DEPARTMENT', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('unit_department_ctctsv', 'DEPARTMENT_CTCTSV', 'Phong Cong tac Chinh tri Sinh vien', 'DEPARTMENT', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('unit_department_cntt', 'DEPARTMENT_CNTT', 'Phong Cong nghe Thong tin', 'DEPARTMENT', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  ('unit_department_dao_tao', 'DEPARTMENT_DAO_TAO', 'Phòng Đào tạo', 'DEPARTMENT', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('unit_department_ctctsv', 'DEPARTMENT_CTCTSV', 'Phòng Công tác Chính trị Sinh viên', 'DEPARTMENT', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('unit_department_cntt', 'DEPARTMENT_CNTT', 'Phòng Công nghệ Thông tin', 'DEPARTMENT', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT ("code") DO NOTHING;
 
 INSERT INTO "organization_units" ("organization_unit_id", "code", "name", "type", "faculty_id", "is_active", "created_at", "updated_at")

@@ -7,8 +7,8 @@ const DEFAULT_ADMIN = {
   code: "AD001",
   email: "ad001@thanglong.edu.vn",
   password: "Admin@123456",
-  displayName: "Quan tri he thong",
-  department: "He thong",
+  displayName: "Quản trị hệ thống",
+  department: "Hệ thống",
 }
 
 function loadEnvFile(filePath) {

@@ -5,7 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import pg from "pg"
 
 // ─── Cau hinh ─────────────────────────────────────────────────────────────────
-// Nhan userId tu argv hoac env (khong hardcode credential vao git).
+// Nhận userId từ argv hoặc env (không hardcode credential vào git).
 //
 // Cach 1: argv
 //   node scripts/backfill-school-identity.mjs <userId> <institutionalEmail> [role] [department]
@@ -13,8 +13,8 @@ import pg from "pg"
 // Cach 2: env vars
 //   $env:BACKFILL_USER_ID = "uuid"
 //   $env:BACKFILL_INSTITUTIONAL_EMAIL = "user@example.com"
-//   $env:BACKFILL_ROLE = "ADMIN"           # ADMIN | STUDENT | LECTURER (mac dinh: lay tu UserProfile)
-//   $env:BACKFILL_DEPARTMENT = "He thong"  # mac dinh: "He thong"
+//   $env:BACKFILL_ROLE = "ADMIN"           # ADMIN | STUDENT | LECTURER (mặc định: lay tu UserProfile)
+//   $env:BACKFILL_DEPARTMENT = "Hệ thống"  # mặc định: "Hệ thống"
 //   node scripts/backfill-school-identity.mjs
 
 const USER_ID = (process.argv[2] ?? process.env.BACKFILL_USER_ID ?? "").trim()
@@ -22,7 +22,7 @@ const INSTITUTIONAL_EMAIL = (process.argv[3] ?? process.env.BACKFILL_INSTITUTION
   .trim()
   .toLowerCase()
 const ROLE_OVERRIDE = (process.argv[4] ?? process.env.BACKFILL_ROLE ?? "").trim().toUpperCase()
-const DEPARTMENT = (process.argv[5] ?? process.env.BACKFILL_DEPARTMENT ?? "He thong").trim()
+const DEPARTMENT = (process.argv[5] ?? process.env.BACKFILL_DEPARTMENT ?? "Hệ thống").trim()
 
 const ROLE_PREFIX = {
   ADMIN: "AD",

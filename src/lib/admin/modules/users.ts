@@ -47,11 +47,11 @@ const USERS_RECORDS: AdminRecord<UserCells>[] = [
   },
   {
     id: "user-003",
-    title: "Phạm Gia Huy",
+    title: "Phạm Gia Hủy",
     subtitle: "Quản trị viên",
     status: "blocked",
     cells: {
-      title: "Phạm Gia Huy",
+      title: "Phạm Gia Hủy",
       email: "phamgiahuy@example.edu",
       role: "Quản trị viên",
       faculty: "Khối quản trị",
@@ -189,7 +189,7 @@ const detailSectionsById: Record<string, AdminDetailSection[]> = {
     {
       title: "Thông tin cơ bản",
       items: [
-        { label: "Họ và tên", value: "Phạm Gia Huy" },
+        { label: "Họ và tên", value: "Phạm Gia Hủy" },
         { label: "Vai trò", value: "Quản trị viên" },
         { label: "Trạng thái", value: "Đã chặn" },
       ],

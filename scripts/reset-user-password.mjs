@@ -3,7 +3,7 @@ import path from "path"
 import { createClient } from "@supabase/supabase-js"
 
 // ─── Cau hinh ─────────────────────────────────────────────────────────────────
-// Nhan email + password tu argv hoac env (khong hardcode credential vao git).
+// Nhận email + password từ argv hoặc env (không hardcode credential vào git).
 //
 // Cach 1: truyen qua argv
 //   node scripts/reset-user-password.mjs <email> <newPassword>
