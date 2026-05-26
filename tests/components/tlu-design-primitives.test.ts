@@ -14,6 +14,7 @@ describe("TLU design primitive contracts", () => {
     expect(globals).toContain("--brand-scarlet: #f32409;")
     expect(globals).toContain("--official:")
     expect(globals).toContain("--official-soft:")
+    expect(globals).toContain("--official-foreground: #ffe4df;")
     expect(globals).toContain("--destructive:")
     expect(globals).toContain("--color-official: var(--official);")
   })
@@ -23,20 +24,28 @@ describe("TLU design primitive contracts", () => {
     const statusBadge = source("src/components/shared/status-badge.tsx")
 
     expect(badge).toContain(
-      'official: "bg-official-soft text-official border-official/20',
+      'official: "bg-official-soft text-official-foreground border-official/20',
     )
     expect(badge).toContain(
       'destructive:\n          "bg-destructive/10 text-destructive',
     )
     expect(statusBadge).toContain(
-      'official: "bg-official-soft text-official border-official/20"',
+      'official: "bg-official-soft text-official-foreground border-official/20"',
     )
     expect(statusBadge).toContain(
       'critical: "bg-destructive/10 text-destructive border-destructive/20"',
     )
     expect(statusBadge).toContain(
-      'accent: "bg-official-soft text-official border-official/20"',
+      'accent: "bg-official-soft text-official-foreground border-official/20"',
     )
+  })
+
+  it("keeps official markers as scarlet identity marks, not soft callout panels", () => {
+    const globals = source("src/app/globals.css")
+
+    expect(globals).toContain(".official-marker")
+    expect(globals).toContain("background-color: var(--brand-scarlet);")
+    expect(globals).not.toContain("background-color: var(--official-soft);")
   })
 
   it("uses semantic status token classes rather than palette color utilities", () => {

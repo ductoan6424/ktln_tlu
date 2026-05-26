@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils"
 
 const VARIANT_CLASSES = {
   primary: "bg-primary/10 text-primary border-primary/20",
-  official: "bg-official-soft text-official border-official/20",
-  accent: "bg-official-soft text-official border-official/20",
+  official: "bg-official-soft text-official-foreground border-official/20",
+  accent: "bg-official-soft text-official-foreground border-official/20",
   critical: "bg-destructive/10 text-destructive border-destructive/20",
   warning: "bg-warning-soft text-warning border-warning/20",
   success: "bg-success-soft text-success border-success/20",
