@@ -11,6 +11,8 @@ describe("TLU shell visual contracts", () => {
 
     expect(appLogo).toContain("text-brand-indigo")
     expect(appLogo).toContain("dark:text-foreground")
+    expect(appLogo).toContain("width: logo")
+    expect(appLogo).toContain("height: logo")
   })
 
   it("keeps selection primary while unread attention uses the official role", () => {
