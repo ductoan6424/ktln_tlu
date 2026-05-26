@@ -8,6 +8,7 @@ const addStudentToCourse = vi.hoisted(() => vi.fn())
 const addStudentsToCourseByCodes = vi.hoisted(() => vi.fn())
 const updateCourseSettings = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
+  userProfile: { findMany: vi.fn() },
   communityRule: { findMany: vi.fn() },
   communityJoinRequest: { findMany: vi.fn() },
   communityReport: { findMany: vi.fn() },
@@ -33,6 +34,7 @@ describe("course manage routes", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     requireCourseCreator.mockResolvedValue({
+      baseRole: "LECTURER",
       profile: {
         displayName: "Lê Minh Anh",
       },
@@ -55,6 +57,7 @@ describe("course manage routes", () => {
     prisma.communityReport.findMany.mockResolvedValue([])
     prisma.post.findMany.mockResolvedValue([])
     prisma.pinnedPost.findMany.mockResolvedValue([])
+    prisma.userProfile.findMany.mockResolvedValue([])
   })
 
   it("renders the new course page after lecturer/admin access is granted", async () => {
@@ -63,6 +66,34 @@ describe("course manage routes", () => {
 
     expect(markup).toContain("Tạo lớp học")
     expect(markup).toContain("Mã môn học")
+  })
+
+  it("requires admins to pick the lecturer who owns the new course", async () => {
+    requireCourseCreator.mockResolvedValue({
+      baseRole: "ADMIN",
+      profile: {
+        displayName: "Admin User",
+      },
+    })
+    prisma.userProfile.findMany.mockResolvedValue([
+      {
+        userId: "lecturer-2",
+        displayName: "Lecturer Two",
+        email: "lecturer2@example.edu",
+      },
+    ])
+
+    const { default: NewCoursePage } = await import("@/app/(main)/courses/new/page")
+    const markup = renderToStaticMarkup(await NewCoursePage())
+
+    expect(prisma.userProfile.findMany).toHaveBeenCalledWith({
+      where: { role: "LECTURER", deletedAt: null },
+      select: { userId: true, displayName: true, email: true },
+      orderBy: { displayName: "asc" },
+    })
+    expect(markup).toContain("Giang vien phu trach")
+    expect(markup).toContain('name="lecturerId"')
+    expect(markup).toContain("Lecturer Two")
   })
 
   it("renders the manage page after ownership is confirmed", async () => {
