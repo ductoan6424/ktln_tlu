@@ -30,9 +30,9 @@ export function NavbarLink({
       <Tooltip>
         <TooltipTrigger
           className={cn(
-            "relative flex items-center justify-center size-12 transition-colors cursor-pointer",
+            "relative flex size-12 cursor-pointer items-center justify-center rounded-full transition-colors",
             isActive
-              ? "text-primary"
+              ? "bg-primary/10 text-primary"
               : "text-muted-foreground hover:text-primary",
             className
           )}
@@ -42,7 +42,7 @@ export function NavbarLink({
           {/* Thanh indicator dưới */}
           <span
             className={cn(
-              "absolute bottom-0 left-2 right-2 h-0.5 rounded-full transition-all",
+              "absolute right-3 bottom-1 left-3 h-0.5 rounded-full transition-all",
               isActive
                 ? "bg-primary"
                 : "bg-transparent"
