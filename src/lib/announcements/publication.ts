@@ -36,12 +36,12 @@ export async function publishApprovedAnnouncement(
     })
 
     if (!announcement || announcement.deletedAt) {
-      throw new AppError("Thong bao khong ton tai.", "NOT_FOUND", 404)
+      throw new AppError("Thông báo không tồn tại.", "NOT_FOUND", 404)
     }
 
     if (announcement.status === "PUBLISHED") {
       if (!announcement.publishedRevisionId) {
-        throw new AppError("Thong bao khong co phien ban da phat hanh.", "INVALID_REVISION", 409)
+        throw new AppError("Thông báo không có phiên bản đã phát hành.", "INVALID_REVISION", 409)
       }
       const recipients = await tx.announcementRecipient.count({
         where: { announcementId },
@@ -51,7 +51,7 @@ export async function publishApprovedAnnouncement(
 
     if (announcement.status !== "APPROVED" && announcement.status !== "SCHEDULED") {
       throw new AppError(
-        "Thong bao chua duoc duyet de phat hanh.",
+        "Thông báo chưa được duyệt để phát hành.",
         "INVALID_STATUS",
         409,
       )
@@ -59,7 +59,7 @@ export async function publishApprovedAnnouncement(
 
     if (!announcement.activeRevisionId || !announcement.activeRevision) {
       throw new AppError(
-        "Thong bao khong co phien ban da duyet.",
+        "Thông báo không có phiên bản đã duyệt.",
         "INVALID_REVISION",
         409,
       )
@@ -70,7 +70,7 @@ export async function publishApprovedAnnouncement(
       announcement.activeRevision.scheduledAt.getTime() > Date.now()
     ) {
       throw new AppError(
-        "Thong bao chua den lich phat hanh.",
+        "Thông báo chưa đến lịch phát hành.",
         "SCHEDULE_PENDING",
         409,
       )

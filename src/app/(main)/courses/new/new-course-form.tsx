@@ -57,7 +57,7 @@ export function NewCourseForm({
 
             {requireLecturerSelection ? (
               <label className="block space-y-2" htmlFor="field-app-main-courses-new-new-course-form-lecturer">
-                <span className="text-sm font-medium">Giang vien phu trach</span>
+                <span className="text-sm font-medium">Giảng viên phu trach</span>
                 <select
                   id="field-app-main-courses-new-new-course-form-lecturer"
                   name="lecturerId"

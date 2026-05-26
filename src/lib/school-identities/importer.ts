@@ -133,19 +133,19 @@ export function parseSchoolIdentityImportRows(
     const department = cellToString(getValue(row, "department"))
 
     if (!role) {
-      errors.push({ rowNumber, field: "role", message: "Vai tro khong hop le" })
+      errors.push({ rowNumber, field: "role", message: "Vai tro không hợp lệ" })
       continue
     }
     if (!status) {
-      errors.push({ rowNumber, field: "status", message: "Trang thai khong hop le" })
+      errors.push({ rowNumber, field: "status", message: "Trạng thái không hợp lệ" })
       continue
     }
     if (!displayName) {
-      errors.push({ rowNumber, field: "displayName", message: "Ho ten khong duoc de trong" })
+      errors.push({ rowNumber, field: "displayName", message: "Họ tên không được để trống" })
       continue
     }
     if (!department) {
-      errors.push({ rowNumber, field: "department", message: "Khoa/phong ban khong duoc de trong" })
+      errors.push({ rowNumber, field: "department", message: "Khoa/phòng ban không được để trống" })
       continue
     }
 

@@ -35,7 +35,7 @@ export function buildSessionUser(
       profile?.displayName
       ?? authUser.user_metadata?.display_name
       ?? fallbackEmail
-      ?? "Nguoi dung",
+      ?? "Người dùng",
     subtitle:
       profile?.major
       ?? authUser.user_metadata?.department

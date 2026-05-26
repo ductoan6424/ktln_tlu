@@ -34,18 +34,18 @@ type AnnouncementListProps = {
 }
 
 const STATUS_LABEL: Record<AdminAnnouncementItem["status"], string> = {
-  DRAFT: "Ban nhap",
-  PENDING_UNIT_REVIEW: "Cho duyet don vi",
-  PENDING_ADMIN_REVIEW: "Cho admin duyet",
-  CHANGES_REQUESTED: "Can chinh sua",
-  REJECTED: "Tu choi",
-  APPROVED: "Da duyet",
-  SCHEDULED: "Da len lich",
-  PUBLISHED: "Da phat hanh",
-  EXPIRED: "Het hieu luc",
-  WITHDRAWN: "Da thu hoi",
-  SUPERSEDED: "Da thay the",
-  ARCHIVED: "Luu tru",
+  DRAFT: "Bản nháp",
+  PENDING_UNIT_REVIEW: "Chờ duyệt đơn vị",
+  PENDING_ADMIN_REVIEW: "Chờ duyệt cấp trường",
+  CHANGES_REQUESTED: "Cần chỉnh sửa",
+  REJECTED: "Từ chối",
+  APPROVED: "Đã duyệt",
+  SCHEDULED: "Đã lên lịch",
+  PUBLISHED: "Đã phát hành",
+  EXPIRED: "Hết hiệu lực",
+  WITHDRAWN: "Đã thu hồi",
+  SUPERSEDED: "Đã thay thế",
+  ARCHIVED: "Lưu trữ",
 }
 
 const STATUS_VARIANT: Record<
@@ -89,8 +89,8 @@ export function AnnouncementList({
         <CardContent className="py-12">
           <EmptyState
             icon={Megaphone}
-            title="Khong co thong bao trong hang doi nay"
-            description="Cac ho so dung trang thai se xuat hien tai day."
+            title="Không có thông báo trong hàng đợi này"
+            description="Các hồ sơ đúng trạng thái sẽ xuất hiện tại đây."
           />
         </CardContent>
       </Card>
@@ -122,7 +122,7 @@ export function AnnouncementList({
                     {STATUS_LABEL[item.status]}
                   </StatusBadge>
                   <StatusBadge variant="info">
-                    {item.issuingUnit?.name ?? "Chua gan don vi"}
+                    {item.issuingUnit?.name ?? "Chưa gán đơn vị"}
                   </StatusBadge>
                 </div>
                 <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
@@ -136,7 +136,7 @@ export function AnnouncementList({
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Tao{" "}
+                  Tạo{" "}
                   <RelativeTime
                     date={item.createdAt}
                     fallback={item.createdAt}
@@ -149,11 +149,11 @@ export function AnnouncementList({
 
             {item.recipientSummary && (
               <div className="grid grid-cols-2 gap-2 rounded-md border border-border p-3 text-xs text-muted-foreground sm:grid-cols-5">
-                <span>Nhan: {item.recipientSummary.total}</span>
-                <span>Trong app: {item.recipientSummary.notified}</span>
+                <span>Người nhận: {item.recipientSummary.total}</span>
+                <span>Trong ứng dụng: {item.recipientSummary.notified}</span>
                 <span>Email: {item.recipientSummary.emailSent}</span>
-                <span>Da xem: {item.recipientSummary.seen}</span>
-                <span>Xac nhan: {item.recipientSummary.acknowledged}</span>
+                <span>Đã xem: {item.recipientSummary.seen}</span>
+                <span>Xác nhận: {item.recipientSummary.acknowledged}</span>
               </div>
             )}
 
@@ -165,19 +165,19 @@ export function AnnouncementList({
                   onClick={() => onEdit(item)}
                 >
                   <Edit3 data-icon="inline-start" />
-                  Chinh sua
+                  Chỉnh sửa
                 </Button>
               )}
               {isPendingReview(item.status) && mayReview(item) && (
                 <Button size="sm" onClick={() => onReview(item)}>
                   <Eye data-icon="inline-start" />
-                  Mo ho so duyet
+                  Mở hồ sơ duyệt
                 </Button>
               )}
               {item.status === "APPROVED" && (
                 <Button size="sm" onClick={() => onPublish(item)}>
                   <Send data-icon="inline-start" />
-                  Phat hanh
+                  Phát hành
                 </Button>
               )}
               {item.status === "PUBLISHED" && (
@@ -187,21 +187,21 @@ export function AnnouncementList({
                     variant="outline"
                     onClick={() => onWithdraw(item)}
                   >
-                    Thu hoi
+                    Thu hồi
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => onCreateReplacement(item)}
                   >
-                    Tao ban thay the
+                    Tạo bản thay thế
                   </Button>
                 </>
               )}
               {item.status === "PUBLISHED" && item.requiresAcknowledgement && (
                 <StatusBadge variant="success">
                   <CheckCircle2 data-icon="inline-start" />
-                  Yeu cau xac nhan
+                  Yêu cầu xác nhận
                 </StatusBadge>
               )}
             </div>

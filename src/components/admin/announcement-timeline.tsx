@@ -10,15 +10,15 @@ export type AnnouncementTimelineEntry = {
 
 function actionLabel(action: string) {
   const labels: Record<string, string> = {
-    DRAFT_CREATED: "Tao ban nhap",
-    DRAFT_UPDATED: "Cap nhat ban nhap",
-    SUBMITTED_FOR_UNIT_REVIEW: "Gui duyet don vi",
-    UNIT_APPROVED: "Don vi phe duyet",
-    UNIT_CHANGES_REQUESTED: "Don vi yeu cau sua",
-    UNIT_REJECTED: "Don vi tu choi",
-    ADMIN_APPROVED: "Cap truong phe duyet",
-    ADMIN_CHANGES_REQUESTED: "Cap truong yeu cau sua",
-    ADMIN_REJECTED: "Cap truong tu choi",
+    DRAFT_CREATED: "Tạo bản nháp",
+    DRAFT_UPDATED: "Cập nhật bản nháp",
+    SUBMITTED_FOR_UNIT_REVIEW: "Gửi duyệt đơn vị",
+    UNIT_APPROVED: "Đơn vị phê duyệt",
+    UNIT_CHANGES_REQUESTED: "Đơn vị yêu cầu sửa",
+    UNIT_REJECTED: "Đơn vị từ chối",
+    ADMIN_APPROVED: "Cấp trường phê duyệt",
+    ADMIN_CHANGES_REQUESTED: "Cấp trường yêu cầu sửa",
+    ADMIN_REJECTED: "Cấp trường từ chối",
   }
 
   return labels[action] ?? action
@@ -32,16 +32,16 @@ export function AnnouncementTimeline({
   return (
     <Card>
       <CardContent className="space-y-4">
-        <h2 className="text-lg font-semibold">Lich su xu ly</h2>
+        <h2 className="text-lg font-semibold">Lịch sử xử lý</h2>
         {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Chua co hoat dong.</p>
+          <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>
         ) : (
           <ol className="space-y-4 border-l pl-4">
             {entries.map((entry) => (
               <li key={entry.id} className="space-y-1">
                 <div className="text-sm font-medium">{actionLabel(entry.action)}</div>
                 <div className="text-xs text-muted-foreground">
-                  {entry.actorName ?? "He thong"} - {new Date(entry.createdAt).toLocaleString("vi-VN")}
+                  {entry.actorName ?? "Hệ thống"} - {new Date(entry.createdAt).toLocaleString("vi-VN")}
                 </div>
                 {entry.comment ? (
                   <p className="text-sm text-muted-foreground">{entry.comment}</p>

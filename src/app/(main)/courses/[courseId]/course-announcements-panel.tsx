@@ -14,8 +14,8 @@ type CourseAnnouncementsPanelProps = {
 function typeLabel(type: CourseAnnouncementDto["type"]) {
   const labels: Record<CourseAnnouncementDto["type"], string> = {
     GENERAL: "Chung",
-    CLASS_CANCELLED: "Nghi hoc",
-    SCHEDULE_CHANGE: "Doi lich/phong",
+    CLASS_CANCELLED: "Nghỉ học",
+    SCHEDULE_CHANGE: "Đổi lịch/phòng",
     ASSIGNMENT_REMINDER: "Nhac bai tap",
   }
   return labels[type]
@@ -36,15 +36,15 @@ export function CourseAnnouncementsPanel({
       <section className="space-y-3">
         {announcements.length === 0 ? (
           <div className="rounded-lg border border-dashed bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-            Chua co thong bao lop hoc.
+            Chưa có thông báo lớp học.
           </div>
         ) : (
           announcements.map((announcement) => (
             <article key={announcement.id} className="rounded-lg border bg-card p-4">
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>{typeLabel(announcement.type)}</span>
-                {announcement.priority === "IMPORTANT" ? <span>Quan trong</span> : null}
-                {announcement.isPinned ? <span>Da ghim</span> : null}
+                {announcement.priority === "IMPORTANT" ? <span>Quan trọng</span> : null}
+                {announcement.isPinned ? <span>Đã ghim</span> : null}
                 <span>{announcement.status}</span>
               </div>
               <h2 className="mt-2 text-base font-semibold">{announcement.title}</h2>
@@ -62,32 +62,32 @@ export function CourseAnnouncementsPanel({
       {canManage ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Tao thong bao</CardTitle>
+            <CardTitle className="text-base">Tạo thông báo</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={createAnnouncementFormAction} className="space-y-3">
               <input type="hidden" name="courseId" value={courseId} />
-              <Input name="title" placeholder="Tieu de" required />
-              <Textarea name="content" placeholder="Noi dung" rows={5} required />
+              <Input name="title" placeholder="Tiêu đề" required />
+              <Textarea name="content" placeholder="Nội dung" rows={5} required />
               <select name="type" defaultValue="GENERAL" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
                 <option value="GENERAL">Chung</option>
-                <option value="CLASS_CANCELLED">Nghi hoc</option>
-                <option value="SCHEDULE_CHANGE">Doi lich/phong</option>
+                <option value="CLASS_CANCELLED">Nghỉ học</option>
+                <option value="SCHEDULE_CHANGE">Đổi lịch/phòng</option>
                 <option value="ASSIGNMENT_REMINDER">Nhac bai tap</option>
               </select>
               <select name="priority" defaultValue="NORMAL" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                <option value="NORMAL">Thuong</option>
-                <option value="IMPORTANT">Quan trong</option>
+                <option value="NORMAL">Thường</option>
+                <option value="IMPORTANT">Quan trọng</option>
               </select>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="isPinned" value="true" />
-                Ghim thong bao
+                Ghim thông báo
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="publish" value="true" />
-                Dang ngay
+                Đăng ngay
               </label>
-              <Button type="submit" className="w-full">Tao thong bao</Button>
+              <Button type="submit" className="w-full">Tạo thông báo</Button>
             </form>
           </CardContent>
         </Card>

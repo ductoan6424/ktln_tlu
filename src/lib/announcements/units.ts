@@ -49,7 +49,7 @@ export async function requireUnitMembership(
   })
 
   if (!membership) {
-    throw new ForbiddenError("Ban khong co tham quyen voi don vi ban hanh nay")
+    throw new ForbiddenError("Bạn không có thẩm quyền với đơn vị ban hành này")
   }
 
   return membership

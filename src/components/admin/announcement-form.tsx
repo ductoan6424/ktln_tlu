@@ -105,21 +105,21 @@ type AnnouncementFormState = {
 
 const CATEGORY_OPTIONS: Array<{ value: AnnouncementCategory; label: string }> =
   [
-    { value: "ACADEMIC", label: "Hoc vu" },
-    { value: "EXAMINATION", label: "Thi va danh gia" },
-    { value: "TUITION", label: "Hoc phi" },
-    { value: "STUDENT_AFFAIRS", label: "Cong tac sinh vien" },
-    { value: "EVENT", label: "Su kien" },
-    { value: "SYSTEM", label: "He thong" },
-    { value: "EMERGENCY", label: "Khan cap" },
-    { value: "OTHER", label: "Khac" },
+    { value: "ACADEMIC", label: "Học vụ" },
+    { value: "EXAMINATION", label: "Thi và đánh giá" },
+    { value: "TUITION", label: "Học phí" },
+    { value: "STUDENT_AFFAIRS", label: "Công tác sinh viên" },
+    { value: "EVENT", label: "Sự kiện" },
+    { value: "SYSTEM", label: "Hệ thống" },
+    { value: "EMERGENCY", label: "Khẩn cấp" },
+    { value: "OTHER", label: "Khác" },
   ]
 
 const PRIORITY_OPTIONS: Array<{ value: AnnouncementPriority; label: string }> =
   [
-    { value: "NORMAL", label: "Thong thuong" },
-    { value: "IMPORTANT", label: "Quan trong" },
-    { value: "URGENT", label: "Khan cap" },
+    { value: "NORMAL", label: "Thông thường" },
+    { value: "IMPORTANT", label: "Quan trọng" },
+    { value: "URGENT", label: "Khẩn cấp" },
   ]
 
 function formatDateTimeLocal(iso: string | null | undefined): string {
@@ -176,10 +176,10 @@ function draftScopeLabels(
   if (targets.length === 0) {
     return [
       audience === "STUDENTS"
-        ? "Sinh vien"
+        ? "Sinh viên"
         : audience === "FACULTY"
-          ? "Giang vien"
-          : "Toan truong",
+          ? "Giảng viên"
+          : "Toàn trường",
     ]
   }
 
@@ -201,7 +201,7 @@ function draftScopeLabels(
       }
       return target.value
     })
-  return labels.length > 0 ? labels : ["Nguoi nhan rieng"]
+  return labels.length > 0 ? labels : ["Người nhận riêng"]
 }
 
 function approvalRoute(
@@ -239,8 +239,8 @@ function approvalRoute(
     )
 
   return withinFaculty || withinClub || withinGroup
-    ? "Don vi -> Phat hanh"
-    : "Don vi -> Admin he thong -> Phat hanh"
+    ? "Đơn vị -> Phát hành"
+    : "Đơn vị -> Quản trị hệ thống -> Phát hành"
 }
 
 export function AnnouncementForm({
@@ -330,9 +330,9 @@ export function AnnouncementForm({
   }
 
   function validate() {
-    if (!state.issuingUnitId) return "Can chon don vi ban hanh."
-    if (!state.title.trim()) return "Can nhap tieu de."
-    if (!state.content.trim()) return "Can nhap noi dung."
+    if (!state.issuingUnitId) return "Cần chọn đơn vị ban hành."
+    if (!state.title.trim()) return "Cần nhập tiêu đề."
+    if (!state.content.trim()) return "Cần nhập nội dung."
     return null
   }
 
@@ -340,7 +340,7 @@ export function AnnouncementForm({
     const validationError = validate()
     if (validationError) {
       toast({
-        title: "Thieu thong tin",
+        title: "Thiếu thông tin",
         description: validationError,
         variant: "destructive",
       })
@@ -356,7 +356,7 @@ export function AnnouncementForm({
 
       if (!saved.success || !saved.data?.id) {
         toast({
-          title: "Loi",
+          title: "Lỗi",
           description: saved.error,
           variant: "destructive",
         })
@@ -368,7 +368,7 @@ export function AnnouncementForm({
         const submitted = await submitAnnouncementForReview(saved.data.id)
         if (!submitted.success) {
           toast({
-            title: "Loi",
+            title: "Lỗi",
             description: submitted.error,
             variant: "destructive",
           })
@@ -376,13 +376,13 @@ export function AnnouncementForm({
           return
         }
         toast({
-          title: "Da gui duyet",
-          description: "Thong bao dang cho don vi ban hanh phe duyet.",
+          title: "Đã gửi duyệt",
+          description: "Thông báo đang chờ đơn vị ban hành phê duyệt.",
         })
       } else {
         toast({
-          title: "Da luu ban nhap",
-          description: "Ban nhap da duoc cap nhat.",
+          title: "Đã lưu bản nháp",
+          description: "Bản nháp đã được cập nhật.",
         })
       }
 
@@ -396,10 +396,10 @@ export function AnnouncementForm({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">
-            {isEditing ? "Chinh sua thong bao" : "Soan thong bao chinh thuc"}
+            {isEditing ? "Chỉnh sửa thông báo" : "Soạn thông báo chính thức"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Phat hanh chi mo sau khi hoan thanh tuyen duyet bat buoc.
+            Phát hành chỉ mở sau khi hoàn thành tuyến duyệt bắt buộc.
           </p>
         </div>
         <div className="flex gap-2">
@@ -414,7 +414,7 @@ export function AnnouncementForm({
             ) : (
               <Save data-icon="inline-start" />
             )}
-            Luu ban nhap
+            Lưu bản nháp
           </Button>
           <Button
             type="button"
@@ -426,21 +426,21 @@ export function AnnouncementForm({
             ) : (
               <Send data-icon="inline-start" />
             )}
-            Gui duyet
+            Gửi duyệt
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Thong tin ban hanh</CardTitle>
+          <CardTitle>Thông tin ban hành</CardTitle>
           <CardDescription>
-            Don vi phat hanh chiu trach nhiem noi dung va duyet cap don vi.
+            Đơn vị ban hành chịu trách nhiệm nội dung và duyệt cấp đơn vị.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
           <label className="flex flex-col gap-2 text-sm font-medium">
-            Don vi ban hanh
+            Đơn vị ban hành
             <select
               name="issuingUnitId"
               value={state.issuingUnitId}
@@ -450,7 +450,7 @@ export function AnnouncementForm({
               disabled={!editable}
               className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm"
             >
-              <option value="">Chon don vi</option>
+              <option value="">Chọn đơn vị</option>
               {authorUnits.map((unit) => (
                 <option key={unit.id} value={unit.id}>
                   {unit.name} ({unit.code})
@@ -459,7 +459,7 @@ export function AnnouncementForm({
             </select>
           </label>
           <label className="flex flex-col gap-2 text-sm font-medium">
-            Loai thong bao
+            Loại thông báo
             <select
               name="category"
               value={state.category}
@@ -479,7 +479,7 @@ export function AnnouncementForm({
             </select>
           </label>
           <label className="flex flex-col gap-2 text-sm font-medium">
-            Muc do uu tien
+            Mức độ ưu tiên
             <select
               name="priority"
               value={state.priority}
@@ -503,11 +503,11 @@ export function AnnouncementForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Noi dung va pham vi</CardTitle>
+          <CardTitle>Nội dung và phạm vi</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <label className="flex flex-col gap-2 text-sm font-medium">
-            Tieu de
+            Tiêu đề
             <Input
               name="title"
               value={state.title}
@@ -517,7 +517,7 @@ export function AnnouncementForm({
             />
           </label>
           <label className="flex flex-col gap-2 text-sm font-medium">
-            Noi dung
+            Nội dung
             <Textarea
               name="content"
               value={state.content}
@@ -534,12 +534,12 @@ export function AnnouncementForm({
               options={targetOptions}
             />
             <div className="rounded-md border border-border p-3 text-sm">
-              <p className="font-medium">Tuyen duyet du kien</p>
+              <p className="font-medium">Tuyến duyệt dự kiến</p>
               <p className="mt-2 text-muted-foreground">
                 {approvalRoute(state.issuingUnitId, state.targets, authorUnits)}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                He thong xac dinh lai tuyen chinh xac khi gui duyet.
+                Hệ thống xác định lại tuyến duyệt chính xác khi gửi duyệt.
               </p>
             </div>
           </div>
@@ -548,15 +548,15 @@ export function AnnouncementForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Tep dinh kem va lien ket</CardTitle>
+          <CardTitle>Tệp đính kèm và liên kết</CardTitle>
           <CardDescription>
-            Uu tien tai tep len ha tang luu tru; co the gan them lien ket HTTPS
-            co ten.
+            Ưu tiên tải tệp lên hạ tầng lưu trữ; có thể gắn thêm liên kết HTTPS
+            có tên.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <label className="flex flex-col gap-2 text-sm font-medium">
-            Tai tep len
+            Tải tệp lên
             <Input
               name="attachments"
               type="file"
@@ -587,7 +587,7 @@ export function AnnouncementForm({
                 }
               >
                 <Trash2 data-icon="inline-start" />
-                Bo tep
+                Bỏ tệp
               </Button>
             </div>
           ))}
@@ -597,8 +597,8 @@ export function AnnouncementForm({
               className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"
             >
               <Input
-                aria-label={`Ten lien ket ${index + 1}`}
-                placeholder="Ten lien ket"
+                aria-label={`Tên liên kết ${index + 1}`}
+                placeholder="Tên liên kết"
                 value={link.name}
                 disabled={!editable}
                 onChange={(event) => {
@@ -608,7 +608,7 @@ export function AnnouncementForm({
                 }}
               />
               <Input
-                aria-label={`URL lien ket ${index + 1}`}
+                aria-label={`URL liên kết ${index + 1}`}
                 placeholder="https://..."
                 value={link.url}
                 disabled={!editable}
@@ -632,7 +632,7 @@ export function AnnouncementForm({
                 }
               >
                 <Trash2 data-icon="inline-start" />
-                Xoa
+                Xoá
               </Button>
             </div>
           ))}
@@ -647,24 +647,24 @@ export function AnnouncementForm({
           >
             <Plus data-icon="inline-start" />
             <Link2 data-icon="inline-start" />
-            Them lien ket HTTPS
+            Thêm liên kết HTTPS
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Phat hanh va theo doi</CardTitle>
+          <CardTitle>Phát hành và theo dõi</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-3">
             <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
               <span>
                 <span className="block text-sm font-medium">
-                  Email (mac dinh tat)
+                  Email (mặc định tắt)
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  Bat chi khi don vi can gui email chinh thuc.
+                  Chỉ bật khi đơn vị cần gửi email chính thức.
                 </span>
               </span>
               <Switch
@@ -675,7 +675,7 @@ export function AnnouncementForm({
             </label>
             <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
               <span className="text-sm font-medium">
-                Yeu cau nguoi nhan xac nhan
+                Yêu cầu người nhận xác nhận
               </span>
               <Switch
                 checked={state.requiresAcknowledgement}
@@ -686,7 +686,7 @@ export function AnnouncementForm({
               />
             </label>
             <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
-              <span className="text-sm font-medium">Ghim tren bang tin</span>
+              <span className="text-sm font-medium">Ghim trên bảng tin</span>
               <Switch
                 checked={state.pinToTop}
                 onCheckedChange={(pinToTop) => setState({ pinToTop })}
@@ -696,7 +696,7 @@ export function AnnouncementForm({
           </div>
           <div className="flex flex-col gap-3">
             <label className="flex flex-col gap-2 text-sm font-medium">
-              Lich phat hanh (tuy chon)
+              Lịch phát hành (tùy chọn)
               <Input
                 type="datetime-local"
                 value={state.scheduledAt}
@@ -707,7 +707,7 @@ export function AnnouncementForm({
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium">
-              Han hanh dong (tuy chon)
+              Hạn hành động (tùy chọn)
               <Input
                 type="datetime-local"
                 value={state.actionDeadlineAt}
@@ -718,7 +718,7 @@ export function AnnouncementForm({
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium">
-              Het hieu luc (tuy chon)
+              Hết hiệu lực (tùy chọn)
               <Input
                 type="datetime-local"
                 value={state.expiresAt}

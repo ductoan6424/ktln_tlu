@@ -22,7 +22,7 @@ function formatDueAt(value: Date) {
 }
 
 function scoreLabel(score: number | null) {
-  return score === null ? "Chua cham" : `${score}/10`
+  return score === null ? "Chưa chấm" : `${score}/10`
 }
 
 async function createAssignmentFormAction(formData: FormData) {
@@ -50,7 +50,7 @@ export function CourseAssignmentsPanel({
       <section className="space-y-4">
         {assignments.length === 0 ? (
           <div className="rounded-lg border border-dashed bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-            Chua co bai tap nao.
+            Chưa có bài tập nào.
           </div>
         ) : (
           assignments.map((assignment) => {
@@ -60,8 +60,8 @@ export function CourseAssignmentsPanel({
               <article key={assignment.id} className="rounded-lg border bg-card p-4">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>{assignment.status}</span>
-                  <span>Han nop {formatDueAt(assignment.dueAt)}</span>
-                  <span>{assignment.submissionCount} bai nop</span>
+                  <span>Hạn nộp {formatDueAt(assignment.dueAt)}</span>
+                  <span>{assignment.submissionCount} bài nộp</span>
                 </div>
                 <h2 className="mt-2 text-base font-semibold">{assignment.title}</h2>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -80,28 +80,28 @@ export function CourseAssignmentsPanel({
 
                 {!canManage ? (
                   <div className="mt-4 rounded-md border bg-muted/30 p-3">
-                    <p className="text-sm font-medium">Nop bai</p>
+                    <p className="text-sm font-medium">Nộp bài</p>
                     {viewerSubmission ? (
                       <div className="mt-2 text-sm text-muted-foreground">
-                        <p>Da nop: {formatDueAt(viewerSubmission.submittedAt)}</p>
-                        <p>Diem: {scoreLabel(viewerSubmission.score)}</p>
+                        <p>Đã nộp: {formatDueAt(viewerSubmission.submittedAt)}</p>
+                        <p>Điểm: {scoreLabel(viewerSubmission.score)}</p>
                         {viewerSubmission.feedback ? (
-                          <p>Nhan xet: {viewerSubmission.feedback}</p>
+                          <p>Nhận xét: {viewerSubmission.feedback}</p>
                         ) : null}
                       </div>
                     ) : null}
                     <form action={submitAssignmentFormAction} className="mt-3 space-y-2" encType="multipart/form-data">
                       <input type="hidden" name="assignmentId" value={assignment.id} />
-                      <Textarea name="content" placeholder="Ghi chu bai nop" rows={3} />
+                      <Textarea name="content" placeholder="Ghi chú bài nộp" rows={3} />
                       <Input name="attachments" type="file" multiple />
-                      <Button type="submit" size="sm">Nop bai</Button>
+                      <Button type="submit" size="sm">Nộp bài</Button>
                     </form>
                   </div>
                 ) : null}
 
                 {canManage && assignment.submissions.length > 0 ? (
                   <div className="mt-4 space-y-3">
-                    <p className="text-sm font-semibold">Bai nop</p>
+                    <p className="text-sm font-semibold">Bài nộp</p>
                     {assignment.submissions.map((submission) => (
                       <div key={submission.id} className="rounded-md border p-3">
                         <p className="text-sm font-medium">
@@ -115,9 +115,9 @@ export function CourseAssignmentsPanel({
                         ) : null}
                         <form action={gradeSubmissionFormAction} className="mt-3 grid gap-2 sm:grid-cols-[90px_minmax(0,1fr)_auto]">
                           <input type="hidden" name="submissionId" value={submission.id} />
-                          <Input name="score" type="number" min="0" max="10" step="0.1" defaultValue={submission.score ?? ""} placeholder="Diem" />
-                          <Input name="feedback" defaultValue={submission.feedback ?? ""} placeholder="Nhan xet" />
-                          <Button type="submit" size="sm">Cham</Button>
+                          <Input name="score" type="number" min="0" max="10" step="0.1" defaultValue={submission.score ?? ""} placeholder="Điểm" />
+                          <Input name="feedback" defaultValue={submission.feedback ?? ""} placeholder="Nhận xét" />
+                          <Button type="submit" size="sm">Chấm</Button>
                         </form>
                       </div>
                     ))}
@@ -132,21 +132,21 @@ export function CourseAssignmentsPanel({
       {canManage ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Tao bai tap</CardTitle>
+            <CardTitle className="text-base">Tạo bài tập</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={createAssignmentFormAction} className="space-y-3" encType="multipart/form-data">
               <input type="hidden" name="courseId" value={courseId} />
-              <Input name="title" placeholder="Tieu de" required />
-              <Textarea name="description" placeholder="Mo ta" rows={5} required />
+              <Input name="title" placeholder="Tiêu đề" required />
+              <Textarea name="description" placeholder="Mô tả" rows={5} required />
               <Input name="dueAt" type="datetime-local" required />
               <Input name="attachments" type="file" multiple />
               <select name="status" defaultValue="PUBLISHED" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                <option value="DRAFT">Luu nhap</option>
-                <option value="PUBLISHED">Dang bai tap</option>
-                <option value="CLOSED">Dong</option>
+                <option value="DRAFT">Lưu nháp</option>
+                <option value="PUBLISHED">Đăng bài tập</option>
+                <option value="CLOSED">Đóng</option>
               </select>
-              <Button type="submit" className="w-full">Tao bai tap</Button>
+              <Button type="submit" className="w-full">Tạo bài tập</Button>
             </form>
           </CardContent>
         </Card>

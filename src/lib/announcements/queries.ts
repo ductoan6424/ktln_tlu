@@ -712,7 +712,7 @@ export async function listAdminAnnouncements(params: {
       auditEvents: row.auditEvents.map((event) => ({
         id: event.id,
         action: event.action,
-        actorName: event.actor?.displayName ?? "He thong",
+        actorName: event.actor?.displayName ?? "Hệ thống",
         comment: readAuditComment(event.metadata),
         createdAt: event.createdAt.toISOString(),
       })),
@@ -863,7 +863,7 @@ export async function getAnnouncementById(
     auditEvents: row.auditEvents.map((event) => ({
       id: event.id,
       action: event.action,
-      actorName: event.actor?.displayName ?? "He thong",
+      actorName: event.actor?.displayName ?? "Hệ thống",
       comment: readAuditComment(event.metadata),
       createdAt: event.createdAt.toISOString(),
     })),

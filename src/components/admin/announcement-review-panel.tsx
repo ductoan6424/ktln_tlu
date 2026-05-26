@@ -29,7 +29,7 @@ type AnnouncementReviewPanelProps = {
 }
 
 function stageLabel(status: AnnouncementReviewPanelProps["status"]) {
-  return status === "PENDING_UNIT_REVIEW" ? "Duyet don vi" : "Duyet cap truong"
+  return status === "PENDING_UNIT_REVIEW" ? "Duyệt cấp đơn vị" : "Duyệt cấp trường"
 }
 
 export function AnnouncementReviewPanel({
@@ -55,15 +55,15 @@ export function AnnouncementReviewPanel({
       })
       if (!result.success) {
         toast({
-          title: "Khong the xu ly",
+          title: "Không thể xử lý",
           description: result.error,
           variant: "destructive",
         })
         return
       }
       toast({
-        title: "Da ghi nhan quyet dinh",
-        description: "Trang thai thong bao da duoc cap nhat.",
+        title: "Đã ghi nhận quyết định",
+        description: "Trạng thái thông báo đã được cập nhật.",
       })
       router.refresh()
     })
@@ -73,11 +73,11 @@ export function AnnouncementReviewPanel({
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle>Ban trinh duyet v{revision.version}</CardTitle>
+          <CardTitle>Bản trình duyệt v{revision.version}</CardTitle>
           <StatusBadge variant="warning">{stageLabel(status)}</StatusBadge>
         </div>
         <CardDescription>
-          Noi dung duoi day la snapshot bat bien da nop de phe duyet.
+          Nội dung dưới đây là bản chụp bất biến đã nộp để phê duyệt.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -98,7 +98,7 @@ export function AnnouncementReviewPanel({
         {revision.attachments.length > 0 && (
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold text-muted-foreground">
-              Tep dinh kem da nop
+              Tệp đính kèm đã nộp
             </p>
             {revision.attachments.map((attachment) => (
               <a
@@ -119,7 +119,7 @@ export function AnnouncementReviewPanel({
           disabled={isPending}
           onClick={() => decide("APPROVED")}
         >
-          Phe duyet
+          Phê duyệt
         </Button>
 
         <div className="flex flex-col gap-2">
@@ -128,7 +128,7 @@ export function AnnouncementReviewPanel({
             required
             value={changesComment}
             onChange={(event) => setChangesComment(event.target.value)}
-            placeholder="Ly do va noi dung can chinh sua"
+            placeholder="Lý do và nội dung cần chỉnh sửa"
           />
           <Button
             type="button"
@@ -136,7 +136,7 @@ export function AnnouncementReviewPanel({
             disabled={isPending || !changesComment.trim()}
             onClick={() => decide("CHANGES_REQUESTED", changesComment.trim())}
           >
-            Yeu cau sua
+            Yêu cầu sửa
           </Button>
         </div>
 
@@ -154,7 +154,7 @@ export function AnnouncementReviewPanel({
             disabled={isPending || !rejectComment.trim()}
             onClick={() => decide("REJECTED", rejectComment.trim())}
           >
-            Tu choi
+            Từ chối
           </Button>
         </div>
       </CardContent>
