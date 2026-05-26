@@ -33,7 +33,12 @@ export function AppLogo({
         className="shrink-0"
       />
       {variant === "full" && (
-        <h1 className={cn(text, "font-semibold tracking-tight text-foreground leading-none")}>
+        <h1
+          className={cn(
+            text,
+            "font-semibold leading-none tracking-tight text-brand-indigo dark:text-foreground"
+          )}
+        >
           TLU Community
         </h1>
       )}
