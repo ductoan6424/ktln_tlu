@@ -20,6 +20,24 @@ import { AnnouncementDetailDialog } from "@/components/feed/announcement-detail-
 import { AnnouncementFeedCard } from "@/components/feed/announcement-feed-card"
 
 describe("official announcement recipient components", () => {
+  it("marks active official notices with the official role without destructive chrome", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnnouncementFeedCard, {
+        id: "ann-official",
+        title: "Lich thi K38",
+        content: "Noi dung chinh thuc",
+        status: "PUBLISHED",
+        pinToTop: true,
+        issuingUnitName: "Phong Dao tao",
+        publishedAt: "2026-05-26T03:00:00.000Z",
+      }),
+    )
+
+    expect(markup).toContain("bg-official")
+    expect(markup).toContain("bg-official-soft")
+    expect(markup).not.toContain("border-destructive/20")
+  })
+
   it("renders issued resources and acknowledgement control for an active notice", () => {
     const markup = renderToStaticMarkup(
       createElement(AnnouncementDetailDialog, {
@@ -67,5 +85,6 @@ describe("official announcement recipient components", () => {
 
     expect(markup).toContain("Đã thu hồi")
     expect(markup).toContain("Lý do thu hồi: Lich thi duoc cap nhat")
+    expect(markup).toContain("bg-destructive")
   })
 })

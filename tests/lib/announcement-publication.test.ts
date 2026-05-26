@@ -103,7 +103,7 @@ describe("publishApprovedAnnouncement", () => {
     )
 
     await expect(publishApprovedAnnouncement("ann-1", "admin-1")).rejects.toThrow(
-      "chua duoc duyet",
+      "chưa được duyệt",
     )
     expect(resolveRevisionRecipients).not.toHaveBeenCalled()
   })

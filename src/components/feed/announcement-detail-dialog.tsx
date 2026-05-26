@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
-import { ArrowLeft, BadgeCheck, Download, ExternalLink, Pin } from "lucide-react"
+import { ArrowLeft, BadgeCheck, Download, ExternalLink, Megaphone, Pin } from "lucide-react"
 
 import {
   acknowledgeAnnouncement,
@@ -138,6 +138,10 @@ export function AnnouncementDetailDialog({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[15px] font-bold">{OFFICIAL_SCHOOL_DISPLAY_NAME}</span>
                   <BadgeCheck className="size-4 fill-primary text-primary stroke-primary-foreground" />
+                  <StatusBadge variant="official">
+                    <Megaphone data-icon="inline-start" />
+                    Thông báo chính thức
+                  </StatusBadge>
                   {issuingUnitName && <StatusBadge variant="info">{issuingUnitName}</StatusBadge>}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -145,18 +149,26 @@ export function AnnouncementDetailDialog({
                   {" · "}Thông báo chính thức
                 </p>
               </div>
-              {pinToTop && <Pin className="size-4 shrink-0 text-destructive" />}
+              {pinToTop && <Pin className="size-4 shrink-0 text-official" />}
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <StatusBadge variant={status === "PUBLISHED" ? "success" : "warning"}>
+              <StatusBadge
+                variant={
+                  status === "WITHDRAWN"
+                    ? "critical"
+                    : status === "SUPERSEDED"
+                      ? "warning"
+                      : "success"
+                }
+              >
                 {status === "WITHDRAWN"
                   ? "Đã thu hồi"
                   : status === "SUPERSEDED"
                     ? "Đã thay thế"
                     : "Đang hiệu lực"}
               </StatusBadge>
-              <StatusBadge variant={priority === "URGENT" ? "accent" : "warning"}>
+              <StatusBadge variant={priority === "NORMAL" ? "muted" : "warning"}>
                 {PRIORITY_LABEL[priority]}
               </StatusBadge>
               {category && <StatusBadge variant="muted">{category}</StatusBadge>}
@@ -166,7 +178,7 @@ export function AnnouncementDetailDialog({
             </div>
 
             {status === "WITHDRAWN" && withdrawalReason && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+              <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                 Thông báo đã thu hồi: {withdrawalReason}
               </div>
             )}
