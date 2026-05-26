@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest"
 
 import { CommunityDetailShell } from "@/components/communities/community-detail-shell"
 import { CourseAnnouncementsPanel } from "@/app/(main)/courses/[courseId]/course-announcements-panel"
+import { CourseAssignmentDetailPanel } from "@/app/(main)/courses/[courseId]/assignments/[assignmentId]/course-assignment-detail-panel"
 import { CourseAssignmentsPanel } from "@/app/(main)/courses/[courseId]/course-assignments-panel"
 
 const target = {
@@ -78,7 +79,9 @@ describe("course learning UI", () => {
     const markup = renderToStaticMarkup(
       createElement(CourseAssignmentsPanel, {
         courseId: "course-1",
+        courseHref: "/courses/cs201-c12345",
         canManage: false,
+        memberCount: 2,
         assignments: [
           {
             id: "assignment-1",
@@ -106,16 +109,18 @@ describe("course learning UI", () => {
       }),
     )
 
-    expect(markup).toContain('name="assignmentId"')
-    expect(markup).toContain("8.5/10")
-    expect(markup).toContain("Good work")
+    expect(markup).toContain('href="/courses/cs201-c12345/assignments/assignment-1"')
+    expect(markup).toContain("1/2 sinh viên đã nộp")
+    expect(markup).not.toContain('name="assignmentId"')
   })
 
-  it("renders lecturer submission cards with student files inside each assignment card", () => {
+  it("renders lecturer assignment cards as links without inline submissions", () => {
     const markup = renderToStaticMarkup(
       createElement(CourseAssignmentsPanel, {
         courseId: "course-1",
+        courseHref: "/courses/cs201-c12345",
         canManage: true,
+        memberCount: 2,
         assignments: [
           {
             id: "assignment-1",
@@ -149,7 +154,54 @@ describe("course learning UI", () => {
       }),
     )
 
+    expect(markup).toContain('data-assignment-card="assignment-1"')
+    expect(markup).toContain('href="/courses/cs201-c12345/assignments/assignment-1"')
+    expect(markup).toContain("1/2 sinh viên đã nộp")
+    expect(markup).not.toContain('data-assignment-details="assignment-1"')
+    expect(markup).not.toContain("Student One")
+    expect(markup).not.toContain("https://example.com/student-answer.pdf")
+  })
+
+  it("renders lecturer assignment detail with student submissions and grading controls", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CourseAssignmentDetailPanel, {
+        courseHref: "/courses/cs201-c12345",
+        canManage: true,
+        memberCount: 2,
+        assignment: {
+          id: "assignment-1",
+          title: "Week 1",
+          description: "Submit exercise",
+          dueAt: new Date("2026-06-01T00:00:00.000Z"),
+          status: "PUBLISHED",
+          attachmentUrls: [],
+          createdAt: new Date("2026-05-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+          submissionCount: 1,
+          viewerSubmission: null,
+          submissions: [
+            {
+              id: "submission-1",
+              studentId: "student-1",
+              studentName: "Student One",
+              studentEmail: "student@example.com",
+              studentCode: "SV001",
+              studentAvatarUrl: null,
+              content: "My answer",
+              attachmentUrls: ["https://example.com/student-answer.pdf"],
+              submittedAt: new Date("2026-05-02T00:00:00.000Z"),
+              score: null,
+              feedback: null,
+              gradedAt: null,
+            },
+          ],
+        },
+      }),
+    )
+
+    expect(markup).toContain('href="/courses/cs201-c12345?tab=assignments"')
     expect(markup).toContain("<details")
+    expect(markup).toContain("<summary")
     expect(markup).toContain("Bài nộp của sinh viên")
     expect(markup).toContain("Student One")
     expect(markup).toContain("https://example.com/student-answer.pdf")
