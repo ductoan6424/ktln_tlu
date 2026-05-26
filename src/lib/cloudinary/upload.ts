@@ -16,6 +16,7 @@ const DEFAULT_AVATAR_IMAGE_FOLDER = "uniconnect/avatars"
 const DEFAULT_COVER_IMAGE_FOLDER = "uniconnect/covers"
 const DEFAULT_CHAT_ATTACHMENT_FOLDER = "uniconnect/chat"
 const DEFAULT_COMMUNITY_ATTACHMENT_FOLDER = "uniconnect/community-attachments"
+const DEFAULT_ANNOUNCEMENT_ATTACHMENT_FOLDER = "uniconnect/announcement-attachments"
 
 export type UploadedChatAttachment = {
   url: string
@@ -176,6 +177,35 @@ export async function uploadCommunityAttachment(
     folder:
       process.env.CLOUDINARY_COMMUNITY_ATTACHMENTS_FOLDER ??
       DEFAULT_COMMUNITY_ATTACHMENT_FOLDER,
+    resource_type: isImage ? "image" : "raw",
+    use_filename: true,
+    unique_filename: true,
+    filename_override: getFileName(file),
+  })
+
+  return {
+    url: result.secure_url,
+    type: isImage ? "IMAGE" : "FILE",
+    name: getFileName(file),
+    mimeType,
+    sizeBytes: file.size,
+  }
+}
+
+export async function uploadAnnouncementAttachment(
+  file: File,
+): Promise<UploadedCommunityAttachment> {
+  assertValidCommunityAttachment(file)
+
+  const fileBuffer = Buffer.from(await file.arrayBuffer())
+  const mimeType = getMimeType(file)
+  const isImage = isImageFile(file)
+  const dataUri = `data:${mimeType};base64,${fileBuffer.toString("base64")}`
+
+  const result = await cloudinary.uploader.upload(dataUri, {
+    folder:
+      process.env.CLOUDINARY_ANNOUNCEMENT_ATTACHMENTS_FOLDER ??
+      DEFAULT_ANNOUNCEMENT_ATTACHMENT_FOLDER,
     resource_type: isImage ? "image" : "raw",
     use_filename: true,
     unique_filename: true,

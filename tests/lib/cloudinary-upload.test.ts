@@ -11,7 +11,7 @@ vi.mock("@/lib/cloudinary/client", () => ({
 }))
 
 import {
-  UploadValidationError,
+  uploadAnnouncementAttachment,
   uploadAvatarImage,
   uploadPostImage,
 } from "@/lib/cloudinary/upload"
@@ -35,6 +35,8 @@ beforeEach(() => {
   process.env.CLOUDINARY_CLOUD_NAME = "cloud"
   process.env.CLOUDINARY_POSTS_FOLDER = "uniconnect/test-posts"
   process.env.CLOUDINARY_AVATARS_FOLDER = "uniconnect/test-avatars"
+  process.env.CLOUDINARY_ANNOUNCEMENT_ATTACHMENTS_FOLDER =
+    "uniconnect/test-announcement-attachments"
 })
 
 describe("uploadAvatarImage", () => {
@@ -87,6 +89,30 @@ describe("uploadPostImage", () => {
       expect.objectContaining({
         folder: "uniconnect/test-posts",
         resource_type: "image",
+      }),
+    )
+  })
+})
+
+describe("uploadAnnouncementAttachment", () => {
+  it("uploads an official notice PDF through the configured raw attachment folder", async () => {
+    upload.mockResolvedValue({ secure_url: "https://cdn.example.com/notice.pdf" })
+    const file = new File(["notice"], "notice.pdf", { type: "application/pdf" })
+
+    await expect(uploadAnnouncementAttachment(file)).resolves.toEqual({
+      url: "https://cdn.example.com/notice.pdf",
+      type: "FILE",
+      name: "notice.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: file.size,
+    })
+
+    expect(upload).toHaveBeenCalledWith(
+      expect.stringContaining("data:application/pdf;base64,"),
+      expect.objectContaining({
+        folder: "uniconnect/test-announcement-attachments",
+        resource_type: "raw",
+        filename_override: "notice.pdf",
       }),
     )
   })
