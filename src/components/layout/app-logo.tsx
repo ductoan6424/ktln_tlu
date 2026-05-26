@@ -31,6 +31,7 @@ export function AppLogo({
         height={logo}
         priority={size !== "sm"}
         className="shrink-0"
+        style={{ width: logo, height: logo }}
       />
       {variant === "full" && (
         <h1

@@ -46,6 +46,23 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             </Link>
           </header>
 
+          <div className="mx-4 overflow-hidden rounded-[2rem] sm:mx-8 lg:hidden">
+            <div className="brand-panel relative overflow-hidden px-6 py-7 text-white">
+              <div className="pointer-events-none absolute inset-0 tlu-geometry opacity-55" />
+              <div className="relative">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
+                  TLU Community
+                </p>
+                <p className="mt-2 text-2xl font-semibold leading-tight">
+                  Cộng đồng Đại học Thăng Long
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-white/75">
+                  Kết nối học tập và thông báo chính thức.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <main className="flex flex-1 items-center justify-center px-4 pb-8 sm:px-8">
             <div className="w-full max-w-[460px]">
               {children}

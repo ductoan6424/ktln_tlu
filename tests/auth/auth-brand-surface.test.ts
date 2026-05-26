@@ -14,6 +14,8 @@ describe("branded authentication surfaces", () => {
     expect(layout).toContain("Cộng đồng Đại học Thăng Long")
     expect(layout).toContain("lg:grid-cols")
     expect(layout).toContain("lg:hidden")
+    expect(layout).toContain("rounded-[2rem]")
+    expect(layout).toContain("brand-panel relative overflow-hidden px-6 py-7 text-white")
   })
 
   it("uses semantic auth feedback rather than raw palette helpers", () => {
