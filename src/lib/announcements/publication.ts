@@ -104,6 +104,22 @@ export async function publishApprovedAnnouncement(
         metadata: { recipients: userIds.length },
       },
     })
+    if (announcement.supersedesId) {
+      const superseded = await tx.announcement.updateMany({
+        where: { id: announcement.supersedesId, status: "PUBLISHED" },
+        data: { status: "SUPERSEDED" },
+      })
+      if (superseded.count === 1) {
+        await tx.announcementAuditEvent.create({
+          data: {
+            announcementId: announcement.supersedesId,
+            actorId,
+            action: "SUPERSEDED_BY",
+            metadata: { replacementId: announcementId },
+          },
+        })
+      }
+    }
 
     return { recipients: userIds.length }
   })

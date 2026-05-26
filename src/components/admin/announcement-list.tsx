@@ -28,6 +28,8 @@ type AnnouncementListProps = {
   onEdit: (item: AdminAnnouncementItem) => void
   onPublish: (item: AdminAnnouncementItem) => void
   onReview: (item: AdminAnnouncementItem) => void
+  onWithdraw: (item: AdminAnnouncementItem) => void
+  onCreateReplacement: (item: AdminAnnouncementItem) => void
   canReview?: (item: AdminAnnouncementItem) => boolean
 }
 
@@ -77,6 +79,8 @@ export function AnnouncementList({
   onEdit,
   onPublish,
   onReview,
+  onWithdraw,
+  onCreateReplacement,
   canReview: mayReview = () => true,
 }: AnnouncementListProps) {
   if (items.length === 0) {
@@ -175,6 +179,24 @@ export function AnnouncementList({
                   <Send data-icon="inline-start" />
                   Phat hanh
                 </Button>
+              )}
+              {item.status === "PUBLISHED" && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onWithdraw(item)}
+                  >
+                    Thu hoi
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onCreateReplacement(item)}
+                  >
+                    Tao ban thay the
+                  </Button>
+                </>
               )}
               {item.status === "PUBLISHED" && item.requiresAcknowledgement && (
                 <StatusBadge variant="success">
