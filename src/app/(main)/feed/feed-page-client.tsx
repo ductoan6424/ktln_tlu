@@ -380,9 +380,9 @@ export function FeedPageClient({
         <div className="flex h-full min-h-0 gap-5 lg:gap-6">
           <aside className="hidden min-h-0 overscroll-contain lg:block lg:w-[280px] xl:w-[300px] shrink-0 overflow-y-auto">
             <div className="py-6 flex flex-col gap-2 w-full">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-4">
+              <Card className="rounded-2xl border-border/70 shadow-sm">
+                <CardContent className="flex flex-col gap-4 p-4">
+                  <div className="flex items-center gap-3">
                     <UserAvatar
                       name={currentUser?.displayName ?? ""}
                       src={currentUser?.avatarUrl ?? undefined}
@@ -397,7 +397,7 @@ export function FeedPageClient({
                       </p>
                     </div>
                   </div>
-                  <nav className="space-y-1">
+                  <nav className="flex flex-col gap-1">
                     {LEFT_NAV.map((item) => (
                       <SidebarNavItem
                         key={item.href}
@@ -408,7 +408,7 @@ export function FeedPageClient({
                       />
                     ))}
                   </nav>
-                  <div className="mt-4">
+                  <div>
                     <p className="px-1 py-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
                       Nhóm của bạn
                     </p>
@@ -417,7 +417,7 @@ export function FeedPageClient({
                         Chưa tham gia nhóm nào.
                       </p>
                     ) : (
-                      <div className="space-y-0.5">
+                      <div className="flex flex-col gap-0.5">
                         {sidebarGroups.map((group) => (
                           <SidebarGroupItem key={group.id} group={group} />
                         ))}
@@ -430,7 +430,7 @@ export function FeedPageClient({
           </aside>
 
           <section className="min-h-0 flex-1 min-w-0 overscroll-contain overflow-y-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="py-6 max-w-[640px] mx-auto flex flex-col gap-3">
+            <div className="mx-auto flex max-w-[660px] flex-col gap-4 py-6">
               <PostComposer
                 userName={currentUser?.displayName ?? ""}
                 userAvatar={currentUser?.avatarUrl ?? undefined}
@@ -477,20 +477,20 @@ export function FeedPageClient({
 
           <aside className="hidden min-h-0 overscroll-contain xl:block xl:w-[280px] shrink-0 overflow-y-auto">
             <div className="py-6 flex flex-col gap-4 w-full">
-              <Card>
-                <CardContent className="p-5">
-                  <p className="font-bold text-sm mb-4">
+              <Card className="rounded-2xl border-border/70 shadow-sm">
+                <CardContent className="flex flex-col gap-4 p-5">
+                  <p className="text-sm font-bold">
                     Xu hướng trong trường
                   </p>
                   {trendingSearches.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Chưa có dữ liệu tìm kiếm.</p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="flex flex-col gap-4">
                       {trendingSearches.map((item) => (
                         <Link
                           key={item.id}
                           href={item.href}
-                          className="block rounded-md transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="block rounded-xl transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <TrendingItem
                             category={item.category}
@@ -504,8 +504,8 @@ export function FeedPageClient({
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-5">
+              <Card className="rounded-2xl border-border/70 shadow-sm">
+                <CardContent className="flex flex-col gap-4 p-5">
                   <SectionHeader
                     title="Sự kiện sắp tới"
                     action={
@@ -516,12 +516,11 @@ export function FeedPageClient({
                         Xem tất cả
                       </Link>
                     }
-                    className="mb-4"
                   />
                   {upcomingEvents.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Chưa có sự kiện sắp tới.</p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="flex flex-col gap-4">
                       {upcomingEvents.map((event) => (
                         <EventItem
                           key={event.id}

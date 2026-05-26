@@ -149,7 +149,7 @@ export function PostComposer({
 
   if (variant === "compact") {
     return (
-      <Card className={cn("shadow-sm", className)}>
+      <Card className={cn("rounded-2xl border-border/70 shadow-sm", className)}>
         <CardContent className="flex items-center gap-3 p-3">
           <UserAvatar src={userAvatar} name={userName} size="md" />
           <div className="flex-1 cursor-text rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/80">
@@ -162,8 +162,8 @@ export function PostComposer({
   }
 
   return (
-    <Card className={cn("shadow-sm", className)}>
-      <CardContent className="p-3">
+    <Card className={cn("rounded-2xl border-border/70 shadow-sm", className)}>
+      <CardContent className="p-4 sm:p-5">
         <input
           ref={fileInputRef}
           type="file"
@@ -189,7 +189,7 @@ export function PostComposer({
             />
 
             {imagePreviewUrl && (
-              <div className="mt-2 overflow-hidden rounded-xl border border-border bg-muted">
+                <div className="mt-2 overflow-hidden rounded-2xl border border-border/70 bg-muted">
                 <div className="relative">
                   <Image
                     src={imagePreviewUrl}
@@ -221,7 +221,7 @@ export function PostComposer({
             )}
 
             {poll && (
-              <div className="mt-2 rounded-xl border border-border bg-muted/40 p-3">
+              <div className="mt-2 rounded-2xl border border-border/70 bg-muted/40 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -346,7 +346,7 @@ export function PostComposer({
 
 export function PostComposerSkeleton() {
   return (
-    <Card className="shadow-sm">
+    <Card className="rounded-2xl border-border/70 shadow-sm">
       <CardContent className="flex gap-4 p-4">
         <Skeleton className="size-10 shrink-0 rounded-full" />
         <div className="flex-1 space-y-3">
