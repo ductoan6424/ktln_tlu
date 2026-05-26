@@ -74,7 +74,7 @@ export function AnnouncementCard({
       )}
     >
       <CardContent className="p-8">
-        <StatusBadge variant="primary" size="sm" className="mb-3">
+        <StatusBadge variant="official" size="sm" className="mb-3">
           {tag}
         </StatusBadge>
         <h4 className="text-xl font-semibold mb-2">{title}</h4>
