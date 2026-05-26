@@ -1,4 +1,5 @@
-import { createCourseAssignment, gradeAssignmentSubmission } from "@/actions/course-learning"
+import { createCourseAssignment, gradeAssignmentSubmission, submitAssignment } from "@/actions/course-learning"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,6 +26,12 @@ function formatDueAt(value: Date) {
 
 function scoreLabel(score: number | null) {
   return score === null ? "Chưa chấm" : `${score}/10`
+}
+
+function assignmentStatusLabel(status: CourseAssignmentDto["status"]) {
+  if (status === "DRAFT") return "Nháp"
+  if (status === "CLOSED") return "Đã đóng"
+  return "Đã đăng"
 }
 
 function datetimeLocalMinValue(value = new Date()) {
@@ -59,9 +66,12 @@ export function CourseAssignmentsPanel({
             const viewerSubmission = assignment.viewerSubmission
 
             return (
-              <article key={assignment.id} className="rounded-lg border bg-card p-4">
+              <Card key={assignment.id} className="gap-0 py-0">
+                <CardContent className="p-4">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>{assignment.status}</span>
+                  <Badge variant={assignment.status === "PUBLISHED" ? "default" : "secondary"}>
+                    {assignmentStatusLabel(assignment.status)}
+                  </Badge>
                   <span>Hạn nộp {formatDueAt(assignment.dueAt)}</span>
                   <span>{assignment.submissionCount} bài nộp</span>
                 </div>
@@ -114,9 +124,9 @@ export function CourseAssignmentsPanel({
                                   {submission.studentCode ?? submission.studentEmail ?? submission.studentId}
                                 </p>
                               </div>
-                              <p className="text-xs text-muted-foreground">
+                              <Badge variant={submission.score === null ? "outline" : "secondary"}>
                                 {scoreLabel(submission.score)}
-                              </p>
+                              </Badge>
                             </div>
                             <p className="mt-2 text-xs text-muted-foreground">
                               Đã nộp: {formatDueAt(submission.submittedAt)}
@@ -147,7 +157,8 @@ export function CourseAssignmentsPanel({
                     )}
                   </details>
                 ) : null}
-              </article>
+                </CardContent>
+              </Card>
             )
           })
         )}
