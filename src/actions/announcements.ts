@@ -11,9 +11,10 @@ import {
 import {
   getRequiredApprovalStages,
   isEditableAnnouncementStatus,
+  nextStatusAfterApproval,
 } from "@/lib/announcements/workflow"
 import { requireUnitMembership } from "@/lib/announcements/units"
-import { requireAdminPermission } from "@/lib/auth/authorization"
+import { requireAdminPermission, requireSystemAdmin } from "@/lib/auth/authorization"
 import {
   UploadValidationError,
   uploadAnnouncementAttachment,
@@ -23,7 +24,7 @@ import { AppError } from "@/lib/errors"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
-import { announcementInputSchema } from "@/utils/validators"
+import { announcementDecisionSchema, announcementInputSchema } from "@/utils/validators"
 
 type DraftInput = z.infer<typeof announcementInputSchema>
 
@@ -91,6 +92,17 @@ function normalizeDraftInput(rawInput: unknown) {
   }
 
   return null
+}
+
+function normalizeReviewInput(rawInput: unknown) {
+  if (rawInput instanceof FormData) {
+    return {
+      announcementId: String(rawInput.get("announcementId") ?? "").trim(),
+      decision: String(rawInput.get("decision") ?? "").trim(),
+      comment: String(rawInput.get("comment") ?? "").trim() || undefined,
+    }
+  }
+  return rawInput
 }
 
 function parseOptionalDate(value: string | undefined | null): Date | null {
@@ -545,6 +557,198 @@ export async function submitAnnouncementForReview(
     return successResult({ id, status: "PENDING_UNIT_REVIEW" })
   } catch (error) {
     return actionFailure(error, "Khong the gui thong bao de duyet")
+  }
+}
+
+export async function reviewAnnouncement(
+  rawInput: unknown,
+): Promise<ActionResult<{ id: string; status: string }>> {
+  const parsed = announcementDecisionSchema.safeParse(normalizeReviewInput(rawInput))
+  if (!parsed.success) {
+    return errorResult(
+      parsed.error.issues[0]?.message ?? "Du lieu duyet khong hop le",
+      "VALIDATION_ERROR",
+    )
+  }
+
+  try {
+    const status = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${buildAnnouncementMutationLockKey(parsed.data.announcementId)}))`
+      const existing = await tx.announcement.findUnique({
+        where: { id: parsed.data.announcementId },
+        include: {
+          issuingUnit: {
+            select: {
+              id: true,
+              type: true,
+              facultyId: true,
+              clubId: true,
+              groupId: true,
+            },
+          },
+          activeRevision: {
+            include: {
+              targets: { select: { type: true, value: true } },
+              approvals: { select: { stage: true, decision: true } },
+              auditEvents: {
+                where: { action: "SUBMITTED_FOR_UNIT_REVIEW" },
+                select: { metadata: true },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+              },
+            },
+          },
+        },
+      })
+
+      if (
+        !existing ||
+        existing.deletedAt ||
+        !existing.issuingUnit ||
+        !existing.activeRevisionId ||
+        !existing.activeRevision
+      ) {
+        throw new AppError("Thong bao hoac phien ban duyet khong ton tai.", "NOT_FOUND", 404)
+      }
+
+      let stage: "UNIT" | "ADMIN"
+      let reviewerId: string
+      if (existing.status === "PENDING_UNIT_REVIEW") {
+        const reviewer = await requireAdminPermission("admin.announcements.approve.unit")
+        reviewerId = reviewer.profile.userId
+        stage = "UNIT"
+        const membership = await tx.announcementUnitMember.findFirst({
+          where: {
+            userId: reviewerId,
+            unitId: existing.issuingUnit.id,
+            role: "APPROVER",
+            isActive: true,
+            unit: { isActive: true },
+          },
+          select: { unitId: true },
+        })
+        if (!membership) {
+          throw new AppError(
+            "Ban khong co tham quyen duyet cho don vi ban hanh nay.",
+            "FORBIDDEN",
+            403,
+          )
+        }
+      } else if (existing.status === "PENDING_ADMIN_REVIEW") {
+        const reviewer = await requireSystemAdmin()
+        reviewerId = reviewer.profile.userId
+        stage = "ADMIN"
+        const unitApproved = existing.activeRevision.approvals.some(
+          (approval) => approval.stage === "UNIT" && approval.decision === "APPROVED",
+        )
+        if (!unitApproved) {
+          throw new AppError(
+            "Thong bao chua co phe duyet cua don vi ban hanh.",
+            "INVALID_APPROVAL_ROUTE",
+            409,
+          )
+        }
+      } else {
+        throw new AppError("Thong bao khong o trang thai cho duyet.", "INVALID_STATUS", 409)
+      }
+
+      if (
+        existing.activeRevision.approvals.some((approval) => approval.stage === stage)
+      ) {
+        throw new AppError("Cap duyet nay da co quyet dinh.", "ALREADY_REVIEWED", 409)
+      }
+
+      const submissionMetadata = existing.activeRevision.auditEvents[0]?.metadata
+      const frozenRequiresAdminApproval =
+        submissionMetadata &&
+        typeof submissionMetadata === "object" &&
+        !Array.isArray(submissionMetadata) &&
+        typeof submissionMetadata.requiresAdminApproval === "boolean"
+          ? submissionMetadata.requiresAdminApproval
+          : undefined
+
+      let stages: Array<"UNIT" | "ADMIN">
+      if (frozenRequiresAdminApproval !== undefined) {
+        stages = frozenRequiresAdminApproval ? ["UNIT", "ADMIN"] : ["UNIT"]
+      } else {
+        const courseTargetIds = existing.activeRevision.targets
+          .filter((target) => target.type === "COURSE")
+          .map((target) => target.value)
+        const courses =
+          courseTargetIds.length > 0
+            ? await tx.course.findMany({
+                where: { id: { in: courseTargetIds }, deletedAt: null },
+                select: {
+                  id: true,
+                  lecturer: { select: { facultyId: true } },
+                },
+              })
+            : []
+        const courseFaculties = new Map(
+          courses.map((course) => [course.id, course.lecturer.facultyId ?? ""]),
+        )
+        stages = getRequiredApprovalStages({
+          unit: existing.issuingUnit,
+          targets: existing.activeRevision.targets,
+          courseFacultyIds: courseTargetIds.map(
+            (courseId) => courseFaculties.get(courseId) ?? "",
+          ),
+        })
+      }
+
+      if (stage === "ADMIN" && !stages.includes("ADMIN")) {
+        throw new AppError("Thong bao khong can duyet cap truong.", "INVALID_APPROVAL_ROUTE", 409)
+      }
+
+      let nextStatus: "PENDING_ADMIN_REVIEW" | "APPROVED" | "CHANGES_REQUESTED" | "REJECTED"
+      if (parsed.data.decision === "APPROVED") {
+        try {
+          const approvedStatus = nextStatusAfterApproval(stages, stage, existing.status)
+          if (approvedStatus !== "PENDING_ADMIN_REVIEW" && approvedStatus !== "APPROVED") {
+            throw new Error("Invalid approved status")
+          }
+          nextStatus = approvedStatus
+        } catch {
+          throw new AppError("Thu tu duyet thong bao khong hop le.", "INVALID_APPROVAL_ROUTE", 409)
+        }
+      } else {
+        nextStatus =
+          parsed.data.decision === "CHANGES_REQUESTED"
+            ? "CHANGES_REQUESTED"
+            : "REJECTED"
+      }
+
+      await tx.announcementApproval.create({
+        data: {
+          announcementId: existing.id,
+          revisionId: existing.activeRevision.id,
+          stage,
+          decision: parsed.data.decision,
+          reviewerId,
+          comment: parsed.data.comment ?? null,
+        },
+      })
+      await tx.announcement.update({
+        where: { id: existing.id },
+        data: { status: nextStatus },
+      })
+      await tx.announcementAuditEvent.create({
+        data: {
+          announcementId: existing.id,
+          revisionId: existing.activeRevision.id,
+          actorId: reviewerId,
+          action: `${stage}_${parsed.data.decision}`,
+          metadata: parsed.data.comment ? { comment: parsed.data.comment } : undefined,
+        },
+      })
+
+      return nextStatus
+    })
+
+    revalidateAnnouncementSurfaces()
+    return successResult({ id: parsed.data.announcementId, status })
+  } catch (error) {
+    return actionFailure(error, "Khong the duyet thong bao")
   }
 }
 

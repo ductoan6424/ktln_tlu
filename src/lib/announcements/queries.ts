@@ -1,7 +1,13 @@
 import type {
+  AnnouncementApprovalDecision,
+  AnnouncementApprovalStage,
   AnnouncementAudience,
+  AnnouncementAttachmentSource,
+  AnnouncementCategory,
+  AnnouncementPriority,
   AnnouncementStatus,
   AnnouncementTargetType,
+  OrganizationUnitType,
   UserRole,
 } from "@prisma/client"
 
@@ -33,8 +39,25 @@ export type AnnouncementDto = {
   targets: AnnouncementTargetDto[]
   scopeLabels: string[]
   status: AnnouncementStatus
+  issuingUnit: {
+    id: string
+    code: string
+    name: string
+    type: OrganizationUnitType
+  } | null
+  category: AnnouncementCategory
+  priority: AnnouncementPriority
   pinToTop: boolean
   sentEmail: boolean
+  requestEmailDelivery: boolean
+  requiresAcknowledgement: boolean
+  scheduledAt: string | null
+  actionDeadlineAt: string | null
+  activeRevisionId: string | null
+  publishedRevisionId: string | null
+  attachments: AnnouncementAttachmentDto[]
+  activeRevision: AnnouncementActiveRevisionDto | null
+  recipientSummary: AnnouncementRecipientSummary | null
   publishedAt: string | null
   expiresAt: string | null
   createdAt: string
@@ -45,6 +68,43 @@ export type AnnouncementDto = {
     displayName: string
     avatarUrl: string | null
   }
+}
+
+export type AnnouncementAttachmentDto = {
+  id: string
+  source: AnnouncementAttachmentSource
+  url: string
+  name: string
+  type: string | null
+  mimeType: string | null
+  sizeBytes: number | null
+}
+
+export type AnnouncementApprovalDto = {
+  id: string
+  stage: AnnouncementApprovalStage
+  decision: AnnouncementApprovalDecision
+  comment: string | null
+  createdAt: string
+  reviewer: {
+    userId: string
+    displayName: string
+  }
+}
+
+export type AnnouncementActiveRevisionDto = {
+  id: string
+  version: number
+  submittedAt: string | null
+  approvals: AnnouncementApprovalDto[]
+}
+
+export type AnnouncementRecipientSummary = {
+  total: number
+  notified: number
+  emailSent: number
+  seen: number
+  acknowledged: number
 }
 
 export type AnnouncementFeedItem = {
@@ -152,6 +212,32 @@ function getDefaultViewerContext(
     clubIds: override?.clubIds ?? [],
     groupIds: override?.groupIds ?? [],
   }
+}
+
+function shouldExposeDeliverySummary(status: AnnouncementStatus) {
+  return status === "PUBLISHED" || status === "WITHDRAWN" || status === "SUPERSEDED"
+}
+
+export async function getAnnouncementRecipientSummary(
+  announcementId: string,
+): Promise<AnnouncementRecipientSummary> {
+  const [total, notified, emailSent, seen, acknowledged] = await Promise.all([
+    prisma.announcementRecipient.count({ where: { announcementId } }),
+    prisma.announcementRecipient.count({
+      where: { announcementId, notificationDispatchedAt: { not: null } },
+    }),
+    prisma.announcementRecipient.count({
+      where: { announcementId, emailSentAt: { not: null } },
+    }),
+    prisma.announcementRecipient.count({
+      where: { announcementId, seenAt: { not: null } },
+    }),
+    prisma.announcementRecipient.count({
+      where: { announcementId, acknowledgedAt: { not: null } },
+    }),
+  ])
+
+  return { total, notified, emailSent, seen, acknowledged }
 }
 
 export async function listActiveAnnouncementsForViewer(
@@ -298,6 +384,34 @@ export async function listAdminAnnouncements(params: {
         author: {
           select: { userId: true, displayName: true, avatarUrl: true },
         },
+        issuingUnit: {
+          select: { id: true, code: true, name: true, type: true },
+        },
+        attachments: {
+          where: { revisionId: null },
+          select: {
+            id: true,
+            source: true,
+            url: true,
+            name: true,
+            type: true,
+            mimeType: true,
+            sizeBytes: true,
+          },
+        },
+        activeRevision: {
+          select: {
+            id: true,
+            version: true,
+            submittedAt: true,
+            approvals: {
+              include: {
+                reviewer: { select: { userId: true, displayName: true } },
+              },
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        },
       },
       orderBy: [
         { pinToTop: "desc" },
@@ -311,7 +425,15 @@ export async function listAdminAnnouncements(params: {
 
   const labelMaps = await buildTargetLabelMaps(rows.flatMap((row) => row.targets))
 
-  const items: AnnouncementDto[] = rows.map((row) => {
+  const recipientSummaries = await Promise.all(
+    rows.map((row) =>
+      shouldExposeDeliverySummary(row.status)
+        ? getAnnouncementRecipientSummary(row.id)
+        : Promise.resolve(null),
+    ),
+  )
+
+  const items: AnnouncementDto[] = rows.map((row, index) => {
     const targets = mapTargets(row.targets, labelMaps)
     return {
       id: row.id,
@@ -321,8 +443,36 @@ export async function listAdminAnnouncements(params: {
       targets,
       scopeLabels: mapScopeLabels(targets, row.audience),
       status: row.status,
+      issuingUnit: row.issuingUnit,
+      category: row.category,
+      priority: row.priority,
       pinToTop: row.pinToTop,
       sentEmail: row.sentEmail,
+      requestEmailDelivery: row.requestEmailDelivery,
+      requiresAcknowledgement: row.requiresAcknowledgement,
+      scheduledAt: row.scheduledAt ? row.scheduledAt.toISOString() : null,
+      actionDeadlineAt: row.actionDeadlineAt ? row.actionDeadlineAt.toISOString() : null,
+      activeRevisionId: row.activeRevisionId,
+      publishedRevisionId: row.publishedRevisionId,
+      attachments: row.attachments,
+      activeRevision: row.activeRevision
+        ? {
+            id: row.activeRevision.id,
+            version: row.activeRevision.version,
+            submittedAt: row.activeRevision.submittedAt
+              ? row.activeRevision.submittedAt.toISOString()
+              : null,
+            approvals: row.activeRevision.approvals.map((approval) => ({
+              id: approval.id,
+              stage: approval.stage,
+              decision: approval.decision,
+              comment: approval.comment,
+              createdAt: approval.createdAt.toISOString(),
+              reviewer: approval.reviewer,
+            })),
+          }
+        : null,
+      recipientSummary: recipientSummaries[index] ?? null,
       publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
       expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
       createdAt: row.createdAt.toISOString(),
@@ -347,6 +497,34 @@ export async function getAnnouncementById(id: string): Promise<AnnouncementDto |
       author: {
         select: { userId: true, displayName: true, avatarUrl: true },
       },
+      issuingUnit: {
+        select: { id: true, code: true, name: true, type: true },
+      },
+      attachments: {
+        where: { revisionId: null },
+        select: {
+          id: true,
+          source: true,
+          url: true,
+          name: true,
+          type: true,
+          mimeType: true,
+          sizeBytes: true,
+        },
+      },
+      activeRevision: {
+        select: {
+          id: true,
+          version: true,
+          submittedAt: true,
+          approvals: {
+            include: {
+              reviewer: { select: { userId: true, displayName: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      },
     },
   })
 
@@ -354,6 +532,9 @@ export async function getAnnouncementById(id: string): Promise<AnnouncementDto |
 
   const labelMaps = await buildTargetLabelMaps(row.targets)
   const targets = mapTargets(row.targets, labelMaps)
+  const recipientSummary = shouldExposeDeliverySummary(row.status)
+    ? await getAnnouncementRecipientSummary(row.id)
+    : null
 
   return {
     id: row.id,
@@ -363,8 +544,36 @@ export async function getAnnouncementById(id: string): Promise<AnnouncementDto |
     targets,
     scopeLabels: mapScopeLabels(targets, row.audience),
     status: row.status,
+    issuingUnit: row.issuingUnit,
+    category: row.category,
+    priority: row.priority,
     pinToTop: row.pinToTop,
     sentEmail: row.sentEmail,
+    requestEmailDelivery: row.requestEmailDelivery,
+    requiresAcknowledgement: row.requiresAcknowledgement,
+    scheduledAt: row.scheduledAt ? row.scheduledAt.toISOString() : null,
+    actionDeadlineAt: row.actionDeadlineAt ? row.actionDeadlineAt.toISOString() : null,
+    activeRevisionId: row.activeRevisionId,
+    publishedRevisionId: row.publishedRevisionId,
+    attachments: row.attachments,
+    activeRevision: row.activeRevision
+      ? {
+          id: row.activeRevision.id,
+          version: row.activeRevision.version,
+          submittedAt: row.activeRevision.submittedAt
+            ? row.activeRevision.submittedAt.toISOString()
+            : null,
+          approvals: row.activeRevision.approvals.map((approval) => ({
+            id: approval.id,
+            stage: approval.stage,
+            decision: approval.decision,
+            comment: approval.comment,
+            createdAt: approval.createdAt.toISOString(),
+            reviewer: approval.reviewer,
+          })),
+        }
+      : null,
+    recipientSummary,
     publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
     expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
@@ -375,5 +584,103 @@ export async function getAnnouncementById(id: string): Promise<AnnouncementDto |
       displayName: row.author.displayName,
       avatarUrl: row.author.avatarUrl,
     },
+  }
+}
+
+export async function listAnnouncementWorkQueue(params: {
+  viewerId: string
+  statuses: AnnouncementStatus[]
+}) {
+  const [approverMemberships, viewer] = await Promise.all([
+    prisma.announcementUnitMember.findMany({
+      where: {
+        userId: params.viewerId,
+        role: "APPROVER",
+        isActive: true,
+        unit: { isActive: true },
+      },
+      select: { unitId: true },
+    }),
+    prisma.userProfile.findUnique({
+      where: { userId: params.viewerId, deletedAt: null },
+      select: { role: true },
+    }),
+  ])
+
+  const authorStatuses = params.statuses.filter(
+    (status): status is "DRAFT" | "CHANGES_REQUESTED" =>
+      status === "DRAFT" || status === "CHANGES_REQUESTED",
+  )
+  const unitStatuses = params.statuses.filter(
+    (status): status is "PENDING_UNIT_REVIEW" => status === "PENDING_UNIT_REVIEW",
+  )
+  const adminStatuses = params.statuses.filter(
+    (status): status is "PENDING_ADMIN_REVIEW" =>
+      status === "PENDING_ADMIN_REVIEW",
+  )
+  const filters: Array<Record<string, unknown>> = []
+
+  if (authorStatuses.length > 0) {
+    filters.push({
+      authorId: params.viewerId,
+      status: { in: authorStatuses },
+    })
+  }
+  if (unitStatuses.length > 0 && approverMemberships.length > 0) {
+    filters.push({
+      issuingUnitId: { in: approverMemberships.map(({ unitId }) => unitId) },
+      status: { in: unitStatuses },
+    })
+  }
+  if (adminStatuses.length > 0 && viewer?.role === "ADMIN") {
+    filters.push({ status: { in: adminStatuses } })
+  }
+
+  return prisma.announcement.findMany({
+    where: {
+      deletedAt: null,
+      OR: filters,
+    },
+    include: {
+      issuingUnit: true,
+      activeRevision: {
+        include: {
+          approvals: true,
+          attachments: true,
+          targets: true,
+        },
+      },
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  })
+}
+
+export async function getAnnouncementGovernanceDetail(id: string) {
+  const announcement = await prisma.announcement.findUnique({
+    where: { id },
+    include: {
+      issuingUnit: true,
+      revisions: {
+        include: {
+          approvals: { include: { reviewer: true } },
+          attachments: true,
+          targets: true,
+        },
+        orderBy: { version: "desc" },
+      },
+      auditEvents: {
+        include: { actor: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  })
+
+  if (!announcement || announcement.deletedAt) return null
+
+  return {
+    ...announcement,
+    recipientSummary: shouldExposeDeliverySummary(announcement.status)
+      ? await getAnnouncementRecipientSummary(announcement.id)
+      : null,
   }
 }
