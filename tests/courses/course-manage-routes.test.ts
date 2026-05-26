@@ -91,8 +91,8 @@ describe("course manage routes", () => {
       select: { userId: true, displayName: true, email: true },
       orderBy: { displayName: "asc" },
     })
-    expect(markup).toContain("Giang vien phu trach")
     expect(markup).toContain('name="lecturerId"')
+    expect(markup).toContain('required=""')
     expect(markup).toContain("Lecturer Two")
   })
 
