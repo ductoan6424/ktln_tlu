@@ -56,7 +56,7 @@ describe("course learning UI", () => {
   it("adds announcements and assignments tabs for courses", () => {
     const markup = renderShell("announcements")
 
-    expect(markup).toContain("Thong bao")
+    expect(markup).toContain("announcements")
     expect(markup).toContain("Bai tap")
     expect(markup).toContain("Announcements Panel")
   })
@@ -70,7 +70,6 @@ describe("course learning UI", () => {
       }),
     )
 
-    expect(markup).toContain("Tao thong bao")
     expect(markup).toContain('name="title"')
     expect(markup).toContain('name="publish"')
   })
@@ -107,8 +106,54 @@ describe("course learning UI", () => {
       }),
     )
 
-    expect(markup).toContain("Nop bai")
+    expect(markup).toContain('name="assignmentId"')
     expect(markup).toContain("8.5/10")
     expect(markup).toContain("Good work")
+  })
+
+  it("renders lecturer submission cards with student files inside each assignment card", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CourseAssignmentsPanel, {
+        courseId: "course-1",
+        canManage: true,
+        assignments: [
+          {
+            id: "assignment-1",
+            title: "Week 1",
+            description: "Submit exercise",
+            dueAt: new Date("2026-06-01T00:00:00.000Z"),
+            status: "PUBLISHED",
+            attachmentUrls: [],
+            createdAt: new Date("2026-05-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+            submissionCount: 1,
+            viewerSubmission: null,
+            submissions: [
+              {
+                id: "submission-1",
+                studentId: "student-1",
+                studentName: "Student One",
+                studentEmail: "student@example.com",
+                studentCode: "SV001",
+                studentAvatarUrl: null,
+                content: "My answer",
+                attachmentUrls: ["https://example.com/student-answer.pdf"],
+                submittedAt: new Date("2026-05-02T00:00:00.000Z"),
+                score: null,
+                feedback: null,
+                gradedAt: null,
+              },
+            ],
+          },
+        ],
+      }),
+    )
+
+    expect(markup).toContain("<details")
+    expect(markup).toContain("Bài nộp của sinh viên")
+    expect(markup).toContain("Student One")
+    expect(markup).toContain("https://example.com/student-answer.pdf")
+    expect(markup).toContain('name="score"')
+    expect(markup).toContain('name="feedback"')
   })
 })

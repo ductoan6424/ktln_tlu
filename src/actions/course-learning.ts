@@ -198,6 +198,9 @@ export async function createCourseAssignment(
       ...normalized,
       attachmentUrls: uploadedUrls ?? normalized?.attachmentUrls,
     })
+    if (input.dueAt.getTime() <= Date.now()) {
+      return errorResult("Assignment deadline must be in the future", "DEADLINE_IN_PAST")
+    }
     const access = await requireCourseLearningManagementAccess(input.courseId)
     const created = await prisma.courseAssignment.create({
       data: {
