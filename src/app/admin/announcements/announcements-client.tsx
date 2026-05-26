@@ -4,7 +4,11 @@ import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { ListFilter, Plus } from "lucide-react"
 
-import { publishAnnouncement } from "@/actions/announcements"
+import {
+  createReplacementAnnouncement,
+  publishAnnouncement,
+  withdrawAnnouncement,
+} from "@/actions/announcements"
 import type { AnnouncementDto } from "@/lib/announcements/queries"
 import {
   AnnouncementForm,
@@ -19,6 +23,7 @@ import type { AnnouncementTargetOptions } from "@/components/admin/announcement-
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 
 type WorkspaceTab = "compose" | "queue"
@@ -99,6 +104,8 @@ export default function AnnouncementsClient({
   const [draftPreview, setDraftPreview] =
     useState<AnnouncementFormInitialValues | null>(null)
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
+  const [withdrawTarget, setWithdrawTarget] = useState<AnnouncementDto | null>(null)
+  const [withdrawReason, setWithdrawReason] = useState("")
 
   const filteredItems = useMemo(() => {
     if (queueTab === "ALL") return initialItems
@@ -152,6 +159,61 @@ export default function AnnouncementsClient({
             ? "Thong bao se phat theo lich da duoc duyet."
             : `Da tao ${result.data?.recipients ?? 0} ban ghi nguoi nhan.`,
       })
+      router.refresh()
+    })
+  }
+
+  function requestWithdrawal(item: AnnouncementDto) {
+    setWithdrawTarget(item)
+    setWithdrawReason("")
+  }
+
+  function handleWithdraw() {
+    if (!withdrawTarget) return
+    if (!withdrawReason.trim()) {
+      toast({
+        title: "Can nhap ly do thu hoi",
+        description: "Ly do duoc luu trong lich su kiem toan va hien thi cho nguoi nhan.",
+        variant: "destructive",
+      })
+      return
+    }
+    startTransition(async () => {
+      const result = await withdrawAnnouncement(withdrawTarget.id, withdrawReason)
+      if (!result.success) {
+        toast({
+          title: "Khong the thu hoi",
+          description: result.error,
+          variant: "destructive",
+        })
+        return
+      }
+      toast({
+        title: "Da thu hoi thong bao",
+        description: "Nguoi nhan van thay ban ghi da giao kem ly do thu hoi.",
+      })
+      setWithdrawTarget(null)
+      setWithdrawReason("")
+      router.refresh()
+    })
+  }
+
+  function handleCreateReplacement(item: AnnouncementDto) {
+    startTransition(async () => {
+      const result = await createReplacementAnnouncement(item.id)
+      if (!result.success) {
+        toast({
+          title: "Khong the tao ban thay the",
+          description: result.error,
+          variant: "destructive",
+        })
+        return
+      }
+      toast({
+        title: "Da tao ban nhap thay the",
+        description: "Ban thay the phai di qua quy trinh duyet truoc khi phat hanh.",
+      })
+      setQueueTab("DRAFT")
       router.refresh()
     })
   }
@@ -223,13 +285,53 @@ export default function AnnouncementsClient({
           </Card>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_25rem]">
-            <AnnouncementList
-              items={filteredItems}
-              onEdit={handleEdit}
-              onPublish={handlePublish}
-              onReview={(item) => setSelectedReviewId(item.id)}
-              canReview={canReview}
-            />
+            <div className="flex flex-col gap-4">
+              {withdrawTarget && (
+                <Card size="sm">
+                  <CardContent className="flex flex-col gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">
+                        Thu hoi: {withdrawTarget.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Ban ghi nguoi nhan se duoc giu lai lam bang chung giao nhan.
+                      </p>
+                    </div>
+                    <label htmlFor="announcement-withdrawal-reason" className="text-sm font-medium">
+                      Ly do thu hoi
+                    </label>
+                    <Textarea
+                      id="announcement-withdrawal-reason"
+                      value={withdrawReason}
+                      onChange={(event) => setWithdrawReason(event.target.value)}
+                      placeholder="Nhap ly do de thong bao ro cho nguoi nhan"
+                      maxLength={1000}
+                    />
+                    <div className="flex gap-2">
+                      <Button type="button" disabled={isPending} onClick={handleWithdraw}>
+                        Xac nhan thu hoi
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setWithdrawTarget(null)}
+                      >
+                        Huy
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              <AnnouncementList
+                items={filteredItems}
+                onEdit={handleEdit}
+                onPublish={handlePublish}
+                onReview={(item) => setSelectedReviewId(item.id)}
+                onWithdraw={requestWithdrawal}
+                onCreateReplacement={handleCreateReplacement}
+                canReview={canReview}
+              />
+            </div>
             {selectedReview &&
               canReview(selectedReview) &&
               (selectedReview.status === "PENDING_UNIT_REVIEW" ||

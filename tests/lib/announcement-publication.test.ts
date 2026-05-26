@@ -8,6 +8,7 @@ const tx = vi.hoisted(() => ({
   announcement: {
     findUnique: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
   },
   announcementRecipient: {
     createMany: vi.fn(),
@@ -54,6 +55,7 @@ function approvedAnnouncement(overrides: Record<string, unknown> = {}) {
     scheduledAt: null,
     activeRevisionId: "rev-1",
     publishedRevisionId: null,
+    supersedesId: null,
     activeRevision: {
       id: "rev-1",
       title: "Lich thi K38",
@@ -91,6 +93,7 @@ beforeEach(() => {
     { userId: "u1" },
     { userId: "u2" },
   ])
+  tx.announcement.updateMany.mockResolvedValue({ count: 1 })
 })
 
 describe("publishApprovedAnnouncement", () => {
@@ -166,6 +169,27 @@ describe("publishApprovedAnnouncement", () => {
     expect(resolveRevisionRecipients).not.toHaveBeenCalled()
     expect(tx.announcementRecipient.createMany).not.toHaveBeenCalled()
     expect(result).toEqual({ recipients: 2 })
+  })
+
+  it("supersedes the original official notice only when its approved replacement is published", async () => {
+    tx.announcement.findUnique.mockResolvedValue(
+      approvedAnnouncement({ supersedesId: "ann-original" }),
+    )
+    resolveRevisionRecipients.mockResolvedValue({ userIds: ["u1"] })
+
+    await publishApprovedAnnouncement("ann-1", "admin-1")
+
+    expect(tx.announcement.updateMany).toHaveBeenCalledWith({
+      where: { id: "ann-original", status: "PUBLISHED" },
+      data: { status: "SUPERSEDED" },
+    })
+    expect(tx.announcementAuditEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        announcementId: "ann-original",
+        action: "SUPERSEDED_BY",
+        metadata: { replacementId: "ann-1" },
+      }),
+    })
   })
 })
 

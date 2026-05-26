@@ -8,6 +8,7 @@ import type {
   AnnouncementStatus,
   AnnouncementTargetType,
   OrganizationUnitType,
+  Prisma,
   UserRole,
 } from "@prisma/client"
 
@@ -125,9 +126,20 @@ export type AnnouncementFeedItem = {
   id: string
   title: string
   content: string
+  status: "PUBLISHED" | "WITHDRAWN" | "SUPERSEDED"
   audience: AnnouncementAudience
   targets: AnnouncementTargetDto[]
   scopeLabels: string[]
+  issuingUnitName: string | null
+  category: AnnouncementCategory
+  priority: AnnouncementPriority
+  actionDeadlineAt: string | null
+  requiresAcknowledgement: boolean
+  seenAt: string | null
+  acknowledgedAt: string | null
+  attachments: AnnouncementAttachmentDto[]
+  withdrawalReason: string | null
+  replacementId: string | null
   pinToTop: boolean
   publishedAt: string
   createdAt: string
@@ -296,17 +308,71 @@ export async function listActiveAnnouncementsForViewer(
     viewerId,
     viewerContextOverride,
   )
+  const visibilityFilters: Prisma.AnnouncementWhereInput[] = [
+    {
+      publishedRevisionId: null,
+      status: "PUBLISHED",
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+  ]
+  if (viewerId) {
+    visibilityFilters.push({
+      publishedRevisionId: { not: null },
+      recipients: { some: { userId: viewerId } },
+      OR: [
+        {
+          status: "PUBLISHED",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        { status: { in: ["WITHDRAWN", "SUPERSEDED"] } },
+      ],
+    })
+  }
 
   const rows = await prisma.announcement.findMany({
     where: {
-      status: "PUBLISHED",
       deletedAt: null,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      OR: visibilityFilters,
     },
     include: {
       targets: { select: { type: true, value: true } },
+      issuingUnit: { select: { name: true } },
+      publishedRevision: {
+        select: {
+          title: true,
+          content: true,
+          audience: true,
+          category: true,
+          priority: true,
+          requiresAcknowledgement: true,
+          actionDeadlineAt: true,
+          targets: { select: { type: true, value: true } },
+          attachments: {
+            select: {
+              id: true,
+              source: true,
+              url: true,
+              name: true,
+              type: true,
+              mimeType: true,
+              sizeBytes: true,
+            },
+          },
+        },
+      },
+      replacements: {
+        where: { status: "PUBLISHED" },
+        select: { id: true },
+        take: 1,
+      },
       ...(viewerId
-        ? { savedBy: { where: { userId: viewerId }, select: { userId: true } } }
+        ? {
+            savedBy: { where: { userId: viewerId }, select: { userId: true } },
+            recipients: {
+              where: { userId: viewerId },
+              select: { userId: true, seenAt: true, acknowledgedAt: true },
+            },
+          }
         : {}),
     },
     orderBy: [{ pinToTop: "desc" }, { publishedAt: "desc" }],
@@ -314,24 +380,52 @@ export async function listActiveAnnouncementsForViewer(
   })
 
   const visibleRows = rows
-    .filter((row) =>
-      matchesAnnouncementTargets(viewerContext, row.targets, row.audience),
-    )
+    .filter((row) => {
+      if (row.publishedRevisionId) {
+        return Boolean(
+          viewerId &&
+            row.recipients.length > 0 &&
+            (row.status !== "PUBLISHED" || !row.expiresAt || row.expiresAt > now),
+        )
+      }
+      return (
+        row.status === "PUBLISHED" &&
+        (!row.expiresAt || row.expiresAt > now) &&
+        matchesAnnouncementTargets(viewerContext, row.targets, row.audience)
+      )
+    })
     .slice(0, take)
 
   const labelMaps = await buildTargetLabelMaps(
-    visibleRows.flatMap((row) => row.targets),
+    visibleRows.flatMap((row) => row.publishedRevision?.targets ?? row.targets),
   )
 
   return visibleRows.map((row) => {
-    const targets = mapTargets(row.targets, labelMaps)
+    const revision = row.publishedRevision
+    const targets = mapTargets(revision?.targets ?? row.targets, labelMaps)
+    const recipient = row.recipients?.[0]
     return {
       id: row.id,
-      title: row.title,
-      content: row.content,
-      audience: row.audience,
+      title: revision?.title ?? row.title,
+      content: revision?.content ?? row.content,
+      status: row.status as "PUBLISHED" | "WITHDRAWN" | "SUPERSEDED",
+      audience: revision?.audience ?? row.audience,
       targets,
-      scopeLabels: mapScopeLabels(targets, row.audience),
+      scopeLabels: mapScopeLabels(targets, revision?.audience ?? row.audience),
+      issuingUnitName: row.issuingUnit?.name ?? null,
+      category: revision?.category ?? row.category,
+      priority: revision?.priority ?? row.priority,
+      actionDeadlineAt: revision?.actionDeadlineAt
+        ? revision.actionDeadlineAt.toISOString()
+        : null,
+      requiresAcknowledgement: revision?.requiresAcknowledgement ?? false,
+      seenAt: recipient?.seenAt ? recipient.seenAt.toISOString() : null,
+      acknowledgedAt: recipient?.acknowledgedAt
+        ? recipient.acknowledgedAt.toISOString()
+        : null,
+      attachments: revision?.attachments ?? [],
+      withdrawalReason: row.withdrawalReason,
+      replacementId: row.replacements?.[0]?.id ?? null,
       pinToTop: row.pinToTop,
       publishedAt: (row.publishedAt ?? row.createdAt).toISOString(),
       createdAt: row.createdAt.toISOString(),
@@ -363,28 +457,95 @@ export async function getVisibleAnnouncementForViewer(
     where: { id },
     include: {
       targets: { select: { type: true, value: true } },
+      issuingUnit: { select: { name: true } },
+      publishedRevision: {
+        select: {
+          title: true,
+          content: true,
+          audience: true,
+          category: true,
+          priority: true,
+          requiresAcknowledgement: true,
+          actionDeadlineAt: true,
+          targets: { select: { type: true, value: true } },
+          attachments: {
+            select: {
+              id: true,
+              source: true,
+              url: true,
+              name: true,
+              type: true,
+              mimeType: true,
+              sizeBytes: true,
+            },
+          },
+        },
+      },
+      replacements: {
+        where: { status: "PUBLISHED" },
+        select: { id: true },
+        take: 1,
+      },
       ...(viewerId
-        ? { savedBy: { where: { userId: viewerId }, select: { userId: true } } }
+        ? {
+            savedBy: { where: { userId: viewerId }, select: { userId: true } },
+            recipients: {
+              where: { userId: viewerId },
+              select: { userId: true, seenAt: true, acknowledgedAt: true },
+            },
+          }
         : {}),
     },
   })
 
-  if (!row || row.deletedAt || row.status !== "PUBLISHED") return null
-  if (row.expiresAt && row.expiresAt <= new Date()) return null
-  if (!matchesAnnouncementTargets(viewerContext, row.targets, row.audience)) {
-    return null
+  if (!row || row.deletedAt) return null
+  if (row.publishedRevisionId) {
+    if (
+      (row.status !== "PUBLISHED" &&
+        row.status !== "WITHDRAWN" &&
+        row.status !== "SUPERSEDED") ||
+      !viewerId ||
+      row.recipients.length === 0 ||
+      (row.status === "PUBLISHED" &&
+        Boolean(row.expiresAt && row.expiresAt <= new Date()))
+    ) {
+      return null
+    }
+  } else {
+    if (row.status !== "PUBLISHED") return null
+    if (row.expiresAt && row.expiresAt <= new Date()) return null
+    if (!matchesAnnouncementTargets(viewerContext, row.targets, row.audience)) {
+      return null
+    }
   }
 
-  const labelMaps = await buildTargetLabelMaps(row.targets)
-  const targets = mapTargets(row.targets, labelMaps)
+  const revision = row.publishedRevision
+  const labelMaps = await buildTargetLabelMaps(revision?.targets ?? row.targets)
+  const targets = mapTargets(revision?.targets ?? row.targets, labelMaps)
+  const recipient = row.recipients?.[0]
 
   return {
     id: row.id,
-    title: row.title,
-    content: row.content,
-    audience: row.audience,
+    title: revision?.title ?? row.title,
+    content: revision?.content ?? row.content,
+    status: row.status as "PUBLISHED" | "WITHDRAWN" | "SUPERSEDED",
+    audience: revision?.audience ?? row.audience,
     targets,
-    scopeLabels: mapScopeLabels(targets, row.audience),
+    scopeLabels: mapScopeLabels(targets, revision?.audience ?? row.audience),
+    issuingUnitName: row.issuingUnit?.name ?? null,
+    category: revision?.category ?? row.category,
+    priority: revision?.priority ?? row.priority,
+    actionDeadlineAt: revision?.actionDeadlineAt
+      ? revision.actionDeadlineAt.toISOString()
+      : null,
+    requiresAcknowledgement: revision?.requiresAcknowledgement ?? false,
+    seenAt: recipient?.seenAt ? recipient.seenAt.toISOString() : null,
+    acknowledgedAt: recipient?.acknowledgedAt
+      ? recipient.acknowledgedAt.toISOString()
+      : null,
+    attachments: revision?.attachments ?? [],
+    withdrawalReason: row.withdrawalReason,
+    replacementId: row.replacements?.[0]?.id ?? null,
     pinToTop: row.pinToTop,
     publishedAt: (row.publishedAt ?? row.createdAt).toISOString(),
     createdAt: row.createdAt.toISOString(),

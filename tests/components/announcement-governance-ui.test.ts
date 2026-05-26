@@ -187,4 +187,60 @@ describe("announcement governance admin components", () => {
     expect(markup).toContain("Cho duyet don vi")
     expect(markup).toContain("Cho admin duyet")
   })
+
+  it("exposes withdrawal and replacement operations for a published official notice", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnnouncementList, {
+        items: [
+          {
+            id: "ann-published",
+            title: "Lich thi K38",
+            content: "Noi dung da phat hanh",
+            audience: "STUDENTS",
+            targets: [],
+            scopeLabels: ["K38"],
+            status: "PUBLISHED",
+            issuingUnit: {
+              id: "unit-pdt",
+              code: "PDT",
+              name: "Phong Dao tao",
+              type: "DEPARTMENT",
+            },
+            category: "EXAMINATION",
+            priority: "IMPORTANT",
+            pinToTop: false,
+            sentEmail: false,
+            requestEmailDelivery: false,
+            requiresAcknowledgement: true,
+            scheduledAt: null,
+            actionDeadlineAt: null,
+            activeRevisionId: "rev-1",
+            publishedRevisionId: "rev-1",
+            attachments: [],
+            activeRevision: null,
+            auditEvents: [],
+            recipientSummary: null,
+            publishedAt: "2026-05-26T02:00:00.000Z",
+            expiresAt: null,
+            createdAt: "2026-05-26T02:00:00.000Z",
+            updatedAt: "2026-05-26T02:00:00.000Z",
+            createdAtRelative: "hom nay",
+            author: {
+              userId: "u1",
+              displayName: "Phong Dao tao",
+              avatarUrl: null,
+            },
+          },
+        ],
+        onEdit: vi.fn(),
+        onPublish: vi.fn(),
+        onReview: vi.fn(),
+        onWithdraw: vi.fn(),
+        onCreateReplacement: vi.fn(),
+      } as never),
+    )
+
+    expect(markup).toContain("Thu hoi")
+    expect(markup).toContain("Tao ban thay the")
+  })
 })

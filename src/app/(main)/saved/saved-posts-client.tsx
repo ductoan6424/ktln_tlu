@@ -98,6 +98,10 @@ export function SavedPostsClient({
           id={announcement.announcementId}
           title={announcement.title}
           content={announcement.content}
+          status={announcement.status}
+          issuingUnitName={announcement.issuingUnitName}
+          priority={announcement.priority}
+          withdrawalReason={announcement.withdrawalReason}
           publishedAt={announcement.publishedAt}
           pinToTop={announcement.pinToTop}
           isSaved

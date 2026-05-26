@@ -15,7 +15,11 @@ import {
 } from "@/lib/announcements/workflow"
 import { publishApprovedAnnouncement } from "@/lib/announcements/publication"
 import { requireUnitMembership } from "@/lib/announcements/units"
-import { requireAdminPermission, requireSystemAdmin } from "@/lib/auth/authorization"
+import {
+  requireAdminPermission,
+  requireAuth,
+  requireSystemAdmin,
+} from "@/lib/auth/authorization"
 import {
   UploadValidationError,
   uploadAnnouncementAttachment,
@@ -867,6 +871,213 @@ export async function publishAnnouncement(
     return successResult({ id, status: "PUBLISHED", recipients: publication.recipients })
   } catch (error) {
     return actionFailure(error, "Khong the phat hanh thong bao")
+  }
+}
+
+export async function markAnnouncementSeen(
+  announcementId: string,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const id = z.string().trim().min(1).parse(announcementId)
+    const user = await requireAuth()
+    const updated = await prisma.announcementRecipient.updateMany({
+      where: {
+        announcementId: id,
+        userId: user.id,
+        announcement: { status: { in: ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] } },
+      },
+      data: { seenAt: new Date() },
+    })
+    if (updated.count !== 1) {
+      return errorResult("Khong tim thay thong bao.", "NOT_FOUND")
+    }
+    revalidatePath("/feed")
+    return successResult({ id })
+  } catch (error) {
+    return actionFailure(error, "Khong the ghi nhan da xem thong bao")
+  }
+}
+
+export async function acknowledgeAnnouncement(
+  announcementId: string,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const id = z.string().trim().min(1).parse(announcementId)
+    const user = await requireAuth()
+    const now = new Date()
+    const updated = await prisma.announcementRecipient.updateMany({
+      where: {
+        announcementId: id,
+        userId: user.id,
+        announcement: { status: "PUBLISHED", requiresAcknowledgement: true },
+      },
+      data: { acknowledgedAt: now, seenAt: now },
+    })
+    if (updated.count !== 1) {
+      return errorResult("Khong tim thay thong bao.", "NOT_FOUND")
+    }
+    revalidatePath("/feed")
+    return successResult({ id })
+  } catch (error) {
+    return actionFailure(error, "Khong the xac nhan thong bao")
+  }
+}
+
+export async function withdrawAnnouncement(
+  announcementId: string,
+  reason: string,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const id = z.string().trim().min(1).parse(announcementId)
+    const withdrawalReason = z.string().trim().min(1).max(1000).parse(reason)
+    const actor = await requireAdminPermission("admin.announcements.compose")
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`announcement-publish:${id}`}))`
+      const announcement = await tx.announcement.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          deletedAt: true,
+          status: true,
+          issuingUnitId: true,
+          publishedRevisionId: true,
+        },
+      })
+      if (!announcement || announcement.deletedAt || announcement.status !== "PUBLISHED") {
+        throw new AppError("Thong bao khong o trang thai co the thu hoi.", "INVALID_STATUS", 409)
+      }
+      if (actor.baseRole !== "ADMIN") {
+        const membership = await tx.announcementUnitMember.findFirst({
+          where: {
+            userId: actor.profile.userId,
+            unitId: announcement.issuingUnitId ?? "",
+            role: "AUTHOR",
+            isActive: true,
+            unit: { isActive: true },
+          },
+          select: { unitId: true },
+        })
+        if (!membership) {
+          throw new AppError("Ban khong co tham quyen thu hoi thong bao nay.", "FORBIDDEN", 403)
+        }
+      }
+      await tx.announcement.update({
+        where: { id },
+        data: { status: "WITHDRAWN", withdrawalReason },
+      })
+      await tx.announcementAuditEvent.create({
+        data: {
+          announcementId: id,
+          revisionId: announcement.publishedRevisionId,
+          actorId: actor.profile.userId,
+          action: "WITHDRAWN",
+          metadata: { reason: withdrawalReason },
+        },
+      })
+    })
+
+    revalidateAnnouncementSurfaces()
+    return successResult({ id })
+  } catch (error) {
+    return actionFailure(error, "Khong the thu hoi thong bao")
+  }
+}
+
+export async function createReplacementAnnouncement(
+  sourceId: string,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const id = z.string().trim().min(1).parse(sourceId)
+    const actor = await requireAdminPermission("admin.announcements.compose")
+    const draft = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`announcement-publish:${id}`}))`
+      const source = await tx.announcement.findUnique({
+        where: { id },
+        include: {
+          publishedRevision: {
+            include: { targets: true, attachments: true },
+          },
+        },
+      })
+      if (!source || source.deletedAt || source.status !== "PUBLISHED" || !source.publishedRevision) {
+        throw new AppError("Thong bao goc khong the tao ban thay the.", "INVALID_STATUS", 409)
+      }
+      const revision = source.publishedRevision
+      const membership = await tx.announcementUnitMember.findFirst({
+        where: {
+          userId: actor.profile.userId,
+          unitId: revision.issuingUnitId,
+          role: "AUTHOR",
+          isActive: true,
+          unit: { isActive: true },
+        },
+        select: { unitId: true },
+      })
+      if (!membership) {
+        throw new AppError("Ban khong co tham quyen tao ban thay the.", "FORBIDDEN", 403)
+      }
+
+      const replacement = await tx.announcement.create({
+        data: {
+          title: revision.title,
+          content: revision.content,
+          audience: revision.audience,
+          status: "DRAFT",
+          authorId: actor.profile.userId,
+          issuingUnitId: revision.issuingUnitId,
+          category: revision.category,
+          priority: revision.priority,
+          pinToTop: revision.pinToTop,
+          sentEmail: false,
+          requestEmailDelivery: revision.requestEmailDelivery,
+          requiresAcknowledgement: revision.requiresAcknowledgement,
+          scheduledAt: null,
+          actionDeadlineAt: revision.actionDeadlineAt,
+          expiresAt: revision.expiresAt,
+          supersedesId: source.id,
+        },
+        select: { id: true },
+      })
+      if (revision.targets.length > 0) {
+        await tx.announcementTarget.createMany({
+          data: revision.targets.map((target) => ({
+            announcementId: replacement.id,
+            type: target.type,
+            value: target.value,
+          })),
+          skipDuplicates: true,
+        })
+      }
+      if (revision.attachments.length > 0) {
+        await tx.announcementAttachment.createMany({
+          data: revision.attachments.map((attachment) => ({
+            announcementId: replacement.id,
+            revisionId: null,
+            source: attachment.source,
+            url: attachment.url,
+            name: attachment.name,
+            type: attachment.type,
+            mimeType: attachment.mimeType,
+            sizeBytes: attachment.sizeBytes,
+          })),
+        })
+      }
+      await tx.announcementAuditEvent.create({
+        data: {
+          announcementId: replacement.id,
+          actorId: actor.profile.userId,
+          action: "REPLACEMENT_DRAFT_CREATED",
+          metadata: { supersedesId: source.id },
+        },
+      })
+      return replacement
+    })
+
+    revalidateAnnouncementSurfaces()
+    return successResult({ id: draft.id })
+  } catch (error) {
+    return actionFailure(error, "Khong the tao thong bao thay the")
   }
 }
 
