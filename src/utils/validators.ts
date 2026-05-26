@@ -233,6 +233,7 @@ export const announcementInputSchema = z.object({
     .datetime({ offset: true })
     .optional()
     .or(z.literal("")),
+  retainedAttachmentIds: z.array(z.string().trim().min(1)).default([]),
   links: z.array(announcementLinkSchema).default([]),
 });
 

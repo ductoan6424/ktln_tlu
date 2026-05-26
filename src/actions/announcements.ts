@@ -74,6 +74,7 @@ function normalizeDraftInput(rawInput: unknown) {
         scheduledAt: String(rawInput.get("scheduledAt") ?? "").trim(),
         actionDeadlineAt: String(rawInput.get("actionDeadlineAt") ?? "").trim(),
         expiresAt: String(rawInput.get("expiresAt") ?? "").trim(),
+        retainedAttachmentIds: parseArrayFromFormData(rawInput.get("retainedAttachmentIds")),
         links: parseArrayFromFormData(rawInput.get("links")),
       },
       attachments: extractFiles(rawInput.getAll("attachments")),
@@ -182,6 +183,7 @@ export async function createAnnouncement(
   _legacyOptions?: unknown,
 ): Promise<ActionResult<{ id: string; status: string }>> {
   try {
+    void _legacyOptions
     const actor = await requireAdminPermission("admin.announcements.compose")
     const normalized = normalizeDraftInput(rawInput)
     if (!normalized) {
@@ -297,7 +299,7 @@ export async function updateAnnouncement(
     }
 
     const uploaded = await uploadDraftFiles(normalized.attachments)
-    const attachments = buildDraftAttachmentInputs(uploaded, parsed.data.links)
+    const submittedAttachments = buildDraftAttachmentInputs(uploaded, parsed.data.links)
     const fallbackAudience =
       targets.length > 0
         ? deriveLegacyAudienceFromTargets(targets)
@@ -307,7 +309,24 @@ export async function updateAnnouncement(
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${buildAnnouncementMutationLockKey(parsed.data.id)}))`
       const existing = await tx.announcement.findUnique({
         where: { id: parsed.data.id },
-        select: { id: true, deletedAt: true, status: true, issuingUnitId: true },
+        select: {
+          id: true,
+          deletedAt: true,
+          status: true,
+          issuingUnitId: true,
+          attachments: {
+            where: { revisionId: null },
+            select: {
+              id: true,
+              source: true,
+              url: true,
+              name: true,
+              type: true,
+              mimeType: true,
+              sizeBytes: true,
+            },
+          },
+        },
       })
       if (!existing || existing.deletedAt) {
         throw new AppError("Thong bao khong ton tai.", "NOT_FOUND", 404)
@@ -346,6 +365,18 @@ export async function updateAnnouncement(
           )
         }
       }
+      const retainedIds = new Set(parsed.data.retainedAttachmentIds)
+      const retainedAttachments = existing.attachments
+        .filter((attachment) => retainedIds.has(attachment.id))
+        .map((attachment) => ({
+          source: attachment.source,
+          url: attachment.url,
+          name: attachment.name,
+          type: attachment.type,
+          mimeType: attachment.mimeType,
+          sizeBytes: attachment.sizeBytes,
+        }))
+      const attachments = [...retainedAttachments, ...submittedAttachments]
 
       await tx.announcement.update({
         where: { id: parsed.data.id },
@@ -758,6 +789,7 @@ export async function publishAnnouncement(
   _options: { sendEmail?: boolean } = {},
 ): Promise<ActionResult<{ id: string; status: "SCHEDULED" | "PUBLISHED"; recipients: number }>> {
   try {
+    void _options
     const id = z.string().trim().min(1).parse(announcementId)
     const publisher = await requireAdminPermission("admin.announcements.compose")
     const publicationMode = await prisma.$transaction(async (tx) => {

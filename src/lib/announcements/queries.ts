@@ -57,6 +57,7 @@ export type AnnouncementDto = {
   publishedRevisionId: string | null
   attachments: AnnouncementAttachmentDto[]
   activeRevision: AnnouncementActiveRevisionDto | null
+  auditEvents: AnnouncementAuditDto[]
   recipientSummary: AnnouncementRecipientSummary | null
   publishedAt: string | null
   expiresAt: string | null
@@ -95,8 +96,21 @@ export type AnnouncementApprovalDto = {
 export type AnnouncementActiveRevisionDto = {
   id: string
   version: number
+  title: string
+  content: string
   submittedAt: string | null
+  targets: AnnouncementTargetDto[]
+  scopeLabels: string[]
+  attachments: AnnouncementAttachmentDto[]
   approvals: AnnouncementApprovalDto[]
+}
+
+export type AnnouncementAuditDto = {
+  id: string
+  action: string
+  actorName: string
+  comment: string | null
+  createdAt: string
 }
 
 export type AnnouncementRecipientSummary = {
@@ -143,7 +157,9 @@ export const OFFICIAL_AUTHOR = {
 
 export type ViewerRole = UserRole
 
-export function audiencesForViewer(role: ViewerRole | null): AnnouncementAudience[] {
+export function audiencesForViewer(
+  role: ViewerRole | null,
+): AnnouncementAudience[] {
   return audiencesForRole(role)
 }
 
@@ -151,9 +167,19 @@ function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)))
 }
 
-async function buildTargetLabelMaps(targets: AnnouncementTargetRow[]): Promise<TargetLabelMaps> {
-  const facultyIds = unique(targets.filter((target) => target.type === "FACULTY").map((target) => target.value))
-  const courseIds = unique(targets.filter((target) => target.type === "COURSE").map((target) => target.value))
+async function buildTargetLabelMaps(
+  targets: AnnouncementTargetRow[],
+): Promise<TargetLabelMaps> {
+  const facultyIds = unique(
+    targets
+      .filter((target) => target.type === "FACULTY")
+      .map((target) => target.value),
+  )
+  const courseIds = unique(
+    targets
+      .filter((target) => target.type === "COURSE")
+      .map((target) => target.value),
+  )
 
   const [faculties, courses] = await Promise.all([
     facultyIds.length > 0
@@ -171,8 +197,12 @@ async function buildTargetLabelMaps(targets: AnnouncementTargetRow[]): Promise<T
   ])
 
   return {
-    faculties: new Map(faculties.map((faculty) => [faculty.id, `Khoa ${faculty.code}`])),
-    courses: new Map(courses.map((course) => [course.id, `Lớp ${course.code}`])),
+    faculties: new Map(
+      faculties.map((faculty) => [faculty.id, `Khoa ${faculty.code}`]),
+    ),
+    courses: new Map(
+      courses.map((course) => [course.id, `Lớp ${course.code}`]),
+    ),
   }
 }
 
@@ -182,7 +212,8 @@ function mapTargets(
 ): AnnouncementTargetDto[] {
   return rows.map((row) => {
     let label: string | null = null
-    if (row.type === "FACULTY") label = labelMaps.faculties.get(row.value) ?? null
+    if (row.type === "FACULTY")
+      label = labelMaps.faculties.get(row.value) ?? null
     if (row.type === "COURSE") label = labelMaps.courses.get(row.value) ?? null
     if (row.type === "COHORT") label = `K${row.value}`
 
@@ -194,7 +225,10 @@ function mapTargets(
   })
 }
 
-function mapScopeLabels(targets: AnnouncementTargetDto[], audience: AnnouncementAudience) {
+function mapScopeLabels(
+  targets: AnnouncementTargetDto[],
+  audience: AnnouncementAudience,
+) {
   return getAnnouncementScopeLabels(targets, audience)
 }
 
@@ -215,7 +249,16 @@ function getDefaultViewerContext(
 }
 
 function shouldExposeDeliverySummary(status: AnnouncementStatus) {
-  return status === "PUBLISHED" || status === "WITHDRAWN" || status === "SUPERSEDED"
+  return (
+    status === "PUBLISHED" || status === "WITHDRAWN" || status === "SUPERSEDED"
+  )
+}
+
+function readAuditComment(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata))
+    return null
+  const comment = (metadata as { comment?: unknown }).comment
+  return typeof comment === "string" ? comment : null
 }
 
 export async function getAnnouncementRecipientSummary(
@@ -266,20 +309,13 @@ export async function listActiveAnnouncementsForViewer(
         ? { savedBy: { where: { userId: viewerId }, select: { userId: true } } }
         : {}),
     },
-    orderBy: [
-      { pinToTop: "desc" },
-      { publishedAt: "desc" },
-    ],
+    orderBy: [{ pinToTop: "desc" }, { publishedAt: "desc" }],
     take: candidateLimit,
   })
 
   const visibleRows = rows
     .filter((row) =>
-      matchesAnnouncementTargets(
-        viewerContext,
-        row.targets,
-        row.audience,
-      ),
+      matchesAnnouncementTargets(viewerContext, row.targets, row.audience),
     )
     .slice(0, take)
 
@@ -305,8 +341,8 @@ export async function listActiveAnnouncementsForViewer(
       authorUserId: OFFICIAL_SCHOOL_AUTHOR_ID,
       isOfficial: true,
       isSaved: viewerId
-        ? (Array.isArray((row as { savedBy?: { userId: string }[] }).savedBy) &&
-           ((row as { savedBy?: { userId: string }[] }).savedBy?.length ?? 0) > 0)
+        ? Array.isArray((row as { savedBy?: { userId: string }[] }).savedBy) &&
+          ((row as { savedBy?: { userId: string }[] }).savedBy?.length ?? 0) > 0
         : false,
     }
   })
@@ -358,8 +394,8 @@ export async function getVisibleAnnouncementForViewer(
     authorUserId: OFFICIAL_SCHOOL_AUTHOR_ID,
     isOfficial: true,
     isSaved: viewerId
-      ? (Array.isArray((row as { savedBy?: { userId: string }[] }).savedBy) &&
-         ((row as { savedBy?: { userId: string }[] }).savedBy?.length ?? 0) > 0)
+      ? Array.isArray((row as { savedBy?: { userId: string }[] }).savedBy) &&
+        ((row as { savedBy?: { userId: string }[] }).savedBy?.length ?? 0) > 0
       : false,
   }
 }
@@ -403,7 +439,21 @@ export async function listAdminAnnouncements(params: {
           select: {
             id: true,
             version: true,
+            title: true,
+            content: true,
             submittedAt: true,
+            targets: { select: { type: true, value: true } },
+            attachments: {
+              select: {
+                id: true,
+                source: true,
+                url: true,
+                name: true,
+                type: true,
+                mimeType: true,
+                sizeBytes: true,
+              },
+            },
             approvals: {
               include: {
                 reviewer: { select: { userId: true, displayName: true } },
@@ -412,18 +462,31 @@ export async function listAdminAnnouncements(params: {
             },
           },
         },
+        auditEvents: {
+          select: {
+            id: true,
+            action: true,
+            metadata: true,
+            createdAt: true,
+            actor: { select: { displayName: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        },
       },
-      orderBy: [
-        { pinToTop: "desc" },
-        { createdAt: "desc" },
-      ],
+      orderBy: [{ pinToTop: "desc" }, { createdAt: "desc" }],
       take,
       skip,
     }),
     prisma.announcement.count({ where }),
   ])
 
-  const labelMaps = await buildTargetLabelMaps(rows.flatMap((row) => row.targets))
+  const labelMaps = await buildTargetLabelMaps(
+    rows.flatMap((row) => [
+      ...row.targets,
+      ...(row.activeRevision?.targets ?? []),
+    ]),
+  )
 
   const recipientSummaries = await Promise.all(
     rows.map((row) =>
@@ -451,27 +514,47 @@ export async function listAdminAnnouncements(params: {
       requestEmailDelivery: row.requestEmailDelivery,
       requiresAcknowledgement: row.requiresAcknowledgement,
       scheduledAt: row.scheduledAt ? row.scheduledAt.toISOString() : null,
-      actionDeadlineAt: row.actionDeadlineAt ? row.actionDeadlineAt.toISOString() : null,
+      actionDeadlineAt: row.actionDeadlineAt
+        ? row.actionDeadlineAt.toISOString()
+        : null,
       activeRevisionId: row.activeRevisionId,
       publishedRevisionId: row.publishedRevisionId,
       attachments: row.attachments,
       activeRevision: row.activeRevision
-        ? {
-            id: row.activeRevision.id,
-            version: row.activeRevision.version,
-            submittedAt: row.activeRevision.submittedAt
-              ? row.activeRevision.submittedAt.toISOString()
-              : null,
-            approvals: row.activeRevision.approvals.map((approval) => ({
-              id: approval.id,
-              stage: approval.stage,
-              decision: approval.decision,
-              comment: approval.comment,
-              createdAt: approval.createdAt.toISOString(),
-              reviewer: approval.reviewer,
-            })),
-          }
+        ? (() => {
+            const revisionTargets = mapTargets(
+              row.activeRevision.targets,
+              labelMaps,
+            )
+            return {
+              id: row.activeRevision.id,
+              version: row.activeRevision.version,
+              title: row.activeRevision.title,
+              content: row.activeRevision.content,
+              submittedAt: row.activeRevision.submittedAt
+                ? row.activeRevision.submittedAt.toISOString()
+                : null,
+              targets: revisionTargets,
+              scopeLabels: mapScopeLabels(revisionTargets, row.audience),
+              attachments: row.activeRevision.attachments,
+              approvals: row.activeRevision.approvals.map((approval) => ({
+                id: approval.id,
+                stage: approval.stage,
+                decision: approval.decision,
+                comment: approval.comment,
+                createdAt: approval.createdAt.toISOString(),
+                reviewer: approval.reviewer,
+              })),
+            }
+          })()
         : null,
+      auditEvents: row.auditEvents.map((event) => ({
+        id: event.id,
+        action: event.action,
+        actorName: event.actor?.displayName ?? "He thong",
+        comment: readAuditComment(event.metadata),
+        createdAt: event.createdAt.toISOString(),
+      })),
       recipientSummary: recipientSummaries[index] ?? null,
       publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
       expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
@@ -489,7 +572,9 @@ export async function listAdminAnnouncements(params: {
   return { items, total }
 }
 
-export async function getAnnouncementById(id: string): Promise<AnnouncementDto | null> {
+export async function getAnnouncementById(
+  id: string,
+): Promise<AnnouncementDto | null> {
   const row = await prisma.announcement.findUnique({
     where: { id },
     include: {
@@ -516,7 +601,21 @@ export async function getAnnouncementById(id: string): Promise<AnnouncementDto |
         select: {
           id: true,
           version: true,
+          title: true,
+          content: true,
           submittedAt: true,
+          targets: { select: { type: true, value: true } },
+          attachments: {
+            select: {
+              id: true,
+              source: true,
+              url: true,
+              name: true,
+              type: true,
+              mimeType: true,
+              sizeBytes: true,
+            },
+          },
           approvals: {
             include: {
               reviewer: { select: { userId: true, displayName: true } },
@@ -525,12 +624,26 @@ export async function getAnnouncementById(id: string): Promise<AnnouncementDto |
           },
         },
       },
+      auditEvents: {
+        select: {
+          id: true,
+          action: true,
+          metadata: true,
+          createdAt: true,
+          actor: { select: { displayName: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
     },
   })
 
   if (!row || row.deletedAt) return null
 
-  const labelMaps = await buildTargetLabelMaps(row.targets)
+  const labelMaps = await buildTargetLabelMaps([
+    ...row.targets,
+    ...(row.activeRevision?.targets ?? []),
+  ])
   const targets = mapTargets(row.targets, labelMaps)
   const recipientSummary = shouldExposeDeliverySummary(row.status)
     ? await getAnnouncementRecipientSummary(row.id)
@@ -552,27 +665,47 @@ export async function getAnnouncementById(id: string): Promise<AnnouncementDto |
     requestEmailDelivery: row.requestEmailDelivery,
     requiresAcknowledgement: row.requiresAcknowledgement,
     scheduledAt: row.scheduledAt ? row.scheduledAt.toISOString() : null,
-    actionDeadlineAt: row.actionDeadlineAt ? row.actionDeadlineAt.toISOString() : null,
+    actionDeadlineAt: row.actionDeadlineAt
+      ? row.actionDeadlineAt.toISOString()
+      : null,
     activeRevisionId: row.activeRevisionId,
     publishedRevisionId: row.publishedRevisionId,
     attachments: row.attachments,
     activeRevision: row.activeRevision
-      ? {
-          id: row.activeRevision.id,
-          version: row.activeRevision.version,
-          submittedAt: row.activeRevision.submittedAt
-            ? row.activeRevision.submittedAt.toISOString()
-            : null,
-          approvals: row.activeRevision.approvals.map((approval) => ({
-            id: approval.id,
-            stage: approval.stage,
-            decision: approval.decision,
-            comment: approval.comment,
-            createdAt: approval.createdAt.toISOString(),
-            reviewer: approval.reviewer,
-          })),
-        }
+      ? (() => {
+          const revisionTargets = mapTargets(
+            row.activeRevision.targets,
+            labelMaps,
+          )
+          return {
+            id: row.activeRevision.id,
+            version: row.activeRevision.version,
+            title: row.activeRevision.title,
+            content: row.activeRevision.content,
+            submittedAt: row.activeRevision.submittedAt
+              ? row.activeRevision.submittedAt.toISOString()
+              : null,
+            targets: revisionTargets,
+            scopeLabels: mapScopeLabels(revisionTargets, row.audience),
+            attachments: row.activeRevision.attachments,
+            approvals: row.activeRevision.approvals.map((approval) => ({
+              id: approval.id,
+              stage: approval.stage,
+              decision: approval.decision,
+              comment: approval.comment,
+              createdAt: approval.createdAt.toISOString(),
+              reviewer: approval.reviewer,
+            })),
+          }
+        })()
       : null,
+    auditEvents: row.auditEvents.map((event) => ({
+      id: event.id,
+      action: event.action,
+      actorName: event.actor?.displayName ?? "He thong",
+      comment: readAuditComment(event.metadata),
+      createdAt: event.createdAt.toISOString(),
+    })),
     recipientSummary,
     publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
     expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
@@ -612,7 +745,8 @@ export async function listAnnouncementWorkQueue(params: {
       status === "DRAFT" || status === "CHANGES_REQUESTED",
   )
   const unitStatuses = params.statuses.filter(
-    (status): status is "PENDING_UNIT_REVIEW" => status === "PENDING_UNIT_REVIEW",
+    (status): status is "PENDING_UNIT_REVIEW" =>
+      status === "PENDING_UNIT_REVIEW",
   )
   const adminStatuses = params.statuses.filter(
     (status): status is "PENDING_ADMIN_REVIEW" =>
