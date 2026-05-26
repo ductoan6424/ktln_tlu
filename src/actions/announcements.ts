@@ -13,6 +13,7 @@ import {
   isEditableAnnouncementStatus,
   nextStatusAfterApproval,
 } from "@/lib/announcements/workflow"
+import { publishApprovedAnnouncement } from "@/lib/announcements/publication"
 import { requireUnitMembership } from "@/lib/announcements/units"
 import { requireAdminPermission, requireSystemAdmin } from "@/lib/auth/authorization"
 import {
@@ -755,14 +756,83 @@ export async function reviewAnnouncement(
 export async function publishAnnouncement(
   announcementId: string,
   _options: { sendEmail?: boolean } = {},
-): Promise<ActionResult<{ id: string; recipients: number }>> {
+): Promise<ActionResult<{ id: string; status: "SCHEDULED" | "PUBLISHED"; recipients: number }>> {
   try {
-    z.string().trim().min(1).parse(announcementId)
-    await requireAdminPermission("admin.announcements.compose")
-    return errorResult(
-      "Thong bao chinh thuc phai hoan tat quy trinh duyet truoc khi phat hanh.",
-      "WORKFLOW_REQUIRED",
-    )
+    const id = z.string().trim().min(1).parse(announcementId)
+    const publisher = await requireAdminPermission("admin.announcements.compose")
+    const publicationMode = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`announcement-publish:${id}`}))`
+      const announcement = await tx.announcement.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          status: true,
+          activeRevisionId: true,
+          activeRevision: { select: { scheduledAt: true, issuingUnitId: true } },
+        },
+      })
+      if (
+        !announcement ||
+        announcement.status !== "APPROVED" ||
+        !announcement.activeRevisionId ||
+        !announcement.activeRevision
+      ) {
+        throw new AppError(
+          "Thong bao chua duoc duyet de phat hanh.",
+          "INVALID_STATUS",
+          409,
+        )
+      }
+
+      const authorMembership = await tx.announcementUnitMember.findFirst({
+        where: {
+          userId: publisher.profile.userId,
+          unitId: announcement.activeRevision.issuingUnitId,
+          role: "AUTHOR",
+          isActive: true,
+          unit: { isActive: true },
+        },
+        select: { unitId: true },
+      })
+      if (!authorMembership) {
+        throw new AppError(
+          "Ban khong co tham quyen phat hanh cho don vi ban hanh nay.",
+          "FORBIDDEN",
+          403,
+        )
+      }
+
+      if (
+        announcement.activeRevision.scheduledAt &&
+        announcement.activeRevision.scheduledAt.getTime() > Date.now()
+      ) {
+        await tx.announcement.update({
+          where: { id },
+          data: { status: "SCHEDULED" },
+        })
+        await tx.announcementAuditEvent.create({
+          data: {
+            announcementId: id,
+            revisionId: announcement.activeRevisionId,
+            actorId: publisher.profile.userId,
+            action: "SCHEDULED",
+            metadata: { scheduledAt: announcement.activeRevision.scheduledAt.toISOString() },
+          },
+        })
+        return "SCHEDULED" as const
+      }
+
+      return "PUBLISH" as const
+    })
+
+    if (publicationMode === "SCHEDULED") {
+      revalidateAnnouncementSurfaces()
+      return successResult({ id, status: "SCHEDULED", recipients: 0 })
+    }
+
+    const publication = await publishApprovedAnnouncement(id, publisher.profile.userId)
+    revalidateAnnouncementSurfaces()
+    return successResult({ id, status: "PUBLISHED", recipients: publication.recipients })
   } catch (error) {
     return actionFailure(error, "Khong the phat hanh thong bao")
   }

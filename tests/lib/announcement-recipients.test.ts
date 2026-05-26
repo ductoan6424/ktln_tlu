@@ -2,16 +2,55 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const prisma = vi.hoisted(() => ({
   announcement: { findUnique: vi.fn() },
+  announcementRevision: { findUnique: vi.fn() },
   userProfile: { findMany: vi.fn() },
 }))
 
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 
-import { resolveAnnouncementRecipients } from "@/lib/announcements/recipients"
+import {
+  resolveAnnouncementRecipients,
+  resolveRevisionRecipients,
+} from "@/lib/announcements/recipients"
 
 beforeEach(() => {
   prisma.announcement.findUnique.mockReset()
+  prisma.announcementRevision.findUnique.mockReset()
   prisma.userProfile.findMany.mockReset()
+})
+
+describe("resolveRevisionRecipients", () => {
+  it("resolves recipients from the frozen submitted revision targets", async () => {
+    prisma.announcementRevision.findUnique.mockResolvedValue({
+      id: "rev-k38",
+      audience: "STUDENTS",
+      targets: [
+        { type: "ROLE", value: "STUDENT" },
+        { type: "COHORT", value: "38" },
+      ],
+    })
+    prisma.userProfile.findMany.mockResolvedValue([{ userId: "u-k38" }])
+
+    const result = await resolveRevisionRecipients("rev-k38")
+
+    expect(prisma.announcementRevision.findUnique).toHaveBeenCalledWith({
+      where: { id: "rev-k38" },
+      select: {
+        audience: true,
+        targets: { select: { type: true, value: true } },
+      },
+    })
+    expect(prisma.userProfile.findMany).toHaveBeenCalledWith({
+      where: {
+        deletedAt: null,
+        role: { in: ["STUDENT"] },
+        year: { in: [38] },
+      },
+      select: { userId: true },
+      orderBy: { userId: "asc" },
+    })
+    expect(result.userIds).toEqual(["u-k38"])
+  })
 })
 
 describe("resolveAnnouncementRecipients", () => {

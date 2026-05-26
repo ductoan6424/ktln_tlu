@@ -6,6 +6,7 @@ const requireUnitMembership = vi.hoisted(() => vi.fn())
 const validateAnnouncementTargetReferences = vi.hoisted(() => vi.fn())
 const uploadAnnouncementAttachment = vi.hoisted(() => vi.fn())
 const fanoutAnnouncementNotification = vi.hoisted(() => vi.fn())
+const publishApprovedAnnouncement = vi.hoisted(() => vi.fn())
 
 const tx = vi.hoisted(() => ({
   $executeRaw: vi.fn(),
@@ -65,6 +66,7 @@ vi.mock("@/lib/announcements/target-validation", () => ({
   validateAnnouncementTargetReferences,
 }))
 vi.mock("@/lib/announcements/fanout", () => ({ fanoutAnnouncementNotification }))
+vi.mock("@/lib/announcements/publication", () => ({ publishApprovedAnnouncement }))
 vi.mock("@/lib/cloudinary/upload", () => ({
   UploadValidationError: class UploadValidationError extends Error {},
   uploadAnnouncementAttachment,
@@ -156,6 +158,7 @@ beforeEach(() => {
     mimeType: "application/pdf",
     sizeBytes: 6,
   })
+  publishApprovedAnnouncement.mockResolvedValue({ recipients: 2 })
   tx.$executeRaw.mockResolvedValue(1)
   tx.announcement.create.mockResolvedValue({ id: "ann-1", status: "DRAFT" })
   tx.announcement.findUnique.mockResolvedValue(editableAnnouncement())
@@ -390,15 +393,70 @@ describe("submitAnnouncementForReview", () => {
   })
 })
 
-describe("publishAnnouncement compatibility guard", () => {
-  it("cannot publish directly before approved-publication handling is installed", async () => {
+describe("publishAnnouncement controlled publication", () => {
+  it("cannot publish a notice that has not completed approval", async () => {
     const result = await publishAnnouncement("ann-1")
 
     expect(result.success).toBe(false)
-    expect(result.code).toBe("WORKFLOW_REQUIRED")
-    expect(prisma.announcement.update).not.toHaveBeenCalled()
-    expect(tx.announcement.update).not.toHaveBeenCalled()
-    expect(fanoutAnnouncementNotification).not.toHaveBeenCalled()
+    expect(result.code).toBe("INVALID_STATUS")
+    expect(publishApprovedAnnouncement).not.toHaveBeenCalled()
+  })
+
+  it("publishes an approved revision through the snapshot publication service", async () => {
+    tx.announcement.findUnique.mockResolvedValueOnce({
+      id: "ann-1",
+      status: "APPROVED",
+      activeRevisionId: "rev-1",
+      activeRevision: { scheduledAt: null, issuingUnitId: "unit-pdt" },
+    })
+
+    const result = await publishAnnouncement("ann-1")
+
+    expect(publishApprovedAnnouncement).toHaveBeenCalledWith("ann-1", "author-1")
+    expect(result).toEqual({
+      success: true,
+      data: { id: "ann-1", status: "PUBLISHED", recipients: 2 },
+    })
+  })
+
+  it("does not let an unrelated composer publish an approved unit revision", async () => {
+    tx.announcement.findUnique.mockResolvedValueOnce({
+      id: "ann-1",
+      status: "APPROVED",
+      activeRevisionId: "rev-1",
+      activeRevision: { scheduledAt: null, issuingUnitId: "unit-pdt" },
+    })
+    tx.announcementUnitMember.findFirst.mockResolvedValueOnce(null)
+
+    const result = await publishAnnouncement("ann-1")
+
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("FORBIDDEN")
+    expect(publishApprovedAnnouncement).not.toHaveBeenCalled()
+  })
+
+  it("schedules an approved revision whose frozen schedule is in the future", async () => {
+    tx.announcement.findUnique.mockResolvedValueOnce({
+      id: "ann-1",
+      status: "APPROVED",
+      activeRevisionId: "rev-1",
+      activeRevision: {
+        scheduledAt: new Date("2099-06-01T01:00:00.000Z"),
+        issuingUnitId: "unit-pdt",
+      },
+    })
+
+    const result = await publishAnnouncement("ann-1")
+
+    expect(tx.announcement.update).toHaveBeenCalledWith({
+      where: { id: "ann-1" },
+      data: { status: "SCHEDULED" },
+    })
+    expect(publishApprovedAnnouncement).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      success: true,
+      data: { id: "ann-1", status: "SCHEDULED", recipients: 0 },
+    })
   })
 })
 

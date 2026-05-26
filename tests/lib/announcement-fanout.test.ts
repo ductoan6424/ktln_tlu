@@ -1,14 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const resolveAnnouncementRecipients = vi.hoisted(() => vi.fn())
 const createNotification = vi.hoisted(() => vi.fn())
 const sendAnnouncementEmail = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
   userContactEmail: { findMany: vi.fn() },
-}))
-
-vi.mock("@/lib/announcements/recipients", () => ({
-  resolveAnnouncementRecipients,
 }))
 
 vi.mock("@/lib/notifications/service", () => ({
@@ -24,23 +19,29 @@ vi.mock("@/lib/prisma/client", () => ({ prisma }))
 import { fanoutAnnouncementNotification } from "@/lib/announcements/fanout"
 
 beforeEach(() => {
-  resolveAnnouncementRecipients.mockReset()
   createNotification.mockReset()
   sendAnnouncementEmail.mockReset()
   prisma.userContactEmail.findMany.mockReset()
 })
 
 describe("fanoutAnnouncementNotification", () => {
-  it("creates announcement notifications through createNotification so realtime and PWA push run", async () => {
-    resolveAnnouncementRecipients.mockResolvedValue({ userIds: ["u1", "u2"] })
+  it("creates notifications only for frozen snapshot users so realtime and PWA push run", async () => {
     createNotification.mockResolvedValue({})
 
     const result = await fanoutAnnouncementNotification({
       announcementId: "ann-1",
-      title: "Lịch thi học kỳ",
+      notificationUserIds: ["u1", "u2"],
+      emailUserIds: [],
+      title: "Lich thi hoc ky",
     })
 
-    expect(result.recipients).toBe(2)
+    expect(result).toEqual({
+      recipients: 2,
+      notifiedUserIds: ["u1", "u2"],
+      emailedUserIds: [],
+      notificationFailedUserIds: [],
+      emailFailedUserIds: [],
+    })
     expect(createNotification).toHaveBeenCalledTimes(2)
     expect(createNotification).toHaveBeenCalledWith({
       recipientId: "u1",
@@ -50,7 +51,7 @@ describe("fanoutAnnouncementNotification", () => {
       linkOverride: "/feed?announcement=ann-1",
       extraMetadata: {
         announcementId: "ann-1",
-        announcementTitle: "Lịch thi học kỳ",
+        announcementTitle: "Lich thi hoc ky",
       },
     })
     expect(sendAnnouncementEmail).not.toHaveBeenCalled()
@@ -58,25 +59,32 @@ describe("fanoutAnnouncementNotification", () => {
   })
 
   it("sends announcement emails only when requested", async () => {
-    resolveAnnouncementRecipients.mockResolvedValue({ userIds: ["u1", "u2"] })
     createNotification.mockResolvedValue({})
     prisma.userContactEmail.findMany.mockResolvedValue([
       {
         userId: "u1",
         email: "student@example.com",
-        user: { displayName: "Nguyễn Văn A" },
+        user: { displayName: "Nguyen Van A" },
       },
     ])
     sendAnnouncementEmail.mockResolvedValue(undefined)
 
     const result = await fanoutAnnouncementNotification({
       announcementId: "ann-1",
-      title: "Lịch thi học kỳ",
-      content: "Nội dung thông báo",
+      notificationUserIds: ["u1", "u2"],
+      emailUserIds: ["u1", "u2"],
+      title: "Lich thi hoc ky",
+      content: "Noi dung thong bao",
       sendEmail: true,
     })
 
-    expect(result).toEqual({ recipients: 2, emailsSent: 1 })
+    expect(result).toEqual({
+      recipients: 2,
+      notifiedUserIds: ["u1", "u2"],
+      emailedUserIds: ["u1"],
+      notificationFailedUserIds: [],
+      emailFailedUserIds: ["u2"],
+    })
     expect(prisma.userContactEmail.findMany).toHaveBeenCalledWith({
       where: { userId: { in: ["u1", "u2"] } },
       select: {
@@ -87,10 +95,26 @@ describe("fanoutAnnouncementNotification", () => {
     })
     expect(sendAnnouncementEmail).toHaveBeenCalledWith(
       "student@example.com",
-      "Nguyễn Văn A",
-      "Lịch thi học kỳ",
-      "Nội dung thông báo",
+      "Nguyen Van A",
+      "Lich thi hoc ky",
+      "Noi dung thong bao",
       "/feed?announcement=ann-1",
     )
+  })
+
+  it("returns failed recipient ids for delivery retry tracking", async () => {
+    createNotification
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("push unavailable"))
+
+    const result = await fanoutAnnouncementNotification({
+      announcementId: "ann-1",
+      notificationUserIds: ["u1", "u2"],
+      emailUserIds: [],
+      title: "Lich thi",
+    })
+
+    expect(result.notifiedUserIds).toEqual(["u1"])
+    expect(result.notificationFailedUserIds).toEqual(["u2"])
   })
 })
