@@ -137,6 +137,20 @@ describe("course learning actions", () => {
     expect(notifyCourseAssignmentPublished).toHaveBeenCalledTimes(2)
   })
 
+  it("rejects creating assignments with deadlines in the past", async () => {
+    const result = await createCourseAssignment({
+      courseId: "course-1",
+      title: "Old assignment",
+      description: "This deadline already passed",
+      dueAt: new Date(Date.now() - 60_000).toISOString(),
+      status: "PUBLISHED",
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("DEADLINE_IN_PAST")
+    expect(prisma.courseAssignment.create).not.toHaveBeenCalled()
+  })
+
   it("lets a course student submit before the deadline", async () => {
     prisma.courseAssignment.findUnique.mockResolvedValue({
       id: "assignment-1",
