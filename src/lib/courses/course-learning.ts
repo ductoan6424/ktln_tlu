@@ -44,6 +44,18 @@ export type CourseAssignmentDto = {
   submissions: AssignmentSubmissionDto[]
 }
 
+export type CourseAssignmentDetailDto = {
+  course: {
+    id: string
+    code: string
+    shortId: string
+    name: string
+    memberCount: number
+  }
+  isManager: boolean
+  assignment: CourseAssignmentDto
+}
+
 function stringArrayFromJson(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is string => typeof item === "string")
@@ -170,4 +182,69 @@ export async function listCourseAssignments(
       submissions: access.isManager ? submissions : [],
     }
   })
+}
+
+export async function getCourseAssignmentDetail(
+  courseId: string,
+  assignmentId: string,
+): Promise<CourseAssignmentDetailDto | null> {
+  const access = await requireCourseLearningAccess(courseId)
+  const row = await prisma.courseAssignment.findFirst({
+    where: {
+      id: assignmentId,
+      courseId: access.course.id,
+      deletedAt: null,
+      ...(access.isManager ? {} : { status: "PUBLISHED" }),
+    },
+    include: {
+      submissions: access.isManager
+        ? {
+            include: {
+              student: {
+                select: {
+                  userId: true,
+                  displayName: true,
+                  avatarUrl: true,
+                  email: true,
+                  studentId: true,
+                },
+              },
+            },
+            orderBy: { submittedAt: "desc" },
+          }
+        : {
+            where: { studentId: access.context.profile.userId },
+            take: 1,
+          },
+      _count: { select: { submissions: true } },
+    },
+  })
+
+  if (!row) return null
+
+  const submissions = row.submissions.map(mapSubmission)
+
+  return {
+    course: {
+      id: access.course.id,
+      code: access.course.code,
+      shortId: access.course.shortId,
+      name: access.course.name,
+      memberCount: access.course.members.length,
+    },
+    isManager: access.isManager,
+    assignment: {
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      dueAt: row.dueAt,
+      status: row.status,
+      attachmentUrls: stringArrayFromJson(row.attachmentUrls),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      submissionCount: row._count.submissions,
+      viewerSubmission: access.isManager ? null : submissions[0] ?? null,
+      submissions: access.isManager ? submissions : [],
+    },
+  }
 }

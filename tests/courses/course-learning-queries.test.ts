@@ -7,6 +7,7 @@ const prisma = vi.hoisted(() => ({
   },
   courseAssignment: {
     findMany: vi.fn(),
+    findFirst: vi.fn(),
   },
 }))
 
@@ -17,6 +18,7 @@ vi.mock("@/lib/courses/course-permissions", () => ({
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 
 import {
+  getCourseAssignmentDetail,
   listCourseAnnouncements,
   listCourseAssignments,
 } from "@/lib/courses/course-learning"
@@ -176,6 +178,68 @@ describe("course learning queries", () => {
           },
           _count: { select: { submissions: true } },
         },
+      }),
+    )
+  })
+
+  it("loads one assignment detail with course member count and manager submissions", async () => {
+    requireCourseLearningAccess.mockResolvedValue({
+      isManager: true,
+      context: { profile: { userId: "lecturer-1" } },
+      course: {
+        id: "course-1",
+        code: "CS201",
+        shortId: "c12345",
+        name: "Data Structures",
+        members: [{ user: { userId: "student-1" } }, { user: { userId: "student-2" } }],
+      },
+    })
+    prisma.courseAssignment.findFirst.mockResolvedValue({
+      id: "assignment-1",
+      title: "Week 1",
+      description: "Submit notes",
+      dueAt: new Date("2026-06-01T00:00:00.000Z"),
+      status: "PUBLISHED",
+      attachmentUrls: [],
+      createdAt: new Date("2026-05-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+      submissions: [
+        {
+          id: "submission-1",
+          studentId: "student-1",
+          content: "Done",
+          attachmentUrls: ["https://example.com/submission.pdf"],
+          submittedAt: new Date("2026-05-02T00:00:00.000Z"),
+          score: null,
+          feedback: null,
+          gradedAt: null,
+          student: {
+            displayName: "Student One",
+            email: "student@example.com",
+            avatarUrl: null,
+            studentId: "SV001",
+          },
+        },
+      ],
+      _count: { submissions: 1 },
+    })
+
+    const result = await getCourseAssignmentDetail("course-1", "assignment-1")
+
+    expect(prisma.courseAssignment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "assignment-1", courseId: "course-1", deletedAt: null },
+      }),
+    )
+    expect(result).toEqual(
+      expect.objectContaining({
+        course: expect.objectContaining({ memberCount: 2 }),
+        isManager: true,
+        assignment: expect.objectContaining({
+          id: "assignment-1",
+          submissionCount: 1,
+          submissions: [expect.objectContaining({ studentName: "Student One" })],
+        }),
       }),
     )
   })
