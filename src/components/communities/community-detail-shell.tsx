@@ -1,4 +1,5 @@
 import Link from "next/link"
+import type { ReactNode } from "react"
 import { MessageCircle } from "lucide-react"
 
 import { CommunityCard } from "@/components/communities/community-card"
@@ -14,7 +15,13 @@ import { Button } from "@/components/ui/button"
 import type { CommunityContext } from "@/lib/communities/types"
 import type { FeedPostDto } from "@/lib/feed/queries"
 
-export type CommunityDetailTab = "feed" | "members" | "about" | "chat"
+export type CommunityDetailTab =
+  | "feed"
+  | "members"
+  | "about"
+  | "chat"
+  | "announcements"
+  | "assignments"
 
 type CommunityDetailMemberItem = {
   userId: string
@@ -49,6 +56,10 @@ type CommunityDetailShellProps = {
     canSend: boolean
     readonlyLabel?: string
   } | null
+  learningPanels?: {
+    announcements: ReactNode
+    assignments: ReactNode
+  }
 }
 
 function RulesList({
@@ -95,17 +106,29 @@ export function CommunityDetailShell({
   members,
   posts,
   chat,
+  learningPanels,
 }: CommunityDetailShellProps) {
   const tabs: Array<{ value: CommunityDetailTab; label: string }> = [
     { value: "feed", label: "Bảng tin" },
     { value: "members", label: "Thành viên" },
     { value: "about", label: "Giới thiệu" },
+    ...(target.type === "COURSE" && learningPanels
+      ? [
+          { value: "announcements" as const, label: "Thong bao" },
+          { value: "assignments" as const, label: "Bai tap" },
+        ]
+      : []),
     ...(target.chatEnabled
       ? [{ value: "chat" as const, label: "Tin nhắn" }]
       : []),
   ]
   const resolvedActiveTab =
-    activeTab === "chat" && !target.chatEnabled ? "feed" : activeTab
+    activeTab === "chat" && !target.chatEnabled
+      ? "feed"
+      : (activeTab === "announcements" || activeTab === "assignments") &&
+          (!learningPanels || target.type !== "COURSE")
+        ? "feed"
+        : activeTab
 
   return (
     <PageContainer variant="centered" className="space-y-6">
@@ -224,6 +247,10 @@ export function CommunityDetailShell({
               </div>
             </section>
           ) : null}
+
+          {resolvedActiveTab === "announcements" ? learningPanels?.announcements : null}
+
+          {resolvedActiveTab === "assignments" ? learningPanels?.assignments : null}
 
           {resolvedActiveTab === "chat" && chat ? (
             <section className="rounded-lg border bg-card p-4">
