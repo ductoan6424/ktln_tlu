@@ -63,13 +63,13 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   }
 
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-5 sm:p-8 lg:p-10">
-        <div className="mb-6 text-center sm:mb-8">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="text-center">
           <h1 className="text-2xl font-semibold">Đăng nhập</h1>
         </div>
 
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {error && (
             <div className="flex items-center gap-2 rounded-lg bg-destructive/10 text-destructive text-sm p-3">
               <AlertCircle className="size-4 shrink-0" />
@@ -77,7 +77,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
             </div>
           )}
 
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" htmlFor="login-email">Tài khoản</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
@@ -94,7 +94,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" htmlFor="login-password">Mật khẩu</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
@@ -134,13 +134,13 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
 export function LoginFormSkeleton() {
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="space-y-6 p-5 sm:p-8 lg:p-10">
-        <div className="text-center space-y-2">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-2 text-center">
           <Skeleton className="h-7 w-48 mx-auto" />
           <Skeleton className="h-4 w-56 mx-auto" />
         </div>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-11 w-full rounded-lg" />
