@@ -1,4 +1,3 @@
-// src/middleware.ts
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -15,7 +14,7 @@ const PUBLIC_ROUTES = [
 ]
 const AUTH_ROUTES = ["/login", "/register"]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const PUBLIC_FILE_EXTENSIONS = [".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico"]
