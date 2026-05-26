@@ -35,7 +35,7 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   return (
     <div className={cn(
-      "border-b border-border flex items-center justify-between shrink-0 bg-card/80 backdrop-blur-md",
+      "flex shrink-0 items-center justify-between border-b border-border/70 bg-card/95 backdrop-blur-md",
       compact ? "h-12 px-3" : "h-14 lg:h-16 px-4 lg:px-6",
       className
     )}>

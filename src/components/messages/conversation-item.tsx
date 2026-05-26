@@ -36,10 +36,10 @@ export function ConversationItem({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "h-auto w-full justify-start gap-4 rounded-none border-0 p-4 text-left whitespace-normal",
+        "h-auto w-full justify-start gap-4 rounded-none border-0 border-l-4 p-4 text-left whitespace-normal",
         isActive
-          ? "border-r-4 border-primary bg-primary/5 hover:bg-primary/5"
-          : "border-b border-border/50 hover:bg-muted"
+          ? "border-l-4 border-brand-indigo bg-primary/10 text-brand-indigo hover:bg-primary/10"
+          : "border-l-4 border-transparent border-b border-border/50 hover:bg-muted/70"
       )}
     >
       <UserAvatar
@@ -64,7 +64,7 @@ export function ConversationItem({
           <span
             className={cn(
               "text-[11px] shrink-0 ml-2",
-              isActive ? "text-primary font-medium" : "text-muted-foreground"
+              isActive ? "font-medium text-brand-indigo" : "text-muted-foreground"
             )}
           >
             {time}
@@ -73,14 +73,14 @@ export function ConversationItem({
         <p
           className={cn(
             "text-sm truncate mt-0.5",
-            unreadCount > 0 ? "text-primary font-medium" : "text-muted-foreground"
+            unreadCount > 0 ? "font-medium text-brand-indigo" : "text-muted-foreground"
           )}
         >
           {lastMessage}
         </p>
       </div>
       {unreadCount > 0 && (
-        <span className="size-5 bg-primary rounded-full flex items-center justify-center text-[10px] text-primary-foreground font-bold shrink-0">
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-scarlet text-white text-[10px] font-bold">
           {unreadCount}
         </span>
       )}
