@@ -186,7 +186,7 @@ export function MessageInput({
   }
 
   return (
-    <div className={cn("bg-card", compact ? "p-3" : "p-4", className)}>
+    <div className={cn("border-t border-border/70 bg-card", compact ? "p-3" : "p-4", className)}>
       <input
         ref={fileInputRef}
         type="file"
@@ -237,14 +237,14 @@ export function MessageInput({
           icon={Plus}
           size="sm"
           ariaLabel="Thêm tệp đính kèm"
-          className="size-8 shrink-0 rounded-full text-primary hover:bg-primary/10 hover:text-primary"
+          className="size-8 shrink-0 rounded-full text-brand-indigo hover:bg-primary/10 hover:text-brand-indigo"
           onClick={openFilePicker}
         />
 
         {/* Pill input: textarea + emoji */}
         <div
           className={cn(
-            "flex flex-1 items-end gap-1 rounded-2xl bg-muted px-2.5 py-1 transition-colors",
+            "flex flex-1 items-end gap-1 rounded-[1.25rem] border border-border/70 bg-background px-2.5 py-1 transition-colors",
             "focus-within:bg-muted/70 focus-within:ring-1 focus-within:ring-ring/40"
           )}
         >

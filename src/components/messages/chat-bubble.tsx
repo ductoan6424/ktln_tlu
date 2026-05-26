@@ -65,8 +65,8 @@ export function ChatBubble({
           target="_blank"
           rel="noreferrer"
           className={cn(
-            "overflow-hidden rounded-2xl border border-border/70",
-            isOwn ? "rounded-tr-none" : "rounded-tl-none",
+            "overflow-hidden rounded-[1.125rem] border border-border/70",
+            isOwn ? "rounded-br-sm" : "rounded-bl-sm",
           )}
         >
           <Image
@@ -96,8 +96,8 @@ export function ChatBubble({
           className={cn(
             "px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-all max-w-full",
             isOwn
-              ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-none shadow-md shadow-primary/10"
-              : "bg-muted rounded-2xl rounded-tl-none shadow-sm"
+              ? "rounded-[1.125rem] rounded-br-sm bg-brand-indigo text-white shadow-sm"
+              : "rounded-[1.125rem] rounded-bl-sm border border-border/70 bg-card text-card-foreground shadow-sm"
           )}
         >
           {message}
@@ -142,7 +142,7 @@ export function ChatBubbleSkeleton({ isOwn = false }: { isOwn?: boolean }) {
       <Skeleton
         className={cn(
           "h-12 w-64 rounded-2xl",
-          isOwn ? "rounded-tr-none" : "rounded-tl-none"
+          isOwn ? "rounded-br-sm" : "rounded-bl-sm"
         )}
       />
     </div>
