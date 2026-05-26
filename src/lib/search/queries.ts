@@ -317,6 +317,7 @@ export async function searchAnnouncements(
   if (query.length < 2) return []
 
   const tokens = splitSearchTokens(query)
+  const viewerId = viewerContextOverride?.userId ?? null
   const candidateLimit = Math.max((offset + limit) * 4, limit)
   const rows = await prisma.$queryRaw<RawCandidateRow[]>(Prisma.sql`
     SELECT
@@ -341,6 +342,15 @@ export async function searchAnnouncements(
       AND deleted_at IS NULL
       AND (expires_at IS NULL OR expires_at > NOW())
       AND (
+        published_revision_id IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM announcement_recipients recipient
+          WHERE recipient.announcement_id = announcements.announcement_id
+            AND recipient.user_id = ${viewerId ?? ""}
+        )
+      )
+      AND (
         search_vector @@ plainto_tsquery('simple', ${query})
         OR search_text_normalized LIKE ${toContainsPattern(query)}
         OR (${query.length} >= 4 AND search_text_normalized % ${query})
@@ -356,8 +366,13 @@ export async function searchAnnouncements(
     where: { id: { in: rows.map((row) => row.id) } },
     select: {
       id: true,
+      publishedRevisionId: true,
       audience: true,
       targets: { select: { type: true, value: true } },
+      recipients: {
+        where: { userId: viewerId ?? "" },
+        select: { userId: true },
+      },
     },
   })
   const targetsByAnnouncementId = new Map(targetRows.map((row) => [row.id, row]))
@@ -375,6 +390,12 @@ export async function searchAnnouncements(
     .filter((row) => {
       const targetRow = targetsByAnnouncementId.get(row.id)
       if (!targetRow) return false
+      if (targetRow.publishedRevisionId) {
+        return Boolean(
+          viewerId &&
+            targetRow.recipients.some((recipient) => recipient.userId === viewerId),
+        )
+      }
       return matchesAnnouncementTargets(
         viewerContext,
         targetRow.targets,
