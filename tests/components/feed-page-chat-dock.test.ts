@@ -140,6 +140,16 @@ const FEED_PAGE_SOURCE = readFileSync(
   "utf8",
 )
 
+const POST_COMPOSER_SOURCE = readFileSync(
+  path.join(process.cwd(), "src/components/feed/post-composer.tsx"),
+  "utf8",
+)
+
+const TRENDING_ITEM_SOURCE = readFileSync(
+  path.join(process.cwd(), "src/components/dashboard/trending-item.tsx"),
+  "utf8",
+)
+
 const roots: Root[] = []
 const reactActGlobal = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean
@@ -314,5 +324,11 @@ describe("FeedPageClient chat dock migration", () => {
     )
     expect(FEED_PAGE_SOURCE).toContain("openDirectConversation")
     expect(FEED_PAGE_SOURCE).toContain("const { openConversation } = useChatDock()")
+  })
+
+  it("uses foundation chrome and avoids destructive styling for ordinary trend categories", () => {
+    expect(POST_COMPOSER_SOURCE).toContain("rounded-2xl")
+    expect(TRENDING_ITEM_SOURCE).not.toContain("text-destructive")
+    expect(TRENDING_ITEM_SOURCE).toContain("text-brand-indigo")
   })
 })
