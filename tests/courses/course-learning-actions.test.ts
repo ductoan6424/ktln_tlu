@@ -195,6 +195,19 @@ describe("course learning actions", () => {
     })
   })
 
+  it("rejects empty assignment submissions before creating a row", async () => {
+    const result = await submitAssignment({
+      assignmentId: "assignment-1",
+      content: "   ",
+      attachmentUrls: [],
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("EMPTY_SUBMISSION")
+    expect(prisma.courseAssignment.findUnique).not.toHaveBeenCalled()
+    expect(prisma.assignmentSubmission.upsert).not.toHaveBeenCalled()
+  })
+
   it("rejects submissions after the deadline", async () => {
     prisma.courseAssignment.findUnique.mockResolvedValue({
       id: "assignment-1",
