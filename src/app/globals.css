@@ -133,7 +133,7 @@
   --brand-indigo: #a5b4fc;
   --brand-scarlet: #ff8b7b;
   --official: var(--brand-scarlet);
-  --official-foreground: #260804;
+  --official-foreground: #ffe4df;
   --official-soft: #361a18;
   --success: #75e0a7;
   --success-soft: #122c23;
@@ -190,7 +190,7 @@
     --brand-indigo: #a5b4fc;
     --brand-scarlet: #ff8b7b;
     --official: var(--brand-scarlet);
-    --official-foreground: #260804;
+    --official-foreground: #ffe4df;
     --official-soft: #361a18;
     --success: #75e0a7;
     --success-soft: #122c23;
@@ -303,9 +303,7 @@
   }
 
   .official-marker {
-    @apply border-l-4;
-    border-color: var(--official);
-    background-color: var(--official-soft);
+    background-color: var(--brand-scarlet);
   }
 
   .tlu-geometry {
