@@ -3,10 +3,12 @@ import { cn } from "@/lib/utils"
 
 const VARIANT_CLASSES = {
   primary: "bg-primary/10 text-primary border-primary/20",
-  accent: "bg-destructive/10 text-destructive border-destructive/20",
-  warning: "bg-orange-50 text-orange-600 border-orange-200",
-  success: "bg-green-50 text-green-600 border-green-200",
-  info: "bg-blue-50 text-blue-600 border-blue-200",
+  official: "bg-official-soft text-official border-official/20",
+  accent: "bg-official-soft text-official border-official/20",
+  critical: "bg-destructive/10 text-destructive border-destructive/20",
+  warning: "bg-warning-soft text-warning border-warning/20",
+  success: "bg-success-soft text-success border-success/20",
+  info: "bg-info-soft text-info border-info/20",
   muted: "bg-muted text-muted-foreground border-border",
 } as const
 
@@ -27,7 +29,7 @@ export function StatusBadge({
     <Badge
       variant="outline"
       className={cn(
-        "uppercase tracking-wider font-bold border",
+        "border font-bold uppercase tracking-wider",
         size === "sm" ? "text-[10px] px-2 py-0.5" : "text-xs px-3 py-1",
         VARIANT_CLASSES[variant],
         className
