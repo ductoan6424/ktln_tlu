@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const requireAdminPermission = vi.hoisted(() => vi.fn())
+const requireSystemAdmin = vi.hoisted(() => vi.fn())
 const requireUnitMembership = vi.hoisted(() => vi.fn())
 const validateAnnouncementTargetReferences = vi.hoisted(() => vi.fn())
 const uploadAnnouncementAttachment = vi.hoisted(() => vi.fn())
@@ -25,6 +26,9 @@ const tx = vi.hoisted(() => ({
     createMany: vi.fn(),
   },
   announcementRevision: {
+    create: vi.fn(),
+  },
+  announcementApproval: {
     create: vi.fn(),
   },
   announcementAuditEvent: {
@@ -52,7 +56,10 @@ const prisma = vi.hoisted(() => ({
 const revalidatePath = vi.hoisted(() => vi.fn())
 
 vi.mock("next/cache", () => ({ revalidatePath }))
-vi.mock("@/lib/auth/authorization", () => ({ requireAdminPermission }))
+vi.mock("@/lib/auth/authorization", () => ({
+  requireAdminPermission,
+  requireSystemAdmin,
+}))
 vi.mock("@/lib/announcements/units", () => ({ requireUnitMembership }))
 vi.mock("@/lib/announcements/target-validation", () => ({
   validateAnnouncementTargetReferences,
@@ -67,6 +74,7 @@ vi.mock("@/lib/prisma/client", () => ({ prisma }))
 import {
   createAnnouncement,
   publishAnnouncement,
+  reviewAnnouncement,
   submitAnnouncementForReview,
   updateAnnouncement,
 } from "@/actions/announcements"
@@ -138,6 +146,7 @@ function editableAnnouncement(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks()
   requireAdminPermission.mockResolvedValue({ profile: { userId: "author-1" } })
+  requireSystemAdmin.mockResolvedValue({ profile: { userId: "admin-1" } })
   requireUnitMembership.mockResolvedValue({ unitId: "unit-pdt", role: "AUTHOR" })
   validateAnnouncementTargetReferences.mockResolvedValue(null)
   uploadAnnouncementAttachment.mockResolvedValue({
@@ -390,5 +399,132 @@ describe("publishAnnouncement compatibility guard", () => {
     expect(prisma.announcement.update).not.toHaveBeenCalled()
     expect(tx.announcement.update).not.toHaveBeenCalled()
     expect(fanoutAnnouncementNotification).not.toHaveBeenCalled()
+  })
+})
+
+describe("reviewAnnouncement", () => {
+  function pendingRevision(status: "PENDING_UNIT_REVIEW" | "PENDING_ADMIN_REVIEW") {
+    return {
+      id: "ann-k38",
+      status,
+      deletedAt: null,
+      issuingUnitId: "unit-pdt",
+      activeRevisionId: "rev-k38",
+      issuingUnit: {
+        id: "unit-pdt",
+        type: "DEPARTMENT",
+        facultyId: null as string | null,
+        clubId: null,
+        groupId: null,
+      },
+      activeRevision: {
+        id: "rev-k38",
+        targets: [{ type: "COHORT", value: "38" }],
+        auditEvents: [] as Array<{ metadata: { requiresAdminApproval: boolean } }>,
+        approvals:
+          status === "PENDING_ADMIN_REVIEW"
+            ? [{ stage: "UNIT", decision: "APPROVED" }]
+            : [],
+      },
+    }
+  }
+
+  it("routes a broad unit-approved revision to admin review", async () => {
+    tx.announcement.findUnique.mockResolvedValueOnce(
+      pendingRevision("PENDING_UNIT_REVIEW"),
+    )
+
+    const result = await reviewAnnouncement({
+      announcementId: "ann-k38",
+      decision: "APPROVED",
+    })
+
+    expect(result).toEqual({
+      success: true,
+      data: { id: "ann-k38", status: "PENDING_ADMIN_REVIEW" },
+    })
+    expect(requireAdminPermission).toHaveBeenCalledWith(
+      "admin.announcements.approve.unit",
+    )
+    expect(tx.announcementApproval.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        announcementId: "ann-k38",
+        revisionId: "rev-k38",
+        stage: "UNIT",
+        decision: "APPROVED",
+      }),
+    })
+    expect(tx.announcement.update).toHaveBeenCalledWith({
+      where: { id: "ann-k38" },
+      data: { status: "PENDING_ADMIN_REVIEW" },
+    })
+  })
+
+  it("returns requested changes to the author and records the required reason", async () => {
+    tx.announcement.findUnique.mockResolvedValueOnce(
+      pendingRevision("PENDING_UNIT_REVIEW"),
+    )
+
+    const result = await reviewAnnouncement({
+      announcementId: "ann-k38",
+      decision: "CHANGES_REQUESTED",
+      comment: "Cap nhat han nop ho so",
+    })
+
+    expect(result).toEqual({
+      success: true,
+      data: { id: "ann-k38", status: "CHANGES_REQUESTED" },
+    })
+    expect(tx.announcementApproval.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        decision: "CHANGES_REQUESTED",
+        comment: "Cap nhat han nop ho so",
+      }),
+    })
+    expect(tx.announcement.update).toHaveBeenCalledWith({
+      where: { id: "ann-k38" },
+      data: { status: "CHANGES_REQUESTED" },
+    })
+  })
+
+  it("uses the approval route frozen at submission even if current scope data now appears local", async () => {
+    const submittedBroad = pendingRevision("PENDING_UNIT_REVIEW")
+    submittedBroad.issuingUnit = {
+      id: "unit-pdt",
+      type: "FACULTY",
+      facultyId: "faculty-it",
+      clubId: null,
+      groupId: null,
+    }
+    submittedBroad.activeRevision.targets = [{ type: "FACULTY", value: "faculty-it" }]
+    submittedBroad.activeRevision.auditEvents = [
+      { metadata: { requiresAdminApproval: true } },
+    ]
+    tx.announcement.findUnique.mockResolvedValueOnce(submittedBroad)
+
+    const result = await reviewAnnouncement({
+      announcementId: "ann-k38",
+      decision: "APPROVED",
+    })
+
+    expect(result).toEqual({
+      success: true,
+      data: { id: "ann-k38", status: "PENDING_ADMIN_REVIEW" },
+    })
+  })
+
+  it("does not allow admin approval when unit approval evidence is missing", async () => {
+    const pendingAdmin = pendingRevision("PENDING_ADMIN_REVIEW")
+    pendingAdmin.activeRevision.approvals = []
+    tx.announcement.findUnique.mockResolvedValueOnce(pendingAdmin)
+
+    const result = await reviewAnnouncement({
+      announcementId: "ann-k38",
+      decision: "APPROVED",
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("INVALID_APPROVAL_ROUTE")
+    expect(tx.announcementApproval.create).not.toHaveBeenCalled()
   })
 })
