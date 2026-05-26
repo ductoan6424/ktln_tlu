@@ -3,148 +3,255 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
-import { fanoutAnnouncementNotification } from "@/lib/announcements/fanout"
 import { validateAnnouncementTargetReferences } from "@/lib/announcements/target-validation"
 import {
   deriveLegacyAudienceFromTargets,
   normalizeAnnouncementTargets,
 } from "@/lib/announcements/targeting"
+import {
+  getRequiredApprovalStages,
+  isEditableAnnouncementStatus,
+} from "@/lib/announcements/workflow"
+import { requireUnitMembership } from "@/lib/announcements/units"
 import { requireAdminPermission } from "@/lib/auth/authorization"
+import {
+  UploadValidationError,
+  uploadAnnouncementAttachment,
+  type UploadedCommunityAttachment,
+} from "@/lib/cloudinary/upload"
 import { AppError } from "@/lib/errors"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import { announcementInputSchema } from "@/utils/validators"
 
-type CreateInput = z.infer<typeof announcementInputSchema>
+type DraftInput = z.infer<typeof announcementInputSchema>
 
-function parseTargetsFromFormData(rawValue: FormDataEntryValue | null): CreateInput["targets"] {
+type DraftAttachmentInput = {
+  source: "UPLOAD" | "LINK"
+  url: string
+  name: string
+  type: string | null
+  mimeType: string | null
+  sizeBytes: number | null
+}
+
+function parseArrayFromFormData(rawValue: FormDataEntryValue | null): unknown[] {
   if (typeof rawValue !== "string" || rawValue.trim().length === 0) return []
   try {
-    const parsed = JSON.parse(rawValue) as CreateInput["targets"]
+    const parsed = JSON.parse(rawValue) as unknown
     return Array.isArray(parsed) ? parsed : []
   } catch {
     return []
   }
 }
 
-function normalizeInput(rawInput: unknown): CreateInput | null {
+function extractFiles(values: FormDataEntryValue[]) {
+  return values.filter(
+    (value): value is File => value instanceof File && value.size > 0,
+  )
+}
+
+function normalizeDraftInput(rawInput: unknown) {
   if (rawInput instanceof FormData) {
     return {
-      title: String(rawInput.get("title") ?? "").trim(),
-      content: String(rawInput.get("content") ?? "").trim(),
-      audience: (rawInput.get("audience") as CreateInput["audience"] | null) ?? "ALL",
-      targets: parseTargetsFromFormData(rawInput.get("targets")),
-      pinToTop: rawInput.get("pinToTop") === "true" || rawInput.get("pinToTop") === "on",
-      sendEmail: rawInput.get("sendEmail") === "true" || rawInput.get("sendEmail") === "on",
-      expiresAt: (rawInput.get("expiresAt") as string | null) ?? undefined,
+      input: {
+        id: String(rawInput.get("id") ?? "").trim() || undefined,
+        title: String(rawInput.get("title") ?? "").trim(),
+        content: String(rawInput.get("content") ?? "").trim(),
+        issuingUnitId: String(rawInput.get("issuingUnitId") ?? "").trim(),
+        category: String(rawInput.get("category") ?? "").trim() || undefined,
+        priority: String(rawInput.get("priority") ?? "").trim() || undefined,
+        audience: String(rawInput.get("audience") ?? "").trim() || undefined,
+        targets: parseArrayFromFormData(rawInput.get("targets")),
+        pinToTop: rawInput.get("pinToTop") === "true" || rawInput.get("pinToTop") === "on",
+        sendEmail: rawInput.get("sendEmail") === "true" || rawInput.get("sendEmail") === "on",
+        requiresAcknowledgement:
+          rawInput.get("requiresAcknowledgement") === "true" ||
+          rawInput.get("requiresAcknowledgement") === "on",
+        scheduledAt: String(rawInput.get("scheduledAt") ?? "").trim(),
+        actionDeadlineAt: String(rawInput.get("actionDeadlineAt") ?? "").trim(),
+        expiresAt: String(rawInput.get("expiresAt") ?? "").trim(),
+        links: parseArrayFromFormData(rawInput.get("links")),
+      },
+      attachments: extractFiles(rawInput.getAll("attachments")),
     }
   }
 
   if (rawInput && typeof rawInput === "object") {
-    return rawInput as CreateInput
+    const { attachments, ...input } = rawInput as Record<string, unknown>
+    return {
+      input,
+      attachments: Array.isArray(attachments)
+        ? attachments.filter(
+            (value): value is File => value instanceof File && value.size > 0,
+          )
+        : [],
+    }
   }
 
   return null
 }
 
-function parseExpiresAt(value: string | undefined | null): Date | null {
+function parseOptionalDate(value: string | undefined | null): Date | null {
   if (!value) return null
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return date
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
-function toTargetCreateManyData(targets: CreateInput["targets"]) {
+function toTargetCreateManyData(targets: DraftInput["targets"]) {
   return normalizeAnnouncementTargets(targets).map((target) => ({
     type: target.type,
     value: target.value,
   }))
 }
 
+function buildAnnouncementMutationLockKey(announcementId: string) {
+  return `announcement-draft:${announcementId}`
+}
+
+function buildDraftAttachmentInputs(
+  uploads: UploadedCommunityAttachment[],
+  links: DraftInput["links"],
+): DraftAttachmentInput[] {
+  return [
+    ...uploads.map((attachment) => ({
+      source: "UPLOAD" as const,
+      url: attachment.url,
+      name: attachment.name,
+      type: attachment.type,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+    })),
+    ...links.map((link) => ({
+      source: "LINK" as const,
+      url: link.url,
+      name: link.name,
+      type: "LINK",
+      mimeType: null,
+      sizeBytes: null,
+    })),
+  ]
+}
+
+async function uploadDraftFiles(files: File[]) {
+  const uploaded: UploadedCommunityAttachment[] = []
+  for (const file of files) {
+    uploaded.push(await uploadAnnouncementAttachment(file))
+  }
+  return uploaded
+}
+
+function revalidateAnnouncementSurfaces() {
+  revalidatePath("/admin/announcements")
+  revalidatePath("/feed")
+}
+
+function actionFailure<T>(error: unknown, fallback: string): ActionResult<T> {
+  if (error instanceof z.ZodError) {
+    return errorResult(
+      error.issues[0]?.message ?? "Du lieu thong bao khong hop le",
+      "VALIDATION_ERROR",
+    )
+  }
+  if (error instanceof UploadValidationError) {
+    return errorResult(error.message, "UPLOAD_VALIDATION_ERROR")
+  }
+  if (error instanceof AppError) {
+    return errorResult(error.message, error.code)
+  }
+  console.error(fallback, error)
+  return errorResult(fallback, "UPDATE_FAILED")
+}
+
 export async function createAnnouncement(
   rawInput: unknown,
-  options: { publish?: boolean } = {},
+  _legacyOptions?: unknown,
 ): Promise<ActionResult<{ id: string; status: string }>> {
   try {
-    const actor = await requireAdminPermission("admin.announcements.manage")
-    const normalized = normalizeInput(rawInput)
+    const actor = await requireAdminPermission("admin.announcements.compose")
+    const normalized = normalizeDraftInput(rawInput)
     if (!normalized) {
-      return errorResult("Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+      return errorResult("Du lieu thong bao khong hop le", "VALIDATION_ERROR")
     }
 
-    const validated = announcementInputSchema.safeParse(normalized)
+    const validated = announcementInputSchema.safeParse(normalized.input)
     if (!validated.success) {
       return errorResult(
-        validated.error.issues[0]?.message ?? "Dữ liệu không hợp lệ",
+        validated.error.issues[0]?.message ?? "Du lieu thong bao khong hop le",
         "VALIDATION_ERROR",
       )
     }
 
-    const publish = Boolean(options.publish)
-    const now = new Date()
+    await requireUnitMembership(
+      actor.profile.userId,
+      validated.data.issuingUnitId,
+      "AUTHOR",
+    )
+
     const targets = toTargetCreateManyData(validated.data.targets)
     const targetValidationError = await validateAnnouncementTargetReferences(targets)
     if (targetValidationError) {
       return errorResult(targetValidationError, "VALIDATION_ERROR")
     }
 
+    const uploaded = await uploadDraftFiles(normalized.attachments)
+    const attachments = buildDraftAttachmentInputs(uploaded, validated.data.links)
     const fallbackAudience =
       targets.length > 0
         ? deriveLegacyAudienceFromTargets(targets)
         : validated.data.audience
 
-    const created = await prisma.announcement.create({
-      data: {
-        title: validated.data.title,
-        content: validated.data.content,
-        audience: fallbackAudience,
-        pinToTop: validated.data.pinToTop,
-        sentEmail: false,
-        expiresAt: parseExpiresAt(validated.data.expiresAt),
-        status: publish ? "PUBLISHED" : "DRAFT",
-        publishedAt: publish ? now : null,
-        authorId: actor.profile.userId,
-        targets:
-          targets.length > 0
-            ? { createMany: { data: targets, skipDuplicates: true } }
-            : undefined,
-      },
-      select: { id: true, status: true },
-    })
-
-    if (publish) {
-      const fanoutResult = await fanoutAnnouncementNotification({
-        announcementId: created.id,
-        title: validated.data.title,
-        content: validated.data.content,
-        sendEmail: validated.data.sendEmail,
-      }).catch((error) => {
-        console.error("Fan-out announcement notifications failed:", error)
-        return { recipients: 0, emailsSent: 0 }
+    const created = await prisma.$transaction(async (tx) => {
+      const draft = await tx.announcement.create({
+        data: {
+          title: validated.data.title,
+          content: validated.data.content,
+          issuingUnitId: validated.data.issuingUnitId,
+          category: validated.data.category,
+          priority: validated.data.priority,
+          audience: fallbackAudience,
+          pinToTop: validated.data.pinToTop,
+          sentEmail: false,
+          requestEmailDelivery: validated.data.sendEmail,
+          requiresAcknowledgement: validated.data.requiresAcknowledgement,
+          scheduledAt: parseOptionalDate(validated.data.scheduledAt),
+          actionDeadlineAt: parseOptionalDate(validated.data.actionDeadlineAt),
+          expiresAt: parseOptionalDate(validated.data.expiresAt),
+          status: "DRAFT",
+          publishedAt: null,
+          authorId: actor.profile.userId,
+          targets:
+            targets.length > 0
+              ? { createMany: { data: targets, skipDuplicates: true } }
+              : undefined,
+        },
+        select: { id: true, status: true },
       })
 
-      if (fanoutResult.emailsSent > 0) {
-        await prisma.announcement.update({
-          where: { id: created.id },
-          data: { sentEmail: true },
+      if (attachments.length > 0) {
+        await tx.announcementAttachment.createMany({
+          data: attachments.map((attachment) => ({
+            announcementId: draft.id,
+            revisionId: null,
+            ...attachment,
+          })),
         })
       }
-    }
+      await tx.announcementAuditEvent.create({
+        data: {
+          announcementId: draft.id,
+          actorId: actor.profile.userId,
+          action: "DRAFT_CREATED",
+        },
+      })
+      return draft
+    })
 
-    revalidatePath("/admin/announcements")
-    revalidatePath("/feed")
-
+    revalidateAnnouncementSurfaces()
     return successResult({ id: created.id, status: created.status })
   } catch (error) {
-    if (error instanceof AppError) {
-      return errorResult(error.message, error.code)
-    }
-    if (error instanceof z.ZodError) {
-      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
-    }
-    console.error("createAnnouncement error:", error)
-    return errorResult("Không thể tạo thông báo. Vui lòng thử lại.")
+    return actionFailure(error, "Khong the tao thong bao")
   }
 }
 
@@ -156,18 +263,18 @@ export async function updateAnnouncement(
   rawInput: unknown,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    await requireAdminPermission("admin.announcements.manage")
-    const parsed = updateSchema.safeParse(rawInput)
-    if (!parsed.success) {
-      return errorResult(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    const actor = await requireAdminPermission("admin.announcements.compose")
+    const normalized = normalizeDraftInput(rawInput)
+    if (!normalized) {
+      return errorResult("Du lieu thong bao khong hop le", "VALIDATION_ERROR")
     }
 
-    const existing = await prisma.announcement.findUnique({
-      where: { id: parsed.data.id },
-      select: { id: true, deletedAt: true },
-    })
-    if (!existing || existing.deletedAt) {
-      return errorResult("Thông báo không tồn tại.", "NOT_FOUND")
+    const parsed = updateSchema.safeParse(normalized.input)
+    if (!parsed.success) {
+      return errorResult(
+        parsed.error.issues[0]?.message ?? "Du lieu thong bao khong hop le",
+        "VALIDATION_ERROR",
+      )
     }
 
     const targets = toTargetCreateManyData(parsed.data.targets)
@@ -176,102 +283,284 @@ export async function updateAnnouncement(
       return errorResult(targetValidationError, "VALIDATION_ERROR")
     }
 
+    const uploaded = await uploadDraftFiles(normalized.attachments)
+    const attachments = buildDraftAttachmentInputs(uploaded, parsed.data.links)
     const fallbackAudience =
       targets.length > 0
         ? deriveLegacyAudienceFromTargets(targets)
         : parsed.data.audience
 
-    await prisma.$transaction([
-      prisma.announcement.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${buildAnnouncementMutationLockKey(parsed.data.id)}))`
+      const existing = await tx.announcement.findUnique({
+        where: { id: parsed.data.id },
+        select: { id: true, deletedAt: true, status: true, issuingUnitId: true },
+      })
+      if (!existing || existing.deletedAt) {
+        throw new AppError("Thong bao khong ton tai.", "NOT_FOUND", 404)
+      }
+      if (!isEditableAnnouncementStatus(existing.status)) {
+        throw new AppError(
+          "Thong bao da gui duyet hoac phat hanh khong the sua truc tiep.",
+          "INVALID_STATUS",
+          409,
+        )
+      }
+
+      const authorizedUnitIds = Array.from(
+        new Set(
+          [existing.issuingUnitId, parsed.data.issuingUnitId].filter(
+            (unitId): unitId is string => Boolean(unitId),
+          ),
+        ),
+      )
+      for (const unitId of authorizedUnitIds) {
+        const membership = await tx.announcementUnitMember.findFirst({
+          where: {
+            userId: actor.profile.userId,
+            unitId,
+            role: "AUTHOR",
+            isActive: true,
+            unit: { isActive: true },
+          },
+          select: { unitId: true },
+        })
+        if (!membership) {
+          throw new AppError(
+            "Ban khong co tham quyen voi don vi ban hanh nay",
+            "FORBIDDEN",
+            403,
+          )
+        }
+      }
+
+      await tx.announcement.update({
         where: { id: parsed.data.id },
         data: {
           title: parsed.data.title,
           content: parsed.data.content,
+          issuingUnitId: parsed.data.issuingUnitId,
+          category: parsed.data.category,
+          priority: parsed.data.priority,
           audience: fallbackAudience,
           pinToTop: parsed.data.pinToTop,
-          expiresAt: parseExpiresAt(parsed.data.expiresAt),
+          requestEmailDelivery: parsed.data.sendEmail,
+          requiresAcknowledgement: parsed.data.requiresAcknowledgement,
+          scheduledAt: parseOptionalDate(parsed.data.scheduledAt),
+          actionDeadlineAt: parseOptionalDate(parsed.data.actionDeadlineAt),
+          expiresAt: parseOptionalDate(parsed.data.expiresAt),
         },
-      }),
-      prisma.announcementTarget.deleteMany({
+      })
+      await tx.announcementTarget.deleteMany({
         where: { announcementId: parsed.data.id },
-      }),
-      ...(targets.length > 0
-        ? [
-            prisma.announcementTarget.createMany({
-              data: targets.map((target) => ({
-                announcementId: parsed.data.id,
+      })
+      if (targets.length > 0) {
+        await tx.announcementTarget.createMany({
+          data: targets.map((target) => ({
+            announcementId: parsed.data.id,
+            type: target.type,
+            value: target.value,
+          })),
+          skipDuplicates: true,
+        })
+      }
+      await tx.announcementAttachment.deleteMany({
+        where: { announcementId: parsed.data.id, revisionId: null },
+      })
+      if (attachments.length > 0) {
+        await tx.announcementAttachment.createMany({
+          data: attachments.map((attachment) => ({
+            announcementId: parsed.data.id,
+            revisionId: null,
+            ...attachment,
+          })),
+        })
+      }
+      await tx.announcementAuditEvent.create({
+        data: {
+          announcementId: parsed.data.id,
+          actorId: actor.profile.userId,
+          action: "DRAFT_UPDATED",
+        },
+      })
+    })
+
+    revalidateAnnouncementSurfaces()
+    return successResult({ id: parsed.data.id })
+  } catch (error) {
+    return actionFailure(error, "Khong the cap nhat thong bao")
+  }
+}
+
+export async function submitAnnouncementForReview(
+  announcementId: string,
+): Promise<ActionResult<{ id: string; status: string }>> {
+  try {
+    const id = z.string().trim().min(1).parse(announcementId)
+    const actor = await requireAdminPermission("admin.announcements.compose")
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${buildAnnouncementMutationLockKey(id)}))`
+      const existing = await tx.announcement.findUnique({
+        where: { id },
+        include: {
+          issuingUnit: {
+            select: {
+              id: true,
+              type: true,
+              facultyId: true,
+              clubId: true,
+              groupId: true,
+            },
+          },
+          targets: { select: { type: true, value: true } },
+          attachments: {
+            where: { revisionId: null },
+            select: {
+              source: true,
+              url: true,
+              name: true,
+              type: true,
+              mimeType: true,
+              sizeBytes: true,
+            },
+          },
+          revisions: {
+            select: { version: true },
+            orderBy: { version: "desc" },
+            take: 1,
+          },
+        },
+      })
+      if (!existing || existing.deletedAt || !existing.issuingUnit) {
+        throw new AppError("Thong bao khong ton tai.", "NOT_FOUND", 404)
+      }
+      if (!isEditableAnnouncementStatus(existing.status)) {
+        throw new AppError(
+          "Chi ban nhap hoac ban bi tra lai moi co the gui duyet.",
+          "INVALID_STATUS",
+          409,
+        )
+      }
+
+      const membership = await tx.announcementUnitMember.findFirst({
+        where: {
+          userId: actor.profile.userId,
+          unitId: existing.issuingUnit.id,
+          role: "AUTHOR",
+          isActive: true,
+          unit: { isActive: true },
+        },
+        select: { unitId: true },
+      })
+      if (!membership) {
+        throw new AppError(
+          "Ban khong co tham quyen voi don vi ban hanh nay",
+          "FORBIDDEN",
+          403,
+        )
+      }
+
+      const courseTargetIds = existing.targets
+        .filter((target) => target.type === "COURSE")
+        .map((target) => target.value)
+      const courses =
+        courseTargetIds.length > 0
+          ? await tx.course.findMany({
+              where: { id: { in: courseTargetIds }, deletedAt: null },
+              select: {
+                id: true,
+                lecturer: { select: { facultyId: true } },
+              },
+            })
+          : []
+      const courseFaculties = new Map(
+        courses.map((course) => [course.id, course.lecturer.facultyId ?? ""]),
+      )
+      const courseFacultyIds = courseTargetIds.map(
+        (courseId) => courseFaculties.get(courseId) ?? "",
+      )
+      const stages = getRequiredApprovalStages({
+        unit: existing.issuingUnit,
+        targets: existing.targets,
+        courseFacultyIds,
+      })
+      const revision = await tx.announcementRevision.create({
+        data: {
+          announcementId: existing.id,
+          version: (existing.revisions[0]?.version ?? 0) + 1,
+          authorId: actor.profile.userId,
+          issuingUnitId: existing.issuingUnit.id,
+          title: existing.title,
+          content: existing.content,
+          audience: existing.audience,
+          category: existing.category,
+          priority: existing.priority,
+          pinToTop: existing.pinToTop,
+          requestEmailDelivery: existing.requestEmailDelivery,
+          requiresAcknowledgement: existing.requiresAcknowledgement,
+          scheduledAt: existing.scheduledAt,
+          actionDeadlineAt: existing.actionDeadlineAt,
+          expiresAt: existing.expiresAt,
+          submittedAt: new Date(),
+          targets: {
+            createMany: {
+              data: existing.targets.map((target) => ({
                 type: target.type,
                 value: target.value,
               })),
-              skipDuplicates: true,
-            }),
-          ]
-        : []),
-    ])
+            },
+          },
+        },
+        select: { id: true },
+      })
+      if (existing.attachments.length > 0) {
+        await tx.announcementAttachment.createMany({
+          data: existing.attachments.map((attachment) => ({
+            announcementId: existing.id,
+            revisionId: revision.id,
+            ...attachment,
+          })),
+        })
+      }
+      await tx.announcement.update({
+        where: { id: existing.id },
+        data: {
+          activeRevisionId: revision.id,
+          status: "PENDING_UNIT_REVIEW",
+        },
+      })
+      await tx.announcementAuditEvent.create({
+        data: {
+          announcementId: existing.id,
+          revisionId: revision.id,
+          actorId: actor.profile.userId,
+          action: "SUBMITTED_FOR_UNIT_REVIEW",
+          metadata: { requiresAdminApproval: stages.includes("ADMIN") },
+        },
+      })
+    })
 
-    revalidatePath("/admin/announcements")
-    revalidatePath("/feed")
-
-    return successResult({ id: parsed.data.id })
+    revalidateAnnouncementSurfaces()
+    return successResult({ id, status: "PENDING_UNIT_REVIEW" })
   } catch (error) {
-    if (error instanceof AppError) return errorResult(error.message, error.code)
-    console.error("updateAnnouncement error:", error)
-    return errorResult("Không thể cập nhật thông báo.")
+    return actionFailure(error, "Khong the gui thong bao de duyet")
   }
 }
 
 export async function publishAnnouncement(
   announcementId: string,
-  options: { sendEmail?: boolean } = {},
+  _options: { sendEmail?: boolean } = {},
 ): Promise<ActionResult<{ id: string; recipients: number }>> {
   try {
-    await requireAdminPermission("admin.announcements.manage")
-    const existing = await prisma.announcement.findUnique({
-      where: { id: announcementId },
-      select: {
-        id: true,
-        title: true,
-        content: true,
-        audience: true,
-        status: true,
-        deletedAt: true,
-      },
-    })
-    if (!existing || existing.deletedAt) {
-      return errorResult("Thông báo không tồn tại.", "NOT_FOUND")
-    }
-    if (existing.status === "PUBLISHED") {
-      return errorResult("Thông báo đã được đăng.", "ALREADY_PUBLISHED")
-    }
-
-    const now = new Date()
-    await prisma.announcement.update({
-      where: { id: announcementId },
-      data: { status: "PUBLISHED", publishedAt: now },
-    })
-
-    const { recipients, emailsSent } = await fanoutAnnouncementNotification({
-      announcementId,
-      title: existing.title,
-      content: existing.content,
-      sendEmail: options.sendEmail ?? false,
-    })
-
-    if (emailsSent > 0) {
-      await prisma.announcement.update({
-        where: { id: announcementId },
-        data: { sentEmail: true },
-      })
-    }
-
-    revalidatePath("/admin/announcements")
-    revalidatePath("/feed")
-
-    return successResult({ id: announcementId, recipients })
+    z.string().trim().min(1).parse(announcementId)
+    await requireAdminPermission("admin.announcements.compose")
+    return errorResult(
+      "Thong bao chinh thuc phai hoan tat quy trinh duyet truoc khi phat hanh.",
+      "WORKFLOW_REQUIRED",
+    )
   } catch (error) {
-    if (error instanceof AppError) return errorResult(error.message, error.code)
-    console.error("publishAnnouncement error:", error)
-    return errorResult("Không thể đăng thông báo.")
+    return actionFailure(error, "Khong the phat hanh thong bao")
   }
 }
 
