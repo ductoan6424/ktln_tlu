@@ -15,6 +15,7 @@ const createCourseSchema = z.object({
   name: z.string().min(2, "Tên lớp học phải có ít nhất 2 ký tự"),
   code: z.string().min(2, "Mã môn học là bắt buộc"),
   description: z.string().optional(),
+  lecturerId: z.string().optional(),
 })
 
 const addStudentSchema = z.object({
@@ -70,6 +71,28 @@ export async function createCourse(rawInput: unknown): Promise<ActionResult<{ co
   try {
     const context = await requireCourseCreator()
     const input = createCourseSchema.parse(normalizeFormInput(rawInput))
+    let lecturerId = context.profile.userId
+
+    if (context.baseRole === "ADMIN") {
+      if (!input.lecturerId) {
+        return errorResult("Vui long chon giang vien phu trach lop", "VALIDATION_ERROR")
+      }
+
+      const lecturer = await prisma.userProfile.findUnique({
+        where: { userId: input.lecturerId },
+        select: {
+          userId: true,
+          role: true,
+          deletedAt: true,
+        },
+      })
+
+      if (!lecturer || lecturer.deletedAt || lecturer.role !== "LECTURER") {
+        return errorResult("Giang vien phu trach khong hop le", "VALIDATION_ERROR")
+      }
+
+      lecturerId = lecturer.userId
+    }
 
     const course = await prisma.course.create({
       data: {
@@ -78,7 +101,7 @@ export async function createCourse(rawInput: unknown): Promise<ActionResult<{ co
         slug: slugifyCourseCode(input.code),
         description: input.description?.trim() || null,
         coverUrl: null,
-        lecturerId: context.profile.userId,
+        lecturerId,
       },
     })
 
