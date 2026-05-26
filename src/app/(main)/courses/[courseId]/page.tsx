@@ -165,7 +165,9 @@ export default async function CourseDetailPage({
         assignments: (
           <CourseAssignmentsPanel
             courseId={course.id}
+            courseHref={href}
             canManage={permissions.canManage}
+            memberCount={course.members.length}
             assignments={assignments}
           />
         ),
