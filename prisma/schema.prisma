@@ -215,6 +215,24 @@ enum AnnouncementAttachmentSource {
   LINK
 }
 
+enum CourseAnnouncementType {
+  GENERAL
+  CLASS_CANCELLED
+  SCHEDULE_CHANGE
+  ASSIGNMENT_REMINDER
+}
+
+enum CourseAnnouncementPriority {
+  NORMAL
+  IMPORTANT
+}
+
+enum CourseAssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
 enum EventType {
   ACADEMIC
   CLUB
@@ -348,6 +366,10 @@ model UserProfile {
   reviewedCommunityRequests  CommunityJoinRequest[]   @relation("CommunityJoinReviewer")
   sentCommunityInvites       CommunityInvite[]        @relation("CommunityInviteSender")
   receivedCommunityInvites   CommunityInvite[]        @relation("CommunityInviteRecipient")
+  authoredCourseAnnouncements CourseAnnouncement[]    @relation("CourseAnnouncementAuthor")
+  authoredAssignments         CourseAssignment[]       @relation("CourseAssignmentAuthor")
+  assignmentSubmissions       AssignmentSubmission[]   @relation("AssignmentSubmissionStudent")
+  gradedAssignmentSubmissions AssignmentSubmission[]   @relation("AssignmentSubmissionGrader")
   pinnedCommunityPosts       PinnedPost[]             @relation("PinnedPostActor")
   communityReports           CommunityReport[]        @relation("CommunityReportReporter")
   resolvedCommunityReports   CommunityReport[]        @relation("CommunityReportResolver")
@@ -620,6 +642,8 @@ model Course {
   lecturer    UserProfile    @relation("CourseLecturer", fields: [lecturerId], references: [userId], onDelete: Restrict)
   members     CourseMember[]
   coursePosts Post[]         @relation("CoursePosts")
+  announcements CourseAnnouncement[]
+  assignments   CourseAssignment[]
 
   @@index([lecturerId])
   @@index([createdAt(sort: Desc)])
@@ -637,6 +661,76 @@ model CourseMember {
   @@id([userId, courseId])
   @@index([courseId])
   @@map("course_members")
+}
+
+model CourseAnnouncement {
+  id          String                     @id @default(cuid()) @map("announcement_id")
+  courseId    String                     @map("course_id")
+  authorId    String                     @map("author_id")
+  title       String                     @map("title")
+  content     String                     @map("content")
+  type        CourseAnnouncementType     @default(GENERAL) @map("type")
+  priority    CourseAnnouncementPriority @default(NORMAL) @map("priority")
+  isPinned    Boolean                    @default(false) @map("is_pinned")
+  publishedAt DateTime?                  @map("published_at")
+  createdAt   DateTime                   @default(now()) @map("created_at")
+  updatedAt   DateTime                   @updatedAt @map("updated_at")
+  deletedAt   DateTime?                  @map("deleted_at")
+
+  course Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author UserProfile @relation("CourseAnnouncementAuthor", fields: [authorId], references: [userId], onDelete: Cascade)
+
+  @@index([courseId, publishedAt(sort: Desc)])
+  @@index([courseId, isPinned])
+  @@index([authorId])
+  @@map("course_announcements")
+}
+
+model CourseAssignment {
+  id             String                 @id @default(cuid()) @map("assignment_id")
+  courseId       String                 @map("course_id")
+  createdBy      String                 @map("created_by")
+  title          String                 @map("title")
+  description    String                 @map("description")
+  dueAt          DateTime               @map("due_at")
+  status         CourseAssignmentStatus @default(DRAFT) @map("status")
+  attachmentUrls Json?                  @map("attachment_urls")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  deletedAt      DateTime?              @map("deleted_at")
+
+  course      Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author      UserProfile            @relation("CourseAssignmentAuthor", fields: [createdBy], references: [userId], onDelete: Cascade)
+  submissions AssignmentSubmission[]
+
+  @@index([courseId, status])
+  @@index([courseId, dueAt])
+  @@index([createdBy])
+  @@map("course_assignments")
+}
+
+model AssignmentSubmission {
+  id             String    @id @default(cuid()) @map("submission_id")
+  assignmentId   String    @map("assignment_id")
+  studentId      String    @map("student_id")
+  content        String?   @map("content")
+  attachmentUrls Json?     @map("attachment_urls")
+  submittedAt    DateTime  @default(now()) @map("submitted_at")
+  score          Decimal?  @db.Decimal(4, 2) @map("score")
+  feedback       String?   @map("feedback")
+  gradedAt       DateTime? @map("graded_at")
+  gradedBy       String?   @map("graded_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  assignment CourseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    UserProfile      @relation("AssignmentSubmissionStudent", fields: [studentId], references: [userId], onDelete: Cascade)
+  grader     UserProfile?     @relation("AssignmentSubmissionGrader", fields: [gradedBy], references: [userId], onDelete: SetNull)
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([gradedBy])
+  @@map("assignment_submissions")
 }
 
 model Post {

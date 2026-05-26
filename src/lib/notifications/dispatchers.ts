@@ -13,6 +13,9 @@ import type {
   NotifyCommunityPostReviewedPayload,
   NotifyCommunityRoleChangedPayload,
   NotifyCourseStudentAddedPayload,
+  NotifyCourseAnnouncementPublishedPayload,
+  NotifyCourseAssignmentPublishedPayload,
+  NotifyAssignmentSubmissionGradedPayload,
   NotifyFollowPayload,
   NotifyFriendshipPayload,
   NotifyLikePayload,
@@ -513,6 +516,108 @@ export async function notifyCourseStudentAdded(
         targetId: payload.targetId,
         targetName: payload.targetName,
         link: payload.link,
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCourseAnnouncementPublished(
+  payload: NotifyCourseAnnouncementPublishedPayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: "ANNOUNCEMENT",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: "COURSE_ANNOUNCEMENT_PUBLISHED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        contentId: payload.announcementId,
+        recipientId: payload.recipientId,
+      }),
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: "COURSE_ANNOUNCEMENT_PUBLISHED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: {
+          announcementId: payload.announcementId,
+          announcementTitle: payload.announcementTitle,
+        },
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyCourseAssignmentPublished(
+  payload: NotifyCourseAssignmentPublishedPayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: "CLUB",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: "COURSE_ASSIGNMENT_PUBLISHED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        contentId: payload.assignmentId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: `Bài tập mới: ${payload.assignmentTitle}`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: "COURSE_ASSIGNMENT_PUBLISHED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: {
+          assignmentId: payload.assignmentId,
+          assignmentTitle: payload.assignmentTitle,
+        },
+      }),
+    },
+    client,
+  )
+}
+
+export async function notifyAssignmentSubmissionGraded(
+  payload: NotifyAssignmentSubmissionGradedPayload,
+  client?: PrismaTx,
+) {
+  await createNotification(
+    {
+      type: "CLUB",
+      recipientId: payload.recipientId,
+      actor: payload.actor,
+      groupKey: buildCommunityGroupKey({
+        event: "ASSIGNMENT_SUBMISSION_GRADED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        contentId: payload.submissionId,
+        recipientId: payload.recipientId,
+      }),
+      postExcerpt: `Bài tập đã được chấm: ${payload.assignmentTitle}`,
+      linkOverride: payload.link,
+      extraMetadata: communityMetadata({
+        event: "ASSIGNMENT_SUBMISSION_GRADED",
+        targetType: payload.targetType,
+        targetId: payload.targetId,
+        targetName: payload.targetName,
+        link: payload.link,
+        extra: {
+          assignmentId: payload.assignmentId,
+          assignmentTitle: payload.assignmentTitle,
+          submissionId: payload.submissionId,
+        },
       }),
     },
     client,
