@@ -310,6 +310,47 @@ describe("updateAnnouncement", () => {
     })
   })
 
+  it("retains selected uploaded draft attachments while the author edits content", async () => {
+    tx.announcement.findUnique.mockResolvedValueOnce(
+      editableAnnouncement({
+        attachments: [
+          {
+            id: "upload-1",
+            source: "UPLOAD",
+            url: "https://cdn.example.com/ke-hoach.pdf",
+            name: "ke-hoach.pdf",
+            type: "FILE",
+            mimeType: "application/pdf",
+            sizeBytes: 1200,
+          },
+        ],
+      }),
+    )
+
+    const result = await updateAnnouncement({
+      ...validDraftInput,
+      id: "ann-1",
+      links: [],
+      retainedAttachmentIds: ["upload-1"],
+    })
+
+    expect(result.success).toBe(true)
+    expect(tx.announcementAttachment.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          announcementId: "ann-1",
+          revisionId: null,
+          source: "UPLOAD",
+          url: "https://cdn.example.com/ke-hoach.pdf",
+          name: "ke-hoach.pdf",
+          type: "FILE",
+          mimeType: "application/pdf",
+          sizeBytes: 1200,
+        },
+      ],
+    })
+  })
+
   it("does not alter a notice that is already pending review", async () => {
     tx.announcement.findUnique.mockResolvedValueOnce(
       editableAnnouncement({ status: "PENDING_UNIT_REVIEW" }),
