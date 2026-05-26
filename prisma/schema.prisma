@@ -158,8 +158,61 @@ enum AnnouncementTargetType {
 
 enum AnnouncementStatus {
   DRAFT
+  PENDING_UNIT_REVIEW
+  PENDING_ADMIN_REVIEW
+  CHANGES_REQUESTED
+  REJECTED
+  APPROVED
+  SCHEDULED
   PUBLISHED
+  EXPIRED
+  WITHDRAWN
+  SUPERSEDED
   ARCHIVED
+}
+
+enum OrganizationUnitType {
+  DEPARTMENT
+  FACULTY
+  ORGANIZATION
+}
+
+enum AnnouncementUnitMemberRole {
+  AUTHOR
+  APPROVER
+}
+
+enum AnnouncementCategory {
+  ACADEMIC
+  TUITION
+  EXAMINATION
+  STUDENT_AFFAIRS
+  EVENT
+  SYSTEM
+  EMERGENCY
+  OTHER
+}
+
+enum AnnouncementPriority {
+  NORMAL
+  IMPORTANT
+  URGENT
+}
+
+enum AnnouncementApprovalStage {
+  UNIT
+  ADMIN
+}
+
+enum AnnouncementApprovalDecision {
+  APPROVED
+  CHANGES_REQUESTED
+  REJECTED
+}
+
+enum AnnouncementAttachmentSource {
+  UPLOAD
+  LINK
 }
 
 enum EventType {
@@ -249,15 +302,15 @@ model UserProfile {
   userAdminRoles       UserAdminRole[]
   grantedAdminRoles    UserAdminRole[] @relation("AdminRoleGrantor")
 
-  hiddenPosts                 HiddenPost[]
-  savedPosts                  SavedPost[]
-  savedAnnouncements          SavedAnnouncement[]
-  deletedPosts                Post[]                  @relation("PostDeletedBy")
-  reviewedCommunityPosts      Post[]                  @relation("PostCommunityReviewer")
-  moderationActions           PostModerationLog[]     @relation("ModerationActor")
-  accountModerations          UserAccountModeration[] @relation("AccountModerationTarget")
-  createdAccountModerations   UserAccountModeration[] @relation("AccountModerationCreator")
-  releasedAccountModerations  UserAccountModeration[] @relation("AccountModerationReleaser")
+  hiddenPosts                HiddenPost[]
+  savedPosts                 SavedPost[]
+  savedAnnouncements         SavedAnnouncement[]
+  deletedPosts               Post[]                  @relation("PostDeletedBy")
+  reviewedCommunityPosts     Post[]                  @relation("PostCommunityReviewer")
+  moderationActions          PostModerationLog[]     @relation("ModerationActor")
+  accountModerations         UserAccountModeration[] @relation("AccountModerationTarget")
+  createdAccountModerations  UserAccountModeration[] @relation("AccountModerationCreator")
+  releasedAccountModerations UserAccountModeration[] @relation("AccountModerationReleaser")
 
   initiatedFriendships Friendship[] @relation("FriendshipRequester")
   receivedFriendships  Friendship[] @relation("FriendshipAddressee")
@@ -270,18 +323,23 @@ model UserProfile {
   directConversationAsUserA  DirectConversation[]      @relation("DirectConversationUserA")
   directConversationAsUserB  DirectConversation[]      @relation("DirectConversationUserB")
 
-  emailVerifications EmailVerification[]
-  passwordResets     PasswordReset[]
-  schoolIdentity      SchoolIdentity?
-  faculty             Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
-  contactEmail        UserContactEmail?
+  emailVerifications        EmailVerification[]
+  passwordResets            PasswordReset[]
+  schoolIdentity            SchoolIdentity?
+  faculty                   Faculty?                       @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  contactEmail              UserContactEmail?
   contactEmailVerifications UserContactEmailVerification[]
-  schoolIdentityImports SchoolIdentityImportBatch[] @relation("SchoolIdentityImportActor")
+  schoolIdentityImports     SchoolIdentityImportBatch[]    @relation("SchoolIdentityImportActor")
 
-  authoredAnnouncements Announcement[]  @relation("AnnouncementAuthor")
-  systemSettingUpdates  SystemSetting[] @relation("SystemSettingUpdater")
-  createdEvents         Event[]         @relation("EventCreator")
-  eventRegistrations    EventRegistration[]
+  authoredAnnouncements         Announcement[]           @relation("AnnouncementAuthor")
+  announcementUnitMemberships   AnnouncementUnitMember[]
+  authoredAnnouncementRevisions AnnouncementRevision[]   @relation("AnnouncementRevisionAuthor")
+  reviewedAnnouncementApprovals AnnouncementApproval[]   @relation("AnnouncementApprovalReviewer")
+  announcementRecipients        AnnouncementRecipient[]
+  announcementAuditEvents       AnnouncementAuditEvent[] @relation("AnnouncementAuditActor")
+  systemSettingUpdates          SystemSetting[]          @relation("SystemSettingUpdater")
+  createdEvents                 Event[]                  @relation("EventCreator")
+  eventRegistrations            EventRegistration[]
 
   pushSubscriptions PushSubscription[]
   settings          UserSettings?
@@ -323,7 +381,8 @@ model Faculty {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users UserProfile[]
+  users             UserProfile[]
+  organizationUnits OrganizationUnit[]
 
   @@map("faculties")
 }
@@ -476,8 +535,9 @@ model Club {
   updatedAt            DateTime            @updatedAt @map("updated_at")
   deletedAt            DateTime?           @map("deleted_at")
 
-  members ClubMember[]
-  posts   Post[]
+  members           ClubMember[]
+  posts             Post[]
+  organizationUnits OrganizationUnit[]
 
   @@index([visibility])
   @@index([communityVisibility])
@@ -502,9 +562,10 @@ model Group {
   updatedAt            DateTime            @updatedAt @map("updated_at")
   deletedAt            DateTime?           @map("deleted_at")
 
-  members       GroupMember[]
-  posts         Post[]
-  conversations Conversation[]
+  members           GroupMember[]
+  posts             Post[]
+  conversations     Conversation[]
+  organizationUnits OrganizationUnit[]
 
   @@index([visibility])
   @@index([communityVisibility])
@@ -1165,30 +1226,96 @@ model PostAttachment {
   @@map("post_attachments")
 }
 
+model OrganizationUnit {
+  id        String               @id @default(cuid()) @map("organization_unit_id")
+  code      String               @unique @map("code")
+  name      String               @map("name")
+  type      OrganizationUnitType @map("type")
+  facultyId String?              @map("faculty_id")
+  clubId    String?              @map("club_id")
+  groupId   String?              @map("group_id")
+  isActive  Boolean              @default(true) @map("is_active")
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+
+  faculty       Faculty?                 @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  club          Club?                    @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  group         Group?                   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  members       AnnouncementUnitMember[]
+  announcements Announcement[]
+  revisions     AnnouncementRevision[]
+
+  @@index([type, isActive])
+  @@index([facultyId])
+  @@index([clubId])
+  @@index([groupId])
+  @@map("organization_units")
+}
+
+model AnnouncementUnitMember {
+  unitId    String                     @map("unit_id")
+  userId    String                     @map("user_id")
+  role      AnnouncementUnitMemberRole @map("role")
+  isActive  Boolean                    @default(true) @map("is_active")
+  createdAt DateTime                   @default(now()) @map("created_at")
+
+  unit OrganizationUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  user UserProfile      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@id([unitId, userId, role])
+  @@index([userId, isActive])
+  @@map("announcement_unit_members")
+}
+
 model Announcement {
-  id                   String                   @id @default(cuid()) @map("announcement_id")
-  title                String                   @map("title")
-  content              String                   @map("content")
-  audience             AnnouncementAudience     @default(ALL) @map("audience")
-  status               AnnouncementStatus       @default(DRAFT) @map("status")
-  pinToTop             Boolean                  @default(false) @map("pin_to_top")
-  sentEmail            Boolean                  @default(false) @map("sent_email")
-  publishedAt          DateTime?                @map("published_at")
-  expiresAt            DateTime?                @map("expires_at")
-  searchTextNormalized String                   @default("") @map("search_text_normalized")
-  searchVector         Unsupported("tsvector")? @map("search_vector")
-  createdAt            DateTime                 @default(now()) @map("created_at")
-  updatedAt            DateTime                 @updatedAt @map("updated_at")
-  deletedAt            DateTime?                @map("deleted_at")
+  id                      String                   @id @default(cuid()) @map("announcement_id")
+  title                   String                   @map("title")
+  content                 String                   @map("content")
+  audience                AnnouncementAudience     @default(ALL) @map("audience")
+  status                  AnnouncementStatus       @default(DRAFT) @map("status")
+  issuingUnitId           String?                  @map("issuing_unit_id")
+  category                AnnouncementCategory     @default(OTHER) @map("category")
+  priority                AnnouncementPriority     @default(NORMAL) @map("priority")
+  pinToTop                Boolean                  @default(false) @map("pin_to_top")
+  sentEmail               Boolean                  @default(false) @map("sent_email")
+  requestEmailDelivery    Boolean                  @default(false) @map("request_email_delivery")
+  requiresAcknowledgement Boolean                  @default(false) @map("requires_acknowledgement")
+  scheduledAt             DateTime?                @map("scheduled_at")
+  actionDeadlineAt        DateTime?                @map("action_deadline_at")
+  publishedAt             DateTime?                @map("published_at")
+  expiresAt               DateTime?                @map("expires_at")
+  activeRevisionId        String?                  @unique @map("active_revision_id")
+  publishedRevisionId     String?                  @unique @map("published_revision_id")
+  supersedesId            String?                  @map("supersedes_id")
+  withdrawalReason        String?                  @map("withdrawal_reason")
+  searchTextNormalized    String                   @default("") @map("search_text_normalized")
+  searchVector            Unsupported("tsvector")? @map("search_vector")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  deletedAt               DateTime?                @map("deleted_at")
 
-  authorId String      @map("author_id")
-  author   UserProfile @relation("AnnouncementAuthor", fields: [authorId], references: [userId], onDelete: Cascade)
+  authorId          String                @map("author_id")
+  author            UserProfile           @relation("AnnouncementAuthor", fields: [authorId], references: [userId], onDelete: Cascade)
+  issuingUnit       OrganizationUnit?     @relation(fields: [issuingUnitId], references: [id], onDelete: SetNull)
+  activeRevision    AnnouncementRevision? @relation("AnnouncementActiveRevision", fields: [id, activeRevisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
+  publishedRevision AnnouncementRevision? @relation("AnnouncementPublishedRevision", fields: [id, publishedRevisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
+  replacementSource Announcement?         @relation("AnnouncementReplacements", fields: [supersedesId], references: [id], onDelete: SetNull)
+  replacements      Announcement[]        @relation("AnnouncementReplacements")
 
-  savedBy SavedAnnouncement[]
-  targets AnnouncementTarget[]
+  savedBy     SavedAnnouncement[]
+  targets     AnnouncementTarget[]
+  revisions   AnnouncementRevision[]   @relation("AnnouncementRevisions")
+  attachments AnnouncementAttachment[]
+  approvals   AnnouncementApproval[]
+  recipients  AnnouncementRecipient[]
+  auditEvents AnnouncementAuditEvent[]
 
+  @@unique([id, activeRevisionId])
+  @@unique([id, publishedRevisionId])
   @@index([status, publishedAt(sort: Desc)])
   @@index([authorId])
+  @@index([issuingUnitId])
+  @@index([supersedesId])
   @@index([createdAt(sort: Desc)])
   @@map("announcements")
 }
@@ -1206,6 +1333,137 @@ model AnnouncementTarget {
   @@index([announcementId])
   @@index([type, value])
   @@map("announcement_targets")
+}
+
+model AnnouncementRevision {
+  id                      String               @id @default(cuid()) @map("revision_id")
+  announcementId          String               @map("announcement_id")
+  version                 Int                  @map("version")
+  authorId                String               @map("author_id")
+  issuingUnitId           String               @map("issuing_unit_id")
+  title                   String               @map("title")
+  content                 String               @map("content")
+  audience                AnnouncementAudience @map("audience")
+  category                AnnouncementCategory @map("category")
+  priority                AnnouncementPriority @map("priority")
+  pinToTop                Boolean              @default(false) @map("pin_to_top")
+  requestEmailDelivery    Boolean              @default(false) @map("request_email_delivery")
+  requiresAcknowledgement Boolean              @default(false) @map("requires_acknowledgement")
+  scheduledAt             DateTime?            @map("scheduled_at")
+  actionDeadlineAt        DateTime?            @map("action_deadline_at")
+  expiresAt               DateTime?            @map("expires_at")
+  submittedAt             DateTime?            @map("submitted_at")
+  createdAt               DateTime             @default(now()) @map("created_at")
+
+  announcement Announcement                 @relation("AnnouncementRevisions", fields: [announcementId], references: [id], onDelete: Cascade)
+  author       UserProfile                  @relation("AnnouncementRevisionAuthor", fields: [authorId], references: [userId], onDelete: Restrict)
+  issuingUnit  OrganizationUnit             @relation(fields: [issuingUnitId], references: [id], onDelete: Restrict)
+  targets      AnnouncementRevisionTarget[]
+  attachments  AnnouncementAttachment[]
+  approvals    AnnouncementApproval[]
+  recipients   AnnouncementRecipient[]
+  auditEvents  AnnouncementAuditEvent[]
+  activeFor    Announcement?                @relation("AnnouncementActiveRevision")
+  publishedFor Announcement?                @relation("AnnouncementPublishedRevision")
+
+  @@unique([announcementId, version])
+  @@unique([announcementId, id])
+  @@index([authorId])
+  @@index([issuingUnitId])
+  @@map("announcement_revisions")
+}
+
+model AnnouncementRevisionTarget {
+  revisionId String                 @map("revision_id")
+  type       AnnouncementTargetType @map("type")
+  value      String                 @map("value")
+
+  revision AnnouncementRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  @@id([revisionId, type, value])
+  @@index([type, value])
+  @@map("announcement_revision_targets")
+}
+
+model AnnouncementApproval {
+  id             String                       @id @default(cuid()) @map("announcement_approval_id")
+  announcementId String                       @map("announcement_id")
+  revisionId     String                       @map("revision_id")
+  stage          AnnouncementApprovalStage    @map("stage")
+  decision       AnnouncementApprovalDecision @map("decision")
+  reviewerId     String                       @map("reviewer_id")
+  comment        String?                      @map("comment")
+  createdAt      DateTime                     @default(now()) @map("created_at")
+
+  announcement Announcement         @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  revision     AnnouncementRevision @relation(fields: [announcementId, revisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
+  reviewer     UserProfile          @relation("AnnouncementApprovalReviewer", fields: [reviewerId], references: [userId], onDelete: Restrict)
+
+  @@unique([revisionId, stage])
+  @@index([announcementId])
+  @@index([reviewerId, createdAt(sort: Desc)])
+  @@map("announcement_approvals")
+}
+
+model AnnouncementAttachment {
+  id             String                       @id @default(cuid()) @map("attachment_id")
+  announcementId String                       @map("announcement_id")
+  revisionId     String?                      @map("revision_id")
+  source         AnnouncementAttachmentSource @map("source")
+  url            String                       @map("url")
+  name           String                       @map("name")
+  type           String?                      @map("type")
+  mimeType       String?                      @map("mime_type")
+  sizeBytes      Int?                         @map("size_bytes")
+  createdAt      DateTime                     @default(now()) @map("created_at")
+
+  announcement Announcement          @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  revision     AnnouncementRevision? @relation(fields: [announcementId, revisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([announcementId])
+  @@index([revisionId])
+  @@map("announcement_attachments")
+}
+
+model AnnouncementRecipient {
+  announcementId           String    @map("announcement_id")
+  revisionId               String    @map("revision_id")
+  userId                   String    @map("user_id")
+  publishedAt              DateTime  @map("published_at")
+  seenAt                   DateTime? @map("seen_at")
+  acknowledgedAt           DateTime? @map("acknowledged_at")
+  notificationDispatchedAt DateTime? @map("notification_dispatched_at")
+  emailSentAt              DateTime? @map("email_sent_at")
+  deliveryError            String?   @map("delivery_error")
+  createdAt                DateTime  @default(now()) @map("created_at")
+
+  announcement Announcement         @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  revision     AnnouncementRevision @relation(fields: [announcementId, revisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
+  user         UserProfile          @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+  @@index([revisionId])
+  @@index([userId, publishedAt(sort: Desc)])
+  @@map("announcement_recipients")
+}
+
+model AnnouncementAuditEvent {
+  id             String   @id @default(cuid()) @map("audit_event_id")
+  announcementId String   @map("announcement_id")
+  revisionId     String?  @map("revision_id")
+  actorId        String?  @map("actor_id")
+  action         String   @map("action")
+  metadata       Json?    @map("metadata")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  announcement Announcement          @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  revision     AnnouncementRevision? @relation(fields: [announcementId, revisionId], references: [announcementId, id], onDelete: NoAction, onUpdate: NoAction)
+  actor        UserProfile?          @relation("AnnouncementAuditActor", fields: [actorId], references: [userId], onDelete: SetNull)
+
+  @@index([announcementId, createdAt(sort: Desc)])
+  @@index([revisionId])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@map("announcement_audit_events")
 }
 
 model Event {

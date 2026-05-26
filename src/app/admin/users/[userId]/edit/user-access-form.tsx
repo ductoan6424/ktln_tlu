@@ -1,4 +1,5 @@
 import { updateUserAccess } from "@/actions/admin-users"
+import { updateAnnouncementUnitAssignments } from "@/actions/announcement-units"
 import { AdminPageHeader } from "@/components/admin/module/admin-page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,9 +24,28 @@ interface UserAccessFormProps {
     description: string | null
     isSystem: boolean
   }>
+  activeOrganizationUnits: Array<{
+    id: string
+    code: string
+    name: string
+    type: string
+  }>
+  announcementUnitAssignments: Array<{
+    unitId: string
+    role: "AUTHOR" | "APPROVER"
+  }>
 }
 
-export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
+export function UserAccessForm({
+  user,
+  adminRoles,
+  activeOrganizationUnits,
+  announcementUnitAssignments,
+}: UserAccessFormProps) {
+  const assignedRoles = new Set(
+    announcementUnitAssignments.map(({ unitId, role }) => `${unitId}:${role}`),
+  )
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -162,6 +182,68 @@ export function UserAccessForm({ user, adminRoles }: UserAccessFormProps) {
           </CardContent>
         </Card>
       </div>
+
+      <form
+        action={async (formData) => {
+          "use server"
+          await updateAnnouncementUnitAssignments(formData)
+        }}
+        className="space-y-4"
+      >
+        <input type="hidden" name="userId" value={user.userId} />
+
+        <Card>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">
+                Thẩm quyền thông báo chính thức
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Chọn vai trò theo đơn vị ban hành của người dùng.
+              </p>
+            </div>
+
+            {activeOrganizationUnits.length > 0 ? (
+              <div className="space-y-3">
+                {activeOrganizationUnits.map((unit) => (
+                  <div key={unit.id} className="rounded-xl border p-4">
+                    <div className="mb-3 space-y-1">
+                      <div className="font-medium">{unit.name}</div>
+                      <p className="text-sm text-muted-foreground">
+                        {unit.code} · {unit.type}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-5">
+                      {(["AUTHOR", "APPROVER"] as const).map((role) => (
+                        <label
+                          key={role}
+                          htmlFor={`announcement-unit-${unit.id}-${role}`}
+                          className="flex items-center gap-2 text-sm font-medium"
+                        >
+                          <input
+                            id={`announcement-unit-${unit.id}-${role}`}
+                            type="checkbox"
+                            name="assignments"
+                            value={JSON.stringify({ unitId: unit.id, role })}
+                            defaultChecked={assignedRoles.has(`${unit.id}:${role}`)}
+                          />
+                          <span>{role}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Chưa có đơn vị ban hành đang hoạt động.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button type="submit">Lưu thẩm quyền thông báo</Button>
+        </div>
+      </form>
     </div>
   )
 }
