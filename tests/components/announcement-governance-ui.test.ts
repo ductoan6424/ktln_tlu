@@ -219,7 +219,13 @@ describe("announcement governance admin components", () => {
             attachments: [],
             activeRevision: null,
             auditEvents: [],
-            recipientSummary: null,
+            recipientSummary: {
+              total: 120,
+              notified: 120,
+              emailSent: 0,
+              seen: 34,
+              acknowledged: 20,
+            },
             publishedAt: "2026-05-26T02:00:00.000Z",
             expiresAt: null,
             createdAt: "2026-05-26T02:00:00.000Z",
@@ -242,5 +248,7 @@ describe("announcement governance admin components", () => {
 
     expect(markup).toContain("Thu hoi")
     expect(markup).toContain("Tao ban thay the")
+    expect(markup).toContain("Trong app: 120")
+    expect(markup).not.toContain("Push: 120")
   })
 })

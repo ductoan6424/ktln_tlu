@@ -150,7 +150,7 @@ export function AnnouncementList({
             {item.recipientSummary && (
               <div className="grid grid-cols-2 gap-2 rounded-md border border-border p-3 text-xs text-muted-foreground sm:grid-cols-5">
                 <span>Nhan: {item.recipientSummary.total}</span>
-                <span>Push: {item.recipientSummary.notified}</span>
+                <span>Trong app: {item.recipientSummary.notified}</span>
                 <span>Email: {item.recipientSummary.emailSent}</span>
                 <span>Da xem: {item.recipientSummary.seen}</span>
                 <span>Xac nhan: {item.recipientSummary.acknowledged}</span>
