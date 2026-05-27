@@ -26,6 +26,17 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-brand-indigo: var(--brand-indigo);
+  --color-brand-scarlet: var(--brand-scarlet);
+  --color-official: var(--official);
+  --color-official-foreground: var(--official-foreground);
+  --color-official-soft: var(--official-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -53,6 +64,18 @@
   /* #040c55 → oklch(0.175 0.112 264) */
   /* #f3230b → oklch(0.56 0.245 27)   */
 
+  --brand-indigo: #000066;
+  --brand-scarlet: #f32409;
+  --official: var(--brand-scarlet);
+  --official-foreground: #260804;
+  --official-soft: #fff1ef;
+  --success: #067647;
+  --success-soft: #ecfdf3;
+  --warning: #b54708;
+  --warning-soft: #fffaeb;
+  --info: #175cd3;
+  --info-soft: #eff8ff;
+
   --background: oklch(0.968 0.004 255);
   --foreground: oklch(0.175 0.112 264);
 
@@ -77,7 +100,7 @@
   --accent: oklch(0.92 0.022 264);
   --accent-foreground: oklch(0.45 0.24 264);
 
-  /* Destructive / Brand-red — #f3230b */
+  /* Destructive is reserved for critical actions and errors. */
   --destructive: oklch(0.55 0.255 27);
   --destructive-foreground: oklch(0.985 0 0);
 
@@ -107,6 +130,18 @@
 
 .dark,
 [data-theme-preference="dark"] {
+  --brand-indigo: #a5b4fc;
+  --brand-scarlet: #ff8b7b;
+  --official: var(--brand-scarlet);
+  --official-foreground: #ffe4df;
+  --official-soft: #361a18;
+  --success: #75e0a7;
+  --success-soft: #122c23;
+  --warning: #fec84b;
+  --warning-soft: #352a12;
+  --info: #84caff;
+  --info-soft: #12253f;
+
   --background: oklch(0.12 0.03 264);
   --foreground: oklch(0.96 0.008 264);
 
@@ -152,6 +187,18 @@
 
 @media (prefers-color-scheme: dark) {
   [data-theme-preference="system"] {
+    --brand-indigo: #a5b4fc;
+    --brand-scarlet: #ff8b7b;
+    --official: var(--brand-scarlet);
+    --official-foreground: #ffe4df;
+    --official-soft: #361a18;
+    --success: #75e0a7;
+    --success-soft: #122c23;
+    --warning: #fec84b;
+    --warning-soft: #352a12;
+    --info: #84caff;
+    --info-soft: #12253f;
+
     --background: oklch(0.12 0.03 264);
     --foreground: oklch(0.96 0.008 264);
     --card: oklch(0.17 0.04 264);
@@ -245,17 +292,35 @@
 @layer utilities {
   /* Gradient tiêu đề navy → red dùng cho branding */
   .brand-gradient {
-    background: linear-gradient(135deg, oklch(0.175 0.112 264), oklch(0.56 0.245 27));
+    background: linear-gradient(135deg, var(--brand-indigo), var(--brand-scarlet));
+  }
+
+  .brand-panel {
+    background:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--brand-scarlet) 22%, transparent), transparent 34%),
+      linear-gradient(135deg, color-mix(in srgb, var(--brand-indigo) 30%, #000022), #000022);
+    color: #ffffff;
+  }
+
+  .official-marker {
+    background-color: var(--brand-scarlet);
+  }
+
+  .tlu-geometry {
+    background-image:
+      linear-gradient(135deg, color-mix(in srgb, var(--brand-indigo) 8%, transparent) 25%, transparent 25%),
+      linear-gradient(315deg, color-mix(in srgb, var(--brand-scarlet) 8%, transparent) 25%, transparent 25%);
+    background-size: 2.5rem 2.5rem;
   }
 
   /* Thanh accent đỏ nổi bật cho pinned / announcement */
   .accent-bar {
     @apply border-l-4;
-    border-color: oklch(0.56 0.245 27);
+    border-color: var(--official);
   }
 
   /* Nút primary với glow nhẹ */
   .btn-primary-glow {
-    box-shadow: 0 0 0 3px oklch(0.56 0.245 27 / 20%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-indigo) 20%, transparent);
   }
 }

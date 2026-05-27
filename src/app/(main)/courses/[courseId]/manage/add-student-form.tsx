@@ -17,8 +17,8 @@ import {
   searchCourseStudentCandidates,
 } from "@/actions/courses"
 import {
-  facebookPrimaryButton,
-  facebookSecondaryButton,
+  managePrimaryButton,
+  manageSecondaryButton,
   manageInput,
 } from "@/components/communities/manage/manage-ui"
 import { Button } from "@/components/ui/button"
@@ -230,9 +230,9 @@ export function AddStudentForm({
         }}
       >
         <label className="block space-y-2" htmlFor={studentInputId}>
-          <span className="text-sm font-semibold text-[#050505]">Mã sinh viên</span>
+          <span className="text-sm font-semibold text-foreground">Mã sinh viên</span>
           <span className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#65676b]" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id={studentInputId}
               name="studentId"
@@ -247,48 +247,48 @@ export function AddStudentForm({
         </label>
 
         {suggestionPending ? (
-          <p className="text-xs text-[#65676b]">Đang tìm sinh viên…</p>
+          <p className="text-xs text-muted-foreground">Đang tìm sinh viên…</p>
         ) : suggestionError ? (
           <p className="text-xs text-destructive">{suggestionError}</p>
         ) : suggestions.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-[#dddfe2]">
+          <div className="overflow-hidden rounded-lg border border-border">
             {suggestions.map((student) => (
               <button
                 key={student.userId}
                 type="button"
-                className="flex w-full flex-col gap-0.5 border-b border-[#e4e6eb] px-3 py-2 text-left last:border-b-0 hover:bg-[#f2f4f7]"
+                className="flex w-full flex-col gap-0.5 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-muted/40"
                 onClick={() => setStudentId(student.studentId ?? "")}
               >
-                <span className="text-sm font-semibold text-[#050505]">
+                <span className="text-sm font-semibold text-foreground">
                   {student.studentId} · {student.displayName}
                 </span>
-                <span className="text-xs text-[#65676b]">{student.email}</span>
+                <span className="text-xs text-muted-foreground">{student.email}</span>
               </button>
             ))}
           </div>
         ) : studentId.trim().length >= 2 ? (
-          <p className="text-xs text-[#65676b]">Không có gợi ý phù hợp.</p>
+          <p className="text-xs text-muted-foreground">Không có gợi ý phù hợp.</p>
         ) : null}
 
         <Button
           type="submit"
           disabled={pending}
-          className={facebookPrimaryButton}
+          className={managePrimaryButton}
         >
           <UserPlus data-icon="inline-start" />
           {pending ? "Đang thêm…" : "Thêm sinh viên"}
         </Button>
       </form>
 
-      <div className="space-y-3 border-t border-[#e4e6eb] pt-4">
-        <div className="flex items-start gap-3 rounded-lg border border-[#dddfe2] bg-white p-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e7f3ff] text-[#1877f2]">
+      <div className="space-y-3 border-t border-border pt-4">
+        <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
             <QrCode className="size-5" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1 space-y-3">
             <div>
-              <p className="text-sm font-semibold text-[#050505]">QR tham gia lớp</p>
-              <p className="text-xs leading-5 text-[#65676b]">
+              <p className="text-sm font-semibold text-foreground">QR tham gia lớp</p>
+              <p className="text-xs leading-5 text-muted-foreground">
                 Sinh viên quét mã để mở trang lớp và gửi yêu cầu tham gia.
               </p>
             </div>
@@ -299,22 +299,22 @@ export function AddStudentForm({
                 width={144}
                 height={144}
                 unoptimized
-                className="size-36 rounded-md border border-[#dddfe2] bg-white p-2"
+                className="size-36 rounded-md border border-border bg-card p-2"
               />
             ) : (
-              <div className="flex size-36 items-center justify-center rounded-md border border-dashed border-[#dddfe2] text-xs text-[#65676b]">
+              <div className="flex size-36 items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground">
                 Đang tạo QR…
               </div>
             )}
-            <p className="break-all text-xs text-[#65676b]">{courseJoinUrl}</p>
+            <p className="break-all text-xs text-muted-foreground">{courseJoinUrl}</p>
           </div>
         </div>
       </div>
 
-      <div className="space-y-3 border-t border-[#e4e6eb] pt-4">
+      <div className="space-y-3 border-t border-border pt-4">
         <label className="block space-y-2" htmlFor={importInputId}>
-          <span className="text-sm font-semibold text-[#050505]">Import CSV/Excel</span>
-          <span className="text-xs leading-5 text-[#65676b]">
+          <span className="text-sm font-semibold text-foreground">Import CSV/Excel</span>
+          <span className="text-xs leading-5 text-muted-foreground">
             Nhận cột studentId, student_id, mã sinh viên hoặc ma sinh vien; nếu không có header sẽ lấy cột đầu tiên.
           </span>
           <Input
@@ -330,7 +330,7 @@ export function AddStudentForm({
           type="button"
           variant="secondary"
           disabled={importPending || pending}
-          className={facebookSecondaryButton}
+          className={manageSecondaryButton}
           onClick={() => document.getElementById(importInputId)?.click()}
         >
           <Upload data-icon="inline-start" />
@@ -339,7 +339,7 @@ export function AddStudentForm({
       </div>
 
       <form
-        className="space-y-3 border-t border-[#e4e6eb] pt-4"
+        className="space-y-3 border-t border-border pt-4"
         action={(formData) => {
           startTransition(async () => {
             const result = await addStudentsToCourseByCodes({
@@ -356,7 +356,7 @@ export function AddStudentForm({
         }}
       >
         <label className="block space-y-2" htmlFor={bulkInputId}>
-          <span className="text-sm font-semibold text-[#050505]">
+          <span className="text-sm font-semibold text-foreground">
             Thêm nhiều mã sinh viên
           </span>
           <Textarea
@@ -370,7 +370,7 @@ export function AddStudentForm({
           type="submit"
           variant="secondary"
           disabled={pending}
-          className={facebookSecondaryButton}
+          className={manageSecondaryButton}
         >
           <ListPlus data-icon="inline-start" />
           {pending ? "Đang thêm…" : "Thêm danh sách"}
@@ -378,7 +378,7 @@ export function AddStudentForm({
       </form>
 
       {summary ? (
-        <p className="flex items-center gap-2 text-sm text-[#65676b]">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <FileSpreadsheet className="size-4" aria-hidden="true" />
           <span>{summary}</span>
         </p>

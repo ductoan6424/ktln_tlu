@@ -46,7 +46,7 @@ export function NotificationItem({
       }}
       className={cn(
         "flex gap-4 p-4 cursor-pointer transition-colors hover:bg-muted rounded-lg group",
-        isUnread && "bg-primary/5",
+        isUnread && "bg-primary/10",
         className
       )}
     >

@@ -89,12 +89,12 @@ export function TopNavbar({
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-card border-b border-border lg:h-16 lg:pt-0",
+        "fixed top-0 right-0 left-0 z-50 h-[calc(3.5rem+env(safe-area-inset-top))] border-b border-border/70 bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-card/90 lg:h-16 lg:pt-0",
         className
       )}
     >
       {mobileSearchOpen && (
-        <div className="absolute inset-0 z-10 bg-card flex items-center gap-2 px-3 pt-[env(safe-area-inset-top)] lg:hidden">
+        <div className="absolute inset-0 z-10 flex items-center gap-2 bg-card/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
           <GlobalSearch
             placeholder={searchPlaceholder}
             className="flex-1"
@@ -111,7 +111,7 @@ export function TopNavbar({
         </div>
       )}
 
-      <div className="w-full px-3 lg:px-8 h-full flex items-center justify-between gap-4 relative">
+      <div className="relative mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-4 px-3 lg:px-8">
         <div className="flex items-center gap-4 lg:gap-6">
           <Link href="/feed">
             <AppLogo size="md" />
@@ -157,7 +157,7 @@ export function TopNavbar({
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="hidden lg:flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-muted transition-colors cursor-pointer ml-1 outline-none"
+                className="ml-1 hidden cursor-pointer items-center gap-2 rounded-full py-1 pr-2 pl-1 transition-colors hover:bg-muted outline-none lg:flex"
               >
                 <UserAvatar
                   src={user.avatarSrc}
@@ -171,7 +171,7 @@ export function TopNavbar({
                 <div className="p-0">
                   <Link
                     href="/profile"
-                    className="flex items-center gap-3 p-3 hover:bg-muted rounded-md transition-colors"
+                    className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-muted"
                   >
                     <UserAvatar
                       src={user.avatarSrc}

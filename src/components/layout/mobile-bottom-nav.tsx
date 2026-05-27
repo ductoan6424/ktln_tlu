@@ -73,8 +73,8 @@ export function MobileBottomNav({
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <div className="flex items-center justify-around h-14 px-1">
+    <nav className="fixed right-0 bottom-0 left-0 z-50 border-t border-border/70 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur supports-[backdrop-filter]:bg-card/90 lg:hidden">
+      <div className="flex h-14 items-center justify-around px-1">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
           const badge = getBadgeCount(item.href)
@@ -93,7 +93,7 @@ export function MobileBottomNav({
               <div className="relative">
                 <item.icon className="size-5" />
                 {badge !== undefined && badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-destructive text-white text-[9px] font-bold leading-none">
+                  <span className="absolute -top-1.5 -right-2 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-official px-1 text-[9px] font-bold leading-none text-white">
                     {badge > 99 ? "99+" : badge}
                   </span>
                 )}

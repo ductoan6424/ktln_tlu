@@ -37,7 +37,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export function DirectInfoSkeletonPanel({ onClose }: { onClose: () => void }) {
   return (
-    <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
+    <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-lg lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
       <header className="flex min-h-20 shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <Skeleton className="size-12 rounded-full" />
@@ -99,7 +99,7 @@ export function DirectInfoPanel({ details, isOnline = false, onClose }: DirectIn
   )
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
+    <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-lg lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
       <header className="flex min-h-20 shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <UserAvatar
@@ -244,7 +244,7 @@ export function DirectInfoDialog({
       {isLoading || (!details && !loadError) ? (
         <DirectInfoSkeletonPanel onClose={handleClose} />
       ) : !details ? (
-        <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
+        <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-lg lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
           <header className="flex h-16 shrink-0 items-start justify-between border-b border-border px-5 py-4">
             <div className="min-w-0">
               <h2 className="truncate text-base font-semibold">Thông tin</h2>

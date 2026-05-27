@@ -50,9 +50,9 @@ export function AnnouncementFeedCard({
   const shouldClamp = content.length > EXPAND_THRESHOLD
 
   return (
-    <Card className={cn("relative overflow-hidden border-destructive/20", className)}>
+    <Card className={cn("relative overflow-hidden border-official/15 bg-card", className)}>
       {pinToTop && (
-        <div className="absolute inset-y-0 left-0 w-1 bg-destructive" aria-hidden="true" />
+        <div className="official-marker absolute inset-y-0 left-0 w-1 bg-official" aria-hidden="true" />
       )}
       <CardContent className="flex flex-col gap-3 p-3 md:px-4">
         <div className="flex items-start gap-3">
@@ -69,17 +69,17 @@ export function AnnouncementFeedCard({
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-bold">{OFFICIAL_SCHOOL_DISPLAY_NAME}</span>
               <BadgeCheck className="size-4 fill-primary text-primary stroke-primary-foreground" />
-              <StatusBadge variant="accent">
+              <StatusBadge variant="official">
                 <Megaphone className="mr-1 inline-block size-3" />
                 Thông báo
               </StatusBadge>
               {issuingUnitName && <StatusBadge variant="info">{issuingUnitName}</StatusBadge>}
               {status !== "PUBLISHED" && (
-                <StatusBadge variant="warning">
+                <StatusBadge variant={status === "WITHDRAWN" ? "critical" : "warning"}>
                   {status === "WITHDRAWN" ? "Đã thu hồi" : "Đã thay thế"}
                 </StatusBadge>
               )}
-              {priority === "URGENT" && <StatusBadge variant="accent">Khẩn cấp</StatusBadge>}
+              {priority === "URGENT" && <StatusBadge variant="warning">Khẩn cấp</StatusBadge>}
               {scopeLabels.slice(0, 2).map((label) => (
                 <StatusBadge key={label} variant="info">{label}</StatusBadge>
               ))}
@@ -101,7 +101,7 @@ export function AnnouncementFeedCard({
             {content}
           </p>
           {status === "WITHDRAWN" && withdrawalReason && (
-            <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-sm">
+            <p className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
               Lý do thu hồi: {withdrawalReason}
             </p>
           )}

@@ -18,10 +18,26 @@ vi.mock("next/navigation", () => ({
 
 import { AnnouncementForm } from "@/components/admin/announcement-form"
 import { AnnouncementList } from "@/components/admin/announcement-list"
+import { AnnouncementPreview } from "@/components/admin/announcement-preview"
 import { AnnouncementReviewPanel } from "@/components/admin/announcement-review-panel"
 import { AnnouncementTimeline } from "@/components/admin/announcement-timeline"
 
 describe("announcement governance admin components", () => {
+  it("uses official preview anatomy for school notices", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnnouncementPreview, {
+        title: "Thong bao hoc vu",
+        content: "Noi dung",
+        pinToTop: true,
+      }),
+    )
+
+    expect(markup).toContain("bg-official")
+    expect(markup).toContain("bg-official-soft")
+    expect(markup).toContain("Thông báo")
+    expect(markup).not.toContain("bg-destructive")
+  })
+
   it("renders frozen review content and reason fields for non-approval decisions", () => {
     const markup = renderToStaticMarkup(
       createElement(AnnouncementReviewPanel, {
@@ -43,13 +59,13 @@ describe("announcement governance admin components", () => {
       }),
     )
 
-    expect(markup).toContain("Ban trinh duyet v1")
+    expect(markup).toContain("Bản trình duyệt v1")
     expect(markup).toContain("Noi dung da dong bang")
     expect(markup).toContain("notice.pdf")
     expect(markup.match(/name="comment"/g)).toHaveLength(2)
-    expect(markup).toContain("Phe duyet")
-    expect(markup).toContain("Yeu cau sua")
-    expect(markup).toContain("Tu choi")
+    expect(markup).toContain("Phê duyệt")
+    expect(markup).toContain("Yêu cầu sửa")
+    expect(markup).toContain("Từ chối")
   })
 
   it("renders chronological audit events and comments", () => {
@@ -67,7 +83,7 @@ describe("announcement governance admin components", () => {
       }),
     )
 
-    expect(markup).toContain("Don vi yeu cau sua")
+    expect(markup).toContain("Đơn vị yêu cầu sửa")
     expect(markup).toContain("Phong Dao tao")
     expect(markup).toContain("Cap nhat han nop")
   })
@@ -91,9 +107,9 @@ describe("announcement governance admin components", () => {
       } as never),
     )
 
-    expect(markup).toContain("Don vi ban hanh")
-    expect(markup).toContain("Gui duyet")
-    expect(markup).toContain("Email (mac dinh tat)")
+    expect(markup).toContain("Đơn vị ban hành")
+    expect(markup).toContain("Gửi duyệt")
+    expect(markup).toContain("Email (mặc định tắt)")
     expect(markup).toContain("K38")
     expect(markup).not.toContain("Dang ngay")
   })
@@ -184,8 +200,8 @@ describe("announcement governance admin components", () => {
       } as never),
     )
 
-    expect(markup).toContain("Cho duyet don vi")
-    expect(markup).toContain("Cho admin duyet")
+    expect(markup).toContain("Chờ duyệt đơn vị")
+    expect(markup).toContain("Chờ duyệt cấp trường")
   })
 
   it("exposes withdrawal and replacement operations for a published official notice", () => {
@@ -246,9 +262,9 @@ describe("announcement governance admin components", () => {
       } as never),
     )
 
-    expect(markup).toContain("Thu hoi")
-    expect(markup).toContain("Tao ban thay the")
-    expect(markup).toContain("Trong app: 120")
+    expect(markup).toContain("Thu hồi")
+    expect(markup).toContain("Tạo bản thay thế")
+    expect(markup).toContain("Trong ứng dụng: 120")
     expect(markup).not.toContain("Push: 120")
   })
 })
