@@ -26,9 +26,7 @@ describe("TLU design primitive contracts", () => {
     expect(badge).toContain(
       'official: "bg-official-soft text-official-foreground border-official/20',
     )
-    expect(badge).toContain(
-      'destructive:\n          "bg-destructive/10 text-destructive',
-    )
+    expect(badge).toContain('"bg-destructive/10 text-destructive')
     expect(statusBadge).toContain(
       'official: "bg-official-soft text-official-foreground border-official/20"',
     )

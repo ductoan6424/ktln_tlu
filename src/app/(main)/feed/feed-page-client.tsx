@@ -380,7 +380,7 @@ export function FeedPageClient({
         <div className="flex h-full min-h-0 gap-5 lg:gap-6">
           <aside className="hidden min-h-0 overscroll-contain lg:block lg:w-[280px] xl:w-[300px] shrink-0 overflow-y-auto">
             <div className="py-6 flex flex-col gap-2 w-full">
-              <Card className="rounded-2xl border-border/70 shadow-sm">
+              <Card className="rounded-lg border-border/70 shadow-sm">
                 <CardContent className="flex flex-col gap-4 p-4">
                   <div className="flex items-center gap-3">
                     <UserAvatar
@@ -477,7 +477,7 @@ export function FeedPageClient({
 
           <aside className="hidden min-h-0 overscroll-contain xl:block xl:w-[280px] shrink-0 overflow-y-auto">
             <div className="py-6 flex flex-col gap-4 w-full">
-              <Card className="rounded-2xl border-border/70 shadow-sm">
+              <Card className="rounded-lg border-border/70 shadow-sm">
                 <CardContent className="flex flex-col gap-4 p-5">
                   <p className="text-sm font-bold">
                     Xu hướng trong trường
@@ -504,7 +504,7 @@ export function FeedPageClient({
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl border-border/70 shadow-sm">
+              <Card className="rounded-lg border-border/70 shadow-sm">
                 <CardContent className="flex flex-col gap-4 p-5">
                   <SectionHeader
                     title="Sự kiện sắp tới"

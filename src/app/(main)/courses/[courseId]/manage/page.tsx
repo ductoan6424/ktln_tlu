@@ -122,8 +122,8 @@ export default async function ManageCoursePage({
           <Card className={`${manageSurface} gap-0 py-0`}>
             <CardContent className="space-y-0 p-0">
               <div className={`${manageHeader} space-y-1`}>
-                <h2 className="text-lg font-semibold text-[#050505]">Thêm sinh viên</h2>
-                <p className="text-sm text-[#65676b]">
+                <h2 className="text-lg font-semibold text-foreground">Thêm sinh viên</h2>
+                <p className="text-sm text-muted-foreground">
                   Thêm một hoặc nhiều sinh viên vào lớp bằng mã sinh viên.
                 </p>
               </div>

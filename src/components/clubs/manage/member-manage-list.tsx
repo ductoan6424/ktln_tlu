@@ -44,8 +44,8 @@ const ROLE_LABELS = {
 }
 
 const ROLE_COLORS = {
-  admin: "bg-red-100 text-red-700",
-  moderator: "bg-blue-100 text-blue-700",
+  admin: "bg-official-soft text-official-foreground",
+  moderator: "bg-primary/10 text-primary",
   member: "bg-muted text-muted-foreground",
 }
 

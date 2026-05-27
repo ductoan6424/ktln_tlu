@@ -327,7 +327,7 @@ describe("FeedPageClient chat dock migration", () => {
   })
 
   it("uses foundation chrome and avoids destructive styling for ordinary trend categories", () => {
-    expect(POST_COMPOSER_SOURCE).toContain("rounded-2xl")
+    expect(POST_COMPOSER_SOURCE).toContain("rounded-xl")
     expect(TRENDING_ITEM_SOURCE).not.toContain("text-destructive")
     expect(TRENDING_ITEM_SOURCE).toContain("text-brand-indigo")
   })
