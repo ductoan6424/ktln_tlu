@@ -31,9 +31,15 @@ export function AppLogo({
         height={logo}
         priority={size !== "sm"}
         className="shrink-0"
+        style={{ width: logo, height: logo }}
       />
       {variant === "full" && (
-        <h1 className={cn(text, "font-semibold tracking-tight text-foreground leading-none")}>
+        <h1
+          className={cn(
+            text,
+            "font-semibold leading-none tracking-tight text-brand-indigo dark:text-foreground"
+          )}
+        >
           TLU Community
         </h1>
       )}

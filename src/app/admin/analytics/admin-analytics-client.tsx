@@ -60,8 +60,8 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
       sub: `${overview.newUsers.toLocaleString("vi-VN")} mới`,
       change: userTrend.label,
       positive: userTrend.positive,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
       icon: FileText,
@@ -70,8 +70,8 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
       sub: `${overview.newPosts.toLocaleString("vi-VN")} mới`,
       change: postTrend.label,
       positive: postTrend.positive,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      color: "text-success",
+      bgColor: "bg-success-soft",
     },
     {
       icon: MessageSquare,
@@ -80,8 +80,8 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
       sub: `${overview.newComments.toLocaleString("vi-VN")} mới trong kỳ`,
       change: "",
       positive: true,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
+      color: "text-info",
+      bgColor: "bg-info/10",
     },
     {
       icon: Heart,
@@ -90,8 +90,8 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
       sub: `${overview.activeUsers.toLocaleString("vi-VN")} người đăng bài`,
       change: "",
       positive: true,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
+      color: "text-warning",
+      bgColor: "bg-warning-soft",
     },
   ]
 
@@ -127,7 +127,7 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
                   </div>
                   {stat.change && (
                     <span
-                      className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-green-600" : "text-orange-600"}`}
+                      className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-success" : "text-warning"}`}
                     >
                       <TrendIcon className="size-3.5" />
                       {stat.change}
