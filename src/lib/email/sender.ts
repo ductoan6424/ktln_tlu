@@ -15,12 +15,48 @@ interface SendEmailOptions {
   text: string
 }
 
-async function sendEmail(options: SendEmailOptions): Promise<void> {
-  const from =
-    process.env.SMTP_FROM ?? "TLU Community <noreply@tlu.edu.vn>"
+function extractEmailAddress(value: string | undefined): string | null {
+  if (!value) return null
+  return value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null
+}
 
+function getEmailDomain(value: string | null): string | null {
+  return value?.split("@")[1]?.toLowerCase() ?? null
+}
+
+function resolveFromAddress(): string {
+  const smtpHost = process.env.SMTP_HOST?.toLowerCase() ?? ""
+  const smtpUser = extractEmailAddress(process.env.SMTP_USER)
+  const configuredFrom = process.env.SMTP_FROM
+  const configuredFromAddress = extractEmailAddress(configuredFrom)
+
+  const smtpUserDomain = getEmailDomain(smtpUser)
+  const configuredFromDomain = getEmailDomain(configuredFromAddress)
+  const isGmailSmtp = smtpHost.includes("gmail.com")
+
+  if (
+    isGmailSmtp &&
+    smtpUser &&
+    configuredFromDomain &&
+    smtpUserDomain !== configuredFromDomain
+  ) {
+    return `TLU Community <${smtpUser}>`
+  }
+
+  if (configuredFrom) {
+    return configuredFrom
+  }
+
+  if (smtpUser) {
+    return `TLU Community <${smtpUser}>`
+  }
+
+  return "TLU Community <noreply@tlu.edu.vn>"
+}
+
+async function sendEmail(options: SendEmailOptions): Promise<void> {
   await transporter.sendMail({
-    from,
+    from: resolveFromAddress(),
     to: options.to,
     subject: options.subject,
     html: options.html,

@@ -43,7 +43,7 @@ function FormField({
 
 // ─── Success state ───────────────────────────────────────────────────────────
 
-function SuccessState({ email }: { email: string }) {
+function SuccessState() {
   return (
     <div className="space-y-6 text-center animate-in fade-in duration-300">
       <div className="flex justify-center">
@@ -59,10 +59,7 @@ function SuccessState({ email }: { email: string }) {
           Đã gửi email khôi phục!
         </h2>
         <p className="text-sm text-muted-foreground">
-          Chúng tôi đã gửi liên kết đặt lại mật khẩu đến
-        </p>
-        <p className="text-sm font-semibold text-foreground font-mono break-all">
-          {email}
+          Nếu tài khoản tồn tại, liên kết đặt lại mật khẩu đã được gửi đến email liên hệ đã xác thực.
         </p>
       </div>
 
@@ -139,7 +136,7 @@ export function ForgotPasswordCard() {
     return (
       <Card className="shadow-2xl shadow-foreground/5 border">
         <CardContent className="p-5 sm:p-8 lg:p-10">
-          <SuccessState email={email} />
+          <SuccessState />
         </CardContent>
       </Card>
     )
@@ -157,7 +154,7 @@ export function ForgotPasswordCard() {
           </div>
           <h1 className="text-2xl font-semibold mb-1.5">Quên mật khẩu?</h1>
           <p className="text-sm text-muted-foreground">
-            Nhập email đã đăng ký để khôi phục mật khẩu
+            Nhập email trường hoặc email liên hệ đã xác thực để khôi phục mật khẩu
           </p>
         </div>
 

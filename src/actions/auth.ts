@@ -26,6 +26,16 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8),
 })
 
+type PasswordResetTarget =
+  | {
+      status: "READY"
+      userId: string
+      displayName: string
+      email: string
+    }
+  | { status: "CONTACT_EMAIL_REQUIRED" }
+  | { status: "NOT_FOUND" }
+
 const DEFAULT_ADMIN_ACCOUNT = {
   code: "AD001",
   email: "ad001@thanglong.edu.vn",
@@ -39,6 +49,70 @@ async function sendEmailSafe(fn: () => Promise<void>): Promise<void> {
     await fn()
   } catch (error) {
     console.error("Email send failed:", error)
+  }
+}
+
+async function resolvePasswordResetTarget(identifier: string): Promise<PasswordResetTarget> {
+  const normalizedIdentifier = identifier.trim().toLowerCase()
+  const schoolIdentity = await prisma.schoolIdentity.findUnique({
+    where: { institutionalEmail: normalizedIdentifier },
+    include: {
+      user: {
+        select: {
+          userId: true,
+          displayName: true,
+        },
+      },
+    },
+  })
+
+  if (schoolIdentity) {
+    if (schoolIdentity.status === "INACTIVE") {
+      return { status: "NOT_FOUND" }
+    }
+
+    const contactEmail = await prisma.userContactEmail.findUnique({
+      where: { userId: schoolIdentity.userId },
+    })
+
+    if (!contactEmail?.verifiedAt) {
+      return { status: "CONTACT_EMAIL_REQUIRED" }
+    }
+
+    return {
+      status: "READY",
+      userId: schoolIdentity.userId,
+      displayName: schoolIdentity.user.displayName,
+      email: contactEmail.email,
+    }
+  }
+
+  const contactEmail = await prisma.userContactEmail.findUnique({
+    where: { email: normalizedIdentifier },
+    include: {
+      user: {
+        select: {
+          userId: true,
+          displayName: true,
+          schoolIdentity: {
+            select: {
+              status: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!contactEmail?.verifiedAt || contactEmail.user.schoolIdentity?.status !== "ACTIVE") {
+    return { status: "NOT_FOUND" }
+  }
+
+  return {
+    status: "READY",
+    userId: contactEmail.userId,
+    displayName: contactEmail.user.displayName,
+    email: contactEmail.email,
   }
 }
 
@@ -301,48 +375,39 @@ export async function forgotPassword(identifier: string): Promise<ActionResult> 
       )
     }
 
-    const institutionalEmail = validated.data.identifier.trim().toLowerCase()
-    const schoolIdentity = await prisma.schoolIdentity.findUnique({
-      where: { institutionalEmail },
-      include: {
-        user: {
-          select: {
-            userId: true,
-            displayName: true,
-          },
-        },
-      },
-    })
+    const target = await resolvePasswordResetTarget(validated.data.identifier)
 
-    if (!schoolIdentity || schoolIdentity.status === "INACTIVE") {
+    if (target.status === "NOT_FOUND") {
       return successResult({
         message: "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.",
       })
     }
 
-    const contactEmail = await prisma.userContactEmail.findUnique({
-      where: { userId: schoolIdentity.userId },
-    })
-
-    if (!contactEmail?.verifiedAt) {
+    if (target.status === "CONTACT_EMAIL_REQUIRED") {
       return errorResult(
         "Tài khoản chưa xác thực email liên hệ. Vui lòng liên hệ quản trị viên để được hỗ trợ.",
         "CONTACT_EMAIL_REQUIRED",
       )
     }
 
-    await prisma.passwordReset.deleteMany({ where: { userId: schoolIdentity.userId } })
+    await prisma.passwordReset.deleteMany({ where: { userId: target.userId } })
 
     const token = randomBytes(32).toString("hex")
     await prisma.passwordReset.create({
       data: {
-        userId: schoolIdentity.userId,
+        userId: target.userId,
         token,
         expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       },
     })
 
-    await sendEmailSafe(() => sendPasswordResetEmail(contactEmail.email, schoolIdentity.user.displayName, token))
+    try {
+      await sendPasswordResetEmail(target.email, target.displayName, token)
+    } catch (error) {
+      console.error("Password reset email send failed:", error)
+      await prisma.passwordReset.deleteMany({ where: { userId: target.userId } })
+      return errorResult("Không thể gửi email khôi phục. Vui lòng thử lại.", "EMAIL_SEND_FAILED")
+    }
 
     return successResult({
       message: "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.",

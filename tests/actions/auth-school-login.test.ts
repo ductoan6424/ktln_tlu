@@ -108,7 +108,7 @@ describe("school account login", () => {
       password: "Admin@123456",
       email_confirm: true,
       user_metadata: {
-        display_name: "Quan tri he thong",
+        display_name: "Quản trị hệ thống",
         role: "ADMIN",
       },
     })
@@ -116,9 +116,9 @@ describe("school account login", () => {
       data: {
         userId: "admin-user",
         email: "ad001@thanglong.edu.vn",
-        displayName: "Quan tri he thong",
+        displayName: "Quản trị hệ thống",
         role: "ADMIN",
-        major: "He thong",
+        major: "Hệ thống",
       },
     })
     expect(prisma.schoolIdentity.create).toHaveBeenCalledWith({
@@ -126,8 +126,8 @@ describe("school account login", () => {
         code: "AD001",
         institutionalEmail: "ad001@thanglong.edu.vn",
         role: "ADMIN",
-        displayName: "Quan tri he thong",
-        department: "He thong",
+        displayName: "Quản trị hệ thống",
+        department: "Hệ thống",
         status: "ACTIVE",
         userId: "admin-user",
       }),
@@ -195,6 +195,63 @@ describe("forgotPassword with verified contact email", () => {
       "Nguyen Van A",
       expect.any(String),
     )
+  })
+
+  it("also accepts a verified contact email as the reset identifier", async () => {
+    prisma.schoolIdentity.findUnique.mockResolvedValue(null)
+    prisma.userContactEmail.findUnique.mockResolvedValue({
+      userId: "user-1",
+      email: "real@example.com",
+      verifiedAt: new Date("2026-05-22T00:00:00.000Z"),
+      user: {
+        userId: "user-1",
+        displayName: "Nguyen Van A",
+        schoolIdentity: {
+          status: "ACTIVE",
+        },
+      },
+    })
+
+    const result = await forgotPassword("real@example.com")
+
+    expect(result.success).toBe(true)
+    expect(prisma.passwordReset.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } })
+    expect(prisma.passwordReset.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: "user-1",
+        token: expect.any(String),
+        expiresAt: expect.any(Date),
+      }),
+    })
+    expect(sendPasswordResetEmail).toHaveBeenCalledWith(
+      "real@example.com",
+      "Nguyen Van A",
+      expect.any(String),
+    )
+  })
+
+  it("returns an error when the reset email cannot be sent", async () => {
+    prisma.schoolIdentity.findUnique.mockResolvedValue({
+      userId: "user-1",
+      institutionalEmail: "sv0001@thanglong.edu.vn",
+      status: "ACTIVE",
+      user: {
+        userId: "user-1",
+        displayName: "Nguyen Van A",
+      },
+    })
+    prisma.userContactEmail.findUnique.mockResolvedValue({
+      userId: "user-1",
+      email: "real@example.com",
+      verifiedAt: new Date("2026-05-22T00:00:00.000Z"),
+    })
+    sendPasswordResetEmail.mockRejectedValueOnce(new Error("SMTP failed"))
+
+    const result = await forgotPassword("sv0001@thanglong.edu.vn")
+
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("EMAIL_SEND_FAILED")
+    expect(prisma.passwordReset.deleteMany).toHaveBeenCalledTimes(2)
   })
 
   it("does not send reset mail when the contact email has not been verified", async () => {
