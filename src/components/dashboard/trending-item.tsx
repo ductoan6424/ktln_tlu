@@ -15,8 +15,8 @@ export function TrendingItem({
   className,
 }: TrendingItemProps) {
   return (
-    <div className={cn("space-y-0.5", className)}>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">
+    <div className={cn("flex flex-col gap-0.5", className)}>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-indigo dark:text-info">
         {category}
       </p>
       <h4 className="text-sm font-semibold leading-snug">{title}</h4>
@@ -27,7 +27,7 @@ export function TrendingItem({
 
 export function TrendingItemSkeleton() {
   return (
-    <div className="space-y-1">
+    <div className="flex flex-col gap-1">
       <Skeleton className="h-2.5 w-16" />
       <Skeleton className="h-4 w-40" />
       <Skeleton className="h-3 w-20" />

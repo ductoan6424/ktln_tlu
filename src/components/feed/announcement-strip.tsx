@@ -454,7 +454,7 @@ function AnnouncementListRow({
       className={cn(
         "relative flex items-start gap-3 px-4 py-5",
         "hover:bg-accent/40 transition-colors cursor-pointer",
-        item.pinToTop && "pl-[calc(1rem+3px)] border-l-[3px] border-l-destructive",
+        item.pinToTop && "pl-[calc(1rem+3px)] border-l-[3px] border-l-official",
       )}
       onClick={onClick}
       role="button"
@@ -487,12 +487,12 @@ function AnnouncementListRow({
             </StatusBadge>
           )}
           {item.status && item.status !== "PUBLISHED" && (
-            <StatusBadge variant="warning" size="sm">
+            <StatusBadge variant={item.status === "WITHDRAWN" ? "critical" : "warning"} size="sm">
               {item.status === "WITHDRAWN" ? "ĐÃ THU HỒI" : "ĐÃ THAY THẾ"}
             </StatusBadge>
           )}
           {item.pinToTop && (
-            <StatusBadge variant="warning" size="sm">
+            <StatusBadge variant="official" size="sm">
               GHIM
             </StatusBadge>
           )}
@@ -567,7 +567,7 @@ function AnnouncementCard({
     >
       {/* Thanh đỏ bên trái cho bài ghim */}
       {pinToTop && (
-        <div className="absolute inset-y-0 left-0 w-[3px] bg-destructive" aria-hidden="true" />
+        <div className="official-marker absolute inset-y-0 left-0 w-[3px] bg-official" aria-hidden="true" />
       )}
 
       <div className={cn("p-3 flex flex-col gap-2 h-full", pinToTop && "pl-4")}>
@@ -594,13 +594,13 @@ function AnnouncementCard({
             </p>
           </div>
           {pinToTop && (
-            <Pin className="size-3.5 shrink-0 text-destructive mt-0.5" aria-label="Đã ghim" />
+            <Pin className="size-3.5 shrink-0 text-official mt-0.5" aria-label="Đã ghim" />
           )}
         </div>
 
         {/* Badges */}
         <div className="flex gap-1.5 flex-wrap shrink-0">
-          <StatusBadge variant="accent" size="sm">
+          <StatusBadge variant="official" size="sm">
             <Megaphone className="size-3 mr-1 inline-block" />
             THÔNG BÁO
           </StatusBadge>
@@ -610,17 +610,17 @@ function AnnouncementCard({
             </StatusBadge>
           )}
           {status !== "PUBLISHED" && (
-            <StatusBadge variant="warning" size="sm">
+            <StatusBadge variant={status === "WITHDRAWN" ? "critical" : "warning"} size="sm">
               {status === "WITHDRAWN" ? "ĐÃ THU HỒI" : "ĐÃ THAY THẾ"}
             </StatusBadge>
           )}
           {priority === "URGENT" && (
-            <StatusBadge variant="accent" size="sm">
+            <StatusBadge variant="warning" size="sm">
               KHẨN CẤP
             </StatusBadge>
           )}
           {pinToTop && (
-            <StatusBadge variant="warning" size="sm">
+            <StatusBadge variant="official" size="sm">
               GHIM
             </StatusBadge>
           )}

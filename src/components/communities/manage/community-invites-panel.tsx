@@ -41,10 +41,10 @@ export function CommunityInvitesPanel({
 
       <Card className={`${manageSurface} gap-0 py-0`}>
         <CardHeader className={manageHeader}>
-          <CardTitle className="text-lg font-bold text-[#050505]">
+          <CardTitle className="text-lg font-bold text-foreground">
             Lời mời đang chờ
           </CardTitle>
-          <CardDescription className="text-[#65676b]">
+          <CardDescription className="text-muted-foreground">
             Theo dõi các lời mời tham gia chưa được phản hồi.
           </CardDescription>
         </CardHeader>
@@ -56,19 +56,19 @@ export function CommunityInvitesPanel({
                 <article key={invite.id} className={manageItem}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-[#050505]">
+                      <h3 className="font-semibold text-foreground">
                         {invite.inviteeName}
                       </h3>
-                      <p className="mt-1 text-sm text-[#65676b]">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         Được mời bởi {invite.inviterName}
                       </p>
                     </div>
-                    <Badge className="bg-[#fff4de] text-[#8a5200]" variant="secondary">
+                    <Badge variant="warning">
                       <Clock data-icon="inline-start" />
                       Đang chờ
                     </Badge>
                   </div>
-                  <p className="mt-3 text-xs text-[#65676b]">
+                  <p className="mt-3 text-xs text-muted-foreground">
                     Gửi ngày {invite.createdAt.toLocaleDateString("vi-VN")} · hết hạn{" "}
                     {invite.expiresAt.toLocaleDateString("vi-VN")}
                   </p>

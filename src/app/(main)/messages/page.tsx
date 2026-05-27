@@ -523,7 +523,7 @@ function MessagesPageInner() {
         />
       )}
 
-      <div className="flex h-[calc(100dvh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-hidden lg:h-[calc(100dvh-4rem)]">
+      <div className="flex h-[calc(100dvh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] gap-3 overflow-hidden bg-background p-3 lg:h-[calc(100dvh-4rem)] lg:p-4">
       <div className={activeConversationId ? "hidden lg:flex" : "flex w-full lg:w-auto"}>
         <ConversationList
           activeTab={activeFilter}
@@ -585,8 +585,8 @@ function MessagesPageInner() {
       <section
         className={
           activeConversationId
-            ? "flex-1 flex flex-col bg-card relative"
-            : "hidden lg:flex flex-1 flex-col bg-card relative"
+            ? "relative flex flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-card shadow-sm"
+            : "relative hidden flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-card shadow-sm lg:flex"
         }
       >
         <div className="lg:hidden absolute top-0 left-0 z-10 h-14 flex items-center pl-2">

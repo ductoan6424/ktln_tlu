@@ -47,8 +47,8 @@ export default async function AdminDashboardPage() {
       value: stats.totalUsers.toLocaleString("vi-VN"),
       change: trendUsers.label,
       positive: trendUsers.positive,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
       href: "/admin/users",
     },
     {
@@ -57,8 +57,8 @@ export default async function AdminDashboardPage() {
       value: stats.totalPosts.toLocaleString("vi-VN"),
       change: trendPosts.label,
       positive: trendPosts.positive,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      color: "text-success",
+      bgColor: "bg-success-soft",
       href: null,
     },
     {
@@ -67,8 +67,8 @@ export default async function AdminDashboardPage() {
       value: stats.eventsThisMonth.toLocaleString("vi-VN"),
       change: trendEvents.label,
       positive: trendEvents.positive,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
+      color: "text-info",
+      bgColor: "bg-info/10",
       href: null,
     },
     {
@@ -77,8 +77,8 @@ export default async function AdminDashboardPage() {
       value: stats.pendingReports.toLocaleString("vi-VN"),
       change: `${stats.pendingReports > 0 ? "Cần xem" : "Ổn định"}`,
       positive: stats.pendingReports === 0,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
+      color: "text-warning",
+      bgColor: "bg-warning-soft",
       href: null,
     },
   ]
@@ -120,7 +120,7 @@ export default async function AdminDashboardPage() {
                     <Icon className="size-5" />
                   </div>
                   <span
-                    className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-green-600" : "text-orange-600"}`}
+                    className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-success" : "text-warning"}`}
                   >
                     <TrendIcon className="size-3.5" />
                     {stat.change}

@@ -31,8 +31,8 @@ const MOCK_EVENTS: Event[] = [
 ]
 
 const STATUS_CONFIG = {
-  upcoming: { label: "Sắp diễn ra", color: "bg-blue-100 text-blue-700" },
-  ongoing: { label: "Đang diễn ra", color: "bg-green-100 text-green-700" },
+  upcoming: { label: "Sắp diễn ra", color: "bg-info/10 text-info" },
+  ongoing: { label: "Đang diễn ra", color: "bg-success-soft text-success" },
   ended: { label: "Đã kết thúc", color: "bg-muted text-muted-foreground" },
 }
 

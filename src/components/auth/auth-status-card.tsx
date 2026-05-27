@@ -27,9 +27,9 @@ const VARIANT_STYLES: Record<
   { bg: string; iconColor: string; titleColor: string; defaultIcon: LucideIcon }
 > = {
   success: {
-    bg: "bg-emerald-100 dark:bg-emerald-900/30",
-    iconColor: "text-emerald-600 dark:text-emerald-400",
-    titleColor: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-success-soft",
+    iconColor: "text-success",
+    titleColor: "text-success",
     defaultIcon: CheckCircle,
   },
   error: {
@@ -39,9 +39,9 @@ const VARIANT_STYLES: Record<
     defaultIcon: XCircle,
   },
   warning: {
-    bg: "bg-destructive/10",
-    iconColor: "text-destructive",
-    titleColor: "text-foreground",
+    bg: "bg-warning-soft",
+    iconColor: "text-warning",
+    titleColor: "text-warning",
     defaultIcon: AlertCircle,
   },
 }
@@ -57,21 +57,21 @@ export function AuthStatusCard({
   const Icon = icon ?? styles.defaultIcon
 
   return (
-    <Card className="w-full max-w-md shadow-2xl shadow-foreground/5 border">
-      <CardContent className="space-y-6 p-5 text-center sm:p-8">
+    <Card className="w-full max-w-md border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 text-center sm:p-8">
         <div className="flex justify-center">
           <div className={cn("flex size-16 items-center justify-center rounded-full", styles.bg)}>
             <Icon className={cn("size-8", styles.iconColor)} />
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <h1 className={cn("text-xl font-semibold", styles.titleColor)}>{title}</h1>
           {description && (
             <p className="text-sm text-muted-foreground">{description}</p>
           )}
         </div>
         {actions.length > 0 && (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {actions.map((action) => (
               <Button
                 key={action.href}

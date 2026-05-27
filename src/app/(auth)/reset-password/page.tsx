@@ -67,32 +67,33 @@ function ResetPasswordForm({ token }: { token: string }) {
 
   if (success) {
     return (
-      <Card className="w-full max-w-md shadow-2xl border">
-        <CardContent className="space-y-6 p-5 text-center sm:p-8">
-          <div className="size-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
-            <CheckCircle className="size-8 text-emerald-600" />
+      <Card className="w-full max-w-md border-border/70 shadow-sm">
+        <CardContent className="flex flex-col gap-6 p-6 text-center sm:p-8">
+          <div className="size-16 rounded-full bg-success-soft flex items-center justify-center mx-auto">
+            <CheckCircle className="size-8 text-success" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-emerald-600">Đặt lại mật khẩu thành công!</h1>
+            <h1 className="text-xl font-semibold text-success">Đặt lại mật khẩu thành công!</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Mật khẩu của bạn đã được thay đổi. Bây giờ bạn có thể đăng nhập.
             </p>
           </div>
-          <Link
-            href="/login"
-            className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-semibold text-center hover:bg-primary/90"
+          <Button
+            className="w-full"
+            size="lg"
+            render={<Link href="/login" />}
           >
             Đăng nhập ngay
-          </Link>
+          </Button>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card className="w-full max-w-md shadow-2xl border">
-      <CardContent className="space-y-6 p-5 sm:p-8">
-        <div className="text-center space-y-2">
+    <Card className="w-full max-w-md border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-2 text-center">
           <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
             <Lock className="size-6 text-primary" />
           </div>
@@ -102,8 +103,8 @@ function ResetPasswordForm({ token }: { token: string }) {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" htmlFor="reset-password-new">Mật khẩu mới</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
@@ -127,7 +128,7 @@ function ResetPasswordForm({ token }: { token: string }) {
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" htmlFor="reset-password-confirm">Xác nhận mật khẩu</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
@@ -182,8 +183,8 @@ function ResetPasswordForm({ token }: { token: string }) {
 
 function InvalidTokenState() {
   return (
-    <Card className="w-full max-w-md shadow-2xl border">
-      <CardContent className="space-y-4 p-5 text-center sm:p-8">
+    <Card className="w-full max-w-md border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-4 p-6 text-center sm:p-8">
         <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
           <XCircle className="size-8 text-destructive" />
         </div>
@@ -191,12 +192,13 @@ function InvalidTokenState() {
         <p className="text-sm text-muted-foreground">
           Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.
         </p>
-        <Link
-          href="/login"
-          className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-semibold text-center"
+        <Button
+          className="w-full"
+          size="lg"
+          render={<Link href="/login" />}
         >
           Quay về đăng nhập
-        </Link>
+        </Button>
       </CardContent>
     </Card>
   )
@@ -204,14 +206,14 @@ function InvalidTokenState() {
 
 function LoadingState() {
   return (
-    <Card className="w-full max-w-md shadow-2xl border">
-      <CardContent className="space-y-6 p-5 sm:p-8">
-        <div className="text-center space-y-3">
+    <Card className="w-full max-w-md border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-3 text-center">
           <Skeleton className="size-12 rounded-full mx-auto" />
           <Skeleton className="h-7 w-40 mx-auto" />
           <Skeleton className="h-4 w-64 mx-auto" />
         </div>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-11 w-full rounded-lg" />

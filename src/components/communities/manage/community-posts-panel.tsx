@@ -56,10 +56,10 @@ export function CommunityPostsPanel({
   return (
     <Card className={`${manageSurface} gap-0 py-0`}>
       <CardHeader className={manageHeader}>
-        <CardTitle className="text-lg font-bold text-[#050505]">
+        <CardTitle className="text-lg font-bold text-foreground">
           {title}
         </CardTitle>
-        <CardDescription className="text-[#65676b]">
+        <CardDescription className="text-muted-foreground">
           {description}
         </CardDescription>
       </CardHeader>
@@ -72,15 +72,15 @@ export function CommunityPostsPanel({
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <Avatar className="size-11">
-                      <AvatarFallback className="bg-[#e7f3ff] font-semibold text-[#1877f2]">
+                      <AvatarFallback className="bg-primary/10 font-semibold text-primary">
                         {getInitials(post.authorName) || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <h3 className="truncate font-semibold text-[#050505]">
+                      <h3 className="truncate font-semibold text-foreground">
                         {post.authorName}
                       </h3>
-                      <p className="text-xs text-[#65676b]">
+                      <p className="text-xs text-muted-foreground">
                         {post.createdAt.toLocaleDateString("vi-VN")}
                       </p>
                     </div>
@@ -88,7 +88,7 @@ export function CommunityPostsPanel({
 
                   {post.badgeLabel ? (
                     <Badge
-                      className="bg-[#e7f3ff] text-[#1877f2]"
+                      className="bg-primary/10 text-primary"
                       variant="secondary"
                     >
                       {post.badgeLabel}
@@ -96,11 +96,11 @@ export function CommunityPostsPanel({
                   ) : null}
                 </div>
 
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#050505]">
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-foreground">
                   {post.content}
                 </p>
                 {post.imageUrl ? (
-                  <div className="relative mt-3 aspect-video overflow-hidden rounded-xl ring-1 ring-[#dddfe2]">
+                  <div className="relative mt-3 aspect-video overflow-hidden rounded-xl ring-1 ring-border">
                     <Image
                       src={post.imageUrl}
                       alt="Ảnh bài viết"

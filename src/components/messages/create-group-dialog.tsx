@@ -238,7 +238,7 @@ export function CreateGroupDialog({
                     variant="ghost"
                     className={cn(
                       "h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 text-left",
-                      isSelected && "bg-primary/5",
+                      isSelected && "bg-primary/10",
                     )}
                     onClick={() => toggleUser(user)}
                   >

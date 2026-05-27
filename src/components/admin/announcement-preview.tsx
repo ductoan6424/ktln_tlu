@@ -38,9 +38,9 @@ export function AnnouncementPreview({
         Xem trước trên bảng tin
       </h3>
 
-      <Card className="overflow-hidden relative">
+      <Card className="relative overflow-hidden border-official/15 bg-card">
         {pinToTop && (
-          <div className="absolute top-0 left-0 w-1 h-full bg-destructive" />
+          <div className="official-marker absolute left-0 top-0 h-full w-1 bg-official" />
         )}
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
@@ -57,7 +57,7 @@ export function AnnouncementPreview({
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-sm font-semibold">{OFFICIAL_SCHOOL_DISPLAY_NAME}</span>
                 <BadgeCheck className="size-4 text-primary fill-primary stroke-primary-foreground" />
-                <StatusBadge variant="primary" size="sm" className="ml-1">
+                <StatusBadge variant="official" size="sm" className="ml-1">
                   Thông báo
                 </StatusBadge>
               </div>
