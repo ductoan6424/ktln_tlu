@@ -21,9 +21,9 @@ const STATUS_SIZE_MAP = {
 } as const
 
 const STATUS_COLOR_MAP = {
-  online: "bg-green-500",
-  offline: "bg-slate-300",
-  away: "bg-orange-400",
+  online: "bg-success",
+  offline: "bg-muted-foreground",
+  away: "bg-warning",
 } as const
 
 interface UserAvatarProps {

@@ -39,9 +39,9 @@ function getPasswordStrength(password: string): {
   if (/[^A-Za-z0-9]/.test(password)) score++
 
   if (score <= 1) return { score, label: "Yếu", color: "bg-destructive" }
-  if (score <= 3) return { score, label: "Trung bình", color: "bg-yellow-500" }
-  if (score <= 4) return { score, label: "Khá mạnh", color: "bg-emerald-500" }
-  return { score, label: "Mạnh", color: "bg-emerald-600" }
+  if (score <= 3) return { score, label: "Trung bình", color: "bg-warning" }
+  if (score <= 4) return { score, label: "Khá mạnh", color: "bg-success" }
+  return { score, label: "Mạnh", color: "bg-success" }
 }
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -460,8 +460,8 @@ function SuccessState({ email }: { email: string }) {
   return (
     <div className="space-y-6 text-center animate-in fade-in duration-300">
       <div className="flex justify-center">
-        <div className="size-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-          <Check className="size-8 text-emerald-600 dark:text-emerald-400" />
+        <div className="size-16 rounded-full bg-success-soft flex items-center justify-center">
+          <Check className="size-8 text-success" />
         </div>
       </div>
 
@@ -597,8 +597,8 @@ export function RegisterCard() {
 
   if (submitted) {
     return (
-      <Card className="shadow-2xl shadow-foreground/5 border">
-        <CardContent className="p-5 sm:p-8 lg:p-10">
+      <Card className="border-border/70 shadow-sm">
+        <CardContent className="p-6 sm:p-8">
           <SuccessState email={formData.email} />
         </CardContent>
       </Card>
@@ -606,8 +606,8 @@ export function RegisterCard() {
   }
 
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-5 sm:p-8 lg:p-10">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="p-6 sm:p-8">
         {/* Tiêu đề — chỉ hiện ở step 1 */}
         {step === 1 && (
           <div className="mb-5 text-center sm:mb-6">
@@ -667,13 +667,13 @@ export function RegisterCard() {
 
 export function RegisterCardSkeleton() {
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="space-y-6 p-5 sm:p-8 lg:p-10">
-        <div className="text-center space-y-2">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-2 text-center">
           <Skeleton className="h-7 w-48 mx-auto" />
           <Skeleton className="h-4 w-56 mx-auto" />
         </div>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-10 w-full rounded-lg" />

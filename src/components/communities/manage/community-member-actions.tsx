@@ -10,8 +10,8 @@ import {
 } from "@/actions/communities"
 import { Button } from "@/components/ui/button"
 import {
-  facebookDangerButton,
-  facebookPrimaryButton,
+  manageDangerButton,
+  managePrimaryButton,
   manageInput,
 } from "@/components/communities/manage/manage-ui"
 
@@ -76,7 +76,7 @@ export function CommunityMemberActions({
             size="sm"
             type="submit"
             disabled={pending}
-            className={facebookPrimaryButton}
+            className={managePrimaryButton}
           >
             <Save data-icon="inline-start" />
             Lưu
@@ -108,7 +108,7 @@ export function CommunityMemberActions({
             variant="outline"
             type="submit"
             disabled={pending}
-            className={facebookDangerButton}
+            className={manageDangerButton}
           >
             <Trash2 data-icon="inline-start" />
             Xoá
@@ -116,7 +116,7 @@ export function CommunityMemberActions({
         </form>
       ) : null}
 
-      {message ? <p className="text-xs text-[#65676b]">{message}</p> : null}
+      {message ? <p className="text-xs text-muted-foreground">{message}</p> : null}
     </div>
   )
 }

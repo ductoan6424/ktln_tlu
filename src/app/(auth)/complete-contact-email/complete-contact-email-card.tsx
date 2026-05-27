@@ -34,17 +34,17 @@ export function CompleteContactEmailCard() {
   }
 
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-5 sm:p-8 lg:p-10">
-        <div className="mb-6 text-center">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="text-center">
           <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10">
             <Mail className="size-6 text-primary" />
           </div>
           <h1 className="text-2xl font-semibold">Xác thực email liên hệ</h1>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-1.5">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" htmlFor="contact-email">Email thật</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />

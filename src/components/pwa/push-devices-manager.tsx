@@ -277,7 +277,7 @@ function DeviceRow({
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate text-sm font-medium">{parsed.label}</p>
             {isCurrent && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
                 <CheckCircle2 className="size-3" />
                 Thiết bị này
               </span>

@@ -118,8 +118,9 @@ export function EventsPageClient({ events }: EventsPageClientProps) {
                 ) : (
                   featuredEvents.map((event) => (
                     <div key={event.id} className="flex gap-4">
-                      <div className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-muted">
-                        <span className="text-[10px] font-bold uppercase leading-tight text-destructive">
+                      <div className="relative flex size-12 shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg bg-brand-indigo text-white">
+                        <span className="absolute inset-x-0 top-0 h-1 bg-brand-scarlet" />
+                        <span className="pt-1 text-[10px] font-bold uppercase leading-tight text-white/75">
                           {event.month}
                         </span>
                         <span className="text-lg font-bold leading-tight">{event.day}</span>
@@ -168,8 +169,8 @@ function EventCard({ event }: { event: EventListItem }) {
   const isClosed = event.registrationStatus !== "OPEN"
 
   return (
-    <Card className="group overflow-hidden">
-      <div className="relative h-44 overflow-hidden bg-muted">
+    <Card className="group overflow-hidden rounded-lg">
+      <div className="relative h-44 overflow-hidden bg-brand-indigo text-white">
         {event.coverImageUrl ? (
           <Image
             src={event.coverImageUrl}
@@ -179,8 +180,9 @@ function EventCard({ event }: { event: EventListItem }) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <CalendarDays className="size-12 text-muted-foreground" />
+          <div className="relative flex h-full items-center justify-center">
+            <div className="absolute right-0 top-0 size-24 translate-x-8 -translate-y-8 rounded-full bg-brand-scarlet/80" />
+            <CalendarDays className="size-12 text-white/80" />
           </div>
         )}
         <div className="absolute left-3 top-3 flex gap-2">

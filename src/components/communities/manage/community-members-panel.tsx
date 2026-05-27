@@ -37,10 +37,10 @@ const roleLabels = {
 } as const
 
 const roleBadgeClass = {
-  ADMIN: "bg-[#e7f3ff] text-[#1877f2]",
-  MODERATOR: "bg-[#fff4de] text-[#8a5200]",
-  MEMBER: "bg-[#e4e6eb] text-[#050505]",
-  STUDENT: "bg-[#e4e6eb] text-[#050505]",
+  ADMIN: "bg-primary/10 text-primary",
+  MODERATOR: "bg-warning-soft text-warning",
+  MEMBER: "bg-muted text-foreground",
+  STUDENT: "bg-muted text-foreground",
 } as const
 
 function getInitials(name: string) {
@@ -75,50 +75,50 @@ export function CommunityMembersPanel({
   return (
     <Card className={`${manageSurface} gap-0 py-0`}>
       <CardHeader className={manageHeader}>
-        <CardTitle className="text-lg font-bold text-[#050505]">
+        <CardTitle className="text-lg font-bold text-foreground">
           {title}
         </CardTitle>
-        <CardDescription className="text-[#65676b]">
+        <CardDescription className="text-muted-foreground">
           {resolvedDescription}
         </CardDescription>
       </CardHeader>
 
       <CardContent className={manageContent}>
         {members.length > 0 ? (
-          <div className="divide-y divide-[#e4e6eb]">
+          <div className="divide-y divide-border">
             {members.map((member) => (
               <article
                 key={member.userId}
                 className="grid gap-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto] sm:items-center"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <Avatar className="size-12 ring-2 ring-white">
+                  <Avatar className="size-12 ring-2 ring-card">
                     <AvatarImage src={member.avatarUrl ?? undefined} alt={member.displayName} />
-                    <AvatarFallback className="bg-[#e7f3ff] font-semibold text-[#1877f2]">
+                    <AvatarFallback className="bg-primary/10 font-semibold text-primary">
                       {getInitials(member.displayName) || "U"}
                     </AvatarFallback>
                   </Avatar>
 
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate font-semibold text-[#050505]">
+                      <h3 className="truncate font-semibold text-foreground">
                         {member.displayName}
                       </h3>
                       <Badge className={roleBadgeClass[member.role]} variant="secondary">
                         {roleLabels[member.role]}
                       </Badge>
                     </div>
-                    <p className="mt-1 truncate text-sm text-[#65676b]">
+                    <p className="mt-1 truncate text-sm text-muted-foreground">
                       {member.studentId ?? "Chưa có mã sinh viên"} · {member.email}
                     </p>
-                    <time className="mt-1 block text-xs text-[#65676b] sm:hidden">
+                    <time className="mt-1 block text-xs text-muted-foreground sm:hidden">
                       Tham gia {member.joinedAt.toLocaleDateString("vi-VN")}
                     </time>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:items-end">
-                  <time className="hidden text-xs text-[#65676b] sm:block sm:text-right">
+                  <time className="hidden text-xs text-muted-foreground sm:block sm:text-right">
                     Tham gia {member.joinedAt.toLocaleDateString("vi-VN")}
                   </time>
                   {targetType && slugId ? (

@@ -32,12 +32,12 @@ export function CommunityReportsTable({
     <Card className={`${manageSurface} gap-0 py-0`}>
       <CardContent className="space-y-4 p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#ffe3e3] text-[#b42318]">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <Flag className="size-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-[#050505]">Báo cáo</h2>
-            <p className="text-sm text-[#65676b]">
+            <h2 className="text-lg font-semibold text-foreground">Báo cáo</h2>
+            <p className="text-sm text-muted-foreground">
               Nội dung thành viên đã báo cáo cần được xử lý.
             </p>
           </div>
@@ -50,21 +50,21 @@ export function CommunityReportsTable({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold text-[#050505]">
+                      <h3 className="font-semibold text-foreground">
                         {report.reason}
                       </h3>
-                      <Badge className="bg-[#e4e6eb] text-[#050505]" variant="secondary">
+                      <Badge variant="secondary">
                         {report.contentType}
                       </Badge>
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-[#65676b]">
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       {report.note ?? "Không có ghi chú."}
                     </p>
-                    <p className="mt-2 text-xs text-[#65676b]">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       Bởi {report.reporterName}
                     </p>
                   </div>
-                  <time className="text-xs text-[#65676b]">
+                  <time className="text-xs text-muted-foreground">
                     {report.createdAt.toLocaleDateString("vi-VN")}
                   </time>
                 </div>

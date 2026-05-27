@@ -8,8 +8,8 @@ import { approveJoinRequest, rejectJoinRequest } from "@/actions/communities"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
-  facebookPrimaryButton,
-  facebookSecondaryButton,
+  managePrimaryButton,
+  manageSecondaryButton,
   manageEmpty,
   manageItem,
   manageSurface,
@@ -33,7 +33,7 @@ function RequestActions({ requestId }: { requestId: string }) {
       <Button
         size="sm"
         disabled={busy}
-        className={facebookPrimaryButton}
+        className={managePrimaryButton}
         onClick={() =>
           startApprove(async () => {
             const result = await approveJoinRequest({ requestId })
@@ -48,7 +48,7 @@ function RequestActions({ requestId }: { requestId: string }) {
         size="sm"
         variant="outline"
         disabled={busy}
-        className={facebookSecondaryButton}
+        className={manageSecondaryButton}
         onClick={() =>
           startReject(async () => {
             const result = await rejectJoinRequest({ requestId })
@@ -72,14 +72,14 @@ export function CommunityRequestsTable({
     <Card className={`${manageSurface} gap-0 py-0`}>
       <CardContent className="space-y-4 p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e7f3ff] text-[#1877f2]">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
             <ClipboardCheck className="size-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-[#050505]">
+            <h2 className="text-lg font-semibold text-foreground">
               Yêu cầu tham gia
             </h2>
-            <p className="text-sm text-[#65676b]">
+            <p className="text-sm text-muted-foreground">
               Duyệt thành viên đang chờ vào cộng đồng.
             </p>
           </div>
@@ -93,13 +93,13 @@ export function CommunityRequestsTable({
                 className={`${manageItem} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}
               >
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-[#050505]">
+                  <h3 className="font-semibold text-foreground">
                     {request.requesterName}
                   </h3>
-                  <p className="mt-1 text-sm text-[#65676b]">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {request.message ?? "Không có lời nhắn."}
                   </p>
-                  <time className="mt-2 block text-xs text-[#65676b]">
+                  <time className="mt-2 block text-xs text-muted-foreground">
                     {request.createdAt.toLocaleDateString("vi-VN")}
                   </time>
                 </div>
