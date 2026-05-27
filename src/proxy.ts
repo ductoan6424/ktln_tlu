@@ -17,7 +17,19 @@ const AUTH_ROUTES = ["/login", "/register"]
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  const PUBLIC_FILE_EXTENSIONS = [".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico"]
+  const PUBLIC_FILE_EXTENSIONS = [
+    ".svg",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".ico",
+    ".js",
+    ".json",
+    ".webmanifest",
+    ".map",
+  ]
   if (PUBLIC_FILE_EXTENSIONS.some((ext) => pathname.endsWith(ext))) {
     return NextResponse.next()
   }
