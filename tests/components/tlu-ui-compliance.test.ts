@@ -59,6 +59,19 @@ describe("TLU full UI compliance contracts", () => {
     expect(courses).toContain("border-border")
   })
 
+  it("uses the restrained branded management header and summarized member panel", () => {
+    const shell = source("src/components/communities/manage/community-manage-shell.tsx")
+    const members = source("src/components/communities/manage/community-members-panel.tsx")
+    const course = source("src/app/(main)/courses/[courseId]/manage/page.tsx")
+
+    expect(shell).toContain("brand-panel")
+    expect(shell).toContain("bg-brand-scarlet")
+    expect(shell).not.toContain("from-brand-indigo via-primary to-brand-scarlet")
+    expect(members).toContain("CardAction")
+    expect(members).toContain("countLabel")
+    expect(course).toContain('countLabel="sinh viên"')
+  })
+
   it("uses primary conversation styling and semantic notification callouts", () => {
     const bubble = source("src/components/messages/chat-bubble.tsx")
     const header = source("src/components/messages/chat-header.tsx")
