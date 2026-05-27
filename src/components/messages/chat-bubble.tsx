@@ -96,7 +96,7 @@ export function ChatBubble({
           className={cn(
             "px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-all max-w-full",
             isOwn
-              ? "rounded-[1.125rem] rounded-br-sm bg-brand-indigo text-white shadow-sm"
+              ? "rounded-[1.125rem] rounded-br-sm bg-primary text-primary-foreground shadow-sm"
               : "rounded-[1.125rem] rounded-bl-sm border border-border/70 bg-card text-card-foreground shadow-sm"
           )}
         >

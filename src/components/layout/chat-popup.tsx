@@ -288,7 +288,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
     <div
       role="region"
       aria-label={`Chat với ${conversation.name}`}
-      className="fixed bg-card border border-border rounded-xl shadow-2xl shadow-black/20 flex flex-col overflow-hidden"
+      className="fixed flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg shadow-brand-indigo/10"
       style={{
         width: 320,
         height: 420,

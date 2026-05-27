@@ -237,7 +237,7 @@ export function MessageInput({
           icon={Plus}
           size="sm"
           ariaLabel="Thêm tệp đính kèm"
-          className="size-8 shrink-0 rounded-full text-brand-indigo hover:bg-primary/10 hover:text-brand-indigo"
+          className="size-8 shrink-0 rounded-full text-primary hover:bg-primary/10 hover:text-primary"
           onClick={openFilePicker}
         />
 

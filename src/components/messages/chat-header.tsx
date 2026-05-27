@@ -53,7 +53,7 @@ export function ChatHeader({
             {isGroup ? (
               <Users className="size-3 shrink-0" />
             ) : isOnline && (
-              <span className="size-1.5 bg-green-500 rounded-full shrink-0" />
+              <span className="size-1.5 bg-success rounded-full shrink-0" />
             )}
             <span className="truncate">
               {isGroup

@@ -40,7 +40,7 @@ export function AdminDataTable<Cells extends AdminCellValues>({
     <Card>
       <CardContent className="overflow-x-auto">
         <table className="min-w-full border-separate border-spacing-0">
-          <thead>
+          <thead className="bg-muted/50">
             <tr className="border-b border-border">
               {columns.map((column) => (
                 <th
@@ -55,7 +55,7 @@ export function AdminDataTable<Cells extends AdminCellValues>({
           </thead>
           <tbody>
             {records.map((record) => (
-              <tr key={record.id} className="border-b border-border last:border-b-0">
+              <tr key={record.id} className="border-b border-border transition-colors hover:bg-primary/5 last:border-b-0">
                 {columns.map((column) => {
                   const value = String(record.cells[column.key] ?? "")
                   const content =

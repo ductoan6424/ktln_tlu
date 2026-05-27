@@ -220,7 +220,7 @@ export function AvatarUploader({
         src={avatarSrc}
         name={displayName}
         size="xl"
-        className={cn(isEmbeddedProfile && "size-32 md:size-36 border-[6px] border-card shadow-lg ring-1 ring-border/10")}
+        className={cn(isEmbeddedProfile && "size-32 md:size-36 border-[6px] border-card shadow-sm ring-1 ring-border/10")}
       />
       <Button
         type="button"
@@ -279,7 +279,7 @@ export function AvatarUploader({
   return (
     <section
       className={cn(
-        "rounded-2xl border border-border bg-card p-4 shadow-sm",
+        "rounded-xl border border-border bg-card p-4 shadow-sm",
         variant === "profile" && "bg-background/80",
         className
       )}

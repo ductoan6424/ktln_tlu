@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
-  facebookPrimaryButton,
+  managePrimaryButton,
   manageHeader,
   manageInput,
   manageSurface,
@@ -34,10 +34,10 @@ export function CommunityInviteForm({ type, slugId }: CommunityInviteFormProps) 
   return (
     <Card className={`${manageSurface} gap-0 py-0`}>
       <CardHeader className={manageHeader}>
-        <CardTitle className="text-lg font-bold text-[#050505]">
+        <CardTitle className="text-lg font-bold text-foreground">
           Mời thành viên
         </CardTitle>
-        <CardDescription className="text-[#65676b]">
+        <CardDescription className="text-muted-foreground">
           Nhập email hoặc mã sinh viên để gửi lời mời tham gia.
         </CardDescription>
       </CardHeader>
@@ -72,12 +72,12 @@ export function CommunityInviteForm({ type, slugId }: CommunityInviteFormProps) 
               className={manageInput}
             />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            {message ? <p className="text-sm text-[#65676b]">{message}</p> : null}
+            {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
           </div>
           <Button
             type="submit"
             disabled={pending}
-            className={`${facebookPrimaryButton} h-10 self-start`}
+            className={`${managePrimaryButton} h-10 self-start`}
           >
             <UserPlus data-icon="inline-start" />
             {pending ? "Đang gửi..." : "Gửi lời mời"}

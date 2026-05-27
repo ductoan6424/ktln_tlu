@@ -129,7 +129,7 @@ function PostCardImpl({
     <>
       <Card
         className={cn(
-          "relative overflow-hidden rounded-2xl border-border/70 shadow-sm",
+          "relative overflow-hidden rounded-lg border-border/70 shadow-sm",
           isPinned && "border-2 border-primary/20",
           className
         )}
@@ -193,7 +193,7 @@ function PostCardImpl({
               />
             ) : (
               imageUrl && (
-                <div className="mt-2.5 overflow-hidden rounded-2xl border border-border/70">
+                <div className="mt-2.5 overflow-hidden rounded-xl border border-border/70">
                   <div className="relative aspect-video w-full">
                     <Image
                       src={imageUrl}
@@ -282,7 +282,7 @@ export const PostCard = memo(PostCardImpl)
 
 export function PostCardSkeleton() {
   return (
-    <Card className="rounded-2xl border-border/70 shadow-sm">
+    <Card className="rounded-lg border-border/70 shadow-sm">
       <CardContent className="flex flex-col gap-2.5 px-4 py-4 md:px-5 md:py-4">
         <PostHeaderSkeleton />
         <div className="flex flex-col gap-2">
