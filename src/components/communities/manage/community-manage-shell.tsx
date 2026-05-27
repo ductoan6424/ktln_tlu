@@ -59,26 +59,24 @@ export function CommunityManageShell({
         variant="full"
         className="mx-auto max-w-7xl space-y-4 py-4 sm:py-6"
       >
-        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="h-20 bg-gradient-to-r from-brand-indigo via-primary to-brand-scarlet" />
-          <div className="-mt-6 flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-            <div className="flex min-w-0 items-end gap-3">
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-full border-4 border-card bg-primary/10 text-primary shadow-sm">
-                <Settings className="size-7" aria-hidden="true" />
-              </div>
-              <div className="min-w-0 pb-1">
-                <h1 className="truncate text-2xl font-semibold leading-tight text-foreground sm:text-3xl">
-                  {title}
-                </h1>
-                <p className="mt-1 text-sm font-medium text-muted-foreground">
-                  {activeTabLabel}
-                </p>
-              </div>
+        <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <div className="brand-panel relative h-20 overflow-hidden">
+            <div className="absolute -right-8 -top-10 size-28 rounded-full bg-brand-scarlet" />
+            <div className="absolute bottom-0 right-24 size-10 bg-white/10" />
+          </div>
+          <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold leading-tight text-brand-indigo sm:text-2xl">
+                {title}
+              </h1>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                {activeTabLabel}
+              </p>
             </div>
 
             <Link
               href={backHref}
-              className="inline-flex h-9 w-fit items-center gap-2 rounded-lg bg-secondary px-3 text-sm font-semibold text-secondary-foreground transition hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/30"
+              className="inline-flex h-9 w-fit items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-brand-indigo transition hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/30"
             >
               <ArrowLeft className="size-4" aria-hidden="true" />
               Quay lại
