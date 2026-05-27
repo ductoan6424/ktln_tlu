@@ -6,6 +6,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -60,6 +61,7 @@ export function CommunityMembersPanel({
   canManageActions = true,
   title = "Danh sách thành viên",
   description,
+  countLabel = "thành viên",
 }: {
   members: CommunityMemberItem[]
   targetType?: "GROUP" | "CLUB" | "COURSE"
@@ -68,6 +70,7 @@ export function CommunityMembersPanel({
   canManageActions?: boolean
   title?: string
   description?: string
+  countLabel?: string
 }) {
   const resolvedDescription =
     description ?? `Tổng ${members.length} thành viên đang tham gia không gian này.`
@@ -81,6 +84,11 @@ export function CommunityMembersPanel({
         <CardDescription className="text-muted-foreground">
           {resolvedDescription}
         </CardDescription>
+        <CardAction>
+          <Badge variant="info">
+            {members.length} {countLabel}
+          </Badge>
+        </CardAction>
       </CardHeader>
 
       <CardContent className={manageContent}>
@@ -89,10 +97,10 @@ export function CommunityMembersPanel({
             {members.map((member) => (
               <article
                 key={member.userId}
-                className="grid gap-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto] sm:items-center"
+                className="grid gap-3 py-4 transition-colors first:pt-0 last:pb-0 hover:bg-muted/30 sm:grid-cols-[1fr_auto] sm:items-center"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <Avatar className="size-12 ring-2 ring-card">
+                  <Avatar className="size-10 ring-2 ring-card">
                     <AvatarImage src={member.avatarUrl ?? undefined} alt={member.displayName} />
                     <AvatarFallback className="bg-primary/10 font-semibold text-primary">
                       {getInitials(member.displayName) || "U"}

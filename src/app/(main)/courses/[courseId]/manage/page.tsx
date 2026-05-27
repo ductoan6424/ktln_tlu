@@ -136,6 +136,7 @@ export default async function ManageCoursePage({
           <CommunityMembersPanel
             title="Danh sách lớp"
             description={`Tổng ${course.members.length} sinh viên đã được thêm vào lớp học.`}
+            countLabel="sinh viên"
             targetType="COURSE"
             slugId={courseId}
             managerId={context?.profile.userId ?? null}
