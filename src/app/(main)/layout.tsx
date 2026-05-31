@@ -3,12 +3,9 @@ import { buildSessionUser } from "@/app/(main)/session-user"
 import { ChatDock } from "@/components/layout/chat-dock"
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
 import { TopNavbar } from "@/components/layout/top-navbar"
+import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import type { ModuleFlagKey } from "@/lib/config/system-settings"
-import { prisma } from "@/lib/prisma/client"
-import { getAccountGateStatus } from "@/lib/auth/account-gate"
 import { getModuleFlags } from "@/lib/settings/queries"
-import { DEFAULT_USER_SETTINGS, getUserSettings } from "@/lib/settings/user-settings"
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 const NAV_HREF_TO_FLAG: Record<string, ModuleFlagKey> = {
@@ -29,48 +26,32 @@ function filterNavItemsByFlags(
   })
 }
 
-async function getMainLayoutAuthContext() {
-  const supabase = await createClient()
-  return supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
-    const profile = authUser
-      ? await prisma.userProfile.findUnique({
-          where: { userId: authUser.id },
-          select: {
-            displayName: true,
-            major: true,
-            email: true,
-            avatarUrl: true,
-          },
-        })
-      : null
-
-    return { authUser, profile }
-  })
-}
-
 export default async function MainLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   // Khởi chạy song song các tác vụ độc lập với auth
-  const [authContext, moduleFlags] = await Promise.all([
-    getMainLayoutAuthContext(),
+  const [userContext, moduleFlags] = await Promise.all([
+    getCurrentUserContext(),
     getModuleFlags(),
   ])
-  const { authUser, profile } = authContext
 
-  if (authUser) {
-    const gateStatus = await getAccountGateStatus(authUser.id)
-    if (gateStatus === "INACTIVE") redirect("/account-inactive")
-    if (gateStatus === "CONTACT_EMAIL_REQUIRED") redirect("/complete-contact-email")
+  if (!userContext.authUser) {
+    redirect("/login")
   }
 
-  const sessionUser = buildSessionUser(authUser, profile)
+  if (userContext.accountGateStatus === "INACTIVE") {
+    redirect("/account-inactive")
+  }
+
+  if (userContext.accountGateStatus === "CONTACT_EMAIL_REQUIRED") {
+    redirect("/complete-contact-email")
+  }
+
+  const sessionUser = buildSessionUser(userContext.authUser, userContext.profile)
   const visibleNavItems = filterNavItemsByFlags(MAIN_NAV_ITEMS, moduleFlags)
-  const appearanceSettings = authUser
-    ? await getUserSettings(authUser.id)
-    : DEFAULT_USER_SETTINGS
+  const appearanceSettings = userContext.settings
 
   return (
     <div
@@ -79,7 +60,7 @@ export default async function MainLayout({
       data-density={appearanceSettings.compactMode ? "compact" : "comfortable"}
       data-reduced-motion={appearanceSettings.reducedMotion ? "true" : "false"}
     >
-      <ChatDock userId={authUser?.id ?? null}>
+      <ChatDock userId={userContext.userId}>
         <TopNavbar
           navItems={visibleNavItems}
           user={sessionUser}

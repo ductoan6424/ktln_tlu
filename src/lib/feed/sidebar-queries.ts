@@ -1,3 +1,4 @@
+import { unstableCache } from "@/lib/cache/unstable-cache"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import { prisma } from "@/lib/prisma/client"
 
@@ -49,7 +50,7 @@ export async function listFeedSidebarGroups(
   }))
 }
 
-export async function listTrendingSearches(
+async function loadTrendingSearches(
   limit = 5,
 ): Promise<TrendingSearchItem[]> {
   const rankedSearches = await prisma.searchHistory.groupBy({
@@ -97,3 +98,9 @@ export async function listTrendingSearches(
     }
   })
 }
+
+export const listTrendingSearches = unstableCache(
+  loadTrendingSearches,
+  ["feed-trending-searches"],
+  { revalidate: 60 },
+)

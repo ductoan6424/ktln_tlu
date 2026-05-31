@@ -1,8 +1,7 @@
-import { createClient } from "@/lib/supabase/server"
-import { prisma } from "@/lib/prisma/client"
 import { FeedPageClient } from "./feed-page-client"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
 import { INITIAL_FEED_CURSOR, getFeedPosts } from "@/lib/feed/queries"
+import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import {
   getVisibleAnnouncementForViewer,
   listActiveAnnouncementsForViewer,
@@ -24,66 +23,13 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   const deepLinkPostId = typeof params.post === "string" ? params.post : null
   const deepLinkAnnouncementId =
     typeof params.announcement === "string" ? params.announcement : null
-  const supabase = await createClient()
-  const { data: authData } = await supabase.auth.getUser()
-  const currentUserId = authData.user?.id ?? null
-
-  let currentUser: {
-    userId: string
-    displayName: string
-    avatarUrl: string | null
-    role: ViewerRole
-    facultyId: string | null
-    year: number | null
-  } | null = null
-
-  if (authData.user) {
-    const profile = await prisma.userProfile.findUnique({
-      where: { userId: authData.user.id },
-      select: {
-        userId: true,
-        displayName: true,
-        avatarUrl: true,
-        role: true,
-        facultyId: true,
-        year: true,
-      },
-    })
-    if (profile) {
-      currentUser = {
-        userId: profile.userId,
-        displayName: profile.displayName,
-        avatarUrl: profile.avatarUrl,
-        role: profile.role as ViewerRole,
-        facultyId: profile.facultyId,
-        year: profile.year,
-      }
-    }
-  }
-
-  const [courseMemberships, clubMemberships, groupMemberships] = currentUserId
-    ? await Promise.all([
-        prisma.courseMember.findMany({
-          where: { userId: currentUserId },
-          select: { courseId: true },
-        }),
-        prisma.clubMember.findMany({
-          where: { userId: currentUserId },
-          select: { clubId: true },
-        }),
-        prisma.groupMember.findMany({
-          where: { userId: currentUserId },
-          select: { groupId: true },
-        }),
-      ])
-    : [[], [], []]
-
-  const announcementViewerContext = {
-    facultyId: currentUser?.facultyId ?? null,
-    year: currentUser?.year ?? null,
-    courseIds: courseMemberships.map((membership) => membership.courseId),
-    clubIds: clubMemberships.map((membership) => membership.clubId),
-    groupIds: groupMemberships.map((membership) => membership.groupId),
+  const userContext = await getCurrentUserContext()
+  const currentUser = userContext.profile
+  const currentUserId = userContext.userId
+  const joinedCommunityIds = {
+    joinedGroupIds: userContext.memberships.groupIds,
+    joinedClubIds: userContext.memberships.clubIds,
+    joinedCourseIds: userContext.memberships.courseIds,
   }
 
   const [
@@ -94,23 +40,25 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     sidebarGroups,
     trendingSearches,
   ] = await Promise.all([
-    getFeedPosts(currentUserId, INITIAL_FEED_CURSOR, FEED_PAGE_SIZE),
+    getFeedPosts(currentUserId, INITIAL_FEED_CURSOR, FEED_PAGE_SIZE, {
+      joinedCommunityIds,
+    }),
     listActiveAnnouncementsForViewer(
-      currentUser?.role ?? null,
+      (currentUser?.role as ViewerRole | undefined) ?? null,
       5,
       currentUserId,
-      announcementViewerContext,
+      userContext.announcementViewerContext,
     ),
     deepLinkAnnouncementId
       ? getVisibleAnnouncementForViewer(
           deepLinkAnnouncementId,
-          currentUser?.role ?? null,
+          (currentUser?.role as ViewerRole | undefined) ?? null,
           currentUserId,
-          announcementViewerContext,
+          userContext.announcementViewerContext,
         )
       : Promise.resolve(null),
     listUpcomingEventsForSidebar({ take: FEED_SIDEBAR_EVENTS_LIMIT }),
-    listFeedSidebarGroups(currentUser?.userId ?? null),
+    listFeedSidebarGroups(currentUserId),
     listTrendingSearches(),
   ])
 
