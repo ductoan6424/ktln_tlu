@@ -50,7 +50,7 @@ export function DirectInfoSkeletonPanel({ onClose }: { onClose: () => void }) {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="ĐA�ng thA�ng tin cuộc trA� chuyện"
+          aria-label="Đóng thông tin cuộc trò chuyện"
           onClick={onClose}
         >
           <X className="size-4" />
