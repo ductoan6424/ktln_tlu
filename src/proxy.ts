@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -13,6 +12,15 @@ const PUBLIC_ROUTES = [
   "/support",
 ]
 const AUTH_ROUTES = ["/login", "/register"]
+
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies.getAll().some((cookie) => {
+    return (
+      cookie.name === "supabase-auth-token" ||
+      cookie.name.startsWith("sb-") && cookie.name.endsWith("-auth-token")
+    )
+  })
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -39,22 +47,13 @@ export async function proxy(request: NextRequest) {
   }
 
   if (AUTH_ROUTES.some((r) => pathname.startsWith(r))) {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (user) {
+    if (hasSupabaseAuthCookie(request)) {
       return NextResponse.redirect(new URL("/feed", request.url))
     }
     return NextResponse.next()
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
+  if (!hasSupabaseAuthCookie(request)) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)

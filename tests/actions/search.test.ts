@@ -12,7 +12,11 @@ const listRecentSearches = vi.hoisted(() => vi.fn())
 const recordRecentSearch = vi.hoisted(() => vi.fn())
 const deleteRecentSearch = vi.hoisted(() => vi.fn())
 const userProfileFindUnique = vi.hoisted(() => vi.fn())
+const schoolIdentityFindUnique = vi.hoisted(() => vi.fn())
+const userContactEmailFindUnique = vi.hoisted(() => vi.fn())
+const userSettingsFindUnique = vi.hoisted(() => vi.fn())
 const courseMemberFindMany = vi.hoisted(() => vi.fn())
+const courseFindMany = vi.hoisted(() => vi.fn())
 const clubMemberFindMany = vi.hoisted(() => vi.fn())
 const groupMemberFindMany = vi.hoisted(() => vi.fn())
 
@@ -35,8 +39,20 @@ vi.mock("@/lib/prisma/client", () => ({
     userProfile: {
       findUnique: userProfileFindUnique,
     },
+    schoolIdentity: {
+      findUnique: schoolIdentityFindUnique,
+    },
+    userContactEmail: {
+      findUnique: userContactEmailFindUnique,
+    },
+    userSettings: {
+      findUnique: userSettingsFindUnique,
+    },
     courseMember: {
       findMany: courseMemberFindMany,
+    },
+    course: {
+      findMany: courseFindMany,
     },
     clubMember: {
       findMany: clubMemberFindMany,
@@ -66,9 +82,36 @@ function mockSession(userId: string | null) {
     },
   } as unknown as SupabaseClient)
   userProfileFindUnique.mockResolvedValue(
-    userId ? { role: "STUDENT", facultyId: "fac-cntt", year: 38 } : null,
+    userId
+      ? {
+          userId,
+          email: "user@example.com",
+          displayName: "User",
+          avatarUrl: null,
+          major: null,
+          role: "STUDENT",
+          facultyId: "fac-cntt",
+          year: 38,
+          deletedAt: null,
+          schoolIdentity: { status: "ACTIVE" },
+          contactEmail: {
+            verifiedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+          settings: null,
+          courseMemberships: [{ courseId: "course-1" }],
+          ownedCourses: [],
+          clubMemberships: [{ clubId: "club-1" }],
+          groupMemberships: [{ groupId: "group-1" }],
+        }
+      : null,
   )
+  schoolIdentityFindUnique.mockResolvedValue(userId ? { status: "ACTIVE" } : null)
+  userContactEmailFindUnique.mockResolvedValue(
+    userId ? { verifiedAt: new Date("2026-01-01T00:00:00.000Z") } : null,
+  )
+  userSettingsFindUnique.mockResolvedValue(null)
   courseMemberFindMany.mockResolvedValue(userId ? [{ courseId: "course-1" }] : [])
+  courseFindMany.mockResolvedValue([])
   clubMemberFindMany.mockResolvedValue(userId ? [{ clubId: "club-1" }] : [])
   groupMemberFindMany.mockResolvedValue(userId ? [{ groupId: "group-1" }] : [])
 }
