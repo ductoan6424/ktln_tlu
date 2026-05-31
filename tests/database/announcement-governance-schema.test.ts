@@ -335,9 +335,9 @@ describe("announcement governance schema", () => {
       expect(migration).toContain(`CREATE TABLE "${table}"`)
     }
 
-    expect(migration).toContain("Phong Dao tao")
-    expect(migration).toContain("Phong Cong tac Chinh tri Sinh vien")
-    expect(migration).toContain("Phong Cong nghe Thong tin")
+    expect(migration).toContain("Phòng Đào tạo")
+    expect(migration).toContain("Phòng Công tác Chính trị Sinh viên")
+    expect(migration).toContain("Phòng Công nghệ Thông tin")
     expect(migration).toContain("FROM \"faculties\"")
     expect(migration).toContain("admin.announcements.compose")
     expect(migration).toContain("admin.announcements.approve.unit")

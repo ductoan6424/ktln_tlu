@@ -84,7 +84,7 @@ describe("school identity import parser", () => {
     expect(result.errors).toContainEqual({
       rowNumber: 1,
       field: "department",
-      message: "Thieu cot bat buoc: department",
+      message: "Thiếu cột bắt buộc: department",
     })
   })
 
@@ -103,12 +103,12 @@ describe("school identity import parser", () => {
       {
         rowNumber: 2,
         field: "role",
-        message: "Vai tro khong hop le",
+        message: "Vai trò không hợp lệ",
       },
       {
         rowNumber: 3,
         field: "status",
-        message: "Trang thai khong hop le",
+        message: "Trạng thái không hợp lệ",
       },
     ])
   })

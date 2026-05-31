@@ -111,7 +111,7 @@ export function parseSchoolIdentityImportRows(
       errors.push({
         rowNumber: 1,
         field: requiredHeader,
-        message: `Thieu cot bat buoc: ${requiredHeader}`,
+        message: `Thiếu cột bắt buộc: ${requiredHeader}`,
       })
     }
   }
@@ -133,7 +133,7 @@ export function parseSchoolIdentityImportRows(
     const department = cellToString(getValue(row, "department"))
 
     if (!role) {
-      errors.push({ rowNumber, field: "role", message: "Vai tro không hợp lệ" })
+      errors.push({ rowNumber, field: "role", message: "Vai trò không hợp lệ" })
       continue
     }
     if (!status) {
