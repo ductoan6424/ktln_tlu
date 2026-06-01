@@ -134,8 +134,8 @@ export function ForgotPasswordCard() {
 
   if (submitted) {
     return (
-      <Card className="shadow-2xl shadow-foreground/5 border">
-        <CardContent className="p-5 sm:p-8 lg:p-10">
+      <Card className="border-border/70 shadow-sm">
+        <CardContent className="p-6 sm:p-8">
           <SuccessState />
         </CardContent>
       </Card>
