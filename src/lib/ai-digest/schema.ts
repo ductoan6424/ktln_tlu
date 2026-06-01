@@ -67,6 +67,40 @@ export const DIGEST_JSON_SCHEMA = {
   },
 } as const
 
+const geminiDigestReferenceJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["announcementId", "summary"],
+  properties: {
+    announcementId: { type: "string" },
+    summary: { type: "string" },
+  },
+} as const
+
+export const GEMINI_DIGEST_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["overview", "actionItems", "expiringSoon", "announcements"],
+  properties: {
+    overview: { type: "string" },
+    actionItems: {
+      type: "array",
+      maxItems: 20,
+      items: geminiDigestReferenceJsonSchema,
+    },
+    expiringSoon: {
+      type: "array",
+      maxItems: 20,
+      items: geminiDigestReferenceJsonSchema,
+    },
+    announcements: {
+      type: "array",
+      maxItems: 50,
+      items: geminiDigestReferenceJsonSchema,
+    },
+  },
+} as const
+
 export const digestSourceItemSchema = z.object({
   announcementId: z.string().min(1),
   title: z.string().min(1),
