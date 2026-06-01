@@ -340,6 +340,33 @@ describe("generateAnnouncementDigest", () => {
     ])
   })
 
+  it("does not use supersedesId as the current announcement replacement link", async () => {
+    const deps = makeDeps([
+      makeRow("replacement", {
+        announcement: {
+          ...makeRow("replacement").announcement,
+          status: "PUBLISHED",
+          supersedesId: "old-id",
+          replacements: [],
+        },
+      }),
+    ])
+    deps.provider.generate.mockResolvedValue(makeProviderDigest({
+      announcements: [
+        { announcementId: "replacement", summary: "Replacement summary" },
+      ],
+    }))
+
+    const digest = await generate(deps)
+
+    expect(digest.announcements).toEqual([
+      expect.objectContaining({
+        announcementId: "replacement",
+        replacementHref: null,
+      }),
+    ])
+  })
+
   it("fingerprints all eligible rows before selection omits over-limit rows", async () => {
     const rows = [
       makeRow("included", {
