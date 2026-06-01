@@ -26,6 +26,9 @@ export function createOpenAiDigestProvider(config: AiDigestConfig): DigestProvid
   return {
     async generate(prompt: DigestPrompt) {
       const responseBody = await postOpenAiDigestRequest(config, prompt)
+      if (!isOpenAiResponseBody(responseBody)) {
+        throw new DigestProviderError("INVALID_RESPONSE", "OpenAI response body was not an object")
+      }
       const text = extractOpenAiOutputText(responseBody)
       return parseProviderDigestText(text)
     },
@@ -35,7 +38,7 @@ export function createOpenAiDigestProvider(config: AiDigestConfig): DigestProvid
 async function postOpenAiDigestRequest(
   config: AiDigestConfig,
   prompt: DigestPrompt,
-): Promise<OpenAiResponseBody> {
+): Promise<unknown> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), config.providerTimeoutMs)
 
@@ -77,7 +80,7 @@ async function postOpenAiDigestRequest(
       )
     }
 
-    return await parseJsonResponse<OpenAiResponseBody>(response)
+    return await parseJsonResponse(response)
   } catch (error) {
     throw normalizeProviderError(error, controller.signal, "OpenAI")
   } finally {
@@ -85,9 +88,9 @@ async function postOpenAiDigestRequest(
   }
 }
 
-async function parseJsonResponse<T>(response: Response): Promise<T> {
+async function parseJsonResponse(response: Response): Promise<unknown> {
   try {
-    return await response.json() as T
+    return await response.json()
   } catch (error) {
     throw new DigestProviderError("INVALID_RESPONSE", "Provider returned malformed JSON", {
       cause: error,
@@ -147,4 +150,8 @@ function normalizeProviderError(error: unknown, signal: AbortSignal, provider: s
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError"
+}
+
+function isOpenAiResponseBody(value: unknown): value is OpenAiResponseBody {
+  return typeof value === "object" && value !== null
 }

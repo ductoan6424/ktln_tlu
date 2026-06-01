@@ -25,4 +25,3 @@ export class DigestProviderError extends Error {
 export type DigestProvider = {
   generate(prompt: DigestPrompt): Promise<ProviderDigest>
 }
-

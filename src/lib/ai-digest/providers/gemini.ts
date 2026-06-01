@@ -24,6 +24,9 @@ export function createGeminiDigestProvider(config: AiDigestConfig): DigestProvid
   return {
     async generate(prompt: DigestPrompt) {
       const responseBody = await postGeminiDigestRequest(config, prompt)
+      if (!isGeminiResponseBody(responseBody)) {
+        throw new DigestProviderError("INVALID_RESPONSE", "Gemini response body was not an object")
+      }
       const text = extractGeminiOutputText(responseBody)
       return parseProviderDigestText(text)
     },
@@ -33,7 +36,7 @@ export function createGeminiDigestProvider(config: AiDigestConfig): DigestProvid
 async function postGeminiDigestRequest(
   config: AiDigestConfig,
   prompt: DigestPrompt,
-): Promise<GeminiResponseBody> {
+): Promise<unknown> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), config.providerTimeoutMs)
 
@@ -72,7 +75,7 @@ async function postGeminiDigestRequest(
       )
     }
 
-    return await parseJsonResponse<GeminiResponseBody>(response)
+    return await parseJsonResponse(response)
   } catch (error) {
     throw normalizeProviderError(error, controller.signal, "Gemini")
   } finally {
@@ -80,9 +83,9 @@ async function postGeminiDigestRequest(
   }
 }
 
-async function parseJsonResponse<T>(response: Response): Promise<T> {
+async function parseJsonResponse(response: Response): Promise<unknown> {
   try {
-    return await response.json() as T
+    return await response.json()
   } catch (error) {
     throw new DigestProviderError("INVALID_RESPONSE", "Provider returned malformed JSON", {
       cause: error,
@@ -142,3 +145,6 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError"
 }
 
+function isGeminiResponseBody(value: unknown): value is GeminiResponseBody {
+  return typeof value === "object" && value !== null
+}
