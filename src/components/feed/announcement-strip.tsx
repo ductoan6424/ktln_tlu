@@ -488,7 +488,7 @@ function AnnouncementListRow({
           )}
           {item.status && item.status !== "PUBLISHED" && (
             <StatusBadge variant={item.status === "WITHDRAWN" ? "critical" : "warning"} size="sm">
-              {item.status === "WITHDRAWN" ? "ĐÃ THU HỒI" : "ĐÃ THAY THẾ"}
+              {item.status === "WITHDRAWN" ? "Đã thu hồi" : "Đã thay thế"}
             </StatusBadge>
           )}
           {item.pinToTop && (
@@ -611,7 +611,7 @@ function AnnouncementCard({
           )}
           {status !== "PUBLISHED" && (
             <StatusBadge variant={status === "WITHDRAWN" ? "critical" : "warning"} size="sm">
-              {status === "WITHDRAWN" ? "ĐÃ THU HỒI" : "ĐÃ THAY THẾ"}
+              {status === "WITHDRAWN" ? "Đã thu hồi" : "Đã thay thế"}
             </StatusBadge>
           )}
           {priority === "URGENT" && (

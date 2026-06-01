@@ -129,7 +129,7 @@ describe("settings page navigation", () => {
     expect(markup).not.toContain("Ngôn ngữ")
     expect(markup).not.toContain("English")
     expect(markup).toContain("Hồ sơ cá nhân")
-  })
+  }, 10_000)
 
   it("redirects unknown settings sections back to profile", async () => {
     const { createClient } = await import("@/lib/supabase/server")

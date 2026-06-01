@@ -534,7 +534,7 @@ it("uses official preview anatomy for school notices", () => {
   )
 
   expect(markup).toContain("bg-official")
-  expect(markup).toContain("ThÃ´ng bÃ¡o")
+  expect(markup).toContain("Thông báo")
 })
 ```
 
