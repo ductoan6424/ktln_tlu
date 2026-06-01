@@ -74,12 +74,16 @@ function findFirstInstantForCalendarDate(
     }
   }
 
-  const result = new Date(lowerBound)
-  if (!afterRequestedDate && getCalendarDateKey(result, timeZone) !== requestedDateKey) {
+  return new Date(lowerBound)
+}
+
+function assertCalendarDateExists(value: CalendarDate, timeZone: string): void {
+  const requestedDateKey = value.year * 10_000 + value.month * 100 + value.day
+  const firstInstant = findFirstInstantForCalendarDate(value, timeZone, false)
+
+  if (getCalendarDateKey(firstInstant, timeZone) !== requestedDateKey) {
     throw new Error("Ngày tùy chỉnh không tồn tại trong múi giờ đã cấu hình")
   }
-
-  return result
 }
 
 function toComparableCalendarDate(value: CalendarDate): Date {
@@ -115,6 +119,9 @@ export function normalizeDigestRange(
   if (comparableEnd > latestAllowedEnd) {
     throw new Error("Khoảng thời gian tùy chỉnh không được vượt quá một năm")
   }
+
+  assertCalendarDateExists(startDate, timeZone)
+  assertCalendarDateExists(endDate, timeZone)
 
   const start = findFirstInstantForCalendarDate(startDate, timeZone, false)
   const end = findFirstInstantForCalendarDate(endDate, timeZone, true)

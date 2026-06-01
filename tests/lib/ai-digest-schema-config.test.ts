@@ -174,6 +174,15 @@ describe("normalizeDigestRange", () => {
       ),
     ).toThrow("Ngày tùy chỉnh không tồn tại trong múi giờ đã cấu hình")
   })
+
+  it("rejects an end date skipped entirely by a timezone transition", () => {
+    expect(() =>
+      normalizeDigestRange(
+        { type: "custom", startDate: "2011-12-29", endDate: "2011-12-30" },
+        "Pacific/Apia",
+      ),
+    ).toThrow("Ngày tùy chỉnh không tồn tại trong múi giờ đã cấu hình")
+  })
 })
 
 describe("providerDigestSchema", () => {
