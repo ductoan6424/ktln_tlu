@@ -39,7 +39,7 @@ export async function createAnnouncementDigest(
       return errorResult(error.message, error.code)
     }
 
-    console.error("Failed to create announcement AI digest", error)
+    console.error("Failed to create announcement AI digest")
     return errorResult("Tinh nang AI tam thoi chua kha dung.", "UNAVAILABLE")
   }
 }

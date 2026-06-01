@@ -140,15 +140,18 @@ describe("createAnnouncementDigest", () => {
       range: { type: "preset", days: 7 },
     })
 
-    expect(consoleError).toHaveBeenCalledWith(
-      "Failed to create announcement AI digest",
-      internalError,
-    )
+    expect(consoleError).toHaveBeenCalledWith("Failed to create announcement AI digest")
     expect(result).toEqual({
       success: false,
       error: "Tinh nang AI tam thoi chua kha dung.",
       code: "UNAVAILABLE",
     })
+    const serializedLogs = consoleError.mock.calls
+      .flat()
+      .map((value) => value instanceof Error ? `${value.message}\n${value.stack}` : String(value))
+      .join("\n")
+
+    expect(serializedLogs).not.toContain("secret")
     expect(JSON.stringify(result)).not.toContain("secret")
   })
 })
