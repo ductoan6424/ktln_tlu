@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { Prisma } from "@prisma/client"
 
 import { getAiDigestConfig, type AiDigestConfig } from "@/lib/ai-digest/config"
 import { normalizeDigestRange, type NormalizedDigestRange } from "@/lib/ai-digest/date-range"
@@ -79,7 +80,14 @@ export type AiDigestServiceDependencies = {
 }
 
 const defaultDependencies: AiDigestServiceDependencies = {
-  prisma,
+  prisma: {
+    announcementRecipient: {
+      findMany: (args) =>
+        prisma.announcementRecipient.findMany(
+          args as Prisma.AnnouncementRecipientFindManyArgs,
+        ) as unknown as Promise<AnnouncementDigestRecipientRow[]>,
+    },
+  },
   getConfig: getAiDigestConfig,
   createProvider: createDigestProvider,
   readCachedDigest,
@@ -193,17 +201,20 @@ function toDigestSource(row: AnnouncementDigestRecipientRow): DigestSource | nul
   }
 }
 
-function emptyDigest(now: Date): AnnouncementDigestDto {
+function emptyDigest(
+  now: Date,
+  coverage = {
+    eligibleCount: 0,
+    includedCount: 0,
+    omittedCount: 0,
+  },
+): AnnouncementDigestDto {
   return {
     overview: EMPTY_DIGEST_OVERVIEW,
     actionItems: [],
     expiringSoon: [],
     announcements: [],
-    coverage: {
-      eligibleCount: 0,
-      includedCount: 0,
-      omittedCount: 0,
-    },
+    coverage,
     generatedAt: now.toISOString(),
     cached: false,
   }
@@ -290,6 +301,11 @@ export async function generateAnnouncementDigest(
     maxAnnouncements: config.maxAnnouncements,
     maxInputCharacters: config.maxInputCharacters,
   })
+
+  if (selected.length === 0) {
+    return emptyDigest(now, coverage)
+  }
+
   const cacheKey = buildDigestCacheKey({
     userId: params.userId,
     rangeStart: range.start.toISOString(),
