@@ -151,7 +151,7 @@ describe("announcement unit queries and authorization", () => {
 
     await expect(
       requireUnitMembership("user-1", "unit-faculty-it", "AUTHOR"),
-    ).rejects.toThrow("Ban khong co tham quyen voi don vi ban hanh nay")
+    ).rejects.toThrow("Bạn không có thẩm quyền với đơn vị ban hành này")
   })
 })
 

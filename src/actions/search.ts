@@ -14,9 +14,8 @@ import {
   listRecentSearches,
   recordRecentSearch,
 } from "@/lib/search/history"
+import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import { rankSearchCandidates } from "@/lib/search/ranking"
-import { prisma } from "@/lib/prisma/client"
-import { createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import type {
@@ -36,44 +35,15 @@ const resultSchema = querySchema.extend({
 })
 
 async function getViewerContext() {
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
-  const viewerId = error ? null : data.user?.id ?? null
-  const profile = viewerId
-    ? await prisma.userProfile.findUnique({
-        where: { userId: viewerId },
-        select: { role: true, facultyId: true, year: true },
-      })
-    : null
-  const [courseMemberships, clubMemberships, groupMemberships] = viewerId
-    ? await Promise.all([
-        prisma.courseMember.findMany({
-          where: { userId: viewerId },
-          select: { courseId: true },
-        }),
-        prisma.clubMember.findMany({
-          where: { userId: viewerId },
-          select: { clubId: true },
-        }),
-        prisma.groupMember.findMany({
-          where: { userId: viewerId },
-          select: { groupId: true },
-        }),
-      ])
-    : [[], [], []]
-  const viewerRole = profile?.role ?? "STUDENT"
+  const context = await getCurrentUserContext()
+  const viewerRole = context.profile?.role ?? "STUDENT"
   const announcementViewerContext: AnnouncementViewerContext = {
-    userId: viewerId,
+    ...context.announcementViewerContext,
     role: viewerRole,
-    facultyId: profile?.facultyId ?? null,
-    year: profile?.year ?? null,
-    courseIds: courseMemberships.map((membership) => membership.courseId),
-    clubIds: clubMemberships.map((membership) => membership.clubId),
-    groupIds: groupMemberships.map((membership) => membership.groupId),
   }
 
   return {
-    viewerId,
+    viewerId: context.userId,
     viewerRole,
     announcementViewerContext,
   } as const

@@ -8,10 +8,12 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
+    "benchmark:local": "node scripts/benchmark-local.mjs",
     "lint": "eslint",
     "prebuild": "npm run prisma:generate",
     "postinstall": "npm run prisma:generate",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
+    "check:vietnamese": "node scripts/check-vietnamese-encoding.mjs",
     "seed:admin": "node scripts/seed-admin.mjs"
   },
   "dependencies": {
