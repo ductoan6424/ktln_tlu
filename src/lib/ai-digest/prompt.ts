@@ -1,4 +1,4 @@
-import type { DigestSource } from "@/lib/ai-digest/selection"
+import { serializeDigestPromptUser, type DigestSource } from "@/lib/ai-digest/selection"
 
 export function buildDigestPrompt(sources: DigestSource[]): { system: string; user: string } {
   return {
@@ -10,20 +10,6 @@ export function buildDigestPrompt(sources: DigestSource[]): { system: string; us
       "Do not invent deadlines, links, policies, or announcements.",
       "Preserve WITHDRAWN and SUPERSEDED warnings.",
     ].join(" "),
-    user: JSON.stringify({
-      task: "Create the announcement digest from the supplied announcements.",
-      announcements: sources.map((source) => ({
-        announcementId: source.announcementId,
-        revisionId: source.revisionId,
-        title: source.title,
-        content: source.content,
-        priority: source.priority,
-        status: source.status,
-        publishedAt: source.publishedAt,
-        actionDeadlineAt: source.actionDeadlineAt,
-        withdrawalReason: source.withdrawalReason,
-        replacementId: source.replacementId,
-      })),
-    }),
+    user: serializeDigestPromptUser(sources),
   }
 }

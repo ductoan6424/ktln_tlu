@@ -82,6 +82,15 @@ describe("getAiDigestConfig", () => {
         OPENAI_API_KEY: "openai-key",
       }),
     ).toThrow("AI_DIGEST_DAILY_LIMIT")
+
+    expect(() =>
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "openai",
+        AI_DIGEST_MODEL: "gpt-test",
+        AI_DIGEST_MAX_ANNOUNCEMENTS: "51",
+        OPENAI_API_KEY: "openai-key",
+      }),
+    ).toThrow("AI_DIGEST_MAX_ANNOUNCEMENTS")
   })
 })
 

@@ -2,6 +2,10 @@ import { createHash } from "node:crypto"
 
 import type { DigestCoverage } from "@/lib/ai-digest/schema"
 
+export const AI_DIGEST_CACHE_VERSION = "1"
+export const AI_DIGEST_MAX_ANNOUNCEMENTS = 50
+export const DIGEST_PROMPT_TASK = "Create the announcement digest from the supplied announcements."
+
 export type DigestSource = {
   announcementId: string
   revisionId: string
@@ -29,8 +33,8 @@ function compareDigestSources(left: DigestSource, right: DigestSource): number {
   )
 }
 
-function serializeDigestSource(source: DigestSource): string {
-  return JSON.stringify({
+export function projectDigestSource(source: DigestSource): DigestSource {
+  return {
     announcementId: source.announcementId,
     revisionId: source.revisionId,
     title: source.title,
@@ -41,7 +45,18 @@ function serializeDigestSource(source: DigestSource): string {
     actionDeadlineAt: source.actionDeadlineAt,
     withdrawalReason: source.withdrawalReason,
     replacementId: source.replacementId,
+  }
+}
+
+export function serializeDigestPromptUser(sources: DigestSource[]): string {
+  return JSON.stringify({
+    task: DIGEST_PROMPT_TASK,
+    announcements: sources.map(projectDigestSource),
   })
+}
+
+function serializeDigestSource(source: DigestSource): string {
+  return JSON.stringify(projectDigestSource(source))
 }
 
 function hash(value: string): string {
@@ -55,27 +70,25 @@ export function selectDigestSources(
   if (
     !Number.isInteger(limits.maxAnnouncements) ||
     limits.maxAnnouncements <= 0 ||
+    limits.maxAnnouncements > AI_DIGEST_MAX_ANNOUNCEMENTS ||
     !Number.isInteger(limits.maxInputCharacters) ||
     limits.maxInputCharacters <= 0
   ) {
-    throw new Error("AI digest selection limits must be positive integers")
+    throw new Error("AI digest selection limits must be positive integers within allowed bounds")
   }
 
   const selected: DigestSource[] = []
-  let inputCharacters = 0
 
   for (const source of [...eligible].sort(compareDigestSources)) {
     if (selected.length >= limits.maxAnnouncements) {
       break
     }
 
-    const sourceCharacters = JSON.stringify(source).length
-    if (inputCharacters + sourceCharacters > limits.maxInputCharacters) {
+    if (serializeDigestPromptUser([...selected, source]).length > limits.maxInputCharacters) {
       continue
     }
 
     selected.push(source)
-    inputCharacters += sourceCharacters
   }
 
   return {
@@ -98,12 +111,17 @@ export function buildDigestCacheKey(input: {
   rangeEnd: string
   includeSeen: boolean
   fingerprint: string
+  maxAnnouncements: number
+  maxInputCharacters: number
 }): string {
   return `ai-digest:cache:${hash(JSON.stringify({
+    cacheVersion: AI_DIGEST_CACHE_VERSION,
     userId: input.userId,
     rangeStart: input.rangeStart,
     rangeEnd: input.rangeEnd,
     includeSeen: input.includeSeen,
     fingerprint: input.fingerprint,
+    maxAnnouncements: input.maxAnnouncements,
+    maxInputCharacters: input.maxInputCharacters,
   }))}`
 }
