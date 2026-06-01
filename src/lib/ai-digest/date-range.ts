@@ -11,21 +11,10 @@ type CalendarDate = {
   day: number
 }
 
-type LocalDateTime = CalendarDate & {
-  hour: number
-  minute: number
-  second: number
-  millisecond: number
-}
-
 const localDateTimeFormatterOptions: Intl.DateTimeFormatOptions = {
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
 }
 
 function parseCalendarDate(value: string): CalendarDate {
@@ -50,7 +39,7 @@ function parseCalendarDate(value: string): CalendarDate {
   return { year, month, day }
 }
 
-function getTimeZoneOffsetMilliseconds(date: Date, timeZone: string): number {
+function getCalendarDateKey(date: Date, timeZone: string): number {
   const formatter = new Intl.DateTimeFormat("en-US", {
     ...localDateTimeFormatterOptions,
     timeZone,
@@ -61,40 +50,36 @@ function getTimeZoneOffsetMilliseconds(date: Date, timeZone: string): number {
       .filter((part) => part.type !== "literal")
       .map((part) => [part.type, Number(part.value)]),
   )
-  const localTime = Date.UTC(
-    values.year!,
-    values.month! - 1,
-    values.day!,
-    values.hour!,
-    values.minute!,
-    values.second!,
-  )
-  const utcTime = Math.floor(date.getTime() / 1000) * 1000
 
-  return localTime - utcTime
+  return values.year! * 10_000 + values.month! * 100 + values.day!
 }
 
-function zonedLocalDateTimeToUtc(value: LocalDateTime, timeZone: string): Date {
-  const localTime = Date.UTC(
-    value.year,
-    value.month - 1,
-    value.day,
-    value.hour,
-    value.minute,
-    value.second,
-    value.millisecond,
-  )
-  let utcTime = localTime
+function findFirstInstantForCalendarDate(
+  value: CalendarDate,
+  timeZone: string,
+  afterRequestedDate: boolean,
+): Date {
+  const requestedDateKey = value.year * 10_000 + value.month * 100 + value.day
+  const targetDateKey = afterRequestedDate ? requestedDateKey + 1 : requestedDateKey
+  const nominalTime = Date.UTC(value.year, value.month - 1, value.day)
+  let lowerBound = nominalTime - 48 * 60 * 60 * 1000
+  let upperBound = nominalTime + 48 * 60 * 60 * 1000
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const offset = getTimeZoneOffsetMilliseconds(new Date(utcTime), timeZone)
-    const adjustedUtcTime = localTime - offset
-
-    if (adjustedUtcTime === utcTime) break
-    utcTime = adjustedUtcTime
+  while (lowerBound < upperBound) {
+    const midpoint = Math.floor((lowerBound + upperBound) / 2)
+    if (getCalendarDateKey(new Date(midpoint), timeZone) >= targetDateKey) {
+      upperBound = midpoint
+    } else {
+      lowerBound = midpoint + 1
+    }
   }
 
-  return new Date(utcTime)
+  const result = new Date(lowerBound)
+  if (!afterRequestedDate && getCalendarDateKey(result, timeZone) !== requestedDateKey) {
+    throw new Error("Ngày tùy chỉnh không tồn tại trong múi giờ đã cấu hình")
+  }
+
+  return result
 }
 
 function toComparableCalendarDate(value: CalendarDate): Date {
@@ -125,24 +110,18 @@ export function normalizeDigestRange(
 
   const oneYearAfterStart = new Date(comparableStart)
   oneYearAfterStart.setUTCFullYear(oneYearAfterStart.getUTCFullYear() + 1)
-  if (comparableEnd > oneYearAfterStart) {
+  const latestAllowedEnd = new Date(oneYearAfterStart)
+  latestAllowedEnd.setUTCDate(latestAllowedEnd.getUTCDate() - 1)
+  if (comparableEnd > latestAllowedEnd) {
     throw new Error("Khoảng thời gian tùy chỉnh không được vượt quá một năm")
   }
 
+  const start = findFirstInstantForCalendarDate(startDate, timeZone, false)
+  const end = findFirstInstantForCalendarDate(endDate, timeZone, true)
+  end.setTime(end.getTime() - 1)
+
   return {
-    start: zonedLocalDateTimeToUtc({
-      ...startDate,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-    }, timeZone),
-    end: zonedLocalDateTimeToUtc({
-      ...endDate,
-      hour: 23,
-      minute: 59,
-      second: 59,
-      millisecond: 999,
-    }, timeZone),
+    start,
+    end,
   }
 }

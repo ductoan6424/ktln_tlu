@@ -22,11 +22,11 @@ export const digestRequestSchema = z.object({
 
 const providerDigestReferenceSchema = z.object({
   announcementId: z.string().min(1),
-  summary: z.string().trim().min(1).max(600),
+  summary: z.string().min(1).max(600).regex(/\S/),
 }).strict()
 
 export const providerDigestSchema = z.object({
-  overview: z.string().trim().min(1).max(1500),
+  overview: z.string().min(1).max(1500).regex(/\S/),
   actionItems: z.array(providerDigestReferenceSchema).max(20),
   expiringSoon: z.array(providerDigestReferenceSchema).max(20),
   announcements: z.array(providerDigestReferenceSchema).max(50),
@@ -37,7 +37,7 @@ export const DIGEST_JSON_SCHEMA = {
   additionalProperties: false,
   required: ["overview", "actionItems", "expiringSoon", "announcements"],
   properties: {
-    overview: { type: "string", minLength: 1, maxLength: 1500 },
+    overview: { type: "string", minLength: 1, maxLength: 1500, pattern: ".*\\S.*" },
     actionItems: {
       type: "array",
       maxItems: 20,
@@ -61,7 +61,7 @@ export const DIGEST_JSON_SCHEMA = {
       required: ["announcementId", "summary"],
       properties: {
         announcementId: { type: "string", minLength: 1 },
-        summary: { type: "string", minLength: 1, maxLength: 600 },
+        summary: { type: "string", minLength: 1, maxLength: 600, pattern: ".*\\S.*" },
       },
     },
   },

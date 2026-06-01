@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { getAiDigestConfig } from "@/lib/ai-digest/config"
 import { normalizeDigestRange } from "@/lib/ai-digest/date-range"
 import {
+  DIGEST_JSON_SCHEMA,
   announcementDigestDtoSchema,
   digestRequestSchema,
   providerDigestSchema,
@@ -118,9 +119,71 @@ describe("normalizeDigestRange", () => {
       ),
     ).toThrow("Khoảng thời gian tùy chỉnh không được vượt quá một năm")
   })
+
+  it("allows the day before the same calendar date next year", () => {
+    expect(
+      normalizeDigestRange(
+        { type: "custom", startDate: "2025-01-01", endDate: "2025-12-31" },
+        "Asia/Bangkok",
+      ).end,
+    ).toEqual(new Date("2025-12-31T16:59:59.999Z"))
+  })
+
+  it("rejects the same calendar date next year because both bounds are inclusive", () => {
+    expect(() =>
+      normalizeDigestRange(
+        { type: "custom", startDate: "2025-01-01", endDate: "2026-01-01" },
+        "Asia/Bangkok",
+      ),
+    ).toThrow("Khoảng thời gian tùy chỉnh không được vượt quá một năm")
+  })
+
+  it("handles a leap-day one-year boundary", () => {
+    expect(
+      normalizeDigestRange(
+        { type: "custom", startDate: "2024-02-29", endDate: "2025-02-28" },
+        "Asia/Bangkok",
+      ).end,
+    ).toEqual(new Date("2025-02-28T16:59:59.999Z"))
+
+    expect(() =>
+      normalizeDigestRange(
+        { type: "custom", startDate: "2024-02-29", endDate: "2025-03-01" },
+        "Asia/Bangkok",
+      ),
+    ).toThrow("Khoảng thời gian tùy chỉnh không được vượt quá một năm")
+  })
+
+  it("uses the earliest valid instant when local midnight does not exist", () => {
+    expect(
+      normalizeDigestRange(
+        { type: "custom", startDate: "2018-11-04", endDate: "2018-11-04" },
+        "America/Sao_Paulo",
+      ),
+    ).toEqual({
+      start: new Date("2018-11-04T03:00:00.000Z"),
+      end: new Date("2018-11-05T01:59:59.999Z"),
+    })
+  })
+
+  it("rejects a local calendar date skipped entirely by a timezone transition", () => {
+    expect(() =>
+      normalizeDigestRange(
+        { type: "custom", startDate: "2011-12-30", endDate: "2011-12-30" },
+        "Pacific/Apia",
+      ),
+    ).toThrow("Ngày tùy chỉnh không tồn tại trong múi giờ đã cấu hình")
+  })
 })
 
 describe("providerDigestSchema", () => {
+  const validProviderDigest = {
+    overview: "Tổng quan",
+    actionItems: [],
+    expiringSoon: [],
+    announcements: [],
+  }
+
   it("requires all four provider digest sections", () => {
     expect(
       providerDigestSchema.safeParse({
@@ -129,6 +192,50 @@ describe("providerDigestSchema", () => {
         expiringSoon: [],
       }).success,
     ).toBe(false)
+  })
+
+  it("accepts a valid provider output containing all four sections", () => {
+    expect(providerDigestSchema.parse(validProviderDigest)).toEqual(validProviderDigest)
+  })
+
+  it("rejects whitespace-only provider strings in both contracts", () => {
+    expect(
+      providerDigestSchema.safeParse({
+        ...validProviderDigest,
+        overview: "   ",
+      }).success,
+    ).toBe(false)
+    expect(
+      providerDigestSchema.safeParse({
+        ...validProviderDigest,
+        actionItems: [{
+          announcementId: "announcement-1",
+          summary: "   ",
+        }],
+      }).success,
+    ).toBe(false)
+    expect(DIGEST_JSON_SCHEMA.properties.overview.pattern).toBe(".*\\S.*")
+    expect(DIGEST_JSON_SCHEMA.$defs.reference.properties.summary.pattern).toBe(".*\\S.*")
+  })
+
+  it("measures padded provider strings against raw length limits", () => {
+    expect(
+      providerDigestSchema.safeParse({
+        ...validProviderDigest,
+        overview: ` ${"a".repeat(1500)} `,
+      }).success,
+    ).toBe(false)
+    expect(
+      providerDigestSchema.safeParse({
+        ...validProviderDigest,
+        actionItems: [{
+          announcementId: "announcement-1",
+          summary: ` ${"a".repeat(600)} `,
+        }],
+      }).success,
+    ).toBe(false)
+    expect(DIGEST_JSON_SCHEMA.properties.overview.maxLength).toBe(1500)
+    expect(DIGEST_JSON_SCHEMA.$defs.reference.properties.summary.maxLength).toBe(600)
   })
 })
 
