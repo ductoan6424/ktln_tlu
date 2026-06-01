@@ -51,8 +51,14 @@ type RecipientRow = {
       priority: "NORMAL" | "IMPORTANT" | "URGENT"
       actionDeadlineAt: Date | null
     } | null
-    replacements?: Array<{ id: string }>
   }
+}
+
+type ReplacementRow = {
+  id: string
+  supersedesId: string | null
+  status: "PUBLISHED" | "SUPERSEDED"
+  publishedAt: Date | null
 }
 
 function makeRow(
@@ -76,8 +82,21 @@ function makeRow(
         priority: "NORMAL",
         actionDeadlineAt: null,
       },
-      replacements: [],
     },
+    ...overrides,
+  }
+}
+
+function makeReplacement(
+  id: string,
+  supersedesId: string,
+  overrides: Partial<ReplacementRow> = {},
+): ReplacementRow {
+  return {
+    id,
+    supersedesId,
+    status: "PUBLISHED",
+    publishedAt: new Date("2026-05-21T02:00:00.000Z"),
     ...overrides,
   }
 }
@@ -104,6 +123,9 @@ function makeDeps(rows: RecipientRow[] = []) {
 
   return {
     prisma: {
+      announcement: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       announcementRecipient: {
         findMany: vi.fn().mockResolvedValue(rows),
         updateMany: vi.fn(),
@@ -201,7 +223,6 @@ describe("generateAnnouncementDigest", () => {
             status: true,
             publishedAt: true,
             withdrawalReason: true,
-            supersedesId: true,
             publishedRevision: {
               select: {
                 id: true,
@@ -210,12 +231,6 @@ describe("generateAnnouncementDigest", () => {
                 priority: true,
                 actionDeadlineAt: true,
               },
-            },
-            replacements: {
-              where: { status: "PUBLISHED", publishedRevisionId: { not: null } },
-              select: { id: true },
-              take: 1,
-              orderBy: { publishedAt: "desc" },
             },
           },
         },
@@ -244,6 +259,7 @@ describe("generateAnnouncementDigest", () => {
     expect(deps.consumeDailyQuota).not.toHaveBeenCalled()
     expect(deps.provider.generate).not.toHaveBeenCalled()
     expect(deps.cacheDigest).not.toHaveBeenCalled()
+    expect(deps.prisma.announcement.findMany).not.toHaveBeenCalled()
   })
 
   it("returns selector coverage without cache, quota, or provider calls when every eligible row is omitted", async () => {
@@ -352,22 +368,35 @@ describe("generateAnnouncementDigest", () => {
     expect(deps.cacheDigest).not.toHaveBeenCalled()
   })
 
-  it("drops provider references to unknown announcement IDs during enrichment", async () => {
+  it("drops unknown provider references and keeps the first occurrence of duplicate IDs within each section", async () => {
     const deps = makeDeps([makeRow("known")])
     deps.provider.generate.mockResolvedValue(makeProviderDigest({
       actionItems: [
-        { announcementId: "known", summary: "Known summary" },
+        { announcementId: "known", summary: "First action summary" },
         { announcementId: "unknown", summary: "Unknown summary" },
+        { announcementId: "known", summary: "Duplicate action summary" },
       ],
       announcements: [
         { announcementId: "unknown", summary: "Unknown summary" },
+        { announcementId: "known", summary: "First announcement summary" },
+        { announcementId: "known", summary: "Duplicate announcement summary" },
       ],
     }))
 
     const digest = await generate(deps)
 
-    expect(digest.actionItems.map((item) => item.announcementId)).toEqual(["known"])
-    expect(digest.announcements).toEqual([])
+    expect(digest.actionItems).toEqual([
+      expect.objectContaining({
+        announcementId: "known",
+        summary: "First action summary",
+      }),
+    ])
+    expect(digest.announcements).toEqual([
+      expect.objectContaining({
+        announcementId: "known",
+        summary: "First announcement summary",
+      }),
+    ])
   })
 
   it("never marks announcement recipients as seen", async () => {
@@ -385,7 +414,6 @@ describe("generateAnnouncementDigest", () => {
           ...makeRow("withdrawn").announcement,
           status: "WITHDRAWN",
           withdrawalReason: "Nhap sai noi dung",
-          replacements: [{ id: "replacement-1" }],
         },
       }),
       makeRow("superseded", {
@@ -393,10 +421,15 @@ describe("generateAnnouncementDigest", () => {
           ...makeRow("superseded").announcement,
           status: "SUPERSEDED",
           supersedesId: "replacement-source",
-          replacements: [{ id: "replacement-2" }],
         },
       }),
     ])
+    deps.prisma.announcement.findMany
+      .mockResolvedValueOnce([
+        makeReplacement("replacement-1", "withdrawn"),
+        makeReplacement("replacement-2", "superseded"),
+      ])
+      .mockResolvedValueOnce([])
     deps.provider.generate.mockResolvedValue(makeProviderDigest({
       announcements: [
         { announcementId: "withdrawn", summary: "Withdrawn summary" },
@@ -420,6 +453,142 @@ describe("generateAnnouncementDigest", () => {
     ])
   })
 
+  it("links a superseded source to the latest published replacement leaf across a replacement chain", async () => {
+    const deps = makeDeps([
+      makeRow("announcement-a", {
+        announcement: {
+          ...makeRow("announcement-a").announcement,
+          status: "SUPERSEDED",
+        },
+      }),
+    ])
+    deps.prisma.announcement.findMany
+      .mockResolvedValueOnce([
+        makeReplacement("announcement-b", "announcement-a", {
+          status: "SUPERSEDED",
+        }),
+      ])
+      .mockResolvedValueOnce([
+        makeReplacement("announcement-c", "announcement-b"),
+      ])
+      .mockResolvedValueOnce([])
+    deps.provider.generate.mockResolvedValue(makeProviderDigest({
+      announcements: [
+        { announcementId: "announcement-a", summary: "Chain summary" },
+      ],
+    }))
+
+    const digest = await generate(deps)
+
+    expect(digest.announcements).toEqual([
+      expect.objectContaining({
+        announcementId: "announcement-a",
+        replacementHref: "/feed?announcement=announcement-c",
+      }),
+    ])
+    expect(deps.prisma.announcement.findMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        supersedesId: { in: ["announcement-a"] },
+        status: { in: ["PUBLISHED", "SUPERSEDED"] },
+        deletedAt: null,
+        publishedRevisionId: { not: null },
+      },
+      select: {
+        id: true,
+        supersedesId: true,
+        status: true,
+        publishedAt: true,
+      },
+      orderBy: [{ publishedAt: "desc" }, { id: "asc" }],
+    })
+    expect(deps.prisma.announcement.findMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        supersedesId: { in: ["announcement-b"] },
+        status: { in: ["PUBLISHED", "SUPERSEDED"] },
+        deletedAt: null,
+        publishedRevisionId: { not: null },
+      },
+      select: {
+        id: true,
+        supersedesId: true,
+        status: true,
+        publishedAt: true,
+      },
+      orderBy: [{ publishedAt: "desc" }, { id: "asc" }],
+    })
+  })
+
+  it("chooses the latest published replacement leaf with a stable ID tie-breaker", async () => {
+    const deps = makeDeps([
+      makeRow("announcement-a", {
+        announcement: {
+          ...makeRow("announcement-a").announcement,
+          status: "SUPERSEDED",
+        },
+      }),
+    ])
+    deps.prisma.announcement.findMany
+      .mockResolvedValueOnce([
+        makeReplacement("replacement-z", "announcement-a"),
+        makeReplacement("replacement-old", "announcement-a", {
+          publishedAt: new Date("2026-05-20T02:00:00.000Z"),
+        }),
+        makeReplacement("replacement-a", "announcement-a"),
+      ])
+      .mockResolvedValueOnce([])
+    deps.provider.generate.mockResolvedValue(makeProviderDigest({
+      announcements: [
+        { announcementId: "announcement-a", summary: "Branch summary" },
+      ],
+    }))
+
+    const digest = await generate(deps)
+
+    expect(digest.announcements).toEqual([
+      expect.objectContaining({
+        announcementId: "announcement-a",
+        replacementHref: "/feed?announcement=replacement-a",
+      }),
+    ])
+  })
+
+  it("stops traversing replacement cycles", async () => {
+    const deps = makeDeps([
+      makeRow("announcement-a", {
+        announcement: {
+          ...makeRow("announcement-a").announcement,
+          status: "SUPERSEDED",
+        },
+      }),
+    ])
+    deps.prisma.announcement.findMany
+      .mockResolvedValueOnce([
+        makeReplacement("announcement-b", "announcement-a", {
+          status: "SUPERSEDED",
+        }),
+      ])
+      .mockResolvedValueOnce([
+        makeReplacement("announcement-a", "announcement-b", {
+          status: "SUPERSEDED",
+        }),
+      ])
+    deps.provider.generate.mockResolvedValue(makeProviderDigest({
+      announcements: [
+        { announcementId: "announcement-a", summary: "Cycle summary" },
+      ],
+    }))
+
+    const digest = await generate(deps)
+
+    expect(digest.announcements).toEqual([
+      expect.objectContaining({
+        announcementId: "announcement-a",
+        replacementHref: null,
+      }),
+    ])
+    expect(deps.prisma.announcement.findMany).toHaveBeenCalledTimes(2)
+  })
+
   it("does not use supersedesId as the current announcement replacement link", async () => {
     const deps = makeDeps([
       makeRow("replacement", {
@@ -427,7 +596,6 @@ describe("generateAnnouncementDigest", () => {
           ...makeRow("replacement").announcement,
           status: "PUBLISHED",
           supersedesId: "old-id",
-          replacements: [],
         },
       }),
     ])
@@ -454,10 +622,12 @@ describe("generateAnnouncementDigest", () => {
       makeRow(announcementId, {
         announcement: {
           ...makeRow(announcementId).announcement,
-          replacements: [{ id: replacementId }],
         },
       }),
     ])
+    deps.prisma.announcement.findMany
+      .mockResolvedValueOnce([makeReplacement(replacementId, announcementId)])
+      .mockResolvedValueOnce([])
     deps.provider.generate.mockResolvedValue(makeProviderDigest({
       announcements: [
         { announcementId, summary: "Encoded summary" },
@@ -473,6 +643,36 @@ describe("generateAnnouncementDigest", () => {
         replacementHref: `/feed?announcement=${encodeURIComponent(replacementId)}`,
       }),
     ])
+  })
+
+  it("bubbles readCachedDigest errors unchanged", async () => {
+    const deps = makeDeps([makeRow("announcement-1")])
+    const error = new AiDigestError("Redis unavailable", "UNAVAILABLE")
+    deps.readCachedDigest.mockRejectedValue(error)
+
+    await expect(generate(deps)).rejects.toBe(error)
+    expect(deps.consumeDailyQuota).not.toHaveBeenCalled()
+    expect(deps.provider.generate).not.toHaveBeenCalled()
+    expect(deps.cacheDigest).not.toHaveBeenCalled()
+  })
+
+  it("bubbles consumeDailyQuota errors unchanged", async () => {
+    const deps = makeDeps([makeRow("announcement-1")])
+    const error = new AiDigestError("Daily quota exhausted", "RATE_LIMITED")
+    deps.consumeDailyQuota.mockRejectedValue(error)
+
+    await expect(generate(deps)).rejects.toBe(error)
+    expect(deps.provider.generate).not.toHaveBeenCalled()
+    expect(deps.cacheDigest).not.toHaveBeenCalled()
+  })
+
+  it("bubbles cacheDigest errors unchanged", async () => {
+    const deps = makeDeps([makeRow("announcement-1")])
+    const error = new AiDigestError("Redis unavailable", "UNAVAILABLE")
+    deps.cacheDigest.mockRejectedValue(error)
+
+    await expect(generate(deps)).rejects.toBe(error)
+    expect(deps.provider.generate).toHaveBeenCalledOnce()
   })
 
   it("maps provider transport errors to the shared unavailable AiDigestError without caching", async () => {

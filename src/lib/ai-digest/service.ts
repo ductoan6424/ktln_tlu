@@ -30,33 +30,6 @@ import {
 
 type DigestRequestInput = z.input<typeof digestRequestSchema>
 
-type AnnouncementDigestRecipientRow = {
-  announcementId: string
-  revisionId: string
-  publishedAt: Date
-  announcement: {
-    id: string
-    status: "PUBLISHED" | "WITHDRAWN" | "SUPERSEDED"
-    publishedAt: Date | null
-    withdrawalReason: string | null
-    supersedesId?: string | null
-    publishedRevision: {
-      id: string
-      title: string
-      content: string
-      priority: "NORMAL" | "IMPORTANT" | "URGENT"
-      actionDeadlineAt: Date | null
-    } | null
-    replacements?: Array<{ id: string }>
-  }
-}
-
-type AnnouncementDigestPrismaClient = {
-  announcementRecipient: {
-    findMany(args: Record<string, unknown>): Promise<AnnouncementDigestRecipientRow[]>
-  }
-}
-
 type ConsumeDailyQuota = (params: {
   userId: string
   dailyLimit: number
@@ -70,31 +43,6 @@ export type GenerateAnnouncementDigestParams = {
   now?: Date
 }
 
-export type AiDigestServiceDependencies = {
-  prisma: AnnouncementDigestPrismaClient
-  getConfig: () => AiDigestConfig
-  createProvider: (config: AiDigestConfig) => DigestProvider
-  readCachedDigest: (key: string) => Promise<AnnouncementDigestDto | null>
-  cacheDigest: (key: string, dto: AnnouncementDigestDto, ttlSeconds: number) => Promise<void>
-  consumeDailyQuota: ConsumeDailyQuota
-}
-
-const defaultDependencies: AiDigestServiceDependencies = {
-  prisma: {
-    announcementRecipient: {
-      findMany: (args) =>
-        prisma.announcementRecipient.findMany(
-          args as Prisma.AnnouncementRecipientFindManyArgs,
-        ) as unknown as Promise<AnnouncementDigestRecipientRow[]>,
-    },
-  },
-  getConfig: getAiDigestConfig,
-  createProvider: createDigestProvider,
-  readCachedDigest,
-  cacheDigest,
-  consumeDailyQuota: consumeDailyDigestQuota,
-}
-
 type NormalizedDigestRequest = {
   range: NormalizedDigestRange
   includeSeen: boolean
@@ -102,8 +50,47 @@ type NormalizedDigestRequest = {
 }
 
 const DIGEST_STATUSES = ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] as const
+const REPLACEMENT_DIGEST_STATUSES = ["PUBLISHED", "SUPERSEDED"] as const
 const EMPTY_DIGEST_OVERVIEW = "Khong co thong bao phu hop trong khoang thoi gian da chon."
 const UNAVAILABLE_MESSAGE = "Tinh nang AI tam thoi chua kha dung."
+
+const announcementDigestRecipientSelect = {
+  announcementId: true,
+  revisionId: true,
+  publishedAt: true,
+  announcement: {
+    select: {
+      id: true,
+      status: true,
+      publishedAt: true,
+      withdrawalReason: true,
+      publishedRevision: {
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          priority: true,
+          actionDeadlineAt: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.AnnouncementRecipientSelect
+
+const announcementDigestReplacementSelect = {
+  id: true,
+  supersedesId: true,
+  status: true,
+  publishedAt: true,
+} satisfies Prisma.AnnouncementSelect
+
+type AnnouncementDigestRecipientRow = Prisma.AnnouncementRecipientGetPayload<{
+  select: typeof announcementDigestRecipientSelect
+}>
+
+type AnnouncementDigestReplacementRow = Prisma.AnnouncementGetPayload<{
+  select: typeof announcementDigestReplacementSelect
+}>
 
 function toIsoString(value: Date | null): string | null {
   return value ? value.toISOString() : null
@@ -146,44 +133,76 @@ function buildRecipientQuery(params: {
         },
       },
     },
-    select: {
-      announcementId: true,
-      revisionId: true,
-      publishedAt: true,
-      announcement: {
-        select: {
-          id: true,
-          status: true,
-          publishedAt: true,
-          withdrawalReason: true,
-          supersedesId: true,
-          publishedRevision: {
-            select: {
-              id: true,
-              title: true,
-              content: true,
-              priority: true,
-              actionDeadlineAt: true,
-            },
-          },
-          replacements: {
-            where: { status: "PUBLISHED", publishedRevisionId: { not: null } },
-            select: { id: true },
-            take: 1,
-            orderBy: { publishedAt: "desc" },
-          },
-        },
-      },
-    },
+    select: announcementDigestRecipientSelect,
     orderBy: [{ publishedAt: "desc" }, { announcementId: "asc" }],
+  } satisfies Prisma.AnnouncementRecipientFindManyArgs
+}
+
+function buildReplacementQuery(frontier: string[]) {
+  return {
+    where: {
+      supersedesId: { in: frontier },
+      status: { in: [...REPLACEMENT_DIGEST_STATUSES] },
+      deletedAt: null,
+      publishedRevisionId: { not: null },
+    },
+    select: announcementDigestReplacementSelect,
+    orderBy: [{ publishedAt: "desc" }, { id: "asc" }],
+  } satisfies Prisma.AnnouncementFindManyArgs
+}
+
+type AnnouncementDigestPrismaClient = {
+  announcement: {
+    findMany(
+      args: ReturnType<typeof buildReplacementQuery>,
+    ): Promise<AnnouncementDigestReplacementRow[]>
   }
+  announcementRecipient: {
+    findMany(
+      args: ReturnType<typeof buildRecipientQuery>,
+    ): Promise<AnnouncementDigestRecipientRow[]>
+  }
+}
+
+export type AiDigestServiceDependencies = {
+  prisma: AnnouncementDigestPrismaClient
+  getConfig: () => AiDigestConfig
+  createProvider: (config: AiDigestConfig) => DigestProvider
+  readCachedDigest: (key: string) => Promise<AnnouncementDigestDto | null>
+  cacheDigest: (key: string, dto: AnnouncementDigestDto, ttlSeconds: number) => Promise<void>
+  consumeDailyQuota: ConsumeDailyQuota
+}
+
+const defaultDependencies: AiDigestServiceDependencies = {
+  prisma: {
+    announcement: {
+      findMany: (args) => prisma.announcement.findMany(args),
+    },
+    announcementRecipient: {
+      findMany: (args) => prisma.announcementRecipient.findMany(args),
+    },
+  },
+  getConfig: getAiDigestConfig,
+  createProvider: createDigestProvider,
+  readCachedDigest,
+  cacheDigest,
+  consumeDailyQuota: consumeDailyDigestQuota,
+}
+
+function isDigestStatus(status: string): status is DigestSource["status"] {
+  return DIGEST_STATUSES.some((candidate) => candidate === status)
 }
 
 function toDigestSource(row: AnnouncementDigestRecipientRow): DigestSource | null {
   const revision = row.announcement.publishedRevision
   const publishedAt = row.announcement.publishedAt ?? row.publishedAt
 
-  if (!revision || !publishedAt || row.revisionId !== revision.id) {
+  if (
+    !revision ||
+    !publishedAt ||
+    row.revisionId !== revision.id ||
+    !isDigestStatus(row.announcement.status)
+  ) {
     return null
   }
 
@@ -197,8 +216,94 @@ function toDigestSource(row: AnnouncementDigestRecipientRow): DigestSource | nul
     publishedAt: publishedAt.toISOString(),
     actionDeadlineAt: toIsoString(revision.actionDeadlineAt),
     withdrawalReason: row.announcement.withdrawalReason,
-    replacementId: row.announcement.replacements?.[0]?.id ?? null,
+    replacementId: null,
   }
+}
+
+function compareReplacementLeaves(
+  left: AnnouncementDigestReplacementRow,
+  right: AnnouncementDigestReplacementRow,
+): number {
+  return (
+    (right.publishedAt?.getTime() ?? 0) - (left.publishedAt?.getTime() ?? 0) ||
+    left.id.localeCompare(right.id)
+  )
+}
+
+async function resolveLatestPublishedReplacementIds(
+  sources: DigestSource[],
+  announcement: AnnouncementDigestPrismaClient["announcement"],
+): Promise<Map<string, string>> {
+  const descendantsBySourceId = new Map<string, AnnouncementDigestReplacementRow[]>()
+  const replacementById = new Map<string, AnnouncementDigestReplacementRow>()
+  const visited = new Set(sources.map((source) => source.announcementId))
+  let frontier = [...visited]
+
+  while (frontier.length > 0) {
+    const rows = await announcement.findMany(buildReplacementQuery(frontier))
+    const nextFrontier: string[] = []
+
+    for (const row of rows) {
+      if (!row.supersedesId) {
+        continue
+      }
+
+      const descendants = descendantsBySourceId.get(row.supersedesId) ?? []
+      descendants.push(row)
+      descendantsBySourceId.set(row.supersedesId, descendants)
+      replacementById.set(row.id, row)
+
+      if (!visited.has(row.id)) {
+        visited.add(row.id)
+        nextFrontier.push(row.id)
+      }
+    }
+
+    frontier = nextFrontier
+  }
+
+  return new Map(
+    sources.flatMap((source) => {
+      const reachable = [source.announcementId]
+      const traversed = new Set(reachable)
+      const publishedLeaves: AnnouncementDigestReplacementRow[] = []
+
+      while (reachable.length > 0) {
+        const currentId = reachable.shift()!
+        const descendants = descendantsBySourceId.get(currentId) ?? []
+
+        if (descendants.length === 0 && currentId !== source.announcementId) {
+          const leaf = replacementById.get(currentId)
+
+          if (leaf?.status === "PUBLISHED") {
+            publishedLeaves.push(leaf)
+          }
+        }
+
+        for (const descendant of descendants) {
+          if (!traversed.has(descendant.id)) {
+            traversed.add(descendant.id)
+            reachable.push(descendant.id)
+          }
+        }
+      }
+
+      const replacement = publishedLeaves.sort(compareReplacementLeaves)[0]
+      return replacement ? [[source.announcementId, replacement.id]] : []
+    }),
+  )
+}
+
+async function attachReplacementIds(
+  sources: DigestSource[],
+  announcement: AnnouncementDigestPrismaClient["announcement"],
+): Promise<DigestSource[]> {
+  const replacementIds = await resolveLatestPublishedReplacementIds(sources, announcement)
+
+  return sources.map((source) => ({
+    ...source,
+    replacementId: replacementIds.get(source.announcementId) ?? null,
+  }))
 }
 
 function emptyDigest(
@@ -248,7 +353,14 @@ function enrichReferences(
   references: ProviderDigest["announcements"],
   sourceById: Map<string, DigestSource>,
 ): DigestSourceItem[] {
+  const seen = new Set<string>()
+
   return references.flatMap((reference) => {
+    if (seen.has(reference.announcementId)) {
+      return []
+    }
+
+    seen.add(reference.announcementId)
     const enriched = enrichReference(reference, sourceById)
     return enriched ? [enriched] : []
   })
@@ -287,15 +399,16 @@ export async function generateAnnouncementDigest(
       includeSeen,
     }),
   )
-  const eligible = rows.flatMap((row) => {
+  const sources = rows.flatMap((row) => {
     const source = toDigestSource(row)
     return source ? [source] : []
   })
 
-  if (eligible.length === 0) {
+  if (sources.length === 0) {
     return emptyDigest(now)
   }
 
+  const eligible = await attachReplacementIds(sources, deps.prisma.announcement)
   const fingerprint = fingerprintDigestSources(eligible)
   const { selected, coverage } = selectDigestSources(eligible, {
     maxAnnouncements: config.maxAnnouncements,
