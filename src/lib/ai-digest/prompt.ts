@@ -12,7 +12,18 @@ export function buildDigestPrompt(sources: DigestSource[]): { system: string; us
     ].join(" "),
     user: JSON.stringify({
       task: "Create the announcement digest from the supplied announcements.",
-      announcements: sources,
+      announcements: sources.map((source) => ({
+        announcementId: source.announcementId,
+        revisionId: source.revisionId,
+        title: source.title,
+        content: source.content,
+        priority: source.priority,
+        status: source.status,
+        publishedAt: source.publishedAt,
+        actionDeadlineAt: source.actionDeadlineAt,
+        withdrawalReason: source.withdrawalReason,
+        replacementId: source.replacementId,
+      })),
     }),
   }
 }

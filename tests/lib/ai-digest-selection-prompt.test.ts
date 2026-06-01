@@ -95,8 +95,10 @@ describe("selectDigestSources", () => {
   it.each([
     { maxAnnouncements: 0, maxInputCharacters: 1 },
     { maxAnnouncements: -1, maxInputCharacters: 1 },
+    { maxAnnouncements: 1.5, maxInputCharacters: 1 },
     { maxAnnouncements: 1, maxInputCharacters: 0 },
     { maxAnnouncements: 1, maxInputCharacters: -1 },
+    { maxAnnouncements: 1, maxInputCharacters: 1.5 },
   ])("rejects invalid limits: $maxAnnouncements and $maxInputCharacters", (limits) => {
     expect(() => selectDigestSources([], limits)).toThrow("positive")
   })
@@ -118,6 +120,22 @@ describe("fingerprintDigestSources", () => {
 
     expect(fingerprintDigestSources([first, second])).toBe(
       fingerprintDigestSources([second, first]),
+    )
+  })
+
+  it("changes when an eligible source omitted from selection changes", () => {
+    const selected = source("selected", { priority: "URGENT" })
+    const omitted = source("omitted")
+    const changedOmitted = { ...omitted, content: "Changed omitted content" }
+
+    expect(
+      selectDigestSources([selected, omitted], {
+        maxAnnouncements: 1,
+        maxInputCharacters: 10000,
+      }).selected,
+    ).toEqual([selected])
+    expect(fingerprintDigestSources([selected, changedOmitted])).not.toBe(
+      fingerprintDigestSources([selected, omitted]),
     )
   })
 
@@ -168,6 +186,8 @@ describe("buildDigestCacheKey", () => {
     expect(cacheKey).toMatch(/^ai-digest:cache:[a-f0-9]{64}$/)
     expect(buildDigestCacheKey({ ...input, includeSeen: true })).not.toBe(cacheKey)
     expect(buildDigestCacheKey({ ...input, userId: "user:2" })).not.toBe(cacheKey)
+    expect(buildDigestCacheKey({ ...input, rangeStart: "2026-04-01T00:00:00.000Z" })).not.toBe(cacheKey)
+    expect(buildDigestCacheKey({ ...input, rangeEnd: "2026-06-02T00:00:00.000Z" })).not.toBe(cacheKey)
     expect(buildDigestCacheKey({ ...input, fingerprint: "fingerprint-2" })).not.toBe(cacheKey)
   })
 })
@@ -200,5 +220,20 @@ describe("buildDigestPrompt", () => {
     expect(prompt.user).toContain('"status":"WITHDRAWN"')
     expect(prompt.user).toContain('"status":"SUPERSEDED"')
     expect(prompt.user).not.toMatch(/attachment|recipient|profile/i)
+  })
+
+  it("projects runtime sources to the DigestSource whitelist", () => {
+    const prompt = buildDigestPrompt([
+      {
+        ...source("safe"),
+        attachmentBody: "attachment-secret",
+        recipientProfile: "recipient-secret",
+        externalContent: "external-secret",
+      },
+    ])
+
+    expect(prompt.user).not.toMatch(/attachmentBody|attachment-secret/)
+    expect(prompt.user).not.toMatch(/recipientProfile|recipient-secret/)
+    expect(prompt.user).not.toMatch(/externalContent|external-secret/)
   })
 })
