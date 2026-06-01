@@ -153,6 +153,7 @@ describe("createOpenAiDigestProvider", () => {
     ["missing text", openAiBody(""), "INVALID_RESPONSE"],
     ["malformed JSON", openAiBody("{bad json"), "INVALID_RESPONSE"],
     ["runtime invalid JSON shape", openAiBody(JSON.stringify({ ...validDigest, overview: "" })), "INVALID_RESPONSE"],
+    ["null response body", null, "INVALID_RESPONSE"],
   ] as const)("maps %s to INVALID_RESPONSE", async (_case, body, code) => {
     mockFetch(jsonResponse(body))
 
@@ -253,6 +254,7 @@ describe("createGeminiDigestProvider", () => {
     ["missing text", geminiBody(""), "INVALID_RESPONSE"],
     ["malformed JSON", geminiBody("{bad json"), "INVALID_RESPONSE"],
     ["runtime invalid JSON shape", geminiBody(JSON.stringify({ ...validDigest, announcements: [{ announcementId: "", summary: "x" }] })), "INVALID_RESPONSE"],
+    ["null response body", null, "INVALID_RESPONSE"],
   ] as const)("maps %s to INVALID_RESPONSE", async (_case, body, code) => {
     mockFetch(jsonResponse(body))
 
