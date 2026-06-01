@@ -149,9 +149,10 @@ fallback providers.
 6. The service orders results by priority and recency, then applies the maximum
    announcement count and maximum character budget. Individual bodies are never
    truncated.
-7. The service builds a deterministic fingerprint from the selected source
-   records, including announcement ID, published revision ID, status,
-   replacement reference, and relevant timestamps.
+7. The service builds a deterministic fingerprint from all eligible source
+   records before count and character-budget omission, including announcement
+   ID, published revision ID, status, replacement reference, and relevant
+   timestamps.
 8. The service checks Redis for a cached result keyed by user ID, normalized
    filter, and fingerprint.
 9. On a cache hit, the service returns the cached digest without consuming a
@@ -261,7 +262,7 @@ The cache key includes:
 
 - requesting user ID;
 - normalized range and `includeSeen` filter;
-- source fingerprint derived from selected rows.
+- source fingerprint derived from all eligible rows before omission.
 
 This invalidates reuse when a new announcement appears, the user opens a source
 announcement and the unseen set changes, or an included announcement is
