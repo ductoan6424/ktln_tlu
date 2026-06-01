@@ -246,6 +246,29 @@ describe("generateAnnouncementDigest", () => {
     expect(deps.cacheDigest).not.toHaveBeenCalled()
   })
 
+  it("returns selector coverage without cache, quota, or provider calls when every eligible row is omitted", async () => {
+    const deps = makeDeps([makeRow("oversized")])
+    deps.getConfig.mockReturnValue({ ...config, maxInputCharacters: 1 })
+
+    await expect(generate(deps)).resolves.toEqual({
+      overview: "Khong co thong bao phu hop trong khoang thoi gian da chon.",
+      actionItems: [],
+      expiringSoon: [],
+      announcements: [],
+      coverage: {
+        eligibleCount: 1,
+        includedCount: 0,
+        omittedCount: 1,
+      },
+      generatedAt: now.toISOString(),
+      cached: false,
+    })
+    expect(deps.readCachedDigest).not.toHaveBeenCalled()
+    expect(deps.consumeDailyQuota).not.toHaveBeenCalled()
+    expect(deps.provider.generate).not.toHaveBeenCalled()
+    expect(deps.cacheDigest).not.toHaveBeenCalled()
+  })
+
   it("returns cache hits as cached true without consuming quota or calling the provider", async () => {
     const deps = makeDeps([makeRow("announcement-1")])
     const cachedDigest: AnnouncementDigestDto = {
