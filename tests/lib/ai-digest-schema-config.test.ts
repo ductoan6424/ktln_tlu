@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 
 import { getAiDigestConfig } from "@/lib/ai-digest/config"
-import { normalizeDigestRange } from "@/lib/ai-digest/date-range"
+import {
+  DigestRangeValidationError,
+  normalizeDigestRange,
+} from "@/lib/ai-digest/date-range"
 import {
   DIGEST_JSON_SCHEMA,
   announcementDigestDtoSchema,
@@ -57,6 +60,28 @@ describe("getAiDigestConfig", () => {
         GOOGLE_AI_API_KEY: "google-key",
       }).apiKey,
     ).toBe("google-key")
+  })
+
+  it("rejects an invalid digest timezone", () => {
+    expect(() =>
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "openai",
+        AI_DIGEST_MODEL: "gpt-test",
+        AI_DIGEST_TIME_ZONE: "Invalid/Timezone",
+        OPENAI_API_KEY: "openai-key",
+      }),
+    ).toThrow("Múi giờ AI digest không hợp lệ")
+  })
+
+  it("rejects numeric environment values outside allowed bounds", () => {
+    expect(() =>
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "openai",
+        AI_DIGEST_MODEL: "gpt-test",
+        AI_DIGEST_DAILY_LIMIT: "101",
+        OPENAI_API_KEY: "openai-key",
+      }),
+    ).toThrow("AI_DIGEST_DAILY_LIMIT")
   })
 })
 
@@ -183,6 +208,33 @@ describe("normalizeDigestRange", () => {
       ),
     ).toThrow("Ngày tùy chỉnh không tồn tại trong múi giờ đã cấu hình")
   })
+
+  it.each([
+    {
+      range: { type: "custom", startDate: "2026-02-30", endDate: "2026-03-01" },
+      timeZone: "Asia/Bangkok",
+    },
+    {
+      range: { type: "custom", startDate: "2026-05-02", endDate: "2026-05-01" },
+      timeZone: "Asia/Bangkok",
+    },
+    {
+      range: { type: "custom", startDate: "2025-01-01", endDate: "2026-01-01" },
+      timeZone: "Asia/Bangkok",
+    },
+    {
+      range: { type: "custom", startDate: "2011-12-29", endDate: "2011-12-30" },
+      timeZone: "Pacific/Apia",
+    },
+  ] as const)("returns a typed validation error for semantic range failures", ({ range, timeZone }) => {
+    try {
+      normalizeDigestRange(range, timeZone)
+      throw new Error("Expected normalizeDigestRange to throw")
+    } catch (error) {
+      expect(error).toBeInstanceOf(DigestRangeValidationError)
+      expect(error).toMatchObject({ code: "VALIDATION_ERROR" })
+    }
+  })
 })
 
 describe("providerDigestSchema", () => {
@@ -289,6 +341,19 @@ describe("announcementDigestDtoSchema", () => {
             sourceHref: "/announcements/announcement-1",
           },
         ],
+      }).success,
+    ).toBe(false)
+  })
+
+  it("rejects coverage counts that cannot reconcile", () => {
+    expect(
+      announcementDigestDtoSchema.safeParse({
+        ...validDto,
+        coverage: {
+          eligibleCount: 1,
+          includedCount: 2,
+          omittedCount: 0,
+        },
       }).success,
     ).toBe(false)
   })
