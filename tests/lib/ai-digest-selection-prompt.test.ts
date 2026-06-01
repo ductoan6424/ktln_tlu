@@ -76,7 +76,7 @@ describe("selectDigestSources", () => {
       content: "x".repeat(500),
     })
     const shorter = source("shorter", { priority: "IMPORTANT", content: "short" })
-    const budget = JSON.stringify(shorter).length
+    const budget = buildDigestPrompt([shorter]).user.length
 
     const result = selectDigestSources([oversized, shorter], {
       maxAnnouncements: 2,
@@ -92,15 +92,53 @@ describe("selectDigestSources", () => {
     })
   })
 
+  it("measures budget against the prompt user payload and ignores extra runtime fields", () => {
+    const sourceWithExtraFields = {
+      ...source("safe"),
+      attachmentBody: "x".repeat(10000),
+    }
+    const promptBudget = buildDigestPrompt([sourceWithExtraFields]).user.length
+
+    expect(
+      selectDigestSources([sourceWithExtraFields], {
+        maxAnnouncements: 1,
+        maxInputCharacters: promptBudget,
+      }).selected,
+    ).toEqual([sourceWithExtraFields])
+  })
+
+  it("includes prompt envelope overhead in the input budget", () => {
+    const candidate = source("candidate")
+    const sourceOnlyBudget = JSON.stringify(candidate).length
+
+    expect(buildDigestPrompt([candidate]).user.length).toBeGreaterThan(sourceOnlyBudget)
+    expect(
+      selectDigestSources([candidate], {
+        maxAnnouncements: 1,
+        maxInputCharacters: sourceOnlyBudget,
+      }).selected,
+    ).toEqual([])
+  })
+
   it.each([
     { maxAnnouncements: 0, maxInputCharacters: 1 },
     { maxAnnouncements: -1, maxInputCharacters: 1 },
     { maxAnnouncements: 1.5, maxInputCharacters: 1 },
+    { maxAnnouncements: 51, maxInputCharacters: 1000 },
     { maxAnnouncements: 1, maxInputCharacters: 0 },
     { maxAnnouncements: 1, maxInputCharacters: -1 },
     { maxAnnouncements: 1, maxInputCharacters: 1.5 },
   ])("rejects invalid limits: $maxAnnouncements and $maxInputCharacters", (limits) => {
-    expect(() => selectDigestSources([], limits)).toThrow("positive")
+    expect(() => selectDigestSources([], limits)).toThrow("limits")
+  })
+
+  it("allows the schema maximum of 50 announcements", () => {
+    expect(() =>
+      selectDigestSources([], {
+        maxAnnouncements: 50,
+        maxInputCharacters: 1000,
+      }),
+    ).not.toThrow()
   })
 })
 
@@ -170,6 +208,8 @@ describe("buildDigestCacheKey", () => {
     rangeEnd: "2026-06-01T00:00:00.000Z",
     includeSeen: false,
     fingerprint: "fingerprint-1",
+    maxAnnouncements: 50,
+    maxInputCharacters: 60000,
   }
 
   it("is deterministic, safely prefixed, and changes with cache identity fields", () => {
@@ -182,6 +222,8 @@ describe("buildDigestCacheKey", () => {
       rangeEnd: input.rangeEnd,
       rangeStart: input.rangeStart,
       userId: input.userId,
+      maxInputCharacters: input.maxInputCharacters,
+      maxAnnouncements: input.maxAnnouncements,
     }))
     expect(cacheKey).toMatch(/^ai-digest:cache:[a-f0-9]{64}$/)
     expect(buildDigestCacheKey({ ...input, includeSeen: true })).not.toBe(cacheKey)
@@ -189,6 +231,8 @@ describe("buildDigestCacheKey", () => {
     expect(buildDigestCacheKey({ ...input, rangeStart: "2026-04-01T00:00:00.000Z" })).not.toBe(cacheKey)
     expect(buildDigestCacheKey({ ...input, rangeEnd: "2026-06-02T00:00:00.000Z" })).not.toBe(cacheKey)
     expect(buildDigestCacheKey({ ...input, fingerprint: "fingerprint-2" })).not.toBe(cacheKey)
+    expect(buildDigestCacheKey({ ...input, maxAnnouncements: 49 })).not.toBe(cacheKey)
+    expect(buildDigestCacheKey({ ...input, maxInputCharacters: 59999 })).not.toBe(cacheKey)
   })
 })
 
@@ -223,14 +267,13 @@ describe("buildDigestPrompt", () => {
   })
 
   it("projects runtime sources to the DigestSource whitelist", () => {
-    const prompt = buildDigestPrompt([
-      {
-        ...source("safe"),
-        attachmentBody: "attachment-secret",
-        recipientProfile: "recipient-secret",
-        externalContent: "external-secret",
-      },
-    ])
+    const sourceWithExtraFields = {
+      ...source("safe"),
+      attachmentBody: "attachment-secret",
+      recipientProfile: "recipient-secret",
+      externalContent: "external-secret",
+    }
+    const prompt = buildDigestPrompt([sourceWithExtraFields])
 
     expect(prompt.user).not.toMatch(/attachmentBody|attachment-secret/)
     expect(prompt.user).not.toMatch(/recipientProfile|recipient-secret/)
