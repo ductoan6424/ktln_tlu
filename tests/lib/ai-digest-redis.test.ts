@@ -167,6 +167,27 @@ describe("consumeDailyDigestQuota", () => {
       .rejects
       .toMatchObject({ code: "UNAVAILABLE", name: "AiDigestError" })
   })
+
+  it.each([
+    ["null", null],
+    ["false", false],
+    ["true", true],
+    ["empty string", ""],
+    ["zero", 0],
+    ["negative number", -1],
+  ])("fails closed with UNAVAILABLE when eval returns %s", async (_caseName, result) => {
+    const client = { eval: vi.fn().mockResolvedValue(result) }
+
+    await expect(consumeDailyDigestQuota({
+      userId: "user-1",
+      dailyLimit: 5,
+      timeZone: "Asia/Bangkok",
+      now: new Date("2026-06-01T12:00:00.000Z"),
+      client,
+    }))
+      .rejects
+      .toMatchObject({ code: "UNAVAILABLE", name: "AiDigestError" })
+  })
 })
 
 describe("AiDigestError", () => {
