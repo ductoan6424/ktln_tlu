@@ -191,7 +191,7 @@ function toDigestSource(row: AnnouncementDigestRecipientRow): DigestSource | nul
     publishedAt: publishedAt.toISOString(),
     actionDeadlineAt: toIsoString(revision.actionDeadlineAt),
     withdrawalReason: row.announcement.withdrawalReason,
-    replacementId: row.announcement.replacements?.[0]?.id ?? row.announcement.supersedesId ?? null,
+    replacementId: row.announcement.replacements?.[0]?.id ?? null,
   }
 }
 
