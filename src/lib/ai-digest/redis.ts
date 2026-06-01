@@ -75,6 +75,19 @@ function secondsUntilNextZonedDay(now: Date, timeZone: string) {
   return Math.max(1, Math.ceil((high - nowMs) / 1000)) + 60
 }
 
+function parseQuotaCount(result: unknown) {
+  if (typeof result === "number") {
+    return Number.isSafeInteger(result) && result >= 1 ? result : null
+  }
+
+  if (typeof result === "string" && /^[1-9]\d*$/.test(result)) {
+    const count = Number(result)
+    return Number.isSafeInteger(count) ? count : null
+  }
+
+  return null
+}
+
 export async function readCachedDigest(
   key: string,
   client: Pick<Redis, "get"> = redis,
@@ -121,9 +134,9 @@ export async function consumeDailyDigestQuota(params: {
     const expirySeconds = secondsUntilNextZonedDay(now, timeZone)
     const key = `ai-digest:daily-quota:${userId}:${zonedDate}`
     const result = await client.eval(DAILY_QUOTA_SCRIPT, 1, key, expirySeconds)
-    const count = Number(result)
+    const count = parseQuotaCount(result)
 
-    if (!Number.isInteger(count)) {
+    if (count === null) {
       throw unavailableError()
     }
 
