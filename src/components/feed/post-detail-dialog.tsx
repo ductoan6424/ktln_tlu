@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -28,7 +29,7 @@ import { PollDisplay } from "@/components/polls/poll-display"
 import { loadComments, createComment, deleteComment } from "@/actions/posts"
 import type { PollView } from "@/lib/polls/types"
 import type { CommentWithAuthorFlat } from "@/components/feed/comment-item"
-import { Heart, MessageCircle, ArrowLeft } from "lucide-react"
+import { Heart, MessageCircle, ArrowLeft, X } from "lucide-react"
 import { LikersTooltip } from "@/components/feed/likers-tooltip"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -263,7 +264,7 @@ export function PostDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        showCloseButton
+        showCloseButton={false}
         className={cn(
           "!flex !flex-col p-0 !gap-0 overflow-hidden",
           /* Mobile: full-screen */
@@ -277,6 +278,19 @@ export function PostDetailDialog({
         <DialogTitle className="sr-only">
           Bài viết của {authorName}
         </DialogTitle>
+
+        <DialogClose
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 z-10 hidden rounded-full md:inline-flex"
+              aria-label="Đóng bài viết"
+            />
+          }
+        >
+          <X className="size-5" />
+        </DialogClose>
 
         {/* ===== MOBILE LAYOUT: Full-screen, scroll chung ===== */}
         <div className="flex flex-col h-full md:hidden">
@@ -421,7 +435,7 @@ export function PostDetailDialog({
           >
             {/* Header + Nội dung — cố định chiều cao, scroll nếu nội dung dài */}
             <div className={cn(
-              "shrink-0 overflow-y-auto p-4 space-y-3",
+              "shrink-0 overflow-y-auto p-4 space-y-3 md:pr-14",
               hasImage ? "max-h-[220px]" : "max-h-[240px]"
             )}>
               <PostHeader

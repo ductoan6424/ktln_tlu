@@ -375,11 +375,11 @@ export function FeedPageClient({
     <>
       <PageContainer
         variant="full"
-        className="h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] overflow-hidden py-0 lg:h-[calc(100dvh_-_4rem)]"
+        className="relative min-h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] py-0 lg:min-h-[calc(100dvh_-_4rem)] lg:pl-[304px] lg:pr-6 xl:pr-[304px]"
       >
-        <div className="flex h-full min-h-0 gap-5 lg:gap-6">
-          <aside className="hidden min-h-0 overscroll-contain lg:block lg:w-[280px] xl:w-[300px] shrink-0 overflow-y-auto">
-            <div className="py-6 flex flex-col gap-2 w-full">
+        <div className="min-h-full">
+          <aside className="fixed top-16 bottom-0 left-0 hidden w-[280px] overscroll-contain overflow-y-auto lg:block">
+            <div className="flex w-full flex-col gap-2 px-4 py-6">
               <Card className="rounded-lg border-border/70 shadow-sm">
                 <CardContent className="flex flex-col gap-4 p-4">
                   <div className="flex items-center gap-3">
@@ -429,8 +429,8 @@ export function FeedPageClient({
             </div>
           </aside>
 
-          <section className="min-h-0 flex-1 min-w-0 overscroll-contain overflow-y-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="mx-auto flex max-w-[660px] flex-col gap-4 py-6">
+          <section className="mx-auto w-full max-w-[660px]">
+            <div className="flex flex-col gap-4 py-6">
               <PostComposer
                 userName={currentUser?.displayName ?? ""}
                 userAvatar={currentUser?.avatarUrl ?? undefined}
@@ -475,8 +475,8 @@ export function FeedPageClient({
             </div>
           </section>
 
-          <aside className="hidden min-h-0 overscroll-contain xl:block xl:w-[280px] shrink-0 overflow-y-auto">
-            <div className="py-6 flex flex-col gap-4 w-full">
+          <aside className="fixed top-16 right-0 bottom-0 hidden w-[280px] overscroll-contain overflow-y-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:block">
+            <div className="flex w-full flex-col gap-4 px-4 py-6">
               <Card className="rounded-lg border-border/70 shadow-sm">
                 <CardContent className="flex flex-col gap-4 p-5">
                   <p className="text-sm font-bold">

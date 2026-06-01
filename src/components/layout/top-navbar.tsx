@@ -94,7 +94,7 @@ export function TopNavbar({
       )}
     >
       {mobileSearchOpen && (
-        <div className="absolute inset-0 z-10 flex items-center gap-2 bg-card/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
+        <div className="absolute inset-0 z-10 flex items-center gap-2 bg-card/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur xl:hidden">
           <GlobalSearch
             placeholder={searchPlaceholder}
             className="flex-1"
@@ -111,36 +111,34 @@ export function TopNavbar({
         </div>
       )}
 
-      <div className="relative mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-4 px-3 lg:px-8">
-        <div className="flex items-center gap-4 lg:gap-6">
+      <div className="relative flex h-full w-full items-center justify-between gap-3 px-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4 lg:px-4">
+        <div className="flex min-w-0 items-center gap-3">
           <Link href="/feed">
             <AppLogo size="md" />
           </Link>
           <GlobalSearch
             placeholder={searchPlaceholder}
-            className="hidden lg:block w-64"
+            className="hidden w-64 xl:block"
           />
         </div>
 
-        {navItems.length > 0 && (
-          <nav className="hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
-            {navItems.map((item) => (
-              <NavbarLink
-                key={item.href}
-                icon={NAV_ICONS[item.icon]}
-                label={item.label}
-                href={item.href}
-                isActive={pathname === item.href}
-              />
-            ))}
-          </nav>
-        )}
+        <nav className="hidden items-center gap-1 lg:flex lg:justify-self-center">
+          {navItems.map((item) => (
+            <NavbarLink
+              key={item.href}
+              icon={NAV_ICONS[item.icon]}
+              label={item.label}
+              href={item.href}
+              isActive={pathname === item.href}
+            />
+          ))}
+        </nav>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 lg:justify-self-end">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden relative size-9 rounded-full text-muted-foreground hover:text-foreground"
+            className="relative size-9 rounded-full text-muted-foreground hover:text-foreground xl:hidden"
             onClick={() => setMobileSearchOpen(true)}
             aria-label="Tìm kiếm"
           >

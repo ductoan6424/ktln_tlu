@@ -14,6 +14,10 @@ import {
 import { cn } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import {
+  MOCK_UNREAD_MESSAGE_COUNT,
+  MOCK_UNREAD_NOTIFICATION_COUNT,
+} from "@/components/layout/mock-data"
+import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -48,8 +52,8 @@ const NAV_ITEMS = [
 
 export function MobileBottomNav({
   user,
-  notificationCount,
-  messageCount,
+  notificationCount = MOCK_UNREAD_NOTIFICATION_COUNT,
+  messageCount = MOCK_UNREAD_MESSAGE_COUNT,
 }: MobileBottomNavProps) {
   const pathname = usePathname()
   const [darkMode, setDarkMode] = useState(false)
