@@ -111,7 +111,9 @@ describe("consumeDailyDigestQuota", () => {
     })
 
     expect(client.eval).toHaveBeenCalledTimes(1)
-    const [script, keyCount, key, expiry] = client.eval.mock.calls[0]
+    const call = client.eval.mock.calls[0]
+    expect(call).toBeDefined()
+    const [script, keyCount, key, expiry] = call!
     expect(script).toContain('local count = redis.call("INCR", KEYS[1])')
     expect(script).toContain('redis.call("EXPIRE", KEYS[1], ARGV[1])')
     expect(keyCount).toBe(1)
