@@ -188,6 +188,15 @@ export const mockMessages: MessageData[] = [
   },
 ]
 
+export const MOCK_UNREAD_NOTIFICATION_COUNT = mockNotifications.filter(
+  (notification) => notification.isUnread
+).length
+
+export const MOCK_UNREAD_MESSAGE_COUNT = mockMessages.reduce(
+  (total, message) => total + message.unreadCount,
+  0
+)
+
 // Mock Active Friends
 export interface ActiveFriend {
   id: string

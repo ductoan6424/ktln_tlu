@@ -83,15 +83,11 @@ export default async function MainLayout({
         <TopNavbar
           navItems={visibleNavItems}
           user={sessionUser}
-          notificationCount={3}
-          messageCount={5}
           searchPlaceholder="Tìm kiếm trong cộng đồng..."
         />
         <main className="min-h-dvh pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pt-16 lg:pb-0">{children}</main>
         <MobileBottomNav
           user={sessionUser}
-          notificationCount={3}
-          messageCount={5}
         />
       </ChatDock>
     </div>
