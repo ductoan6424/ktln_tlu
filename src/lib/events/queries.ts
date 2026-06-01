@@ -4,6 +4,7 @@ import type {
   EventType,
 } from "@prisma/client"
 
+import { unstableCache } from "@/lib/cache/unstable-cache"
 import { prisma } from "@/lib/prisma/client"
 
 export type EventRuntimeStatus = "upcoming" | "ongoing" | "past"
@@ -181,7 +182,7 @@ export async function listPublicEvents(params: {
   return rows.map((row) => toEventListItem(row, now))
 }
 
-export async function listUpcomingEventsForSidebar(params: {
+async function loadUpcomingEventsForSidebar(params: {
   now?: Date
   take?: number
 } = {}): Promise<EventSidebarItem[]> {
@@ -211,6 +212,23 @@ export async function listUpcomingEventsForSidebar(params: {
     location: row.location,
     time: TIME_FORMAT.format(row.startAt),
   }))
+}
+
+const listCachedUpcomingEventsForSidebar = unstableCache(
+  async (take?: number) => loadUpcomingEventsForSidebar({ take }),
+  ["upcoming-events-sidebar"],
+  { revalidate: 60 },
+)
+
+export async function listUpcomingEventsForSidebar(params: {
+  now?: Date
+  take?: number
+} = {}): Promise<EventSidebarItem[]> {
+  if (params.now) {
+    return loadUpcomingEventsForSidebar(params)
+  }
+
+  return listCachedUpcomingEventsForSidebar(params.take)
 }
 
 export async function listAdminEvents(params: {

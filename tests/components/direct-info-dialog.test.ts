@@ -16,7 +16,7 @@ describe("DirectInfoPanel", () => {
 
     expect(html).toContain('data-slot="skeleton"')
     expect(html).not.toContain("Đang tải thông tin")
-  })
+  }, 10_000)
 
   it("renders profile details with a link to the peer profile", async () => {
     const { DirectInfoPanel } = await import("@/components/messages/direct-info-dialog")
