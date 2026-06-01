@@ -1,8 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { AiDigestConfig } from "@/lib/ai-digest/config"
+import { AiDigestError } from "@/lib/ai-digest/redis"
 import type { AnnouncementDigestDto, ProviderDigest } from "@/lib/ai-digest/schema"
 import { generateAnnouncementDigest } from "@/lib/ai-digest/service"
+import { DigestProviderError } from "@/lib/ai-digest/providers"
+
+const prismaSingleton = vi.hoisted(() => ({
+  announcementRecipient: {
+    findMany: vi.fn(),
+    updateMany: vi.fn(),
+  },
+}))
+const redisSingleton = vi.hoisted(() => ({
+  eval: vi.fn(),
+  get: vi.fn(),
+  set: vi.fn(),
+}))
+
+vi.mock("@/lib/prisma/client", () => ({ prisma: prismaSingleton }))
+vi.mock("@/lib/redis/client", () => ({ redis: redisSingleton }))
 
 const now = new Date("2026-06-01T12:00:00.000Z")
 const config: AiDigestConfig = {
@@ -76,6 +93,15 @@ function makeProviderDigest(overrides: Partial<ProviderDigest> = {}): ProviderDi
 }
 
 function makeDeps(rows: RecipientRow[] = []) {
+  const provider = {
+    generate: vi.fn().mockResolvedValue(makeProviderDigest({
+      announcements: rows.map((row) => ({
+        announcementId: row.announcementId,
+        summary: `Summary ${row.announcementId}`,
+      })),
+    })),
+  }
+
   return {
     prisma: {
       announcementRecipient: {
@@ -83,14 +109,9 @@ function makeDeps(rows: RecipientRow[] = []) {
         updateMany: vi.fn(),
       },
     },
-    provider: {
-      generate: vi.fn().mockResolvedValue(makeProviderDigest({
-        announcements: rows.map((row) => ({
-          announcementId: row.announcementId,
-          summary: `Summary ${row.announcementId}`,
-        })),
-      })),
-    },
+    getConfig: vi.fn(() => config),
+    createProvider: vi.fn(() => provider),
+    provider,
     readCachedDigest: vi.fn().mockResolvedValue(null),
     cacheDigest: vi.fn().mockResolvedValue(undefined),
     consumeDailyQuota: vi.fn().mockResolvedValue(undefined),
@@ -101,14 +122,15 @@ async function generate(
   deps: ReturnType<typeof makeDeps>,
   overrides: Partial<Parameters<typeof generateAnnouncementDigest>[0]> = {},
 ) {
-  return generateAnnouncementDigest({
-    userId: "user-1",
-    request: { range: { type: "custom", startDate: "2026-05-01", endDate: "2026-05-31" } },
-    config,
-    now,
-    ...deps,
-    ...overrides,
-  })
+  return generateAnnouncementDigest(
+    {
+      userId: "user-1",
+      request: { range: { type: "custom", startDate: "2026-05-01", endDate: "2026-05-31" } },
+      now,
+      ...overrides,
+    },
+    deps,
+  )
 }
 
 beforeEach(() => {
@@ -255,6 +277,8 @@ describe("generateAnnouncementDigest", () => {
 
     const digest = await generate(deps)
 
+    expect(deps.getConfig).toHaveBeenCalledOnce()
+    expect(deps.createProvider).toHaveBeenCalledWith(config)
     expect(deps.consumeDailyQuota).toHaveBeenCalledOnce()
     expect(deps.consumeDailyQuota).toHaveBeenCalledWith({
       userId: "user-1",
@@ -270,6 +294,39 @@ describe("generateAnnouncementDigest", () => {
       3600,
     )
     expect(digest.cached).toBe(false)
+  })
+
+  it("drops recipient rows whose frozen revision does not match the published revision", async () => {
+    const deps = makeDeps([
+      makeRow("mismatch", {
+        revisionId: "recipient-revision",
+        announcement: {
+          ...makeRow("mismatch").announcement,
+          publishedRevision: {
+            ...makeRow("mismatch").announcement.publishedRevision!,
+            id: "published-revision",
+          },
+        },
+      }),
+    ])
+
+    await expect(generate(deps)).resolves.toEqual({
+      overview: "Khong co thong bao phu hop trong khoang thoi gian da chon.",
+      actionItems: [],
+      expiringSoon: [],
+      announcements: [],
+      coverage: {
+        eligibleCount: 0,
+        includedCount: 0,
+        omittedCount: 0,
+      },
+      generatedAt: now.toISOString(),
+      cached: false,
+    })
+    expect(deps.readCachedDigest).not.toHaveBeenCalled()
+    expect(deps.consumeDailyQuota).not.toHaveBeenCalled()
+    expect(deps.provider.generate).not.toHaveBeenCalled()
+    expect(deps.cacheDigest).not.toHaveBeenCalled()
   })
 
   it("drops provider references to unknown announcement IDs during enrichment", async () => {
@@ -367,6 +424,69 @@ describe("generateAnnouncementDigest", () => {
     ])
   })
 
+  it("encodes announcement IDs in source and replacement links", async () => {
+    const announcementId = "announcement id/1?tab=a&x=1"
+    const replacementId = "replacement id/2?from=old&x=1"
+    const deps = makeDeps([
+      makeRow(announcementId, {
+        announcement: {
+          ...makeRow(announcementId).announcement,
+          replacements: [{ id: replacementId }],
+        },
+      }),
+    ])
+    deps.provider.generate.mockResolvedValue(makeProviderDigest({
+      announcements: [
+        { announcementId, summary: "Encoded summary" },
+      ],
+    }))
+
+    const digest = await generate(deps)
+
+    expect(digest.announcements).toEqual([
+      expect.objectContaining({
+        announcementId,
+        sourceHref: `/feed?announcement=${encodeURIComponent(announcementId)}`,
+        replacementHref: `/feed?announcement=${encodeURIComponent(replacementId)}`,
+      }),
+    ])
+  })
+
+  it("maps provider transport errors to the shared unavailable AiDigestError without caching", async () => {
+    const deps = makeDeps([makeRow("announcement-1")])
+    deps.provider.generate.mockRejectedValue(new DigestProviderError("TIMEOUT", "timed out"))
+
+    await expect(generate(deps)).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(AiDigestError)
+      expect(error).toMatchObject({
+        code: "UNAVAILABLE",
+        message: "Tinh nang AI tam thoi chua kha dung.",
+      })
+      return true
+    })
+    expect(deps.cacheDigest).not.toHaveBeenCalled()
+  })
+
+  it("maps invalid provider shapes to the shared unavailable AiDigestError without caching", async () => {
+    const deps = makeDeps([makeRow("announcement-1")])
+    deps.provider.generate.mockResolvedValue({
+      overview: "Tong quan",
+      actionItems: [{ announcementId: "announcement-1", summary: "" }],
+      expiringSoon: [],
+      announcements: [],
+    })
+
+    await expect(generate(deps)).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(AiDigestError)
+      expect(error).toMatchObject({
+        code: "UNAVAILABLE",
+        message: "Tinh nang AI tam thoi chua kha dung.",
+      })
+      return true
+    })
+    expect(deps.cacheDigest).not.toHaveBeenCalled()
+  })
+
   it("fingerprints all eligible rows before selection omits over-limit rows", async () => {
     const rows = [
       makeRow("included", {
@@ -390,7 +510,9 @@ describe("generateAnnouncementDigest", () => {
     ]
     const deps = makeDeps(rows)
 
-    await generate(deps, { config: { ...config, maxAnnouncements: 1 } })
+    deps.getConfig.mockReturnValue({ ...config, maxAnnouncements: 1 })
+
+    await generate(deps)
     const firstKey = deps.readCachedDigest.mock.calls[0]?.[0]
 
     deps.prisma.announcementRecipient.findMany.mockResolvedValue([
@@ -406,7 +528,7 @@ describe("generateAnnouncementDigest", () => {
       }),
     ])
 
-    await generate(deps, { config: { ...config, maxAnnouncements: 1 } })
+    await generate(deps)
     const secondKey = deps.readCachedDigest.mock.calls[1]?.[0]
 
     expect(firstKey).not.toBe(secondKey)

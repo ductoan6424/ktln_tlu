@@ -1,10 +1,11 @@
 import { z } from "zod"
 
-import type { AiDigestConfig } from "@/lib/ai-digest/config"
+import { getAiDigestConfig, type AiDigestConfig } from "@/lib/ai-digest/config"
 import { normalizeDigestRange, type NormalizedDigestRange } from "@/lib/ai-digest/date-range"
 import { buildDigestPrompt } from "@/lib/ai-digest/prompt"
-import type { DigestProviderError } from "@/lib/ai-digest/providers"
+import { createDigestProvider, DigestProviderError } from "@/lib/ai-digest/providers"
 import type { DigestProvider } from "@/lib/ai-digest/providers/types"
+import { prisma } from "@/lib/prisma/client"
 import {
   announcementDigestDtoSchema,
   digestRequestSchema,
@@ -19,23 +20,14 @@ import {
   selectDigestSources,
   type DigestSource,
 } from "@/lib/ai-digest/selection"
-
-type AiDigestErrorCode =
-  | "UNAVAILABLE"
-  | "RATE_LIMITED"
-  | "INVALID_PROVIDER_RESPONSE"
+import {
+  AiDigestError,
+  cacheDigest,
+  consumeDailyDigestQuota,
+  readCachedDigest,
+} from "@/lib/ai-digest/redis"
 
 type DigestRequestInput = z.input<typeof digestRequestSchema>
-
-export class AiDigestError extends Error {
-  readonly code: AiDigestErrorCode
-
-  constructor(message: string, code: AiDigestErrorCode) {
-    super(message)
-    this.name = "AiDigestError"
-    this.code = code
-  }
-}
 
 type AnnouncementDigestRecipientRow = {
   announcementId: string
@@ -73,48 +65,54 @@ type ConsumeDailyQuota = (params: {
 
 export type GenerateAnnouncementDigestParams = {
   userId: string
-  request?: DigestRequestInput
-  range?: NormalizedDigestRange
-  includeSeen?: boolean
-  config: Pick<
-    AiDigestConfig,
-    "cacheTtlSeconds" | "dailyLimit" | "maxAnnouncements" | "maxInputCharacters" | "timeZone"
-  >
+  request: DigestRequestInput
+  now?: Date
+}
+
+export type AiDigestServiceDependencies = {
   prisma: AnnouncementDigestPrismaClient
-  provider: DigestProvider
+  getConfig: () => AiDigestConfig
+  createProvider: (config: AiDigestConfig) => DigestProvider
   readCachedDigest: (key: string) => Promise<AnnouncementDigestDto | null>
   cacheDigest: (key: string, dto: AnnouncementDigestDto, ttlSeconds: number) => Promise<void>
   consumeDailyQuota: ConsumeDailyQuota
-  now?: Date
+}
+
+const defaultDependencies: AiDigestServiceDependencies = {
+  prisma,
+  getConfig: getAiDigestConfig,
+  createProvider: createDigestProvider,
+  readCachedDigest,
+  cacheDigest,
+  consumeDailyQuota: consumeDailyDigestQuota,
+}
+
+type NormalizedDigestRequest = {
+  range: NormalizedDigestRange
+  includeSeen: boolean
+  config: AiDigestConfig
 }
 
 const DIGEST_STATUSES = ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] as const
 const EMPTY_DIGEST_OVERVIEW = "Khong co thong bao phu hop trong khoang thoi gian da chon."
+const UNAVAILABLE_MESSAGE = "Tinh nang AI tam thoi chua kha dung."
 
 function toIsoString(value: Date | null): string | null {
   return value ? value.toISOString() : null
 }
 
-function getRange(params: GenerateAnnouncementDigestParams, now: Date): NormalizedDigestRange {
-  if (params.range) {
-    return params.range
+function normalizeRequest(
+  requestInput: DigestRequestInput,
+  config: NormalizedDigestRequest["config"],
+  now: Date,
+): NormalizedDigestRequest {
+  const request = digestRequestSchema.parse(requestInput)
+
+  return {
+    range: normalizeDigestRange(request.range, config.timeZone, now),
+    includeSeen: request.includeSeen,
+    config,
   }
-
-  const request = digestRequestSchema.parse(
-    params.request ?? { range: { type: "preset", days: 30 } },
-  )
-
-  return normalizeDigestRange(request.range, params.config.timeZone, now)
-}
-
-function getIncludeSeen(params: GenerateAnnouncementDigestParams): boolean {
-  if (typeof params.includeSeen === "boolean") {
-    return params.includeSeen
-  }
-
-  return digestRequestSchema.parse(
-    params.request ?? { range: { type: "preset", days: 30 } },
-  ).includeSeen
 }
 
 function buildRecipientQuery(params: {
@@ -177,7 +175,7 @@ function toDigestSource(row: AnnouncementDigestRecipientRow): DigestSource | nul
   const revision = row.announcement.publishedRevision
   const publishedAt = row.announcement.publishedAt ?? row.publishedAt
 
-  if (!revision || !publishedAt) {
+  if (!revision || !publishedAt || row.revisionId !== revision.id) {
     return null
   }
 
@@ -228,9 +226,9 @@ function enrichReference(
     status: source.status,
     publishedAt: source.publishedAt,
     actionDeadlineAt: source.actionDeadlineAt,
-    sourceHref: `/feed?announcement=${source.announcementId}`,
+    sourceHref: `/feed?announcement=${encodeURIComponent(source.announcementId)}`,
     replacementHref: source.replacementId
-      ? `/feed?announcement=${source.replacementId}`
+      ? `/feed?announcement=${encodeURIComponent(source.replacementId)}`
       : null,
   }
 }
@@ -246,13 +244,8 @@ function enrichReferences(
 }
 
 function mapProviderError(error: unknown): never {
-  const providerError = error as Partial<DigestProviderError>
-  if (providerError?.name === "DigestProviderError" && providerError.code === "INVALID_RESPONSE") {
-    throw new AiDigestError("Phan hoi AI digest khong hop le.", "INVALID_PROVIDER_RESPONSE")
-  }
-
-  if (error instanceof z.ZodError) {
-    throw new AiDigestError("Phan hoi AI digest khong hop le.", "INVALID_PROVIDER_RESPONSE")
+  if (error instanceof DigestProviderError || error instanceof z.ZodError) {
+    throw new AiDigestError(UNAVAILABLE_MESSAGE, "UNAVAILABLE")
   }
 
   throw error
@@ -271,11 +264,12 @@ async function generateProviderDigest(
 
 export async function generateAnnouncementDigest(
   params: GenerateAnnouncementDigestParams,
+  deps: AiDigestServiceDependencies = defaultDependencies,
 ): Promise<AnnouncementDigestDto> {
   const now = params.now ?? new Date()
-  const range = getRange(params, now)
-  const includeSeen = getIncludeSeen(params)
-  const rows = await params.prisma.announcementRecipient.findMany(
+  const config = deps.getConfig()
+  const { range, includeSeen } = normalizeRequest(params.request, config, now)
+  const rows = await deps.prisma.announcementRecipient.findMany(
     buildRecipientQuery({
       userId: params.userId,
       range,
@@ -293,8 +287,8 @@ export async function generateAnnouncementDigest(
 
   const fingerprint = fingerprintDigestSources(eligible)
   const { selected, coverage } = selectDigestSources(eligible, {
-    maxAnnouncements: params.config.maxAnnouncements,
-    maxInputCharacters: params.config.maxInputCharacters,
+    maxAnnouncements: config.maxAnnouncements,
+    maxInputCharacters: config.maxInputCharacters,
   })
   const cacheKey = buildDigestCacheKey({
     userId: params.userId,
@@ -302,10 +296,10 @@ export async function generateAnnouncementDigest(
     rangeEnd: range.end.toISOString(),
     includeSeen,
     fingerprint,
-    maxAnnouncements: params.config.maxAnnouncements,
-    maxInputCharacters: params.config.maxInputCharacters,
+    maxAnnouncements: config.maxAnnouncements,
+    maxInputCharacters: config.maxInputCharacters,
   })
-  const cached = await params.readCachedDigest(cacheKey)
+  const cached = await deps.readCachedDigest(cacheKey)
 
   if (cached) {
     return {
@@ -314,14 +308,14 @@ export async function generateAnnouncementDigest(
     }
   }
 
-  await params.consumeDailyQuota({
+  await deps.consumeDailyQuota({
     userId: params.userId,
-    dailyLimit: params.config.dailyLimit,
-    timeZone: params.config.timeZone,
+    dailyLimit: config.dailyLimit,
+    timeZone: config.timeZone,
     now,
   })
 
-  const providerDigest = await generateProviderDigest(params.provider, selected)
+  const providerDigest = await generateProviderDigest(deps.createProvider(config), selected)
   const sourceById = new Map(selected.map((source) => [source.announcementId, source]))
   const dto = announcementDigestDtoSchema.parse({
     overview: providerDigest.overview,
@@ -333,7 +327,7 @@ export async function generateAnnouncementDigest(
     cached: false,
   })
 
-  await params.cacheDigest(cacheKey, dto, params.config.cacheTtlSeconds)
+  await deps.cacheDigest(cacheKey, dto, config.cacheTtlSeconds)
 
   return dto
 }
