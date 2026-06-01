@@ -154,6 +154,10 @@ describe("createOpenAiDigestProvider", () => {
     ["malformed JSON", openAiBody("{bad json"), "INVALID_RESPONSE"],
     ["runtime invalid JSON shape", openAiBody(JSON.stringify({ ...validDigest, overview: "" })), "INVALID_RESPONSE"],
     ["null response body", null, "INVALID_RESPONSE"],
+    ["object output", { output: {} }, "INVALID_RESPONSE"],
+    ["null output item", { output: [null] }, "INVALID_RESPONSE"],
+    ["object content", { output: [{ content: {} }] }, "INVALID_RESPONSE"],
+    ["null content item", { output: [{ content: [null] }] }, "INVALID_RESPONSE"],
   ] as const)("maps %s to INVALID_RESPONSE", async (_case, body, code) => {
     mockFetch(jsonResponse(body))
 
