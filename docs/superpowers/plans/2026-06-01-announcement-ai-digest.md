@@ -506,7 +506,13 @@ Assert the OpenAI body contains:
 Assert Gemini calls:
 
 ```ts
-"https://generativelanguage.googleapis.com/v1beta/models/gemini-model:generateContent?key=gemini-key"
+"https://generativelanguage.googleapis.com/v1beta/models/gemini-model:generateContent"
+```
+
+with:
+
+```ts
+headers: expect.objectContaining({ "x-goog-api-key": "gemini-key" })
 ```
 
 and includes:
@@ -514,13 +520,19 @@ and includes:
 ```ts
 {
   generationConfig: {
-    responseMimeType: "application/json",
-    responseJsonSchema: DIGEST_JSON_SCHEMA,
+    responseFormat: {
+      text: {
+        mimeType: "application/json",
+        schema: GEMINI_DIGEST_JSON_SCHEMA,
+      },
+    },
   },
 }
 ```
 
-Cover OpenAI `output[].content[].text`, Gemini `candidates[0].content.parts[0].text`, malformed JSON, non-2xx HTTP responses, and `AbortError`.
+`GEMINI_DIGEST_JSON_SCHEMA` must expand the reusable reference inline and omit JSON Schema keywords not listed in Gemini's supported subset, including `$defs`, `$ref`, `minLength`, `maxLength`, and `pattern`. Keep `providerDigestSchema.parse` as the final runtime guard.
+
+Cover OpenAI `output[].content[].text`, Gemini `candidates[0].content.parts[0].text`, malformed JSON, runtime schema rejection, non-2xx HTTP responses, and `AbortError`.
 
 - [ ] **Step 2: Run the focused test and verify failure**
 
@@ -597,11 +609,17 @@ Use this Gemini body:
     parts: [{ text: `${prompt.system}\n\n${prompt.user}` }],
   }],
   generationConfig: {
-    responseMimeType: "application/json",
-    responseJsonSchema: DIGEST_JSON_SCHEMA,
+    responseFormat: {
+      text: {
+        mimeType: "application/json",
+        schema: GEMINI_DIGEST_JSON_SCHEMA,
+      },
+    },
   },
 }
 ```
+
+Send the Gemini API key via the `x-goog-api-key` header. Do not place secrets in the URL.
 
 - [ ] **Step 5: Select exactly one configured adapter**
 
