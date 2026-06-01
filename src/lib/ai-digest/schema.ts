@@ -83,7 +83,11 @@ const digestCoverageSchema = z.object({
   eligibleCount: z.number().int().nonnegative(),
   includedCount: z.number().int().nonnegative(),
   omittedCount: z.number().int().nonnegative(),
-}).strict()
+}).strict().refine(
+  ({ eligibleCount, includedCount, omittedCount }) =>
+    eligibleCount === includedCount + omittedCount,
+  { message: "Số lượng thông báo trong phạm vi không khớp" },
+)
 
 export const announcementDigestDtoSchema = z.object({
   overview: z.string().trim().min(1).max(1500),

@@ -5,6 +5,15 @@ export type NormalizedDigestRange = {
   end: Date
 }
 
+export class DigestRangeValidationError extends Error {
+  readonly code = "VALIDATION_ERROR"
+
+  constructor(message: string) {
+    super(message)
+    this.name = "DigestRangeValidationError"
+  }
+}
+
 type CalendarDate = {
   year: number
   month: number
@@ -20,7 +29,7 @@ const localDateTimeFormatterOptions: Intl.DateTimeFormatOptions = {
 function parseCalendarDate(value: string): CalendarDate {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
   if (!match) {
-    throw new Error("Ngày tùy chỉnh phải có định dạng YYYY-MM-DD")
+    throw new DigestRangeValidationError("Ngày tùy chỉnh phải có định dạng YYYY-MM-DD")
   }
 
   const year = Number(match[1])
@@ -33,7 +42,7 @@ function parseCalendarDate(value: string): CalendarDate {
     || date.getUTCMonth() !== month - 1
     || date.getUTCDate() !== day
   ) {
-    throw new Error("Ngày tùy chỉnh không hợp lệ")
+    throw new DigestRangeValidationError("Ngày tùy chỉnh không hợp lệ")
   }
 
   return { year, month, day }
@@ -82,7 +91,7 @@ function assertCalendarDateExists(value: CalendarDate, timeZone: string): void {
   const firstInstant = findFirstInstantForCalendarDate(value, timeZone, false)
 
   if (getCalendarDateKey(firstInstant, timeZone) !== requestedDateKey) {
-    throw new Error("Ngày tùy chỉnh không tồn tại trong múi giờ đã cấu hình")
+    throw new DigestRangeValidationError("Ngày tùy chỉnh không tồn tại trong múi giờ đã cấu hình")
   }
 }
 
@@ -109,7 +118,7 @@ export function normalizeDigestRange(
   const comparableEnd = toComparableCalendarDate(endDate)
 
   if (comparableStart > comparableEnd) {
-    throw new Error("Ngày bắt đầu không được sau ngày kết thúc")
+    throw new DigestRangeValidationError("Ngày bắt đầu không được sau ngày kết thúc")
   }
 
   const oneYearAfterStart = new Date(comparableStart)
@@ -117,7 +126,7 @@ export function normalizeDigestRange(
   const latestAllowedEnd = new Date(oneYearAfterStart)
   latestAllowedEnd.setUTCDate(latestAllowedEnd.getUTCDate() - 1)
   if (comparableEnd > latestAllowedEnd) {
-    throw new Error("Khoảng thời gian tùy chỉnh không được vượt quá một năm")
+    throw new DigestRangeValidationError("Khoảng thời gian tùy chỉnh không được vượt quá một năm")
   }
 
   assertCalendarDateExists(startDate, timeZone)
