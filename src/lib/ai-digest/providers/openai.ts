@@ -99,8 +99,20 @@ async function parseJsonResponse(response: Response): Promise<unknown> {
 }
 
 function extractOpenAiOutputText(body: OpenAiResponseBody): string {
-  for (const output of body.output ?? []) {
-    for (const content of output.content ?? []) {
+  if (!Array.isArray(body.output)) {
+    throw new DigestProviderError("INVALID_RESPONSE", "OpenAI response output was not an array")
+  }
+
+  for (const output of body.output) {
+    if (!isObject(output) || !Array.isArray(output.content)) {
+      throw new DigestProviderError("INVALID_RESPONSE", "OpenAI response content was not an array")
+    }
+
+    for (const content of output.content) {
+      if (!isObject(content)) {
+        throw new DigestProviderError("INVALID_RESPONSE", "OpenAI response content item was not an object")
+      }
+
       if (typeof content.text === "string" && content.text.length > 0) {
         return content.text
       }
@@ -153,5 +165,9 @@ function isAbortError(error: unknown): boolean {
 }
 
 function isOpenAiResponseBody(value: unknown): value is OpenAiResponseBody {
+  return isObject(value)
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
