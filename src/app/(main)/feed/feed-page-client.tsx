@@ -437,12 +437,10 @@ export function FeedPageClient({
                 variant="full"
               />
 
-              {announcements.length > 0 && (
-                <AnnouncementStrip
-                  announcements={announcements}
-                  deepLinkAnnouncementId={deepLinkAnnouncementId}
-                />
-              )}
+              <AnnouncementStrip
+                announcements={announcements}
+                deepLinkAnnouncementId={deepLinkAnnouncementId}
+              />
 
               <DividerLabel label="Cập nhật gần đây" />
 
