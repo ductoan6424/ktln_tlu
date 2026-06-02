@@ -133,7 +133,7 @@ describe("consumeDailyDigestQuota", () => {
       client,
     })
 
-    const [, , key] = client.eval.mock.calls[0]
+    const [, , key] = client.eval.mock.calls[0]!
     expect(key).toContain("2026-06-01")
   })
 

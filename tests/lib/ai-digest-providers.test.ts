@@ -86,7 +86,7 @@ function geminiBody(text: string) {
   }
 }
 
-function mockFetch(response: Response | Promise<Response>) {
+function mockFetch(response: Response) {
   const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response)
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
