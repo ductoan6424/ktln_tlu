@@ -103,36 +103,44 @@ export function AnnouncementDigestDialog({
     }
 
     startTransition(async () => {
-      const result = await createAnnouncementDigest(request)
+      try {
+        const result = await createAnnouncementDigest(request)
 
-      if (!result.success || !result.data) {
-        if (result.code === "RATE_LIMITED") {
+        if (!result.success || !result.data) {
+          if (result.code === "RATE_LIMITED") {
+            toast({
+              title: "Đã hết lượt tóm tắt hôm nay",
+              description: "Bạn chỉ có thể tạo tối đa 5 bản tóm tắt AI mỗi ngày. Vui lòng thử lại vào ngày mai.",
+              variant: "destructive",
+            })
+            return
+          }
+
+          if (result.code === "UNAVAILABLE") {
+            toast({
+              title: "AI tạm thời chưa khả dụng",
+              description: "Không thể tạo bản tóm tắt lúc này. Vui lòng thử lại sau.",
+              variant: "destructive",
+            })
+            return
+          }
+
           toast({
-            title: "Đã hết lượt tóm tắt hôm nay",
-            description: "Bạn chỉ có thể tạo tối đa 5 bản tóm tắt AI mỗi ngày. Vui lòng thử lại vào ngày mai.",
+            title: "Không thể tạo bản tóm tắt",
+            description: result.error ?? "Vui lòng kiểm tra bộ lọc và thử lại.",
             variant: "destructive",
           })
           return
         }
 
-        if (result.code === "UNAVAILABLE") {
-          toast({
-            title: "AI tạm thời chưa khả dụng",
-            description: "Không thể tạo bản tóm tắt lúc này. Vui lòng thử lại sau.",
-            variant: "destructive",
-          })
-          return
-        }
-
+        setDigest(result.data)
+      } catch {
         toast({
-          title: "Không thể tạo bản tóm tắt",
-          description: result.error ?? "Vui lòng kiểm tra bộ lọc và thử lại.",
+          title: "AI tạm thời chưa khả dụng",
+          description: "Không thể tạo bản tóm tắt lúc này. Vui lòng thử lại sau.",
           variant: "destructive",
         })
-        return
       }
-
-      setDigest(result.data)
     })
   }
 
