@@ -26,6 +26,8 @@ const config: AiDigestConfig = {
   provider: "openai",
   model: "gpt-test",
   apiKey: "test-key",
+  baseUrl: null,
+  wireApi: null,
   cacheTtlSeconds: 3600,
   dailyLimit: 5,
   maxAnnouncements: 2,

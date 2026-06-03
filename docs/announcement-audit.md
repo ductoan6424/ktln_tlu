@@ -73,8 +73,9 @@ Mọi bản trình duyệt được đóng băng thành một `AnnouncementRevis
 
 ### 3.1 Cấu hình AI Digest
 
-- Chọn đúng một nhà cung cấp qua `AI_DIGEST_PROVIDER`: `openai` hoặc `gemini`.
+- Chọn đúng một nhà cung cấp qua `AI_DIGEST_PROVIDER`: `openai`, `gemini` hoặc `nexus`.
 - Cấu hình API key tương ứng và đặt rõ `AI_DIGEST_MODEL`; không dùng model ngầm định của nhà cung cấp.
+- Khi dùng Nexus, đặt `AI_DIGEST_MODEL=gpt-5.4`, `NEXUS_API_KEY`, `NEXUS_BASE_URL=https://nexusmmo.store/api4/v1` và `NEXUS_WIRE_API=chat`.
 - Cấu hình Redis trước khi bật tính năng. Cache và quota theo ngày đều fail closed: khi Redis không khả dụng, hệ thống không gọi nhà cung cấp AI.
 - Giới hạn mặc định là `5` lần gọi nhà cung cấp cho mỗi người dùng trong một ngày. Cache hit không tiêu tốn quota.
 - TTL cache mặc định là `24` giờ.
