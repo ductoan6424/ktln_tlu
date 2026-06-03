@@ -790,13 +790,28 @@ describe("generateAnnouncementDigest", () => {
     expect(deps.cacheDigest).not.toHaveBeenCalled()
   })
 
-  it("bubbles cacheDigest errors unchanged", async () => {
+  it("returns the generated digest when cacheDigest fails after provider success", async () => {
     const deps = makeDeps([makeRow("announcement-1")])
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const error = new AiDigestError("Redis unavailable", "UNAVAILABLE")
     deps.cacheDigest.mockRejectedValue(error)
 
-    await expect(generate(deps)).rejects.toBe(error)
+    const digest = await generate(deps)
+
+    expect(digest).toMatchObject({
+      overview: "Tong quan thong bao",
+      cached: false,
+      coverage: {
+        eligibleCount: 1,
+        includedCount: 1,
+        omittedCount: 0,
+      },
+    })
     expect(deps.provider.generate).toHaveBeenCalledOnce()
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "Failed to cache announcement AI digest",
+      expect.objectContaining({ code: "UNAVAILABLE" }),
+    )
   })
 
   it("maps provider transport errors to the shared unavailable AiDigestError without caching", async () => {

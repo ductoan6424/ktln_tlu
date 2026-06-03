@@ -527,6 +527,18 @@ function mapProviderError(error: unknown): never {
   throw error
 }
 
+function summarizeCacheError(error: unknown) {
+  if (error instanceof AiDigestError) {
+    return { name: error.name, code: error.code, message: error.message }
+  }
+
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message }
+  }
+
+  return { value: String(error) }
+}
+
 async function generateProviderDigest(
   provider: DigestProvider,
   selected: DigestSource[],
@@ -624,7 +636,11 @@ export async function generateAnnouncementDigest(
     cached: false,
   })
 
-  await deps.cacheDigest(cacheKey, dto, config.cacheTtlSeconds)
+  try {
+    await deps.cacheDigest(cacheKey, dto, config.cacheTtlSeconds)
+  } catch (error) {
+    console.warn("Failed to cache announcement AI digest", summarizeCacheError(error))
+  }
 
   return dto
 }
