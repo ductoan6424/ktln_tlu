@@ -17,6 +17,14 @@ type NexusChatResponseBody = {
   }>
 }
 
+type NexusChatDeltaBody = {
+  choices?: Array<{
+    delta?: {
+      content?: unknown
+    }
+  }>
+}
+
 const NEXUS_MAX_ATTEMPTS = 3
 const NEXUS_DEFAULT_RETRY_DELAY_MS = 1_000
 const NEXUS_MAX_RETRY_DELAY_MS = 30_000
@@ -59,6 +67,7 @@ async function postNexusChatDigestRequest(
           messages: buildNexusMessages(prompt),
           response_format: { type: "json_object" },
           temperature: 0,
+          stream: false,
         }),
       })
 
@@ -164,13 +173,73 @@ function delay(ms: number): Promise<void> {
 }
 
 async function parseJsonResponse(response: Response): Promise<unknown> {
+  const body = await response.text()
+
   try {
-    return await response.json()
+    return JSON.parse(body)
   } catch (error) {
+    const eventStreamJson = parseEventStreamJson(body)
+    if (eventStreamJson !== null) {
+      return eventStreamJson
+    }
+
     throw new DigestProviderError("INVALID_RESPONSE", "Provider returned malformed JSON", {
       cause: error,
     })
   }
+}
+
+function parseEventStreamJson(body: string): unknown | null {
+  const dataLines = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice("data:".length).trim())
+    .filter((line) => line.length > 0 && line !== "[DONE]")
+
+  if (dataLines.length === 0) {
+    return null
+  }
+
+  let lastParsed: unknown = null
+  let accumulatedContent = ""
+
+  for (const line of dataLines) {
+    try {
+      const parsed = JSON.parse(line) as unknown
+      lastParsed = parsed
+
+      if (isNexusChatResponseBody(parsed)) {
+        const content = parsed.choices?.[0]?.message?.content
+        if (typeof content === "string") {
+          return parsed
+        }
+      }
+
+      if (isNexusChatDeltaBody(parsed)) {
+        const content = parsed.choices?.[0]?.delta?.content
+        if (typeof content === "string") {
+          accumulatedContent += content
+        }
+      }
+    } catch {
+      return null
+    }
+  }
+
+  if (accumulatedContent.length > 0) {
+    return {
+      choices: [
+        {
+          message: {
+            content: accumulatedContent,
+          },
+        },
+      ],
+    }
+  }
+
+  return lastParsed
 }
 
 function extractNexusChatContent(body: NexusChatResponseBody): string {
@@ -295,5 +364,9 @@ function isAbortError(error: unknown): boolean {
 }
 
 function isNexusChatResponseBody(value: unknown): value is NexusChatResponseBody {
+  return typeof value === "object" && value !== null
+}
+
+function isNexusChatDeltaBody(value: unknown): value is NexusChatDeltaBody {
   return typeof value === "object" && value !== null
 }
