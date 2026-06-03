@@ -14,6 +14,8 @@ import {
   listTrendingSearches,
 } from "@/lib/feed/sidebar-queries"
 
+export const maxDuration = 60
+
 interface FeedPageProps {
   searchParams: Promise<{ post?: string; announcement?: string }>
 }
