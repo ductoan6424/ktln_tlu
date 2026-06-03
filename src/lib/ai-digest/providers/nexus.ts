@@ -17,6 +17,18 @@ type NexusChatResponseBody = {
   }>
 }
 
+type NexusChatDeltaBody = {
+  choices?: Array<{
+    delta?: {
+      content?: unknown
+    }
+  }>
+}
+
+const NEXUS_MAX_ATTEMPTS = 3
+const NEXUS_DEFAULT_RETRY_DELAY_MS = 1_000
+const NEXUS_MAX_RETRY_DELAY_MS = 30_000
+
 export function createNexusDigestProvider(config: AiDigestConfig): DigestProvider {
   if (config.wireApi !== "chat" || !config.baseUrl) {
     throw new DigestProviderError("INVALID_RESPONSE", "Nexus provider requires chat wire API and base URL")
@@ -38,38 +50,54 @@ async function postNexusChatDigestRequest(
   config: AiDigestConfig,
   prompt: DigestPrompt,
 ): Promise<unknown> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), config.providerTimeoutMs)
+  for (let attempt = 1; attempt <= NEXUS_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), config.providerTimeoutMs)
 
-  try {
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: config.model,
-        messages: buildNexusMessages(prompt),
-        response_format: { type: "json_object" },
-        temperature: 0,
-      }),
-    })
+    try {
+      const response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: config.model,
+          messages: buildNexusMessages(prompt),
+          response_format: { type: "json_object" },
+          temperature: 0,
+          stream: false,
+        }),
+      })
 
-    if (!response.ok) {
+      if (response.ok) {
+        return await parseJsonResponse(response)
+      }
+
+      const errorBody = await readErrorBody(response)
+      const upstreamQuotaError = isNexusUpstreamQuotaError(response.status, errorBody)
+      if (
+        attempt < NEXUS_MAX_ATTEMPTS &&
+        (upstreamQuotaError || isRetryableNexusError(response.status))
+      ) {
+        clearTimeout(timeout)
+        await delay(getRetryDelayMs(errorBody))
+        continue
+      }
+
       throw new DigestProviderError(
-        "HTTP_ERROR",
+        upstreamQuotaError ? "RATE_LIMITED" : "HTTP_ERROR",
         `Nexus digest request failed with status ${response.status}`,
       )
+    } catch (error) {
+      throw normalizeProviderError(error, controller.signal, "Nexus")
+    } finally {
+      clearTimeout(timeout)
     }
-
-    return await parseJsonResponse(response)
-  } catch (error) {
-    throw normalizeProviderError(error, controller.signal, "Nexus")
-  } finally {
-    clearTimeout(timeout)
   }
+
+  throw new DigestProviderError("HTTP_ERROR", "Nexus digest request failed")
 }
 
 function buildNexusMessages(prompt: DigestPrompt) {
@@ -100,14 +128,118 @@ function buildNexusMessages(prompt: DigestPrompt) {
   ]
 }
 
-async function parseJsonResponse(response: Response): Promise<unknown> {
+async function readErrorBody(response: Response): Promise<string> {
   try {
-    return await response.json()
+    return await response.text()
+  } catch {
+    return ""
+  }
+}
+
+function isNexusUpstreamQuotaError(status: number, body: string): boolean {
+  const normalizedBody = body.toLowerCase()
+  return status === 429 || status === 400 && (
+    normalizedBody.includes("[429]") ||
+    normalizedBody.includes("temporarily blocked") ||
+    normalizedBody.includes("exceeded plan limits") ||
+    normalizedBody.includes("reset after")
+  )
+}
+
+function isRetryableNexusError(status: number): boolean {
+  return [500, 502, 503, 504].includes(status)
+}
+
+function getRetryDelayMs(body: string): number {
+  const match = body.match(/reset after\s+(\d+)\s*s/i)
+  const resetDelayMs = match?.[1] ? Number(match[1]) * 1_000 : NEXUS_DEFAULT_RETRY_DELAY_MS
+
+  if (!Number.isFinite(resetDelayMs) || resetDelayMs <= 0) {
+    return NEXUS_DEFAULT_RETRY_DELAY_MS
+  }
+
+  return Math.min(resetDelayMs, NEXUS_MAX_RETRY_DELAY_MS)
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (!Number.isFinite(ms) || ms < 0) {
+      reject(new DOMException("invalid delay", "AbortError"))
+      return
+    }
+
+    setTimeout(resolve, ms)
+  })
+}
+
+async function parseJsonResponse(response: Response): Promise<unknown> {
+  const body = await response.text()
+
+  try {
+    return JSON.parse(body)
   } catch (error) {
+    const eventStreamJson = parseEventStreamJson(body)
+    if (eventStreamJson !== null) {
+      return eventStreamJson
+    }
+
     throw new DigestProviderError("INVALID_RESPONSE", "Provider returned malformed JSON", {
       cause: error,
     })
   }
+}
+
+function parseEventStreamJson(body: string): unknown | null {
+  const dataLines = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice("data:".length).trim())
+    .filter((line) => line.length > 0 && line !== "[DONE]")
+
+  if (dataLines.length === 0) {
+    return null
+  }
+
+  let lastParsed: unknown = null
+  let accumulatedContent = ""
+
+  for (const line of dataLines) {
+    try {
+      const parsed = JSON.parse(line) as unknown
+      lastParsed = parsed
+
+      if (isNexusChatResponseBody(parsed)) {
+        const content = parsed.choices?.[0]?.message?.content
+        if (typeof content === "string") {
+          return parsed
+        }
+      }
+
+      if (isNexusChatDeltaBody(parsed)) {
+        const content = parsed.choices?.[0]?.delta?.content
+        if (typeof content === "string") {
+          accumulatedContent += content
+        }
+      }
+    } catch {
+      return null
+    }
+  }
+
+  if (accumulatedContent.length > 0) {
+    return {
+      choices: [
+        {
+          message: {
+            content: accumulatedContent,
+          },
+        },
+      ],
+    }
+  }
+
+  return lastParsed
 }
 
 function extractNexusChatContent(body: NexusChatResponseBody): string {
@@ -232,5 +364,9 @@ function isAbortError(error: unknown): boolean {
 }
 
 function isNexusChatResponseBody(value: unknown): value is NexusChatResponseBody {
+  return typeof value === "object" && value !== null
+}
+
+function isNexusChatDeltaBody(value: unknown): value is NexusChatDeltaBody {
   return typeof value === "object" && value !== null
 }

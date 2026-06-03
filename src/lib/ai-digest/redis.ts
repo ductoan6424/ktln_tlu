@@ -9,6 +9,7 @@ import {
 export type AiDigestErrorCode =
   | "UNAVAILABLE"
   | "RATE_LIMITED"
+  | "PROVIDER_RATE_LIMITED"
   | "INVALID_PROVIDER_RESPONSE"
 
 export class AiDigestError extends Error {
