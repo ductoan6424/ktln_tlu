@@ -361,11 +361,14 @@ describe("createNexusDigestProvider", () => {
       content: expect.stringContaining("Return exactly one valid JSON object"),
     })
     expect(body.messages[0]?.content).toContain(prompt.system)
+    expect(body.messages[0]?.content).toMatch(/full Vietnamese diacritics/i)
+    expect(body.messages[0]?.content).toContain("thông báo")
     expect(body.messages[1]).toEqual({
       role: "user",
       content: expect.stringContaining('"announcements"'),
     })
     expect(body.messages[1]?.content).toContain(prompt.user)
+    expect(body.messages[1]?.content).toMatch(/Do not romanize Vietnamese/i)
   })
 
   it("parses JSON content wrapped in assistant prose and a fenced code block", async () => {
