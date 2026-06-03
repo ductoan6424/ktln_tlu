@@ -110,6 +110,16 @@ function chatBody(text: string) {
   }
 }
 
+function eventStreamResponse(...events: unknown[]) {
+  return new Response(
+    events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("") + "data: [DONE]\n\n",
+    {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    },
+  )
+}
+
 function mockFetch(response: Response) {
   const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response)
   vi.stubGlobal("fetch", fetchMock)
@@ -360,10 +370,12 @@ describe("createNexusDigestProvider", () => {
       messages: Array<{ role: string, content: string }>
       response_format: { type: string }
       temperature: number
+      stream: boolean
     }
     expect(body.model).toBe("gpt-5.4")
     expect(body.response_format).toEqual({ type: "json_object" })
     expect(body.temperature).toBe(0)
+    expect(body.stream).toBe(false)
     expect(body.messages).toHaveLength(2)
     expect(body.messages[0]).toEqual({
       role: "system",
@@ -384,6 +396,13 @@ describe("createNexusDigestProvider", () => {
     const fetchMock = mockFetch(jsonResponse(chatBody(
       `Here's the announcement digest:\n\n\`\`\`json\n${JSON.stringify(validDigest)}\n\`\`\``,
     )))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it("parses Nexus SSE data events when the proxy returns a streamed chat body", async () => {
+    const fetchMock = mockFetch(eventStreamResponse(chatBody(JSON.stringify(validDigest))))
 
     await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
     expect(fetchMock).toHaveBeenCalledOnce()
