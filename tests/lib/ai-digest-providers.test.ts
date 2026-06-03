@@ -352,15 +352,32 @@ describe("createNexusDigestProvider", () => {
       response_format: { type: string }
       temperature: number
     }
-    expect(body).toEqual({
-      model: "gpt-5.4",
-      messages: [
-        { role: "system", content: prompt.system },
-        { role: "user", content: prompt.user },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0,
+    expect(body.model).toBe("gpt-5.4")
+    expect(body.response_format).toEqual({ type: "json_object" })
+    expect(body.temperature).toBe(0)
+    expect(body.messages).toHaveLength(2)
+    expect(body.messages[0]).toEqual({
+      role: "system",
+      content: expect.stringContaining("Return exactly one valid JSON object"),
     })
+    expect(body.messages[0]?.content).toContain(prompt.system)
+    expect(body.messages[0]?.content).toMatch(/full Vietnamese diacritics/i)
+    expect(body.messages[0]?.content).toContain("thông báo")
+    expect(body.messages[1]).toEqual({
+      role: "user",
+      content: expect.stringContaining('"announcements"'),
+    })
+    expect(body.messages[1]?.content).toContain(prompt.user)
+    expect(body.messages[1]?.content).toMatch(/Do not romanize Vietnamese/i)
+  })
+
+  it("parses JSON content wrapped in assistant prose and a fenced code block", async () => {
+    const fetchMock = mockFetch(jsonResponse(chatBody(
+      `Here's the announcement digest:\n\n\`\`\`json\n${JSON.stringify(validDigest)}\n\`\`\``,
+    )))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   it.each([
