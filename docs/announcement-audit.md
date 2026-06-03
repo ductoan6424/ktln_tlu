@@ -71,6 +71,17 @@ Mọi bản trình duyệt được đóng băng thành một `AnnouncementRevis
 5. Cấu hình scheduler của hạ tầng gọi `GET /api/cron/announcements/publish` với header `Authorization: Bearer <CRON_SECRET>`. Repository chưa tự chọn nhà cung cấp hoặc tần suất cron production.
 6. Cấu hình `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` và tùy chọn `VAPID_SUBJECT`, sau đó xác minh PWA push trên thiết bị đã đăng ký. Email tiếp tục để mặc định tắt; chỉ bật theo từng thông báo khi đã có nhu cầu và năng lực gửi.
 
+### 3.1 Cấu hình AI Digest
+
+- Chọn đúng một nhà cung cấp qua `AI_DIGEST_PROVIDER`: `openai` hoặc `gemini`.
+- Cấu hình API key tương ứng và đặt rõ `AI_DIGEST_MODEL`; không dùng model ngầm định của nhà cung cấp.
+- Cấu hình Redis trước khi bật tính năng. Cache và quota theo ngày đều fail closed: khi Redis không khả dụng, hệ thống không gọi nhà cung cấp AI.
+- Giới hạn mặc định là `5` lần gọi nhà cung cấp cho mỗi người dùng trong một ngày. Cache hit không tiêu tốn quota.
+- TTL cache mặc định là `24` giờ.
+- Prompt gửi ra ngoài không gồm tệp đính kèm, nội dung từ liên kết ngoài, danh sách người nhận hoặc dữ liệu hồ sơ.
+- Sinh bản tóm tắt không đánh dấu thông báo là đã xem.
+- Trước khi phát hành production, chính sách sử dụng phải công khai việc nội dung thông báo được xử lý bởi nhà cung cấp AI bên ngoài.
+
 ## 4. Xác minh kỹ thuật
 
 - `npx prisma validate`: đạt.

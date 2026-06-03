@@ -225,6 +225,15 @@ describe("FeedPageClient chat dock migration", () => {
     )
   })
 
+  it("keeps the announcement strip mounted when the initial carousel is empty", async () => {
+    const container = await renderFeedPage({ announcements: [] })
+
+    expect(container.querySelector('[data-testid="announcement-strip"]')).not.toBeNull()
+    expect(announcementStripProps).toHaveBeenCalledWith(
+      expect.objectContaining({ announcements: [] }),
+    )
+  })
+
   afterEach(async () => {
     while (roots.length > 0) {
       const root = roots.pop()

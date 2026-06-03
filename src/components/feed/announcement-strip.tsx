@@ -12,7 +12,7 @@ import { TabNavigation } from "@/components/shared/tab-navigation"
 import { DividerLabel } from "@/components/shared/divider-label"
 import { EmptyState } from "@/components/shared/empty-state"
 import { SectionHeader } from "@/components/shared/section-header"
-import { BadgeCheck, Megaphone, Pin, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react"
+import { BadgeCheck, Megaphone, Pin, ChevronLeft, ChevronRight, ArrowLeft, Sparkles } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import {
 } from "@/lib/config/announcements"
 import { cn } from "@/lib/utils"
 import { AnnouncementDetailDialog } from "@/components/feed/announcement-detail-dialog"
+import { AnnouncementDigestDialog } from "@/components/feed/announcement-digest-dialog"
 import { AnnouncementMenu } from "@/components/feed/announcement-menu"
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,7 @@ export function AnnouncementStrip({
   const [selected, setSelected] = useState<AnnouncementStripItem | null>(null)
   const [dismissedDeepLinkId, setDismissedDeepLinkId] = useState<string | null>(null)
   const [listOpen, setListOpen] = useState(false)
+  const [digestOpen, setDigestOpen] = useState(false)
   const deepLinkedAnnouncement =
     deepLinkAnnouncementId && dismissedDeepLinkId !== deepLinkAnnouncementId
       ? announcements.find((announcement) => announcement.id === deepLinkAnnouncementId) ?? null
@@ -107,15 +109,13 @@ export function AnnouncementStrip({
       el.removeEventListener("scroll", handleSyncScroll)
       ro.disconnect()
     }
-  }, [])
+  }, [announcements.length])
 
   const scroll = (dir: "left" | "right") =>
     scrollRef.current?.scrollBy({
       left: dir === "left" ? -SCROLL_STEP : SCROLL_STEP,
       behavior: "smooth",
     })
-
-  if (announcements.length === 0) return null
 
   return (
     <>
@@ -126,20 +126,33 @@ export function AnnouncementStrip({
           <SectionHeader
             title="Thông báo của trường"
             action={
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setListOpen(true)}
-                className="h-auto px-1.5 py-0.5 text-[13px] font-semibold text-primary hover:text-primary hover:bg-primary/10"
-              >
-                Xem chi tiết
-              </Button>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDigestOpen(true)}
+                  className="h-8 px-2.5"
+                >
+                  <Sparkles data-icon="inline-start" />
+                  AI Tóm tắt
+                </Button>
+                {announcements.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setListOpen(true)}
+                    className="h-auto px-1.5 py-0.5 text-[13px] font-semibold text-primary hover:text-primary hover:bg-primary/10"
+                  >
+                    Xem chi tiết
+                  </Button>
+                )}
+              </div>
             }
             className="[&_h3]:text-[15px] [&_h3]:font-bold [&_h3]:normal-case [&_h3]:tracking-normal [&_h3]:text-foreground"
           />
 
           {/* Scrollable row + nút scroll nổi */}
-          <div className="relative">
+          {announcements.length > 0 && <div className="relative">
 
             {/* Nút TRÁI — dùng IconButton, chỉ hiện khi không ở đầu */}
             {canLeft && (
@@ -179,21 +192,25 @@ export function AnnouncementStrip({
                 />
               ))}
             </div>
-          </div>
+          </div>}
 
         </CardContent>
       </Card>
 
       {/* List dialog — toàn bộ thông báo */}
-      <AnnouncementListDialog
-        open={listOpen}
-        onOpenChange={setListOpen}
-        announcements={announcements}
-        onSelectItem={(item) => {
-          setListOpen(false)
-          setSelected(item)
-        }}
-      />
+      {announcements.length > 0 && (
+        <AnnouncementListDialog
+          open={listOpen}
+          onOpenChange={setListOpen}
+          announcements={announcements}
+          onSelectItem={(item) => {
+            setListOpen(false)
+            setSelected(item)
+          }}
+        />
+      )}
+
+      <AnnouncementDigestDialog open={digestOpen} onOpenChange={setDigestOpen} />
 
       {/* Detail dialog */}
       {activeSelection && (
