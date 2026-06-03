@@ -51,10 +51,7 @@ async function postNexusChatDigestRequest(
       signal: controller.signal,
       body: JSON.stringify({
         model: config.model,
-        messages: [
-          { role: "system", content: prompt.system },
-          { role: "user", content: prompt.user },
-        ],
+        messages: buildNexusMessages(prompt),
         response_format: { type: "json_object" },
         temperature: 0,
       }),
@@ -73,6 +70,34 @@ async function postNexusChatDigestRequest(
   } finally {
     clearTimeout(timeout)
   }
+}
+
+function buildNexusMessages(prompt: DigestPrompt) {
+  return [
+    {
+      role: "system",
+      content: [
+        prompt.system,
+        "Return exactly one valid JSON object. Do not include markdown, code fences, bullet lists, explanations, greetings, or follow-up suggestions.",
+        "The JSON object must have exactly these top-level keys: overview, actionItems, expiringSoon, announcements.",
+        "Every item in actionItems, expiringSoon, and announcements must have exactly announcementId and summary.",
+        "Write all overview and summary values in Vietnamese with full Vietnamese diacritics.",
+        "Do not romanize Vietnamese; write words like \"thông báo\", \"lịch thi\", and \"khóa luận\" with accents.",
+        "Bắt buộc viết tiếng Việt có dấu đầy đủ trong overview và summary.",
+        "Copy announcementId values exactly from the supplied input. Use [] for empty sections.",
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: [
+        prompt.user,
+        "Output only JSON matching this shape:",
+        "{\"overview\":\"string\",\"actionItems\":[{\"announcementId\":\"string\",\"summary\":\"string\"}],\"expiringSoon\":[],\"announcements\":[{\"announcementId\":\"string\",\"summary\":\"string\"}]}",
+        "All string values in overview and summary must be Vietnamese with full diacritics. Do not romanize Vietnamese.",
+        "Bắt buộc dùng tiếng Việt có dấu đầy đủ, ví dụ: \"thông báo\", không viết \"thong bao\".",
+      ].join("\n\n"),
+    },
+  ]
 }
 
 async function parseJsonResponse(response: Response): Promise<unknown> {
@@ -99,7 +124,7 @@ function parseProviderDigestText(text: string): ProviderDigest {
   let parsed: unknown
 
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(extractJsonText(text))
   } catch (error) {
     throw new DigestProviderError("INVALID_RESPONSE", "Provider output was not valid JSON", {
       cause: error,
@@ -115,6 +140,75 @@ function parseProviderDigestText(text: string): ProviderDigest {
       { cause: error },
     )
   }
+}
+
+function extractJsonText(text: string): string {
+  const trimmed = text.trim()
+
+  if (trimmed.startsWith("{")) {
+    return trimmed
+  }
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fenced?.[1]) {
+    return fenced[1].trim()
+  }
+
+  const objectText = extractFirstJsonObject(trimmed)
+  if (objectText) {
+    return objectText
+  }
+
+  return trimmed
+}
+
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf("{")
+  if (start === -1) {
+    return null
+  }
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index]
+
+    if (escaped) {
+      escaped = false
+      continue
+    }
+
+    if (char === "\\") {
+      escaped = inString
+      continue
+    }
+
+    if (char === "\"") {
+      inString = !inString
+      continue
+    }
+
+    if (inString) {
+      continue
+    }
+
+    if (char === "{") {
+      depth += 1
+      continue
+    }
+
+    if (char === "}") {
+      depth -= 1
+
+      if (depth === 0) {
+        return text.slice(start, index + 1)
+      }
+    }
+  }
+
+  return null
 }
 
 function normalizeProviderError(error: unknown, signal: AbortSignal, provider: string): DigestProviderError {
