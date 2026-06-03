@@ -814,6 +814,23 @@ describe("generateAnnouncementDigest", () => {
     expect(deps.cacheDigest).not.toHaveBeenCalled()
   })
 
+  it("maps provider quota errors to a provider-specific AiDigestError without caching", async () => {
+    const deps = makeDeps([makeRow("announcement-1")])
+    deps.provider.generate.mockRejectedValue(
+      new DigestProviderError("RATE_LIMITED", "provider quota blocked"),
+    )
+
+    await expect(generate(deps)).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(AiDigestError)
+      expect(error).toMatchObject({
+        code: "PROVIDER_RATE_LIMITED",
+        message: "Nha cung cap AI dang bi gioi han tam thoi. Vui long thu lai sau vai phut.",
+      })
+      return true
+    })
+    expect(deps.cacheDigest).not.toHaveBeenCalled()
+  })
+
   it("maps invalid provider shapes to the shared unavailable AiDigestError without caching", async () => {
     const deps = makeDeps([makeRow("announcement-1")])
     deps.provider.generate.mockResolvedValue({

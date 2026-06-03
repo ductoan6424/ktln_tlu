@@ -110,8 +110,27 @@ function chatBody(text: string) {
   }
 }
 
+function eventStreamResponse(...events: unknown[]) {
+  return new Response(
+    events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("") + "data: [DONE]\n\n",
+    {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    },
+  )
+}
+
 function mockFetch(response: Response) {
   const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response)
+  vi.stubGlobal("fetch", fetchMock)
+  return fetchMock
+}
+
+function mockFetchSequence(...responses: Response[]) {
+  const fetchMock = vi.fn<typeof fetch>()
+  for (const response of responses) {
+    fetchMock.mockResolvedValueOnce(response)
+  }
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
 }
@@ -351,10 +370,12 @@ describe("createNexusDigestProvider", () => {
       messages: Array<{ role: string, content: string }>
       response_format: { type: string }
       temperature: number
+      stream: boolean
     }
     expect(body.model).toBe("gpt-5.4")
     expect(body.response_format).toEqual({ type: "json_object" })
     expect(body.temperature).toBe(0)
+    expect(body.stream).toBe(false)
     expect(body.messages).toHaveLength(2)
     expect(body.messages[0]).toEqual({
       role: "system",
@@ -380,6 +401,59 @@ describe("createNexusDigestProvider", () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
+  it("parses Nexus SSE data events when the proxy returns a streamed chat body", async () => {
+    const fetchMock = mockFetch(eventStreamResponse(chatBody(JSON.stringify(validDigest))))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it("retries Nexus upstream quota blocks wrapped as HTTP 400 errors", async () => {
+    vi.useFakeTimers()
+    const fetchMock = mockFetchSequence(
+      jsonResponse({
+        error: {
+          message: "[openai-compatible-chat/gpt-5.4] [429]: workspace quota temporarily blocked (reset after 2s)",
+        },
+      }, { status: 400 }),
+      jsonResponse(chatBody(JSON.stringify(validDigest))),
+    )
+
+    const retryConfig = { ...nexusConfig, providerTimeoutMs: 5_000 }
+    const result = expect(createNexusDigestProvider(retryConfig).generate(prompt)).resolves.toEqual(validDigest)
+
+    await vi.advanceTimersByTimeAsync(2_000)
+    await result
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("maps persistent Nexus upstream quota blocks to RATE_LIMITED without exposing body or key", async () => {
+    vi.useFakeTimers()
+    const quotaBody = {
+      error: {
+        message: "[openai-compatible-chat/gpt-5.4] [429]: workspace quota temporarily blocked (reset after 2s)",
+      },
+    }
+    const fetchMock = mockFetchSequence(
+      jsonResponse(quotaBody, { status: 400 }),
+      jsonResponse(quotaBody, { status: 400 }),
+      jsonResponse(quotaBody, { status: 400 }),
+    )
+    const retryConfig = { ...nexusConfig, providerTimeoutMs: 5_000 }
+    const result = expect(createNexusDigestProvider(retryConfig).generate(prompt)).rejects.toSatisfy(
+      (error: unknown) => {
+        expectProviderError(error, "RATE_LIMITED")
+        expect(String(error)).not.toContain("workspace quota")
+        expect(String(error)).not.toContain("nexus-secret")
+        return true
+      },
+    )
+
+    await vi.advanceTimersByTimeAsync(4_000)
+    await result
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
   it.each([
     ["missing content", chatBody(""), "INVALID_RESPONSE"],
     ["malformed JSON", chatBody("{bad json"), "INVALID_RESPONSE"],
@@ -398,7 +472,7 @@ describe("createNexusDigestProvider", () => {
   })
 
   it("maps non-2xx HTTP responses to HTTP_ERROR without exposing body or key", async () => {
-    mockFetch(new Response("secret response body", { status: 429 }))
+    mockFetch(new Response("secret response body", { status: 418 }))
 
     await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).rejects.toSatisfy(
       (error: unknown) => {
