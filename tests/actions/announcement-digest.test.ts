@@ -131,6 +131,25 @@ describe("createAnnouncementDigest", () => {
     })
   })
 
+  it("maps provider AI digest quota errors", async () => {
+    generateAnnouncementDigest.mockRejectedValue(
+      new AiDigestError(
+        "Nha cung cap AI dang bi gioi han tam thoi. Vui long thu lai sau vai phut.",
+        "PROVIDER_RATE_LIMITED",
+      ),
+    )
+
+    const result = await createAnnouncementDigest({
+      range: { type: "preset", days: 7 },
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Nha cung cap AI dang bi gioi han tam thoi. Vui long thu lai sau vai phut.",
+      code: "PROVIDER_RATE_LIMITED",
+    })
+  })
+
   it("logs unexpected failures and returns a generic unavailable error", async () => {
     const internalError = new Error("redis://user:secret@example.internal")
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined)
