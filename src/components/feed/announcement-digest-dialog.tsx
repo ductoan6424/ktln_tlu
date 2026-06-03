@@ -116,6 +116,15 @@ export function AnnouncementDigestDialog({
             return
           }
 
+          if (result.code === "PROVIDER_RATE_LIMITED") {
+            toast({
+              title: "NhÃ  cung cáº¥p AI Ä‘ang bá»‹ giá»›i háº¡n",
+              description: "Nexus Ä‘ang cháº·n quota táº¡m thá»i. Vui lÃ²ng thá»­ láº¡i sau vÃ i phÃºt hoáº·c chuyá»ƒn provider/API key.",
+              variant: "destructive",
+            })
+            return
+          }
+
           if (result.code === "UNAVAILABLE") {
             toast({
               title: "AI tạm thời chưa khả dụng",

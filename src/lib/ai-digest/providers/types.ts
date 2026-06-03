@@ -10,6 +10,7 @@ export type DigestProviderErrorCode =
   | "HTTP_ERROR"
   | "INVALID_RESPONSE"
   | "NETWORK_ERROR"
+  | "RATE_LIMITED"
 
 export class DigestProviderError extends Error {
   constructor(

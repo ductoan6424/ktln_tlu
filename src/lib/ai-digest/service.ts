@@ -57,6 +57,7 @@ const DIGEST_STATUSES = ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] as const
 const REPLACEMENT_DIGEST_STATUSES = ["PUBLISHED", "SUPERSEDED"] as const
 const EMPTY_DIGEST_OVERVIEW = "Khong co thong bao phu hop trong khoang thoi gian da chon."
 const UNAVAILABLE_MESSAGE = "Tinh nang AI tam thoi chua kha dung."
+const PROVIDER_RATE_LIMITED_MESSAGE = "Nha cung cap AI dang bi gioi han tam thoi. Vui long thu lai sau vai phut."
 
 const announcementDigestRecipientSelect = {
   announcementId: true,
@@ -511,7 +512,15 @@ function enrichReferences(
 }
 
 function mapProviderError(error: unknown): never {
-  if (error instanceof DigestProviderError || error instanceof z.ZodError) {
+  if (error instanceof DigestProviderError) {
+    if (error.code === "RATE_LIMITED") {
+      throw new AiDigestError(PROVIDER_RATE_LIMITED_MESSAGE, "PROVIDER_RATE_LIMITED")
+    }
+
+    throw new AiDigestError(UNAVAILABLE_MESSAGE, "UNAVAILABLE")
+  }
+
+  if (error instanceof z.ZodError) {
     throw new AiDigestError(UNAVAILABLE_MESSAGE, "UNAVAILABLE")
   }
 
