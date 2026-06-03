@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 const aiDigestEnvSchema = z.object({
-  AI_DIGEST_PROVIDER: z.enum(["openai", "gemini"]),
+  AI_DIGEST_PROVIDER: z.enum(["openai", "gemini", "nexus"]),
   AI_DIGEST_MODEL: z.string().trim().min(1),
   AI_DIGEST_CACHE_TTL_SECONDS: z.coerce.number().int().min(60).max(604800).default(86400),
   AI_DIGEST_DAILY_LIMIT: z.coerce.number().int().min(1).max(100).default(5),
@@ -11,12 +11,19 @@ const aiDigestEnvSchema = z.object({
   AI_DIGEST_TIME_ZONE: z.string().trim().min(1).default("Asia/Bangkok"),
   OPENAI_API_KEY: z.string().trim().min(1).optional(),
   GOOGLE_AI_API_KEY: z.string().trim().min(1).optional(),
+  NEXUS_API_KEY: z.string().trim().min(1).optional(),
+  NEXUS_BASE_URL: z.string().trim().url().optional(),
+  NEXUS_WIRE_API: z.enum(["chat"]).default("chat"),
 }).strict()
 
+export type AiDigestProviderName = "openai" | "gemini" | "nexus"
+
 export type AiDigestConfig = {
-  provider: "openai" | "gemini"
+  provider: AiDigestProviderName
   model: string
   apiKey: string
+  baseUrl: string | null
+  wireApi: "chat" | null
   cacheTtlSeconds: number
   dailyLimit: number
   maxAnnouncements: number
@@ -39,6 +46,9 @@ export function getAiDigestConfig(env: AiDigestEnv = process.env): AiDigestConfi
     AI_DIGEST_TIME_ZONE: env.AI_DIGEST_TIME_ZONE,
     OPENAI_API_KEY: env.OPENAI_API_KEY,
     GOOGLE_AI_API_KEY: env.GOOGLE_AI_API_KEY,
+    NEXUS_API_KEY: env.NEXUS_API_KEY,
+    NEXUS_BASE_URL: env.NEXUS_BASE_URL,
+    NEXUS_WIRE_API: env.NEXUS_WIRE_API,
   }
   const parsed = aiDigestEnvSchema.safeParse(projectedEnv)
 
@@ -49,14 +59,16 @@ export function getAiDigestConfig(env: AiDigestEnv = process.env): AiDigestConfi
     throw new Error(`Cấu hình AI digest không hợp lệ: ${details}`)
   }
 
-  const apiKeyName = parsed.data.AI_DIGEST_PROVIDER === "openai"
-    ? "OPENAI_API_KEY"
-    : "GOOGLE_AI_API_KEY"
+  const apiKeyName = getApiKeyName(parsed.data.AI_DIGEST_PROVIDER)
   const apiKey = parsed.data[apiKeyName]
 
   if (!apiKey) {
     throw new Error(`Cấu hình AI digest thiếu ${apiKeyName}`)
   }
+
+  const baseUrl = parsed.data.AI_DIGEST_PROVIDER === "nexus"
+    ? normalizeBaseUrl(parsed.data.NEXUS_BASE_URL)
+    : null
 
   try {
     new Intl.DateTimeFormat("en-US", {
@@ -70,6 +82,8 @@ export function getAiDigestConfig(env: AiDigestEnv = process.env): AiDigestConfi
     provider: parsed.data.AI_DIGEST_PROVIDER,
     model: parsed.data.AI_DIGEST_MODEL,
     apiKey,
+    baseUrl,
+    wireApi: parsed.data.AI_DIGEST_PROVIDER === "nexus" ? parsed.data.NEXUS_WIRE_API : null,
     cacheTtlSeconds: parsed.data.AI_DIGEST_CACHE_TTL_SECONDS,
     dailyLimit: parsed.data.AI_DIGEST_DAILY_LIMIT,
     maxAnnouncements: parsed.data.AI_DIGEST_MAX_ANNOUNCEMENTS,
@@ -77,4 +91,18 @@ export function getAiDigestConfig(env: AiDigestEnv = process.env): AiDigestConfi
     providerTimeoutMs: parsed.data.AI_DIGEST_PROVIDER_TIMEOUT_MS,
     timeZone: parsed.data.AI_DIGEST_TIME_ZONE,
   }
+}
+
+function getApiKeyName(provider: AiDigestProviderName) {
+  if (provider === "openai") return "OPENAI_API_KEY"
+  if (provider === "gemini") return "GOOGLE_AI_API_KEY"
+  return "NEXUS_API_KEY"
+}
+
+function normalizeBaseUrl(value: string | undefined) {
+  if (!value) {
+    throw new Error("Cấu hình AI digest thiếu NEXUS_BASE_URL")
+  }
+
+  return value.replace(/\/+$/, "")
 }

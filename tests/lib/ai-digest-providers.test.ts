@@ -5,6 +5,7 @@ import {
   DigestProviderError,
   createDigestProvider,
   createGeminiDigestProvider,
+  createNexusDigestProvider,
   createOpenAiDigestProvider,
 } from "@/lib/ai-digest/providers"
 import type { AiDigestConfig } from "@/lib/ai-digest/config"
@@ -36,6 +37,8 @@ const openAiConfig: AiDigestConfig = {
   provider: "openai",
   model: "gpt-test",
   apiKey: "openai-secret",
+  baseUrl: null,
+  wireApi: null,
   cacheTtlSeconds: 86400,
   dailyLimit: 5,
   maxAnnouncements: 50,
@@ -49,6 +52,15 @@ const geminiConfig: AiDigestConfig = {
   provider: "gemini",
   model: "gemini/test model",
   apiKey: "google-secret",
+}
+
+const nexusConfig: AiDigestConfig = {
+  ...openAiConfig,
+  provider: "nexus",
+  model: "gpt-5.4",
+  apiKey: "nexus-secret",
+  baseUrl: "https://nexusmmo.store/api4/v1",
+  wireApi: "chat",
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
@@ -80,6 +92,18 @@ function geminiBody(text: string) {
       {
         content: {
           parts: [{ text }],
+        },
+      },
+    ],
+  }
+}
+
+function chatBody(text: string) {
+  return {
+    choices: [
+      {
+        message: {
+          content: text,
         },
       },
     ],
@@ -306,6 +330,70 @@ describe("createGeminiDigestProvider", () => {
   })
 })
 
+describe("createNexusDigestProvider", () => {
+  it("posts an OpenAI-compatible chat request and parses valid JSON content", async () => {
+    const fetchMock = mockFetch(jsonResponse(chatBody(JSON.stringify(validDigest))))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe("https://nexusmmo.store/api4/v1/chat/completions")
+    expect(init.method).toBe("POST")
+    expect(init.headers).toEqual({
+      Authorization: "Bearer nexus-secret",
+      "Content-Type": "application/json",
+    })
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+
+    const body = JSON.parse(String(init.body)) as {
+      model: string
+      messages: Array<{ role: string, content: string }>
+      response_format: { type: string }
+      temperature: number
+    }
+    expect(body).toEqual({
+      model: "gpt-5.4",
+      messages: [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0,
+    })
+  })
+
+  it.each([
+    ["missing content", chatBody(""), "INVALID_RESPONSE"],
+    ["malformed JSON", chatBody("{bad json"), "INVALID_RESPONSE"],
+    ["runtime invalid JSON shape", chatBody(JSON.stringify({ ...validDigest, overview: "" })), "INVALID_RESPONSE"],
+    ["null response body", null, "INVALID_RESPONSE"],
+    ["missing choices", { choices: [] }, "INVALID_RESPONSE"],
+  ] as const)("maps %s to INVALID_RESPONSE", async (_case, body, code) => {
+    mockFetch(jsonResponse(body))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).rejects.toSatisfy(
+      (error: unknown) => {
+        expectProviderError(error, code)
+        return true
+      },
+    )
+  })
+
+  it("maps non-2xx HTTP responses to HTTP_ERROR without exposing body or key", async () => {
+    mockFetch(new Response("secret response body", { status: 429 }))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).rejects.toSatisfy(
+      (error: unknown) => {
+        expectProviderError(error, "HTTP_ERROR")
+        expect(String(error)).not.toContain("secret response body")
+        expect(String(error)).not.toContain("nexus-secret")
+        return true
+      },
+    )
+  })
+})
+
 describe("createDigestProvider", () => {
   it("selects exactly the configured provider without fallback", async () => {
     const openAiFetch = mockFetch(jsonResponse(openAiBody(JSON.stringify(validDigest))))
@@ -319,5 +407,10 @@ describe("createDigestProvider", () => {
     expect(geminiFetch.mock.calls[0]?.[0]).toBe(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini%2Ftest%20model:generateContent",
     )
+
+    const nexusFetch = mockFetch(jsonResponse(chatBody(JSON.stringify(validDigest))))
+
+    await createDigestProvider(nexusConfig).generate(prompt)
+    expect(nexusFetch.mock.calls[0]?.[0]).toBe("https://nexusmmo.store/api4/v1/chat/completions")
   })
 })

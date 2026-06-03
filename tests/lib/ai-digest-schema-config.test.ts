@@ -35,6 +35,8 @@ describe("getAiDigestConfig", () => {
       provider: "openai",
       model: "gpt-test",
       apiKey: "openai-key",
+      baseUrl: null,
+      wireApi: null,
       cacheTtlSeconds: 86400,
       dailyLimit: 5,
       maxAnnouncements: 50,
@@ -60,6 +62,59 @@ describe("getAiDigestConfig", () => {
         GOOGLE_AI_API_KEY: "google-key",
       }).apiKey,
     ).toBe("google-key")
+  })
+
+  it("returns a normalized Nexus chat-wire configuration", () => {
+    expect(
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "nexus",
+        AI_DIGEST_MODEL: " gpt-5.4 ",
+        NEXUS_API_KEY: " nexus-key ",
+        NEXUS_BASE_URL: " https://nexusmmo.store/api4/v1/ ",
+        NEXUS_WIRE_API: "chat",
+      }),
+    ).toEqual({
+      provider: "nexus",
+      model: "gpt-5.4",
+      apiKey: "nexus-key",
+      baseUrl: "https://nexusmmo.store/api4/v1",
+      wireApi: "chat",
+      cacheTtlSeconds: 86400,
+      dailyLimit: 5,
+      maxAnnouncements: 50,
+      maxInputCharacters: 60000,
+      providerTimeoutMs: 30000,
+      timeZone: "Asia/Bangkok",
+    })
+  })
+
+  it("requires Nexus credentials and a supported wire API for Nexus", () => {
+    expect(() =>
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "nexus",
+        AI_DIGEST_MODEL: "gpt-5.4",
+        NEXUS_BASE_URL: "https://nexusmmo.store/api4/v1",
+      }),
+    ).toThrow("NEXUS_API_KEY")
+
+    expect(() =>
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "nexus",
+        AI_DIGEST_MODEL: "gpt-5.4",
+        NEXUS_API_KEY: "nexus-key",
+        NEXUS_BASE_URL: "not-a-url",
+      }),
+    ).toThrow("NEXUS_BASE_URL")
+
+    expect(() =>
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "nexus",
+        AI_DIGEST_MODEL: "gpt-5.4",
+        NEXUS_API_KEY: "nexus-key",
+        NEXUS_BASE_URL: "https://nexusmmo.store/api4/v1",
+        NEXUS_WIRE_API: "responses",
+      }),
+    ).toThrow("NEXUS_WIRE_API")
   })
 
   it("rejects an invalid digest timezone", () => {
