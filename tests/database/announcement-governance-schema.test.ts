@@ -9,6 +9,13 @@ const GOVERNANCE_MIGRATION_PATH = join(
   "202605251200_announcement_governance_workflow",
   "migration.sql",
 )
+const SUPPLEMENTAL_UNITS_MIGRATION_PATH = join(
+  process.cwd(),
+  "prisma",
+  "migrations",
+  "202606041200_seed_announcement_organization_units",
+  "migration.sql",
+)
 
 function readPrismaSchema() {
   return readFileSync(join(process.cwd(), "prisma", "schema.prisma"), "utf8")
@@ -17,6 +24,12 @@ function readPrismaSchema() {
 function readGovernanceMigration() {
   return existsSync(GOVERNANCE_MIGRATION_PATH)
     ? readFileSync(GOVERNANCE_MIGRATION_PATH, "utf8")
+    : ""
+}
+
+function readSupplementalUnitsMigration() {
+  return existsSync(SUPPLEMENTAL_UNITS_MIGRATION_PATH)
+    ? readFileSync(SUPPLEMENTAL_UNITS_MIGRATION_PATH, "utf8")
     : ""
 }
 
@@ -306,6 +319,7 @@ describe("announcement governance schema", () => {
 
   it("migrates the persistence layer and seeds units and delegated permissions", () => {
     const migration = readGovernanceMigration()
+    const supplementalUnitsMigration = readSupplementalUnitsMigration()
     const existingRbacMigration = readAdminRbacMigration()
 
     for (const status of [
@@ -338,7 +352,13 @@ describe("announcement governance schema", () => {
     expect(migration).toContain("Phòng Đào tạo")
     expect(migration).toContain("Phòng Công tác Chính trị Sinh viên")
     expect(migration).toContain("Phòng Công nghệ Thông tin")
-    expect(migration).toContain("FROM \"faculties\"")
+    expect(supplementalUnitsMigration).toContain("DEPARTMENT_TAI_CHINH_KE_TOAN")
+    expect(supplementalUnitsMigration).toContain("DEPARTMENT_KHAO_THI_DBCL")
+    expect(supplementalUnitsMigration).toContain("CENTER_HO_TRO_SINH_VIEN")
+    expect(supplementalUnitsMigration).toContain(
+      'ON CONFLICT ("code") DO UPDATE',
+    )
+    expect(migration).toContain('FROM "faculties"')
     expect(migration).toContain("admin.announcements.compose")
     expect(migration).toContain("admin.announcements.approve.unit")
     expect(migration).toContain("admin.announcements.approve.admin")
