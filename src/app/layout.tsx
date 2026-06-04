@@ -8,7 +8,10 @@ const APP_NAME = "TLU Community"
 const APP_DESCRIPTION = "Cổng thông tin sinh viên Đại học Thăng Long"
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  title: {
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`,
+  },
   description: APP_DESCRIPTION,
   applicationName: APP_NAME,
   manifest: "/manifest.webmanifest",
@@ -19,9 +22,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
       { url: "/favicon.ico" },
       { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
     ],
+    shortcut: ["/favicon.ico"],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
   formatDetection: {

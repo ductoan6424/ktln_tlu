@@ -1,12 +1,25 @@
 import { notFound, redirect } from "next/navigation"
 import { ProfilePageContent } from "@/components/profile/profile-page-content"
 import { getProfilePageData } from "@/app/(main)/profile/profile-page-data"
+import { prisma } from "@/lib/prisma/client"
 import { createClient } from "@/lib/supabase/server"
 
 interface PublicProfilePageProps {
   params: Promise<{
     userId: string
   }>
+}
+
+export async function generateMetadata({ params }: PublicProfilePageProps) {
+  const { userId } = await params
+  const profile = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { displayName: true, deletedAt: true },
+  })
+
+  return {
+    title: profile && !profile.deletedAt ? profile.displayName : "Trang cá nhân",
+  }
 }
 
 export default async function PublicProfilePage({
