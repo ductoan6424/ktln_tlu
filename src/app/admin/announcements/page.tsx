@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma/client"
 import AnnouncementsClient from "./announcements-client"
 
 export const dynamic = "force-dynamic"
+export const metadata = { title: "Quản lý thông báo" }
 
 export default async function AnnouncementsPage() {
   const actor = await requireAdminPermission("admin.announcements.manage")

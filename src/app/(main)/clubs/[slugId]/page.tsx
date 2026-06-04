@@ -16,6 +16,10 @@ import { prisma } from "@/lib/prisma/client"
 export const dynamic = "force-dynamic"
 
 type SearchParams = Record<string, string | string[] | undefined>
+type ClubDetailPageProps = {
+  params: Promise<{ slugId: string }>
+  searchParams?: Promise<SearchParams>
+}
 
 function getParam(params: SearchParams, key: string) {
   const value = params[key]
@@ -28,13 +32,19 @@ function normalizeDetailTab(value: string): CommunityDetailTab {
     : "feed"
 }
 
+export async function generateMetadata({ params }: ClubDetailPageProps) {
+  const { slugId } = await params
+  const target = await getCommunityBySlugId("CLUB", slugId)
+
+  return {
+    title: target?.name ?? "Câu lạc bộ",
+  }
+}
+
 export default async function ClubDetailPage({
   params,
   searchParams,
-}: {
-  params: Promise<{ slugId: string }>
-  searchParams?: Promise<SearchParams>
-}) {
+}: ClubDetailPageProps) {
   const { slugId } = await params
   const queryParamsPromise = searchParams ?? Promise.resolve({})
   const target = await getCommunityBySlugId("CLUB", slugId)

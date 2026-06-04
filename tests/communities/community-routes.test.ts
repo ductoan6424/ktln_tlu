@@ -240,6 +240,60 @@ describe("community routes", () => {
     expect(markup).not.toContain("internal-feed")
   })
 
+  it("sets detail metadata titles from group, club, and course names", async () => {
+    prisma.group.findFirst.mockResolvedValueOnce({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: false,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.club.findFirst.mockResolvedValueOnce({
+      id: "club-1",
+      shortId: "clb123",
+      name: "Python Club",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: false,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.course.findFirst.mockResolvedValueOnce({
+      id: "course-1",
+      shortId: "c12345",
+      name: "Data Structures",
+      code: "CS201",
+      requirePostApproval: false,
+      chatEnabled: false,
+      chatMode: "OPEN",
+      lecturerId: "lecturer-1",
+      deletedAt: null,
+    })
+
+    const groupPage = await import("@/app/(main)/groups/[slugId]/page")
+    const clubPage = await import("@/app/(main)/clubs/[slugId]/page")
+    const coursePage = await import("@/app/(main)/courses/[courseId]/page")
+
+    await expect(
+      groupPage.generateMetadata({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+      }),
+    ).resolves.toEqual({ title: "Python Group" })
+    await expect(
+      clubPage.generateMetadata({
+        params: Promise.resolve({ slugId: "python-club-clb123" }),
+      }),
+    ).resolves.toEqual({ title: "Python Club" })
+    await expect(
+      coursePage.generateMetadata({
+        params: Promise.resolve({ courseId: "cs201-c12345" }),
+      }),
+    ).resolves.toEqual({ title: "Data Structures" })
+  })
+
   it("renders working join and request actions for available groups", async () => {
     prisma.group.findMany.mockResolvedValue([
       {

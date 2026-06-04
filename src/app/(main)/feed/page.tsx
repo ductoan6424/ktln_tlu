@@ -15,6 +15,7 @@ import {
 } from "@/lib/feed/sidebar-queries"
 
 export const maxDuration = 60
+export const metadata = { title: "Bảng tin" }
 
 interface FeedPageProps {
   searchParams: Promise<{ post?: string; announcement?: string }>
