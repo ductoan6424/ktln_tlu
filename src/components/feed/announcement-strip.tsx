@@ -156,26 +156,26 @@ export function AnnouncementStrip({
 
             {/* Nút TRÁI — dùng IconButton, chỉ hiện khi không ở đầu */}
             {canLeft && (
-              <div className="absolute left-0 top-1/2 z-10 hidden -translate-x-1/2 -translate-y-1/2 sm:block">
+              <div className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 sm:block">
                 <IconButton
                   icon={ChevronLeft}
                   size="md"
                   ariaLabel="Xem trước"
                   onClick={() => scroll("left")}
-                  className="rounded-full bg-white dark:bg-card shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-border/60 hover:bg-accent"
+                  className="rounded-full bg-[#030b54] text-white shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-[#030b54] hover:bg-[#030b54]/90 hover:text-white"
                 />
               </div>
             )}
 
             {/* Nút PHẢI — dùng IconButton, chỉ hiện khi không ở cuối */}
             {canRight && (
-              <div className="absolute right-0 top-1/2 z-10 hidden translate-x-1/2 -translate-y-1/2 sm:block">
+              <div className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 sm:block">
                 <IconButton
                   icon={ChevronRight}
                   size="md"
                   ariaLabel="Xem sau"
                   onClick={() => scroll("right")}
-                  className="rounded-full bg-white dark:bg-card shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-border/60 hover:bg-accent"
+                  className="rounded-full bg-[#030b54] text-white shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-[#030b54] hover:bg-[#030b54]/90 hover:text-white"
                 />
               </div>
             )}
@@ -404,13 +404,13 @@ function AnnouncementListDialog({
           />
         </div>
 
-        {/* ── Pill filter — dùng TabNavigation variant="pill" ── */}
+        {/* ── Time filter dạng grid, không cuộn ngang ── */}
         <div className="shrink-0 px-4 py-2.5 border-b border-border/60 bg-muted/30">
           <TabNavigation
             tabs={TIME_FILTERS}
             activeTab={activeFilter}
             onTabChange={(v) => setActiveFilter(v as TimeFilter)}
-            variant="pill"
+            variant="pill-grid"
           />
         </div>
 
