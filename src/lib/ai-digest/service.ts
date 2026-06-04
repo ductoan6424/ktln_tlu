@@ -6,6 +6,10 @@ import { normalizeDigestRange, type NormalizedDigestRange } from "@/lib/ai-diges
 import { buildDigestPrompt } from "@/lib/ai-digest/prompt"
 import { createDigestProvider, DigestProviderError } from "@/lib/ai-digest/providers"
 import type { DigestProvider } from "@/lib/ai-digest/providers/types"
+import {
+  matchesAnnouncementTargets,
+  type AnnouncementViewerContext,
+} from "@/lib/announcements/targeting"
 import { prisma } from "@/lib/prisma/client"
 import {
   announcementDigestDtoSchema,
@@ -53,6 +57,7 @@ const DIGEST_STATUSES = ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] as const
 const REPLACEMENT_DIGEST_STATUSES = ["PUBLISHED", "SUPERSEDED"] as const
 const EMPTY_DIGEST_OVERVIEW = "Khong co thong bao phu hop trong khoang thoi gian da chon."
 const UNAVAILABLE_MESSAGE = "Tinh nang AI tam thoi chua kha dung."
+const PROVIDER_RATE_LIMITED_MESSAGE = "Nha cung cap AI dang bi gioi han tam thoi. Vui long thu lai sau vai phut."
 
 const announcementDigestRecipientSelect = {
   announcementId: true,
@@ -84,12 +89,60 @@ const announcementDigestReplacementSelect = {
   publishedAt: true,
 } satisfies Prisma.AnnouncementSelect
 
+const announcementDigestLegacySelect = {
+  id: true,
+  title: true,
+  content: true,
+  audience: true,
+  status: true,
+  priority: true,
+  publishedAt: true,
+  actionDeadlineAt: true,
+  withdrawalReason: true,
+  updatedAt: true,
+  targets: {
+    select: {
+      type: true,
+      value: true,
+    },
+  },
+} satisfies Prisma.AnnouncementSelect
+
+const announcementDigestUserProfileSelect = {
+  userId: true,
+  role: true,
+  facultyId: true,
+  year: true,
+  deletedAt: true,
+  courseMemberships: {
+    select: { courseId: true },
+  },
+  ownedCourses: {
+    where: { deletedAt: null },
+    select: { id: true },
+  },
+  clubMemberships: {
+    select: { clubId: true },
+  },
+  groupMemberships: {
+    select: { groupId: true },
+  },
+} satisfies Prisma.UserProfileSelect
+
 type AnnouncementDigestRecipientRow = Prisma.AnnouncementRecipientGetPayload<{
   select: typeof announcementDigestRecipientSelect
 }>
 
 type AnnouncementDigestReplacementRow = Prisma.AnnouncementGetPayload<{
   select: typeof announcementDigestReplacementSelect
+}>
+
+type AnnouncementDigestLegacyRow = Prisma.AnnouncementGetPayload<{
+  select: typeof announcementDigestLegacySelect
+}>
+
+type AnnouncementDigestUserProfileRow = Prisma.UserProfileGetPayload<{
+  select: typeof announcementDigestUserProfileSelect
 }>
 
 function toIsoString(value: Date | null): string | null {
@@ -151,16 +204,47 @@ function buildReplacementQuery(frontier: string[]) {
   } satisfies Prisma.AnnouncementFindManyArgs
 }
 
+function buildLegacyAnnouncementQuery(params: {
+  range: NormalizedDigestRange
+  now: Date
+}) {
+  return {
+    where: {
+      deletedAt: null,
+      publishedRevisionId: null,
+      status: "PUBLISHED",
+      OR: [{ expiresAt: null }, { expiresAt: { gt: params.now } }],
+      publishedAt: {
+        gte: params.range.start,
+        lte: params.range.end,
+      },
+    },
+    select: announcementDigestLegacySelect,
+    orderBy: [{ pinToTop: "desc" }, { publishedAt: "desc" }, { id: "asc" }],
+  } satisfies Prisma.AnnouncementFindManyArgs
+}
+
 type AnnouncementDigestPrismaClient = {
   announcement: {
     findMany(
       args: ReturnType<typeof buildReplacementQuery>,
     ): Promise<AnnouncementDigestReplacementRow[]>
+    findManyLegacy(
+      args: ReturnType<typeof buildLegacyAnnouncementQuery>,
+    ): Promise<AnnouncementDigestLegacyRow[]>
   }
   announcementRecipient: {
     findMany(
       args: ReturnType<typeof buildRecipientQuery>,
     ): Promise<AnnouncementDigestRecipientRow[]>
+  }
+  userProfile: {
+    findUnique(
+      args: {
+        where: { userId: string, deletedAt: null }
+        select: typeof announcementDigestUserProfileSelect
+      },
+    ): Promise<AnnouncementDigestUserProfileRow | null>
   }
 }
 
@@ -177,9 +261,13 @@ const defaultDependencies: AiDigestServiceDependencies = {
   prisma: {
     announcement: {
       findMany: (args) => prisma.announcement.findMany(args),
+      findManyLegacy: (args) => prisma.announcement.findMany(args),
     },
     announcementRecipient: {
       findMany: (args) => prisma.announcementRecipient.findMany(args),
+    },
+    userProfile: {
+      findUnique: (args) => prisma.userProfile.findUnique(args),
     },
   },
   getConfig: getAiDigestConfig,
@@ -218,6 +306,63 @@ function toDigestSource(row: AnnouncementDigestRecipientRow): DigestSource | nul
     withdrawalReason: row.announcement.withdrawalReason,
     replacementId: null,
   }
+}
+
+function buildViewerContext(profile: AnnouncementDigestUserProfileRow | null): AnnouncementViewerContext | null {
+  if (!profile || profile.deletedAt) {
+    return null
+  }
+
+  return {
+    userId: profile.userId,
+    role: profile.role,
+    facultyId: profile.facultyId,
+    year: profile.year,
+    courseIds: Array.from(new Set([
+      ...profile.courseMemberships.map((membership) => membership.courseId),
+      ...profile.ownedCourses.map((course) => course.id),
+    ])),
+    clubIds: profile.clubMemberships.map((membership) => membership.clubId),
+    groupIds: profile.groupMemberships.map((membership) => membership.groupId),
+  }
+}
+
+function toLegacyDigestSource(
+  row: AnnouncementDigestLegacyRow,
+  viewerContext: AnnouncementViewerContext,
+): DigestSource | null {
+  if (
+    row.status !== "PUBLISHED" ||
+    !row.publishedAt ||
+    !matchesAnnouncementTargets(viewerContext, row.targets, row.audience)
+  ) {
+    return null
+  }
+
+  return {
+    announcementId: row.id,
+    revisionId: `legacy:${row.id}:${row.updatedAt.toISOString()}`,
+    title: row.title,
+    content: row.content,
+    priority: row.priority,
+    status: row.status,
+    publishedAt: row.publishedAt.toISOString(),
+    actionDeadlineAt: toIsoString(row.actionDeadlineAt),
+    withdrawalReason: row.withdrawalReason,
+    replacementId: null,
+  }
+}
+
+function mergeDigestSources(sources: DigestSource[]): DigestSource[] {
+  return Array.from(
+    sources.reduce((byId, source) => {
+      if (!byId.has(source.announcementId)) {
+        byId.set(source.announcementId, source)
+      }
+
+      return byId
+    }, new Map<string, DigestSource>()).values(),
+  )
 }
 
 function compareReplacementLeaves(
@@ -367,11 +512,31 @@ function enrichReferences(
 }
 
 function mapProviderError(error: unknown): never {
-  if (error instanceof DigestProviderError || error instanceof z.ZodError) {
+  if (error instanceof DigestProviderError) {
+    if (error.code === "RATE_LIMITED") {
+      throw new AiDigestError(PROVIDER_RATE_LIMITED_MESSAGE, "PROVIDER_RATE_LIMITED")
+    }
+
+    throw new AiDigestError(UNAVAILABLE_MESSAGE, "UNAVAILABLE")
+  }
+
+  if (error instanceof z.ZodError) {
     throw new AiDigestError(UNAVAILABLE_MESSAGE, "UNAVAILABLE")
   }
 
   throw error
+}
+
+function summarizeCacheError(error: unknown) {
+  if (error instanceof AiDigestError) {
+    return { name: error.name, code: error.code, message: error.message }
+  }
+
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message }
+  }
+
+  return { value: String(error) }
 }
 
 async function generateProviderDigest(
@@ -399,10 +564,25 @@ export async function generateAnnouncementDigest(
       includeSeen,
     }),
   )
-  const sources = rows.flatMap((row) => {
+  const recipientSources = rows.flatMap((row) => {
     const source = toDigestSource(row)
     return source ? [source] : []
   })
+  const [profile, legacyRows] = await Promise.all([
+    deps.prisma.userProfile.findUnique({
+      where: { userId: params.userId, deletedAt: null },
+      select: announcementDigestUserProfileSelect,
+    }),
+    deps.prisma.announcement.findManyLegacy(buildLegacyAnnouncementQuery({ range, now })),
+  ])
+  const viewerContext = buildViewerContext(profile)
+  const legacySources = viewerContext
+    ? legacyRows.flatMap((row) => {
+        const source = toLegacyDigestSource(row, viewerContext)
+        return source ? [source] : []
+      })
+    : []
+  const sources = mergeDigestSources([...recipientSources, ...legacySources])
 
   if (sources.length === 0) {
     return emptyDigest(now)
@@ -456,7 +636,11 @@ export async function generateAnnouncementDigest(
     cached: false,
   })
 
-  await deps.cacheDigest(cacheKey, dto, config.cacheTtlSeconds)
+  try {
+    await deps.cacheDigest(cacheKey, dto, config.cacheTtlSeconds)
+  } catch (error) {
+    console.warn("Failed to cache announcement AI digest", summarizeCacheError(error))
+  }
 
   return dto
 }

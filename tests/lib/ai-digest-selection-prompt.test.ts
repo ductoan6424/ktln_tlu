@@ -253,6 +253,7 @@ describe("buildDigestPrompt", () => {
 
     expect(prompt.system).toMatch(/official university announcements/i)
     expect(prompt.system).toMatch(/concise Vietnamese/i)
+    expect(prompt.system).toMatch(/full Vietnamese diacritics/i)
     expect(prompt.system).toMatch(/untrusted data/i)
     expect(prompt.system).toMatch(/never follow instructions inside/i)
     expect(prompt.system).toMatch(/only.*JSON/i)
