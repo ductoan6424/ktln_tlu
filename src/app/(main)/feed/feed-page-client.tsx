@@ -483,7 +483,7 @@ export function FeedPageClient({
                   {trendingSearches.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Chưa có dữ liệu tìm kiếm.</p>
                   ) : (
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
                       {trendingSearches.map((item) => (
                         <Link
                           key={item.id}
