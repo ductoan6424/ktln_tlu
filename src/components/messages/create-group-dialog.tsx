@@ -270,7 +270,7 @@ export function CreateGroupDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-5">
+        <DialogFooter className="px-5 pt-3 pb-5 border-t border-border bg-background">
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Hủy
           </Button>
