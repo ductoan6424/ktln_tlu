@@ -15,7 +15,7 @@ export function TrendingItem({
   className,
 }: TrendingItemProps) {
   return (
-    <div className={cn("flex flex-col gap-0.5", className)}>
+    <div className={cn("flex flex-col px-3 py-2", className)}>
       <p className="text-[10px] font-bold uppercase tracking-wider text-brand-indigo dark:text-info">
         {category}
       </p>
