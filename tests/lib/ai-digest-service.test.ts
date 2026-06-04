@@ -26,6 +26,8 @@ const config: AiDigestConfig = {
   provider: "openai",
   model: "gpt-test",
   apiKey: "test-key",
+  baseUrl: null,
+  wireApi: null,
   cacheTtlSeconds: 3600,
   dailyLimit: 5,
   maxAnnouncements: 2,
@@ -59,6 +61,35 @@ type ReplacementRow = {
   supersedesId: string | null
   status: "PUBLISHED" | "SUPERSEDED"
   publishedAt: Date | null
+}
+
+type LegacyAnnouncementRow = {
+  id: string
+  title: string
+  content: string
+  audience: "ALL" | "STUDENTS" | "FACULTY"
+  status: "PUBLISHED"
+  priority: "NORMAL" | "IMPORTANT" | "URGENT"
+  publishedAt: Date | null
+  actionDeadlineAt: Date | null
+  withdrawalReason: string | null
+  updatedAt: Date
+  targets: Array<{
+    type: "ROLE" | "FACULTY" | "COHORT" | "COURSE" | "CLUB" | "GROUP" | "USER"
+    value: string
+  }>
+}
+
+type UserProfileRow = {
+  userId: string
+  role: "STUDENT" | "LECTURER" | "ADMIN"
+  facultyId: string | null
+  year: number | null
+  deletedAt: Date | null
+  courseMemberships: Array<{ courseId: string }>
+  ownedCourses: Array<{ id: string }>
+  clubMemberships: Array<{ clubId: string }>
+  groupMemberships: Array<{ groupId: string }>
 }
 
 function makeRow(
@@ -101,6 +132,41 @@ function makeReplacement(
   }
 }
 
+function makeLegacyAnnouncement(
+  id: string,
+  overrides: Partial<LegacyAnnouncementRow> = {},
+): LegacyAnnouncementRow {
+  return {
+    id,
+    title: `Legacy title ${id}`,
+    content: `Legacy content ${id}`,
+    audience: "STUDENTS",
+    status: "PUBLISHED",
+    priority: "IMPORTANT",
+    publishedAt: new Date("2026-05-15T02:00:00.000Z"),
+    actionDeadlineAt: null,
+    withdrawalReason: null,
+    updatedAt: new Date("2026-05-15T03:00:00.000Z"),
+    targets: [],
+    ...overrides,
+  }
+}
+
+function makeUserProfile(overrides: Partial<UserProfileRow> = {}): UserProfileRow {
+  return {
+    userId: "user-1",
+    role: "STUDENT",
+    facultyId: null,
+    year: null,
+    deletedAt: null,
+    courseMemberships: [],
+    ownedCourses: [],
+    clubMemberships: [],
+    groupMemberships: [],
+    ...overrides,
+  }
+}
+
 function makeProviderDigest(overrides: Partial<ProviderDigest> = {}): ProviderDigest {
   return {
     overview: "Tong quan thong bao",
@@ -125,10 +191,14 @@ function makeDeps(rows: RecipientRow[] = []) {
     prisma: {
       announcement: {
         findMany: vi.fn().mockResolvedValue([]),
+        findManyLegacy: vi.fn().mockResolvedValue([]),
       },
       announcementRecipient: {
         findMany: vi.fn().mockResolvedValue(rows),
         updateMany: vi.fn(),
+      },
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue(makeUserProfile()),
       },
     },
     getConfig: vi.fn(() => config),
@@ -260,6 +330,60 @@ describe("generateAnnouncementDigest", () => {
     expect(deps.provider.generate).not.toHaveBeenCalled()
     expect(deps.cacheDigest).not.toHaveBeenCalled()
     expect(deps.prisma.announcement.findMany).not.toHaveBeenCalled()
+  })
+
+  it("summarizes visible legacy published announcements when recipient snapshots are absent", async () => {
+    const deps = makeDeps([])
+    deps.prisma.announcement.findManyLegacy.mockResolvedValue([
+      makeLegacyAnnouncement("legacy-visible", {
+        targets: [{ type: "ROLE", value: "STUDENT" }],
+      }),
+      makeLegacyAnnouncement("legacy-hidden", {
+        targets: [{ type: "ROLE", value: "LECTURER" }],
+      }),
+    ])
+    deps.provider.generate.mockResolvedValue(makeProviderDigest({
+      announcements: [
+        { announcementId: "legacy-visible", summary: "Legacy visible summary" },
+      ],
+    }))
+
+    const digest = await generate(deps)
+
+    expect(deps.prisma.userProfile.findUnique).toHaveBeenCalledWith({
+      where: { userId: "user-1", deletedAt: null },
+      select: expect.objectContaining({
+        userId: true,
+        role: true,
+        facultyId: true,
+        year: true,
+      }),
+    })
+    expect(deps.prisma.announcement.findManyLegacy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          publishedRevisionId: null,
+          status: "PUBLISHED",
+          publishedAt: {
+            gte: new Date("2026-04-30T17:00:00.000Z"),
+            lte: new Date("2026-05-31T16:59:59.999Z"),
+          },
+        }),
+      }),
+    )
+    expect(digest.coverage).toEqual({
+      eligibleCount: 1,
+      includedCount: 1,
+      omittedCount: 0,
+    })
+    expect(digest.announcements).toEqual([
+      expect.objectContaining({
+        announcementId: "legacy-visible",
+        title: "Legacy title legacy-visible",
+        summary: "Legacy visible summary",
+        sourceHref: "/feed?announcement=legacy-visible",
+      }),
+    ])
   })
 
   it("returns selector coverage without cache, quota, or provider calls when every eligible row is omitted", async () => {
@@ -666,13 +790,28 @@ describe("generateAnnouncementDigest", () => {
     expect(deps.cacheDigest).not.toHaveBeenCalled()
   })
 
-  it("bubbles cacheDigest errors unchanged", async () => {
+  it("returns the generated digest when cacheDigest fails after provider success", async () => {
     const deps = makeDeps([makeRow("announcement-1")])
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const error = new AiDigestError("Redis unavailable", "UNAVAILABLE")
     deps.cacheDigest.mockRejectedValue(error)
 
-    await expect(generate(deps)).rejects.toBe(error)
+    const digest = await generate(deps)
+
+    expect(digest).toMatchObject({
+      overview: "Tong quan thong bao",
+      cached: false,
+      coverage: {
+        eligibleCount: 1,
+        includedCount: 1,
+        omittedCount: 0,
+      },
+    })
     expect(deps.provider.generate).toHaveBeenCalledOnce()
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "Failed to cache announcement AI digest",
+      expect.objectContaining({ code: "UNAVAILABLE" }),
+    )
   })
 
   it("maps provider transport errors to the shared unavailable AiDigestError without caching", async () => {
@@ -684,6 +823,23 @@ describe("generateAnnouncementDigest", () => {
       expect(error).toMatchObject({
         code: "UNAVAILABLE",
         message: "Tinh nang AI tam thoi chua kha dung.",
+      })
+      return true
+    })
+    expect(deps.cacheDigest).not.toHaveBeenCalled()
+  })
+
+  it("maps provider quota errors to a provider-specific AiDigestError without caching", async () => {
+    const deps = makeDeps([makeRow("announcement-1")])
+    deps.provider.generate.mockRejectedValue(
+      new DigestProviderError("RATE_LIMITED", "provider quota blocked"),
+    )
+
+    await expect(generate(deps)).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(AiDigestError)
+      expect(error).toMatchObject({
+        code: "PROVIDER_RATE_LIMITED",
+        message: "Nha cung cap AI dang bi gioi han tam thoi. Vui long thu lai sau vai phut.",
       })
       return true
     })

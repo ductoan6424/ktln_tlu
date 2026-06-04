@@ -5,6 +5,7 @@ import {
   DigestProviderError,
   createDigestProvider,
   createGeminiDigestProvider,
+  createNexusDigestProvider,
   createOpenAiDigestProvider,
 } from "@/lib/ai-digest/providers"
 import type { AiDigestConfig } from "@/lib/ai-digest/config"
@@ -36,6 +37,8 @@ const openAiConfig: AiDigestConfig = {
   provider: "openai",
   model: "gpt-test",
   apiKey: "openai-secret",
+  baseUrl: null,
+  wireApi: null,
   cacheTtlSeconds: 86400,
   dailyLimit: 5,
   maxAnnouncements: 50,
@@ -49,6 +52,15 @@ const geminiConfig: AiDigestConfig = {
   provider: "gemini",
   model: "gemini/test model",
   apiKey: "google-secret",
+}
+
+const nexusConfig: AiDigestConfig = {
+  ...openAiConfig,
+  provider: "nexus",
+  model: "gpt-5.4",
+  apiKey: "nexus-secret",
+  baseUrl: "https://nexusmmo.store/api4/v1",
+  wireApi: "chat",
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
@@ -86,8 +98,39 @@ function geminiBody(text: string) {
   }
 }
 
+function chatBody(text: string) {
+  return {
+    choices: [
+      {
+        message: {
+          content: text,
+        },
+      },
+    ],
+  }
+}
+
+function eventStreamResponse(...events: unknown[]) {
+  return new Response(
+    events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("") + "data: [DONE]\n\n",
+    {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    },
+  )
+}
+
 function mockFetch(response: Response) {
   const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response)
+  vi.stubGlobal("fetch", fetchMock)
+  return fetchMock
+}
+
+function mockFetchSequence(...responses: Response[]) {
+  const fetchMock = vi.fn<typeof fetch>()
+  for (const response of responses) {
+    fetchMock.mockResolvedValueOnce(response)
+  }
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
 }
@@ -306,6 +349,142 @@ describe("createGeminiDigestProvider", () => {
   })
 })
 
+describe("createNexusDigestProvider", () => {
+  it("posts an OpenAI-compatible chat request and parses valid JSON content", async () => {
+    const fetchMock = mockFetch(jsonResponse(chatBody(JSON.stringify(validDigest))))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe("https://nexusmmo.store/api4/v1/chat/completions")
+    expect(init.method).toBe("POST")
+    expect(init.headers).toEqual({
+      Authorization: "Bearer nexus-secret",
+      "Content-Type": "application/json",
+    })
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+
+    const body = JSON.parse(String(init.body)) as {
+      model: string
+      messages: Array<{ role: string, content: string }>
+      response_format: { type: string }
+      temperature: number
+      stream: boolean
+    }
+    expect(body.model).toBe("gpt-5.4")
+    expect(body.response_format).toEqual({ type: "json_object" })
+    expect(body.temperature).toBe(0)
+    expect(body.stream).toBe(false)
+    expect(body.messages).toHaveLength(2)
+    expect(body.messages[0]).toEqual({
+      role: "system",
+      content: expect.stringContaining("Return exactly one valid JSON object"),
+    })
+    expect(body.messages[0]?.content).toContain(prompt.system)
+    expect(body.messages[0]?.content).toMatch(/full Vietnamese diacritics/i)
+    expect(body.messages[0]?.content).toContain("thông báo")
+    expect(body.messages[1]).toEqual({
+      role: "user",
+      content: expect.stringContaining('"announcements"'),
+    })
+    expect(body.messages[1]?.content).toContain(prompt.user)
+    expect(body.messages[1]?.content).toMatch(/Do not romanize Vietnamese/i)
+  })
+
+  it("parses JSON content wrapped in assistant prose and a fenced code block", async () => {
+    const fetchMock = mockFetch(jsonResponse(chatBody(
+      `Here's the announcement digest:\n\n\`\`\`json\n${JSON.stringify(validDigest)}\n\`\`\``,
+    )))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it("parses Nexus SSE data events when the proxy returns a streamed chat body", async () => {
+    const fetchMock = mockFetch(eventStreamResponse(chatBody(JSON.stringify(validDigest))))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it("retries Nexus upstream quota blocks wrapped as HTTP 400 errors", async () => {
+    vi.useFakeTimers()
+    const fetchMock = mockFetchSequence(
+      jsonResponse({
+        error: {
+          message: "[openai-compatible-chat/gpt-5.4] [429]: workspace quota temporarily blocked (reset after 2s)",
+        },
+      }, { status: 400 }),
+      jsonResponse(chatBody(JSON.stringify(validDigest))),
+    )
+
+    const retryConfig = { ...nexusConfig, providerTimeoutMs: 5_000 }
+    const result = expect(createNexusDigestProvider(retryConfig).generate(prompt)).resolves.toEqual(validDigest)
+
+    await vi.advanceTimersByTimeAsync(2_000)
+    await result
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("maps persistent Nexus upstream quota blocks to RATE_LIMITED without exposing body or key", async () => {
+    vi.useFakeTimers()
+    const quotaBody = {
+      error: {
+        message: "[openai-compatible-chat/gpt-5.4] [429]: workspace quota temporarily blocked (reset after 2s)",
+      },
+    }
+    const fetchMock = mockFetchSequence(
+      jsonResponse(quotaBody, { status: 400 }),
+      jsonResponse(quotaBody, { status: 400 }),
+      jsonResponse(quotaBody, { status: 400 }),
+    )
+    const retryConfig = { ...nexusConfig, providerTimeoutMs: 5_000 }
+    const result = expect(createNexusDigestProvider(retryConfig).generate(prompt)).rejects.toSatisfy(
+      (error: unknown) => {
+        expectProviderError(error, "RATE_LIMITED")
+        expect(String(error)).not.toContain("workspace quota")
+        expect(String(error)).not.toContain("nexus-secret")
+        return true
+      },
+    )
+
+    await vi.advanceTimersByTimeAsync(4_000)
+    await result
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it.each([
+    ["missing content", chatBody(""), "INVALID_RESPONSE"],
+    ["malformed JSON", chatBody("{bad json"), "INVALID_RESPONSE"],
+    ["runtime invalid JSON shape", chatBody(JSON.stringify({ ...validDigest, overview: "" })), "INVALID_RESPONSE"],
+    ["null response body", null, "INVALID_RESPONSE"],
+    ["missing choices", { choices: [] }, "INVALID_RESPONSE"],
+  ] as const)("maps %s to INVALID_RESPONSE", async (_case, body, code) => {
+    mockFetch(jsonResponse(body))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).rejects.toSatisfy(
+      (error: unknown) => {
+        expectProviderError(error, code)
+        return true
+      },
+    )
+  })
+
+  it("maps non-2xx HTTP responses to HTTP_ERROR without exposing body or key", async () => {
+    mockFetch(new Response("secret response body", { status: 418 }))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).rejects.toSatisfy(
+      (error: unknown) => {
+        expectProviderError(error, "HTTP_ERROR")
+        expect(String(error)).not.toContain("secret response body")
+        expect(String(error)).not.toContain("nexus-secret")
+        return true
+      },
+    )
+  })
+})
+
 describe("createDigestProvider", () => {
   it("selects exactly the configured provider without fallback", async () => {
     const openAiFetch = mockFetch(jsonResponse(openAiBody(JSON.stringify(validDigest))))
@@ -319,5 +498,10 @@ describe("createDigestProvider", () => {
     expect(geminiFetch.mock.calls[0]?.[0]).toBe(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini%2Ftest%20model:generateContent",
     )
+
+    const nexusFetch = mockFetch(jsonResponse(chatBody(JSON.stringify(validDigest))))
+
+    await createDigestProvider(nexusConfig).generate(prompt)
+    expect(nexusFetch.mock.calls[0]?.[0]).toBe("https://nexusmmo.store/api4/v1/chat/completions")
   })
 })

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 
 import type { DigestCoverage } from "@/lib/ai-digest/schema"
 
-export const AI_DIGEST_CACHE_VERSION = "1"
+export const AI_DIGEST_CACHE_VERSION = "2"
 export const AI_DIGEST_MAX_ANNOUNCEMENTS = 50
 export const DIGEST_PROMPT_TASK = "Create the announcement digest from the supplied announcements."
 
