@@ -85,7 +85,7 @@ export function ProfileHeader({
                 src={avatar}
                 name={name}
                 size="xl"
-                className="size-32 md:size-36 border-[6px] border-card shadow-sm ring-1 ring-border/10"
+                className="size-32 md:size-36 rounded-full overflow-hidden border-[6px] border-card shadow-sm ring-1 ring-border/10"
               />
             )}
           </div>
