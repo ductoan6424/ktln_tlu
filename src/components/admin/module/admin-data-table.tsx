@@ -1,13 +1,12 @@
 import Link from "next/link"
 
+import { AdminEmptyState } from "@/components/admin/module/admin-empty-state"
 import { Card, CardContent } from "@/components/ui/card"
 import type {
   AdminCellValues,
   AdminColumnDefinition,
   AdminRecord,
 } from "@/lib/admin/admin-types"
-
-import { AdminEmptyState } from "@/components/admin/module/admin-empty-state"
 
 interface AdminDataTableProps<Cells extends AdminCellValues> {
   columns: readonly AdminColumnDefinition<Cells>[]

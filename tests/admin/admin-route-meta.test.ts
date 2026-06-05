@@ -13,7 +13,7 @@ describe("admin route meta", () => {
   it("builds breadcrumbs for the subjects list route", () => {
     expect(getAdminBreadcrumbItems("/admin/subjects")).toEqual([
       { label: "Quản trị", href: "/admin/dashboard" },
-      { label: "Quản lý môn học" },
+      { label: "Quản lý lớp học" },
     ])
   })
 

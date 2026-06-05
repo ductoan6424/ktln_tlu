@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation"
 
-import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { AdminCourseForm } from "@/components/admin/courses/admin-course-form"
+import {
+  getAdminCourseDetail,
+  listCourseLecturerOptions,
+} from "@/lib/admin/courses/courses-admin-data"
 
-const subjectsModule = getAdminModule("subjects")
+export const dynamic = "force-dynamic"
 
 export default async function AdminEditSubjectPage({
   params,
@@ -11,11 +14,28 @@ export default async function AdminEditSubjectPage({
   params: Promise<{ subjectId: string }>
 }) {
   const { subjectId } = await params
-  const record = subjectsModule.getRecord(subjectId)
+  const [detail, lecturers] = await Promise.all([
+    getAdminCourseDetail(subjectId),
+    listCourseLecturerOptions(),
+  ])
 
-  if (!record) {
+  if (!detail) {
     notFound()
   }
 
-  return <AdminFormPageShell<typeof record.cells> module={subjectsModule} mode="edit" record={record} />
+  return (
+    <AdminCourseForm
+      lecturers={lecturers}
+      initialValues={{
+        id: detail.course.id,
+        name: detail.course.name,
+        code: detail.course.code,
+        description: detail.course.description,
+        lecturerId: detail.course.lecturerId,
+        requirePostApproval: detail.course.requirePostApproval,
+        chatEnabled: detail.course.chatEnabled,
+        chatMode: detail.course.chatMode,
+      }}
+    />
+  )
 }
