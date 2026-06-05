@@ -42,6 +42,27 @@ describe("TLU full UI compliance contracts", () => {
     expect(avatar).toContain('away: "bg-warning"')
   })
 
+  it("stabilizes the header notification popup layout", () => {
+    const notificationPopup = source("src/components/layout/notification-popup.tsx")
+
+    expect(notificationPopup).toContain("<DropdownMenu modal={false} open={isOpen}")
+    expect(notificationPopup).toContain("w-[min(380px,calc(100vw-1rem))]")
+    expect(notificationPopup).toContain("max-h-[min(520px,calc(100vh-5rem))]")
+    expect(notificationPopup).toContain("overflow-hidden")
+    expect(notificationPopup).toContain("overflow-y-auto overscroll-contain")
+  })
+
+  it("stabilizes the header message popup layout", () => {
+    const messagePopup = source("src/components/layout/message-popup.tsx")
+
+    expect(messagePopup).toMatch(/<DropdownMenu\s+modal=\{false\}/)
+    expect(messagePopup).toContain("w-[min(380px,calc(100vw-1rem))]")
+    expect(messagePopup).toContain("max-h-[min(520px,calc(100vh-5rem))]")
+    expect(messagePopup).toContain("overflow-hidden")
+    expect(messagePopup).toContain("overflow-y-auto overscroll-contain")
+    expect(messagePopup).not.toContain('ScrollArea className="max-h-[400px]"')
+  })
+
   it("removes the legacy social palette from community management", () => {
     const management = directorySource("src/components/communities/manage")
 

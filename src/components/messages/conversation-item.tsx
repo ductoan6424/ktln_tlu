@@ -17,6 +17,7 @@ interface ConversationItemProps {
   status?: UserStatus
   isGroup?: boolean
   onClick?: () => void
+  className?: string
 }
 
 export function ConversationItem({
@@ -29,6 +30,7 @@ export function ConversationItem({
   status = "offline",
   isGroup = false,
   onClick,
+  className,
 }: ConversationItemProps) {
   return (
     <Button
@@ -36,10 +38,11 @@ export function ConversationItem({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "h-auto w-full justify-start gap-4 rounded-none border-0 border-l-4 p-4 text-left whitespace-normal",
+        "h-auto w-full justify-start gap-4 rounded-none border-0 border-l-4 px-4 py-4 text-left whitespace-normal",
         isActive
           ? "border-l-4 border-brand-indigo bg-primary/10 text-brand-indigo hover:bg-primary/10"
-          : "border-l-4 border-transparent border-b border-border/50 hover:bg-muted/70"
+          : "border-l-4 border-transparent border-b border-border/50 hover:bg-muted/70",
+        className
       )}
     >
       <UserAvatar
