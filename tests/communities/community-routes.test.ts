@@ -429,6 +429,7 @@ describe("community routes", () => {
         sharedPost: null,
         communityContext: {
           type: "GROUP",
+          id: "group-1",
           name: "Python Group",
           href: "/groups/python-group-abc123",
           avatarUrl: null,
