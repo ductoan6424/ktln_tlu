@@ -30,6 +30,7 @@ interface SharedPostData {
 
 export interface PostCommunityContext {
   type: "GROUP" | "CLUB" | "COURSE"
+  id: string
   name: string
   href: string
   avatarUrl: string | null
@@ -124,6 +125,11 @@ function PostCardImpl({
         avatarUrl: currentUser.avatarUrl,
       }
     : null
+  const viewerId = currentUserId ?? resolvedCurrentUser?.id ?? null
+  const reportTarget =
+    viewerId && postId && authorId && viewerId !== authorId && communityContext
+      ? { targetType: communityContext.type, targetId: communityContext.id }
+      : null
 
   return (
     <>
@@ -160,6 +166,7 @@ function PostCardImpl({
                   canDelete={permissions.canDelete}
                   canHide={permissions.canHide}
                   deleteRole={permissions.deleteRole}
+                  reportTarget={reportTarget}
                   isSaved={isSaved}
                   onDeleted={onDeleted}
                   onHidden={onHidden}
@@ -269,6 +276,7 @@ function PostCardImpl({
           permissions={permissions}
           onDeleted={onDeleted}
           onHidden={onHidden}
+          reportTarget={reportTarget}
           sharedPost={sharedPost}
           communityContext={communityContext}
           poll={poll}

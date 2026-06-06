@@ -705,6 +705,7 @@ export async function getPostById(
     const communityContext: FeedPostCommunityContext | null = post.group
       ? {
           type: "GROUP",
+          id: post.groupId!,
           name: post.group.name,
           href: buildCommunityPath("GROUP", post.group.name, post.group.shortId),
           avatarUrl: post.group.coverUrl,
@@ -712,6 +713,7 @@ export async function getPostById(
       : post.club
         ? {
             type: "CLUB",
+            id: post.clubId!,
             name: post.club.name,
             href: buildCommunityPath("CLUB", post.club.name, post.club.shortId),
             avatarUrl: post.club.logoUrl ?? post.club.coverUrl,
@@ -719,6 +721,7 @@ export async function getPostById(
         : post.course
           ? {
               type: "COURSE",
+              id: post.courseId!,
               name: post.course.name,
               href: buildCommunityPath("COURSE", post.course.code, post.course.shortId),
               avatarUrl: post.course.coverUrl,
