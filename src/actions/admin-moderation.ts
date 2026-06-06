@@ -5,15 +5,22 @@ import { z } from "zod"
 
 import { requireAdminPermission } from "@/lib/auth/authorization"
 import { notifyCommunityPostPublishedToRecipients } from "@/lib/communities/post-notifications"
+import { getCommunityPermissions } from "@/lib/communities/policy"
+import { getViewerMembershipRole } from "@/lib/communities/queries"
 import type { CommunityContext, CommunityTarget, CommunityType } from "@/lib/communities/types"
 import { buildCommunityTargetPath } from "@/lib/communities/urls"
 import { AppError } from "@/lib/errors"
 import { distributePostToFeeds } from "@/lib/feed/fanout"
-import { notifyCommunityPostReviewed } from "@/lib/notifications/dispatchers"
+import {
+  notifyCommunityModeration,
+  notifyCommunityPostReviewed,
+} from "@/lib/notifications/dispatchers"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import { truncateText } from "@/utils/formatters"
+
+type ModerationActor = Awaited<ReturnType<typeof requireAdminPermission>>
 
 type ModerationTarget = {
   targetType: CommunityType
@@ -153,26 +160,79 @@ function getTargetForPost(post: PendingPost): CommunityContext | null {
   return null
 }
 
-async function resolveReportTarget(target: ModerationTarget): Promise<CommunityTarget | null> {
+async function resolveReportTarget(target: ModerationTarget): Promise<CommunityContext | null> {
   if (target.targetType === "GROUP") {
     const group = await prisma.group.findUnique({
       where: { id: target.targetId },
-      select: { id: true, shortId: true, name: true },
+      select: {
+        id: true,
+        shortId: true,
+        name: true,
+        communityVisibility: true,
+        requirePostApproval: true,
+        chatEnabled: true,
+        chatMode: true,
+        memberInviteEnabled: true,
+      },
     })
-    return group ? { type: "GROUP", id: group.id, shortId: group.shortId, name: group.name } : null
+    return group
+      ? {
+          type: "GROUP",
+          id: group.id,
+          shortId: group.shortId,
+          name: group.name,
+          visibility: group.communityVisibility,
+          requirePostApproval: group.requirePostApproval,
+          chatEnabled: group.chatEnabled,
+          chatMode: group.chatMode,
+          memberInviteEnabled: group.memberInviteEnabled,
+          lecturerId: null,
+        }
+      : null
   }
 
   if (target.targetType === "CLUB") {
     const club = await prisma.club.findUnique({
       where: { id: target.targetId },
-      select: { id: true, shortId: true, name: true },
+      select: {
+        id: true,
+        shortId: true,
+        name: true,
+        communityVisibility: true,
+        requirePostApproval: true,
+        chatEnabled: true,
+        chatMode: true,
+        memberInviteEnabled: true,
+      },
     })
-    return club ? { type: "CLUB", id: club.id, shortId: club.shortId, name: club.name } : null
+    return club
+      ? {
+          type: "CLUB",
+          id: club.id,
+          shortId: club.shortId,
+          name: club.name,
+          visibility: club.communityVisibility,
+          requirePostApproval: club.requirePostApproval,
+          chatEnabled: club.chatEnabled,
+          chatMode: club.chatMode,
+          memberInviteEnabled: club.memberInviteEnabled,
+          lecturerId: null,
+        }
+      : null
   }
 
   const course = await prisma.course.findUnique({
     where: { id: target.targetId },
-    select: { id: true, shortId: true, name: true, code: true },
+    select: {
+      id: true,
+      shortId: true,
+      name: true,
+      code: true,
+      requirePostApproval: true,
+      chatEnabled: true,
+      chatMode: true,
+      lecturerId: true,
+    },
   })
   return course
     ? {
@@ -181,8 +241,92 @@ async function resolveReportTarget(target: ModerationTarget): Promise<CommunityT
         shortId: course.shortId,
         name: course.name,
         routeLabel: course.code,
+        visibility: null,
+        requirePostApproval: course.requirePostApproval,
+        chatEnabled: course.chatEnabled,
+        chatMode: course.chatMode,
+        memberInviteEnabled: false,
+        lecturerId: course.lecturerId,
       }
     : null
+}
+
+async function assertCanModerateTarget(
+  actor: ModerationActor,
+  target: CommunityContext,
+  capability: "POST" | "REPORT",
+) {
+  const membershipRole = await getViewerMembershipRole(
+    target.type,
+    target.id,
+    actor.profile.userId,
+  )
+  const permissions = getCommunityPermissions({
+    viewerId: actor.profile.userId,
+    baseRole: actor.baseRole,
+    target,
+    membershipRole,
+  })
+
+  const canModerate =
+    capability === "POST" ? permissions.canApprovePost : permissions.canModerateReports
+
+  if (!canModerate) {
+    throw new AppError(
+      "Bạn không có quyền kiểm duyệt nội dung trong cộng đồng này",
+      "FORBIDDEN",
+      403,
+    )
+  }
+}
+
+async function getReportedContentAuthorId(report: OpenReport): Promise<string | null> {
+  if (report.contentType === "POST") {
+    const post = await prisma.post.findUnique({
+      where: { id: report.contentId },
+      select: { authorId: true },
+    })
+    return post?.authorId ?? null
+  }
+
+  const comment = await prisma.comment.findUnique({
+    where: { id: report.contentId },
+    select: { authorId: true },
+  })
+  return comment?.authorId ?? null
+}
+
+async function notifyReportedContentModerated(input: {
+  actor: ModerationActor
+  report: OpenReport
+  target: CommunityTarget
+  action: string
+  reason: string | null
+}) {
+  const authorId = await getReportedContentAuthorId(input.report)
+  if (!authorId) return
+
+  await Promise.resolve(
+    notifyCommunityModeration({
+      recipientId: authorId,
+      actor: {
+        userId: input.actor.profile.userId,
+        displayName:
+          "displayName" in input.actor.profile ? input.actor.profile.displayName : "Admin",
+        avatarUrl: "avatarUrl" in input.actor.profile ? input.actor.profile.avatarUrl : null,
+      },
+      targetType: input.target.type,
+      targetId: input.target.id,
+      targetName: input.target.name,
+      link: buildCommunityTargetPath(input.target),
+      contentType: input.report.contentType,
+      contentId: input.report.contentId,
+      action: input.action,
+      reason: input.reason,
+    }),
+  ).catch((error) => {
+    console.error("notifyCommunityModeration error:", error)
+  })
 }
 
 function revalidateModerationSurfaces(target?: CommunityTarget | null) {
@@ -287,6 +431,12 @@ async function reviewPendingPost(
     const target = targetTypeForPost(post)
     const communityTarget = getTargetForPost(post)
 
+    if (!communityTarget) {
+      return errorResult("Không xác định được cộng đồng của bài viết", "NOT_FOUND")
+    }
+
+    await assertCanModerateTarget(actor, communityTarget, "POST")
+
     await prisma.$transaction(async (tx) => {
       const updateResult = await tx.post.updateMany({
         where: {
@@ -343,28 +493,26 @@ async function reviewPendingPost(
       }
     }
 
-    if (communityTarget) {
-      const href = buildCommunityTargetPath(communityTarget)
-      await Promise.resolve(
-        notifyCommunityPostReviewed({
-          recipientId: post.authorId,
-          actor: {
-            userId: actor.profile.userId,
-            displayName: "displayName" in actor.profile ? actor.profile.displayName : "Admin",
-            avatarUrl: "avatarUrl" in actor.profile ? actor.profile.avatarUrl : null,
-          },
-          targetType: communityTarget.type,
-          targetId: communityTarget.id,
-          targetName: communityTarget.name,
-          link: href,
-          postId: post.id,
-          approved,
-          reason: reviewReason,
-        }),
-      ).catch((error) => {
-        console.error("notifyCommunityPostReviewed error:", error)
-      })
-    }
+    const href = buildCommunityTargetPath(communityTarget)
+    await Promise.resolve(
+      notifyCommunityPostReviewed({
+        recipientId: post.authorId,
+        actor: {
+          userId: actor.profile.userId,
+          displayName: "displayName" in actor.profile ? actor.profile.displayName : "Admin",
+          avatarUrl: "avatarUrl" in actor.profile ? actor.profile.avatarUrl : null,
+        },
+        targetType: communityTarget.type,
+        targetId: communityTarget.id,
+        targetName: communityTarget.name,
+        link: href,
+        postId: post.id,
+        approved,
+        reason: reviewReason,
+      }),
+    ).catch((error) => {
+      console.error("notifyCommunityPostReviewed error:", error)
+    })
 
     revalidateModerationSurfaces(communityTarget)
     return successResult({ postId: post.id })
@@ -417,6 +565,12 @@ async function reviewReport(
     })
     const resolution = input.resolution?.trim() || null
 
+    if (!reportTarget) {
+      return errorResult("Không tìm thấy cộng đồng của báo cáo", "NOT_FOUND")
+    }
+
+    await assertCanModerateTarget(actor, reportTarget, "REPORT")
+
     await prisma.$transaction(async (tx) => {
       const updateResult = await tx.communityReport.updateMany({
         where: { id: report.id, status: "OPEN" },
@@ -443,6 +597,16 @@ async function reviewReport(
         },
       })
     })
+
+    if (status === "RESOLVED") {
+      await notifyReportedContentModerated({
+        actor,
+        report,
+        target: reportTarget,
+        action: "REPORT_RESOLVED",
+        reason: resolution,
+      })
+    }
 
     revalidateModerationSurfaces(reportTarget)
     return successResult({ reportId: report.id })
@@ -479,6 +643,12 @@ export async function deleteReportedContent(
       targetType: report.targetType,
       targetId: report.targetId,
     })
+
+    if (!reportTarget) {
+      return errorResult("Không tìm thấy cộng đồng của báo cáo", "NOT_FOUND")
+    }
+
+    await assertCanModerateTarget(actor, reportTarget, "REPORT")
 
     await prisma.$transaction(async (tx) => {
       const updateResult = await tx.communityReport.updateMany({
@@ -521,6 +691,14 @@ export async function deleteReportedContent(
           reason: input.reason,
         },
       })
+    })
+
+    await notifyReportedContentModerated({
+      actor,
+      report,
+      target: reportTarget,
+      action: "REPORTED_CONTENT_DELETED",
+      reason: input.reason,
     })
 
     revalidateModerationSurfaces(reportTarget)

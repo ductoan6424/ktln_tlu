@@ -3,14 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ForbiddenError } from "@/lib/errors"
 
 const requireAdminPermission = vi.hoisted(() => vi.fn())
+const getViewerMembershipRole = vi.hoisted(() => vi.fn())
 const revalidatePath = vi.hoisted(() => vi.fn())
 const distributePostToFeeds = vi.hoisted(() => vi.fn())
 const notifyCommunityPostPublishedToRecipients = vi.hoisted(() => vi.fn())
+const notifyCommunityModeration = vi.hoisted(() => vi.fn())
 const notifyCommunityPostReviewed = vi.hoisted(() => vi.fn())
 const buildCommunityTargetPath = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
-  post: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
-  comment: { update: vi.fn() },
+  post: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  comment: { findUnique: vi.fn(), update: vi.fn() },
   group: { findUnique: vi.fn() },
   club: { findUnique: vi.fn() },
   course: { findUnique: vi.fn() },
@@ -20,12 +22,16 @@ const prisma = vi.hoisted(() => ({
 }))
 
 vi.mock("@/lib/auth/authorization", () => ({ requireAdminPermission }))
+vi.mock("@/lib/communities/queries", () => ({ getViewerMembershipRole }))
 vi.mock("@/lib/communities/post-notifications", () => ({
   notifyCommunityPostPublishedToRecipients,
 }))
 vi.mock("@/lib/communities/urls", () => ({ buildCommunityTargetPath }))
 vi.mock("@/lib/feed/fanout", () => ({ distributePostToFeeds }))
-vi.mock("@/lib/notifications/dispatchers", () => ({ notifyCommunityPostReviewed }))
+vi.mock("@/lib/notifications/dispatchers", () => ({
+  notifyCommunityModeration,
+  notifyCommunityPostReviewed,
+}))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("next/cache", () => ({ revalidatePath }))
 
@@ -40,8 +46,10 @@ import {
 beforeEach(() => {
   vi.clearAllMocks()
   requireAdminPermission.mockResolvedValue({
+    baseRole: "ADMIN",
     profile: { userId: "admin-1", displayName: "Admin User", avatarUrl: null },
   })
+  getViewerMembershipRole.mockResolvedValue("ADMIN")
   prisma.$transaction.mockImplementation(
     async (callback: (tx: typeof prisma) => Promise<unknown>) => callback(prisma),
   )
@@ -72,11 +80,18 @@ beforeEach(() => {
     course: null,
   })
   prisma.post.update.mockResolvedValue({})
+  prisma.post.findUnique.mockResolvedValue({ authorId: "student-1" })
   prisma.post.updateMany.mockResolvedValue({ count: 1 })
+  prisma.comment.findUnique.mockResolvedValue({ authorId: "commenter-1" })
   prisma.comment.update.mockResolvedValue({})
   prisma.group.findUnique.mockResolvedValue({
     id: "group-1",
     shortId: "abc123",
+    communityVisibility: "PUBLIC",
+    requirePostApproval: true,
+    chatEnabled: true,
+    chatMode: "OPEN",
+    memberInviteEnabled: true,
     name: "Nhóm học tập",
   })
   prisma.club.findUnique.mockResolvedValue(null)
@@ -94,6 +109,7 @@ beforeEach(() => {
   prisma.communityModerationLog.create.mockResolvedValue({})
   distributePostToFeeds.mockResolvedValue(undefined)
   notifyCommunityPostPublishedToRecipients.mockResolvedValue(undefined)
+  notifyCommunityModeration.mockResolvedValue(undefined)
   notifyCommunityPostReviewed.mockResolvedValue(undefined)
 })
 
@@ -289,6 +305,25 @@ describe("pending post admin moderation actions", () => {
     expect(prisma.communityModerationLog.create).not.toHaveBeenCalled()
   })
 
+  it("returns forbidden when the actor cannot moderate the target community", async () => {
+    requireAdminPermission.mockResolvedValue({
+      baseRole: "STUDENT",
+      profile: { userId: "admin-1", displayName: "Admin User", avatarUrl: null },
+    })
+    getViewerMembershipRole.mockResolvedValue(null)
+
+    const result = await approvePendingPost({ postId: "post-1" })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Bạn không có quyền kiểm duyệt nội dung trong cộng đồng này",
+      code: "FORBIDDEN",
+    })
+    expect(prisma.post.updateMany).not.toHaveBeenCalled()
+    expect(prisma.communityModerationLog.create).not.toHaveBeenCalled()
+    expect(distributePostToFeeds).not.toHaveBeenCalled()
+  })
+
   it("returns not found when the post is missing or no longer pending", async () => {
     prisma.post.findFirst.mockResolvedValue(null)
 
@@ -351,8 +386,28 @@ describe("report admin moderation actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/feed")
     expect(prisma.group.findUnique).toHaveBeenCalledWith({
       where: { id: "group-1" },
-      select: { id: true, shortId: true, name: true },
+      select: {
+        id: true,
+        shortId: true,
+        name: true,
+        communityVisibility: true,
+        requirePostApproval: true,
+        chatEnabled: true,
+        chatMode: true,
+        memberInviteEnabled: true,
+      },
     })
+    expect(notifyCommunityModeration).toHaveBeenCalledWith(expect.objectContaining({
+      recipientId: "student-1",
+      actor: { userId: "admin-1", displayName: "Admin User", avatarUrl: null },
+      targetType: "GROUP",
+      targetId: "group-1",
+      link: "/groups/group-abc123",
+      contentType: "POST",
+      contentId: "post-1",
+      action: "REPORT_RESOLVED",
+      reason: expect.any(String),
+    }))
     expect(buildCommunityTargetPath).toHaveBeenCalledWith(
       expect.objectContaining({ type: "GROUP", id: "group-1", shortId: "abc123" }),
     )
@@ -427,6 +482,17 @@ describe("report admin moderation actions", () => {
         reason: "Nội dung vi phạm",
       },
     })
+    expect(notifyCommunityModeration).toHaveBeenCalledWith(expect.objectContaining({
+      recipientId: "student-1",
+      actor: { userId: "admin-1", displayName: "Admin User", avatarUrl: null },
+      targetType: "GROUP",
+      targetId: "group-1",
+      link: "/groups/group-abc123",
+      contentType: "POST",
+      contentId: "post-1",
+      action: "REPORTED_CONTENT_DELETED",
+      reason: expect.any(String),
+    }))
   })
 
   it("does not delete content or log when resolving the report is stale", async () => {
@@ -449,6 +515,7 @@ describe("report admin moderation actions", () => {
     expect(prisma.post.update).not.toHaveBeenCalled()
     expect(prisma.comment.update).not.toHaveBeenCalled()
     expect(prisma.communityModerationLog.create).not.toHaveBeenCalled()
+    expect(notifyCommunityModeration).not.toHaveBeenCalled()
   })
 
   it("deletes reported comment content without post delete fields", async () => {
@@ -472,6 +539,12 @@ describe("report admin moderation actions", () => {
       data: { deletedAt: expect.any(Date) },
     })
     expect(prisma.post.update).not.toHaveBeenCalled()
+    expect(notifyCommunityModeration).toHaveBeenCalledWith(expect.objectContaining({
+      recipientId: "commenter-1",
+      contentType: "COMMENT",
+      contentId: "comment-1",
+      action: "REPORTED_CONTENT_DELETED",
+    }))
   })
 
   it("returns not found when the report is missing or no longer open", async () => {

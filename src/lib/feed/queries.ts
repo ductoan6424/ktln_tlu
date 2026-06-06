@@ -44,6 +44,7 @@ export type FeedSharedPost = {
 
 export type FeedPostCommunityContext = {
   type: "GROUP" | "CLUB" | "COURSE";
+  id: string;
   name: string;
   href: string;
   avatarUrl: string | null;
@@ -297,6 +298,7 @@ function mapRawPost(
   const communityContext: FeedPostCommunityContext | null = post.group
     ? {
         type: "GROUP",
+        id: post.groupId!,
         name: post.group.name,
         href: buildCommunityPath("GROUP", post.group.name, post.group.shortId),
         avatarUrl: post.group.coverUrl,
@@ -304,6 +306,7 @@ function mapRawPost(
     : post.club
       ? {
           type: "CLUB",
+          id: post.clubId!,
           name: post.club.name,
           href: buildCommunityPath("CLUB", post.club.name, post.club.shortId),
           avatarUrl: post.club.logoUrl ?? post.club.coverUrl,
@@ -311,6 +314,7 @@ function mapRawPost(
       : post.course
         ? {
             type: "COURSE",
+            id: post.courseId!,
             name: post.course.name,
             href: buildCommunityPath("COURSE", post.course.code, post.course.shortId),
             avatarUrl: post.course.coverUrl,
