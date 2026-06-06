@@ -33,6 +33,7 @@ import { Heart, MessageCircle, ArrowLeft, X } from "lucide-react"
 import { LikersTooltip } from "@/components/feed/likers-tooltip"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
+import type { ReportContentTarget } from "@/components/feed/report-content-dialog"
 
 interface PostDetailDialogProps {
   open: boolean
@@ -62,6 +63,7 @@ interface PostDetailDialogProps {
     canHide: boolean
     deleteRole: "AUTHOR" | "MODERATOR" | null
   }
+  reportTarget?: ReportContentTarget | null
   onDeleted?: () => void
   onHidden?: () => void
   onShared?: () => void
@@ -74,6 +76,7 @@ interface PostDetailDialogProps {
   } | null
   communityContext?: {
     type: "GROUP" | "CLUB" | "COURSE"
+    id: string
     name: string
     href: string
     avatarUrl: string | null
@@ -104,6 +107,7 @@ export function PostDetailDialog({
   authorId,
   onLike,
   permissions,
+  reportTarget,
   onDeleted,
   onHidden,
   onShared,
@@ -343,6 +347,7 @@ export function PostDetailDialog({
                       canDelete={permissions.canDelete}
                       canHide={permissions.canHide}
                       deleteRole={permissions.deleteRole}
+                      reportTarget={reportTarget ?? null}
                       onDeleted={() => {
                         onOpenChange(false)
                         onDeleted?.()
@@ -389,6 +394,7 @@ export function PostDetailDialog({
                 hideInput
                 isLoading={isLoadingComments}
                 onDelete={(id) => setDeleteTargetId(id)}
+                reportTarget={reportTarget ?? null}
                 className="min-h-0 flex-none"
               />
             </div>
@@ -457,6 +463,7 @@ export function PostDetailDialog({
                       canDelete={permissions.canDelete}
                       canHide={permissions.canHide}
                       deleteRole={permissions.deleteRole}
+                      reportTarget={reportTarget ?? null}
                       onDeleted={() => {
                         onOpenChange(false)
                         onDeleted?.()
@@ -503,6 +510,7 @@ export function PostDetailDialog({
                 isLoading={isLoadingComments}
                 onSubmit={handleCommentSubmit}
                 onDelete={(id) => setDeleteTargetId(id)}
+                reportTarget={reportTarget ?? null}
               />
             </div>
           </div>
