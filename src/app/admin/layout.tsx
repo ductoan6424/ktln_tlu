@@ -4,6 +4,7 @@ import { getBaseRoleLabel } from "@/lib/auth/base-role"
 import { getAccountGateStatus } from "@/lib/auth/account-gate"
 import { requireAdminAccess } from "@/lib/auth/authorization"
 import { AppError } from "@/lib/errors"
+import { getAdminNotifications } from "@/lib/admin/admin-notifications"
 
 import { AdminLayoutClient } from "./admin-layout-client"
 
@@ -30,6 +31,8 @@ export default async function AdminLayout({
   if (gateStatus === "INACTIVE") redirect("/account-inactive")
   if (gateStatus === "CONTACT_EMAIL_REQUIRED") redirect("/complete-contact-email")
 
+  const notifications = await getAdminNotifications()
+
   return (
     <AdminLayoutClient
       user={{
@@ -37,6 +40,7 @@ export default async function AdminLayout({
         role: getBaseRoleLabel(context.baseRole),
         avatarSrc: context.profile.avatarUrl ?? undefined,
       }}
+      notifications={notifications}
     >
       {children}
     </AdminLayoutClient>

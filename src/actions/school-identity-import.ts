@@ -18,6 +18,7 @@ import {
   parseSchoolIdentityImportRows,
   type SchoolIdentityImportMode,
 } from "@/lib/school-identities/importer"
+import { getUserImportSettings } from "@/lib/admin/settings/admin-settings-queries"
 import {
   normalizeFacultyCode,
   parseCohortYear,
@@ -114,8 +115,18 @@ export async function createSchoolIdentityImportPreview(
     }
 
     const rows = await readImportRows(file)
+    const settings = await getUserImportSettings()
+    if (rows.length > settings.maxRows) {
+      return errorResult(
+        `File import vượt giới hạn ${settings.maxRows.toLocaleString("vi-VN")} dòng.`,
+        "IMPORT_TOO_LARGE",
+      )
+    }
+
     const fileHash = hashFile(JSON.stringify(rows))
-    const parsed = parseSchoolIdentityImportRows(rows, mode)
+    const parsed = parseSchoolIdentityImportRows(rows, mode, {
+      defaultRole: settings.defaultRole,
+    })
     const status: SchoolIdentityImportStatus = parsed.errors.length > 0 ? "FAILED" : "PENDING_CONFIRM"
 
     const batch = await prisma.schoolIdentityImportBatch.create({
@@ -303,6 +314,7 @@ export async function confirmSchoolIdentityImport(
       return errorResult("Chế độ import không được hỗ trợ.", "UNSUPPORTED_MODE")
     }
 
+    const settings = await getUserImportSettings()
     const supabaseAdmin = createAdminClient()
     const createdRows: Array<{
       code: string
@@ -324,7 +336,7 @@ export async function confirmSchoolIdentityImport(
       }
 
       const code = await reserveCodeForRole(row.role)
-      const institutionalEmail = buildInstitutionalEmail(code)
+      const institutionalEmail = buildInstitutionalEmail(code, settings.allowedEmailDomains[0])
       const initialPassword = generateInitialPassword()
 
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
