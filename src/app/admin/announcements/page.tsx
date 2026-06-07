@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma/client"
 import AnnouncementsClient from "./announcements-client"
 
 export const dynamic = "force-dynamic"
+export const metadata = { title: "Quản lý thông báo" }
 
 export default async function AnnouncementsPage() {
   const actor = await requireAdminPermission("admin.announcements.manage")
@@ -42,12 +43,16 @@ export default async function AnnouncementsPage() {
   const approverUnitIds = assignments
     .filter((assignment) => assignment.role === "APPROVER")
     .map((assignment) => assignment.unitId)
+  const authorUnits =
+    actor.baseRole === "ADMIN"
+      ? units
+      : units.filter((unit) => authorUnitIds.has(unit.id))
 
   return (
     <AnnouncementsClient
       initialItems={announcements.items}
       initialTotal={announcements.total}
-      authorUnits={units.filter((unit) => authorUnitIds.has(unit.id))}
+      authorUnits={authorUnits}
       approverUnitIds={approverUnitIds}
       isSystemAdmin={actor.baseRole === "ADMIN"}
       targetOptions={{

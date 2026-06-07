@@ -1,8 +1,10 @@
-import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { AdminCourseForm } from "@/components/admin/courses/admin-course-form"
+import { listCourseLecturerOptions } from "@/lib/admin/courses/courses-admin-data"
 
-const subjectsModule = getAdminModule("subjects")
+export const dynamic = "force-dynamic"
 
-export default function AdminNewSubjectPage() {
-  return <AdminFormPageShell module={subjectsModule} mode="create" />
+export default async function AdminNewSubjectPage() {
+  const lecturers = await listCourseLecturerOptions()
+
+  return <AdminCourseForm lecturers={lecturers} />
 }

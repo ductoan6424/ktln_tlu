@@ -165,6 +165,10 @@ function revalidateAnnouncementSurfaces() {
   revalidatePath("/feed")
 }
 
+function canManageAnyAnnouncementUnit(actor: { baseRole?: string }) {
+  return actor.baseRole === "ADMIN"
+}
+
 function actionFailure<T>(error: unknown, fallback: string): ActionResult<T> {
   if (error instanceof z.ZodError) {
     return errorResult(
@@ -202,11 +206,13 @@ export async function createAnnouncement(
       )
     }
 
-    await requireUnitMembership(
-      actor.profile.userId,
-      validated.data.issuingUnitId,
-      "AUTHOR",
-    )
+    if (!canManageAnyAnnouncementUnit(actor)) {
+      await requireUnitMembership(
+        actor.profile.userId,
+        validated.data.issuingUnitId,
+        "AUTHOR",
+      )
+    }
 
     const targets = toTargetCreateManyData(validated.data.targets)
     const targetValidationError = await validateAnnouncementTargetReferences(targets)
@@ -343,30 +349,32 @@ export async function updateAnnouncement(
         )
       }
 
-      const authorizedUnitIds = Array.from(
-        new Set(
-          [existing.issuingUnitId, parsed.data.issuingUnitId].filter(
-            (unitId): unitId is string => Boolean(unitId),
+      if (!canManageAnyAnnouncementUnit(actor)) {
+        const authorizedUnitIds = Array.from(
+          new Set(
+            [existing.issuingUnitId, parsed.data.issuingUnitId].filter(
+              (unitId): unitId is string => Boolean(unitId),
+            ),
           ),
-        ),
-      )
-      for (const unitId of authorizedUnitIds) {
-        const membership = await tx.announcementUnitMember.findFirst({
-          where: {
-            userId: actor.profile.userId,
-            unitId,
-            role: "AUTHOR",
-            isActive: true,
-            unit: { isActive: true },
-          },
-          select: { unitId: true },
-        })
-        if (!membership) {
-          throw new AppError(
-            "Bạn không có thẩm quyền với đơn vị ban hành này",
-            "FORBIDDEN",
-            403,
-          )
+        )
+        for (const unitId of authorizedUnitIds) {
+          const membership = await tx.announcementUnitMember.findFirst({
+            where: {
+              userId: actor.profile.userId,
+              unitId,
+              role: "AUTHOR",
+              isActive: true,
+              unit: { isActive: true },
+            },
+            select: { unitId: true },
+          })
+          if (!membership) {
+            throw new AppError(
+              "Bạn không có thẩm quyền với đơn vị ban hành này",
+              "FORBIDDEN",
+              403,
+            )
+          }
         }
       }
       const retainedIds = new Set(parsed.data.retainedAttachmentIds)
@@ -491,24 +499,25 @@ export async function submitAnnouncementForReview(
         )
       }
 
-      const membership = await tx.announcementUnitMember.findFirst({
-        where: {
-          userId: actor.profile.userId,
-          unitId: existing.issuingUnit.id,
-          role: "AUTHOR",
-          isActive: true,
-          unit: { isActive: true },
-        },
-        select: { unitId: true },
-      })
-      if (!membership) {
-        throw new AppError(
-          "Bạn không có thẩm quyền với đơn vị ban hành này",
-          "FORBIDDEN",
-          403,
-        )
+      if (!canManageAnyAnnouncementUnit(actor)) {
+        const membership = await tx.announcementUnitMember.findFirst({
+          where: {
+            userId: actor.profile.userId,
+            unitId: existing.issuingUnit.id,
+            role: "AUTHOR",
+            isActive: true,
+            unit: { isActive: true },
+          },
+          select: { unitId: true },
+        })
+        if (!membership) {
+          throw new AppError(
+            "Bạn không có thẩm quyền với đơn vị ban hành này",
+            "FORBIDDEN",
+            403,
+          )
+        }
       }
-
       const courseTargetIds = existing.targets
         .filter((target) => target.type === "COURSE")
         .map((target) => target.value)
@@ -820,22 +829,24 @@ export async function publishAnnouncement(
         )
       }
 
-      const authorMembership = await tx.announcementUnitMember.findFirst({
-        where: {
-          userId: publisher.profile.userId,
-          unitId: announcement.activeRevision.issuingUnitId,
-          role: "AUTHOR",
-          isActive: true,
-          unit: { isActive: true },
-        },
-        select: { unitId: true },
-      })
-      if (!authorMembership) {
-        throw new AppError(
-          "Bạn không có thẩm quyền phát hành cho đơn vị ban hành này.",
-          "FORBIDDEN",
-          403,
-        )
+      if (!canManageAnyAnnouncementUnit(publisher)) {
+        const authorMembership = await tx.announcementUnitMember.findFirst({
+          where: {
+            userId: publisher.profile.userId,
+            unitId: announcement.activeRevision.issuingUnitId,
+            role: "AUTHOR",
+            isActive: true,
+            unit: { isActive: true },
+          },
+          select: { unitId: true },
+        })
+        if (!authorMembership) {
+          throw new AppError(
+            "Bạn không có thẩm quyền phát hành cho đơn vị ban hành này.",
+            "FORBIDDEN",
+            403,
+          )
+        }
       }
 
       if (

@@ -15,10 +15,16 @@ const notFound = vi.hoisted(() =>
   })
 )
 const getProfilePageData = vi.hoisted(() => vi.fn())
+const prisma = vi.hoisted(() => ({
+  userProfile: {
+    findUnique: vi.fn(),
+  },
+}))
 
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
 vi.mock("next/navigation", () => ({ redirect, notFound }))
 vi.mock("@/app/(main)/profile/profile-page-data", () => ({ getProfilePageData }))
+vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("@/components/profile/profile-page-content", () => ({
   ProfilePageContent: ({ data }: { data: ProfilePageData }) =>
     createElement("div", { "data-testid": "profile-page-content" }, data.profile.displayName),
@@ -65,6 +71,7 @@ const ownProfileData: ProfilePageData = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  prisma.userProfile.findUnique.mockResolvedValue(null)
 })
 
 describe("profile routes", () => {
@@ -99,6 +106,35 @@ describe("profile routes", () => {
     })
     expect(markup).toContain("data-testid=\"profile-page-content\"")
     expect(markup).toContain("Nguyen Van A")
+  })
+
+  it("sets metadata titles from the current and public profile names", async () => {
+    createClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-self" } } }),
+      },
+    })
+    prisma.userProfile.findUnique
+      .mockResolvedValueOnce({
+        displayName: "Nguyen Van A",
+        deletedAt: null,
+      })
+      .mockResolvedValueOnce({
+        displayName: "Tran Thi B",
+        deletedAt: null,
+      })
+
+    const ownProfilePageModule = await import("@/app/(main)/profile/page")
+    const publicProfilePageModule = await import("@/app/(main)/profile/[userId]/page")
+
+    await expect(ownProfilePageModule.generateMetadata()).resolves.toEqual({
+      title: "Nguyen Van A",
+    })
+    await expect(
+      publicProfilePageModule.generateMetadata({
+        params: Promise.resolve({ userId: "user-other" }),
+      }),
+    ).resolves.toEqual({ title: "Tran Thi B" })
   })
 
   it("renders /profile/[userId] with public-safe content and calls notFound for missing profiles", async () => {

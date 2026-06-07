@@ -28,7 +28,7 @@ describe("admin navigation", () => {
   it("exports translated labels for core and management nav items", () => {
     expect(ADMIN_MANAGEMENT_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Người dùng",
-      "Môn học",
+      "Lớp học",
       "Nhóm",
       "Sự kiện",
     ])

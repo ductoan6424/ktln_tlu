@@ -17,6 +17,9 @@ import { Smile, Send, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CHAT_FILE_INPUT_ACCEPT, CHAT_INPUT_MAX_LENGTH, CHAT_TYPING_TIMEOUT_MS } from "@/lib/config/chat"
 
+const CHAT_EMPTY_TEXTAREA_HEIGHT_PX = 24
+const CHAT_RECIPIENT_PLACEHOLDER_MAX_LENGTH = 22
+
 type SendPayload = {
   message: string
   attachmentFile?: File | null
@@ -61,12 +64,18 @@ export function MessageInput({
     if (!textarea) return
 
     textarea.style.height = "auto"
+
+    if (draft.trim().length === 0) {
+      textarea.style.height = `${CHAT_EMPTY_TEXTAREA_HEIGHT_PX}px`
+      return
+    }
+
     const nextHeight = Math.min(textarea.scrollHeight, 112)
     textarea.style.height = `${nextHeight}px`
   }, [draft])
 
   const placeholder = recipientName
-    ? `Nhắn tin cho ${recipientName}...`
+    ? `Nhắn tin cho ${truncateWithEllipsis(recipientName, CHAT_RECIPIENT_PLACEHOLDER_MAX_LENGTH)}`
     : "Nhập tin nhắn..."
 
   const canSend = useMemo(
@@ -257,7 +266,8 @@ export function MessageInput({
             disabled={disabled || isSending}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
-            className="min-h-6 max-h-28 flex-1 resize-none overflow-y-auto border-none bg-transparent px-0 py-0.5 text-[13px] leading-5 shadow-none focus-visible:ring-0 placeholder:text-muted-foreground"
+            style={{ scrollbarWidth: "none" }}
+            className="min-h-6 max-h-28 flex-1 resize-none overflow-y-auto border-none bg-transparent px-0 py-0.5 text-[13px] leading-5 shadow-none focus-visible:ring-0 placeholder:text-muted-foreground [&::-webkit-scrollbar]:hidden"
           />
           <IconButton
             icon={Smile}
@@ -299,4 +309,12 @@ function formatFileSize(sizeBytes: number) {
   }
 
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function truncateWithEllipsis(text: string, maxLength: number) {
+  if (text.length <= maxLength) {
+    return text
+  }
+
+  return `${text.slice(0, maxLength).trimEnd()}...`
 }
