@@ -233,6 +233,25 @@ describe("createAnnouncement", () => {
     expect(fanoutAnnouncementNotification).not.toHaveBeenCalled()
   })
 
+  it("lets a system admin author on behalf of any active organization unit", async () => {
+    requireAdminPermission.mockResolvedValueOnce({
+      profile: { userId: "admin-1" },
+      baseRole: "ADMIN",
+    })
+
+    const result = await createAnnouncement(validDraftInput)
+
+    expect(result.success).toBe(true)
+    expect(requireUnitMembership).not.toHaveBeenCalled()
+    expect(tx.announcement.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        issuingUnitId: "unit-pdt",
+        authorId: "admin-1",
+      }),
+      select: { id: true, status: true },
+    })
+  })
+
   it("normalizes official metadata, targets, links, and uploads from FormData", async () => {
     const formData = new FormData()
     formData.set("title", validDraftInput.title)
@@ -307,6 +326,26 @@ describe("updateAnnouncement", () => {
     })
     expect(tx.announcementAuditEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ action: "DRAFT_UPDATED", announcementId: "ann-1" }),
+    })
+  })
+
+  it("lets a system admin update drafts across issuing units without AUTHOR membership", async () => {
+    requireAdminPermission.mockResolvedValueOnce({
+      profile: { userId: "admin-1" },
+      baseRole: "ADMIN",
+    })
+
+    const result = await updateAnnouncement({
+      ...validDraftInput,
+      id: "ann-1",
+      issuingUnitId: "unit-ctsv",
+    })
+
+    expect(result.success).toBe(true)
+    expect(tx.announcementUnitMember.findFirst).not.toHaveBeenCalled()
+    expect(tx.announcement.update).toHaveBeenCalledWith({
+      where: { id: "ann-1" },
+      data: expect.objectContaining({ issuingUnitId: "unit-ctsv" }),
     })
   })
 
@@ -411,6 +450,25 @@ describe("submitAnnouncementForReview", () => {
     })
   })
 
+  it("lets a system admin submit any unit draft for review", async () => {
+    requireAdminPermission.mockResolvedValueOnce({
+      profile: { userId: "admin-1" },
+      baseRole: "ADMIN",
+    })
+
+    const result = await submitAnnouncementForReview("ann-1")
+
+    expect(result.success).toBe(true)
+    expect(tx.announcementUnitMember.findFirst).not.toHaveBeenCalled()
+    expect(tx.announcementRevision.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        authorId: "admin-1",
+        issuingUnitId: "unit-pdt",
+      }),
+      select: { id: true },
+    })
+  })
+
   it("rejects submission when the actor no longer has AUTHOR authority", async () => {
     tx.announcementUnitMember.findFirst.mockResolvedValueOnce(null)
 
@@ -458,6 +516,25 @@ describe("publishAnnouncement controlled publication", () => {
       success: true,
       data: { id: "ann-1", status: "PUBLISHED", recipients: 2 },
     })
+  })
+
+  it("lets a system admin publish an approved revision without AUTHOR membership", async () => {
+    requireAdminPermission.mockResolvedValueOnce({
+      profile: { userId: "admin-1" },
+      baseRole: "ADMIN",
+    })
+    tx.announcement.findUnique.mockResolvedValueOnce({
+      id: "ann-1",
+      status: "APPROVED",
+      activeRevisionId: "rev-1",
+      activeRevision: { scheduledAt: null, issuingUnitId: "unit-pdt" },
+    })
+
+    const result = await publishAnnouncement("ann-1")
+
+    expect(result.success).toBe(true)
+    expect(tx.announcementUnitMember.findFirst).not.toHaveBeenCalled()
+    expect(publishApprovedAnnouncement).toHaveBeenCalledWith("ann-1", "admin-1")
   })
 
   it("does not let an unrelated composer publish an approved unit revision", async () => {

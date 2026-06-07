@@ -10,9 +10,9 @@ import type {
 interface SubjectCells {
   code: string
   title: string
-  faculty: string
-  credits: string
-  status: string
+  lecturer: string
+  members: string
+  settings: string
 }
 
 const SUBJECT_RECORDS: AdminRecord<SubjectCells>[] = [
@@ -20,77 +20,47 @@ const SUBJECT_RECORDS: AdminRecord<SubjectCells>[] = [
     id: "subject-001",
     title: "Cơ sở dữ liệu",
     subtitle: "CS204",
-    status: "open",
+    status: "active",
     cells: {
       code: "CS204",
       title: "Cơ sở dữ liệu",
-      faculty: "Công nghệ thông tin",
-      credits: "3",
-      status: "Đang mở",
+      lecturer: "Giảng viên A",
+      members: "42",
+      settings: "Duyệt bài / OPEN",
     },
   },
   {
     id: "subject-002",
     title: "Kỹ thuật phần mềm",
     subtitle: "CS301",
-    status: "review",
+    status: "active",
     cells: {
       code: "CS301",
       title: "Kỹ thuật phần mềm",
-      faculty: "Công nghệ thông tin",
-      credits: "4",
-      status: "Chờ rà soát",
+      lecturer: "Giảng viên B",
+      members: "38",
+      settings: "Đăng trực tiếp / OPEN",
     },
   },
 ]
 
-const SUBJECT_STATUS_OPTIONS = [
-  { label: "Bản nháp", value: "draft" },
-  { label: "Đang mở", value: "open" },
-  { label: "Tạm dừng", value: "paused" },
-] as const
-
 const formSections: AdminFormSection[] = [
   {
-    title: "Thông tin môn học",
-    description: "Các thông tin cốt lõi xuất hiện xuyên suốt khu vực quản trị.",
+    title: "Thông tin lớp học",
     fields: [
-      { name: "code", label: "Mã môn học", type: "text", required: true },
-      { name: "name", label: "Tên môn học", type: "text", required: true },
-      { name: "credits", label: "Số tín chỉ", type: "number", required: true },
-    ],
-  },
-  {
-    title: "Hiển thị",
-    description: "Xác định cách môn học được hiển thị tới người dùng.",
-    fields: [
-      { name: "status", label: "Trạng thái", type: "select", options: SUBJECT_STATUS_OPTIONS, required: true },
-      { name: "isPublic", label: "Hiển thị công khai", type: "toggle" },
+      { name: "code", label: "Mã lớp", type: "text", required: true },
+      { name: "name", label: "Tên lớp học", type: "text", required: true },
+      { name: "lecturerId", label: "Giảng viên", type: "text", required: true },
     ],
   },
 ]
 
 const settingsSections: AdminSettingsSection[] = [
   {
-    title: "Quy ước mã môn",
-    description: "Thiết lập dùng chung cho việc đặt mã của môn học mới.",
+    title: "Cài đặt theo từng lớp",
+    description: "Cấu hình lớp học được quản lý trong trang chi tiết từng lớp.",
     items: [
-      { name: "prefix", label: "Tiền tố mã môn", value: "CS", type: "text" },
-      { name: "autoNumber", label: "Tự động đánh số môn học", value: "on", type: "toggle" },
-    ],
-  },
-  {
-    title: "Hiển thị mặc định",
-    description: "Hành vi hiển thị mặc định cho môn học mới.",
-    items: [
-      {
-        name: "defaultStatus",
-        label: "Trạng thái mặc định",
-        value: "draft",
-        type: "select",
-        options: SUBJECT_STATUS_OPTIONS,
-      },
-      { name: "showInCatalog", label: "Hiển thị trong danh mục", value: "on", type: "toggle" },
+      { name: "managedPerCourse", label: "Quản lý riêng từng lớp", value: "on", type: "toggle" },
     ],
   },
 ]
@@ -98,37 +68,21 @@ const settingsSections: AdminSettingsSection[] = [
 const detailSectionsById: Record<string, AdminDetailSection[]> = {
   "subject-001": [
     {
-      title: "Thông tin môn học",
+      title: "Thông tin lớp học",
       items: [
-        { label: "Mã môn", value: "CS204" },
-        { label: "Tên môn", value: "Cơ sở dữ liệu" },
-        { label: "Số tín chỉ", value: "3" },
-      ],
-    },
-    {
-      title: "Bối cảnh quản trị",
-      items: [
-        { label: "Tổ giảng viên", value: "Tổ Cơ sở dữ liệu" },
-        { label: "Nhóm liên kết", value: "2" },
-        { label: "Sự kiện liên kết", value: "1" },
+        { label: "Mã lớp", value: "CS204" },
+        { label: "Tên lớp", value: "Cơ sở dữ liệu" },
+        { label: "Giảng viên", value: "Giảng viên A" },
       ],
     },
   ],
   "subject-002": [
     {
-      title: "Thông tin môn học",
+      title: "Thông tin lớp học",
       items: [
-        { label: "Mã môn", value: "CS301" },
-        { label: "Tên môn", value: "Kỹ thuật phần mềm" },
-        { label: "Số tín chỉ", value: "4" },
-      ],
-    },
-    {
-      title: "Bối cảnh quản trị",
-      items: [
-        { label: "Tổ giảng viên", value: "Tổ Kỹ thuật phần mềm" },
-        { label: "Nhóm liên kết", value: "3" },
-        { label: "Sự kiện liên kết", value: "2" },
+        { label: "Mã lớp", value: "CS301" },
+        { label: "Tên lớp", value: "Kỹ thuật phần mềm" },
+        { label: "Giảng viên", value: "Giảng viên B" },
       ],
     },
   ],
@@ -136,51 +90,51 @@ const detailSectionsById: Record<string, AdminDetailSection[]> = {
 
 export const SUBJECTS_ADMIN_MODULE: AdminModuleDefinition<SubjectCells> = {
   key: "subjects",
-  label: "Môn học",
-  description: "Quản lý dữ liệu môn học và các thiết lập mặc định theo môn.",
+  label: "Lớp học",
+  description: "Quản lý lớp học, giảng viên phụ trách, thành viên và thiết lập học tập.",
   basePath: "/admin/subjects",
   icon: "BookOpen",
-  entityNameSingular: "môn học",
-  entityNamePlural: "môn học",
+  entityNameSingular: "lớp học",
+  entityNamePlural: "lớp học",
   paths: createAdminModulePaths("/admin/subjects"),
   navItem: {
-    label: "Môn học",
+    label: "Lớp học",
     href: "/admin/subjects",
     icon: "BookOpen",
-    description: "Quản lý dữ liệu môn học",
+    description: "Quản lý lớp học và thành viên",
   },
   stats: [
-    { label: "Tổng môn học", value: "42" },
+    { label: "Tổng lớp học", value: "42" },
     { label: "Đang mở", value: "31" },
-    { label: "Tạm dừng", value: "8" },
+    { label: "Cần duyệt bài", value: "8" },
     { label: "Cần cập nhật", value: "3" },
   ],
   tabs: [
     { label: "Tất cả", value: "all", active: true },
-    { label: "Cơ sở", value: "core" },
-    { label: "Chuyên ngành", value: "major" },
-    { label: "Thực hành", value: "practice" },
+    { label: "Cần duyệt bài", value: "approval" },
+    { label: "Chat đang bật", value: "chat-on" },
+    { label: "Chat đang tắt", value: "chat-off" },
   ],
   columns: [
-    { key: "code", header: "Mã môn" },
-    { key: "title", header: "Tên môn" },
-    { key: "faculty", header: "Khoa" },
-    { key: "credits", header: "Tín chỉ" },
-    { key: "status", header: "Trạng thái" },
+    { key: "code", header: "Mã lớp" },
+    { key: "title", header: "Tên lớp" },
+    { key: "lecturer", header: "Giảng viên" },
+    { key: "members", header: "Sinh viên" },
+    { key: "settings", header: "Cài đặt" },
   ],
   records: SUBJECT_RECORDS,
   quickActions: [
     {
-      label: "Tạo môn học",
+      label: "Tạo lớp học",
       href: "/admin/subjects/new",
       icon: "BookOpen",
-      description: "Thêm bản ghi môn học mới",
+      description: "Thêm lớp học mới",
     },
     {
-      label: "Mở cài đặt",
-      href: "/admin/subjects/settings",
+      label: "Mở trang lớp học",
+      href: "/courses",
       icon: "BookOpen",
-      description: "Chỉnh sửa cấu hình mặc định của môn học",
+      description: "Xem danh sách lớp học phía cộng đồng",
     },
   ],
   getDetailSections: (id) => detailSectionsById[id],

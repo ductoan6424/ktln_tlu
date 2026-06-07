@@ -1,9 +1,15 @@
 "use client"
 
+import { useState } from "react"
+
 import { CommentItem } from "@/components/feed/comment-item"
 import { CommentInput } from "@/components/feed/comment-input"
 import { CommentItemSkeleton } from "@/components/feed/comment-item-skeleton"
 import type { CommentWithAuthorFlat } from "@/components/feed/comment-item"
+import {
+  ReportContentDialog,
+  type ReportContentTarget,
+} from "@/components/feed/report-content-dialog"
 import { cn } from "@/lib/utils"
 
 interface CommentListProps {
@@ -14,6 +20,7 @@ interface CommentListProps {
   className?: string
   onSubmit?: (text: string) => void
   onDelete?: (commentId: string) => void
+  reportTarget?: ReportContentTarget | null
 }
 
 export function CommentList({
@@ -24,7 +31,13 @@ export function CommentList({
   className,
   onSubmit,
   onDelete,
+  reportTarget,
 }: CommentListProps) {
+  const [reportCommentId, setReportCommentId] = useState<string | null>(null)
+  const reportComment = reportCommentId
+    ? comments.find((comment) => comment.id === reportCommentId)
+    : null
+
   return (
     <div className={cn("flex flex-col flex-1 min-h-0", className)}>
       {/* Danh sách comment — cuộn trong không gian còn lại */}
@@ -42,7 +55,14 @@ export function CommentList({
                 key={comment.id}
                 comment={comment}
                 canDelete={Boolean(currentUser && comment.authorId === currentUser.id)}
+                canReport={Boolean(
+                  currentUser &&
+                    reportTarget &&
+                    comment.authorId !== currentUser.id &&
+                    !comment.id.startsWith("optimistic-"),
+                )}
                 onDelete={onDelete}
+                onReport={setReportCommentId}
               />
             ))
           ) : (
@@ -63,6 +83,16 @@ export function CommentList({
           />
         </div>
       )}
+
+      <ReportContentDialog
+        open={Boolean(reportComment)}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setReportCommentId(null)
+        }}
+        contentType="COMMENT"
+        contentId={reportComment?.id ?? ""}
+        target={reportTarget ?? null}
+      />
     </div>
   )
 }

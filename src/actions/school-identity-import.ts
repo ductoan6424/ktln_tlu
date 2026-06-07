@@ -2,7 +2,7 @@
 
 import { createHash } from "crypto"
 
-import readXlsxFile from "read-excel-file/browser"
+import { readSheet } from "read-excel-file/universal"
 
 import { parseCsvRows } from "@/lib/courses/student-import"
 import { requireAdminPermission } from "@/lib/auth/authorization"
@@ -54,7 +54,7 @@ async function readImportRows(file: File) {
   const fileName = file.name.toLowerCase()
 
   if (fileName.endsWith(".xlsx")) {
-    return readXlsxFile(arrayBuffer) as Promise<unknown[][]>
+    return readSheet(arrayBuffer)
   }
 
   const text = buffer.toString("utf8")

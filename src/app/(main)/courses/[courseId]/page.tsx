@@ -25,6 +25,10 @@ import { CourseAssignmentsPanel } from "./course-assignments-panel"
 export const dynamic = "force-dynamic"
 
 type SearchParams = Record<string, string | string[] | undefined>
+type CourseDetailPageProps = {
+  params: Promise<{ courseId: string }>
+  searchParams?: Promise<SearchParams>
+}
 
 function getParam(params: SearchParams, key: string) {
   const value = params[key]
@@ -41,13 +45,20 @@ function normalizeDetailTab(value: string): CommunityDetailTab {
     : "feed"
 }
 
+export async function generateMetadata({ params }: CourseDetailPageProps) {
+  const { courseId } = await params
+  const resolvedTarget = await getCommunityBySlugId("COURSE", courseId)
+  const course = resolvedTarget ? null : await getCourseDetail(courseId)
+
+  return {
+    title: resolvedTarget?.name ?? course?.name ?? "Lớp học",
+  }
+}
+
 export default async function CourseDetailPage({
   params,
   searchParams,
-}: {
-  params: Promise<{ courseId: string }>
-  searchParams?: Promise<SearchParams>
-}) {
+}: CourseDetailPageProps) {
   const { courseId } = await params
   const queryParamsPromise = searchParams ?? Promise.resolve({})
   const resolvedTarget = await getCommunityBySlugId("COURSE", courseId)

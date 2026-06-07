@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation"
 
-import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { AdminGroupForm } from "@/components/admin/groups/admin-group-form"
+import { getAdminGroupDetail } from "@/lib/admin/groups/groups-admin-data"
 
-const groupsModule = getAdminModule("groups")
+export const dynamic = "force-dynamic"
 
 export default async function AdminEditGroupPage({
   params,
@@ -11,11 +11,24 @@ export default async function AdminEditGroupPage({
   params: Promise<{ groupId: string }>
 }) {
   const { groupId } = await params
-  const record = groupsModule.getRecord(groupId)
+  const detail = await getAdminGroupDetail(groupId)
 
-  if (!record) {
+  if (!detail) {
     notFound()
   }
 
-  return <AdminFormPageShell<typeof record.cells> module={groupsModule} mode="edit" record={record} />
+  return (
+    <AdminGroupForm
+      initialValues={{
+        id: detail.group.id,
+        name: detail.group.name,
+        description: detail.group.description,
+        communityVisibility: detail.group.communityVisibility,
+        requirePostApproval: detail.group.requirePostApproval,
+        chatEnabled: detail.group.chatEnabled,
+        chatMode: detail.group.chatMode,
+        memberInviteEnabled: detail.group.memberInviteEnabled,
+      }}
+    />
+  )
 }

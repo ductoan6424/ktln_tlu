@@ -1,8 +1,7 @@
-import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { AdminGroupForm } from "@/components/admin/groups/admin-group-form"
 
-const groupsModule = getAdminModule("groups")
+export const dynamic = "force-dynamic"
 
 export default function AdminNewGroupPage() {
-  return <AdminFormPageShell module={groupsModule} mode="create" />
+  return <AdminGroupForm />
 }

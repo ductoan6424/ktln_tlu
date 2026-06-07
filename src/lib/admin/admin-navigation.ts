@@ -46,10 +46,10 @@ export const ADMIN_MODULE_ROUTE_LABELS = {
     detail: "Chi tiết người dùng",
   },
   subjects: {
-    list: "Quản lý môn học",
+    list: "Quản lý lớp học",
     create: "Tạo mới",
     settings: "Cài đặt phân hệ",
-    detail: "Chi tiết môn học",
+    detail: "Chi tiết lớp học",
   },
   groups: {
     list: "Quản lý nhóm",

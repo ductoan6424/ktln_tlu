@@ -14,7 +14,6 @@ import {
   DropdownMenuContent,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import {
   getNotificationSession,
@@ -182,10 +181,10 @@ export function NotificationPopup({ className }: NotificationPopupProps) {
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger
         className={cn(
-          "relative inline-flex items-center justify-center size-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none cursor-pointer",
+          "relative inline-flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[popup-open]:bg-primary/10 data-[popup-open]:text-primary",
           className
         )}
         aria-label="Thông báo"
@@ -200,79 +199,84 @@ export function NotificationPopup({ className }: NotificationPopupProps) {
 
       <DropdownMenuContent
         align="end"
-        sideOffset={8}
-        className="w-[360px] p-0 border border-border shadow-xl"
+        sideOffset={10}
+        className="flex max-h-[min(520px,calc(100vh-5rem))] w-[min(380px,calc(100vw-1rem))] flex-col overflow-hidden rounded-xl border border-border/70 bg-card p-0 text-card-foreground shadow-xl"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
-          <h3 className="font-semibold text-base">Thông báo</h3>
+        <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border/70 bg-card px-4 py-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-semibold text-foreground">Thông báo</h3>
+            <p className="text-xs text-muted-foreground">
+              {unreadCount > 0 ? `${unreadCount} chưa đọc` : "Đã đọc hết"}
+            </p>
+          </div>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleMarkAllRead}
-              className="text-xs text-muted-foreground hover:text-foreground h-auto px-2 py-1"
+              className="h-8 shrink-0 gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary"
+              aria-label="Đánh dấu tất cả thông báo đã đọc"
             >
-              <CheckCheck className="size-4 mr-1" />
+              <CheckCheck className="size-4" />
               Đánh dấu đã đọc
             </Button>
           )}
         </div>
 
-        {/* Notification List */}
-        <ScrollArea className="max-h-[400px]">
-          <div className="py-2">
-            {isLoading ? (
-              <div aria-label="Đang tải thông báo" role="status">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <NotificationItemSkeleton key={index} />
-                ))}
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Bell className="size-12 mb-3 opacity-30" />
-                <p className="text-sm">Chưa có thông báo nào</p>
-              </div>
-            ) : (
-              notifications.map((notification) => {
-                const presentation = getNotificationPresentation(notification.type)
-                return (
-                  <Link
-                    key={notification.id}
-                    href={notification.link || "#"}
-                    className="block"
-                    onClick={() => {
-                      void handleItemClick(notification)
-                    }}
-                  >
-                    <NotificationItem
-                      icon={presentation.icon}
-                      iconColor={presentation.iconColor}
-                      iconBg={presentation.iconBg}
-                      title={notification.title}
-                      description={notification.content}
-                      time={notification.createdAtRelative}
-                      isUnread={!notification.isRead}
-                      actor={notification.actor}
-                    />
-                  </Link>
-                )
-              })
-            )}
-          </div>
-
-          {/* Footer - Xem tất cả */}
-          <DropdownMenuSeparator />
-          <Link
-            href="/notifications"
-            className="block sticky bottom-0 bg-card"
-            onClick={() => setIsOpen(false)}
-          >
-            <div className="py-3 text-center text-sm text-primary font-medium hover:bg-muted transition-colors cursor-pointer">
-              Xem tất cả thông báo
+        <div className="min-h-0 max-h-[min(420px,calc(100vh-11rem))] overflow-y-auto overscroll-contain py-2">
+          {isLoading ? (
+            <div aria-label="Đang tải thông báo" className="px-2" role="status">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <NotificationItemSkeleton key={index} />
+              ))}
             </div>
-          </Link>
-        </ScrollArea>
+          ) : notifications.length === 0 ? (
+            <div className="mx-3 flex flex-col items-center justify-center rounded-lg bg-muted/40 px-4 py-10 text-center">
+              <span className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Bell className="size-6" />
+              </span>
+              <p className="text-sm font-medium text-foreground">Chưa có thông báo nào</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cập nhật mới sẽ xuất hiện ở đây.
+              </p>
+            </div>
+          ) : (
+            notifications.map((notification) => {
+              const presentation = getNotificationPresentation(notification.type)
+              return (
+                <Link
+                  key={notification.id}
+                  href={notification.link || "#"}
+                  className="block px-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  onClick={() => {
+                    void handleItemClick(notification)
+                  }}
+                >
+                  <NotificationItem
+                    icon={presentation.icon}
+                    iconColor={presentation.iconColor}
+                    iconBg={presentation.iconBg}
+                    title={notification.title}
+                    description={notification.content}
+                    time={notification.createdAtRelative}
+                    isUnread={!notification.isRead}
+                    actor={notification.actor}
+                    className="gap-3 px-3 py-3 hover:bg-muted/70"
+                  />
+                </Link>
+              )
+            })
+          )}
+        </div>
+
+        <DropdownMenuSeparator className="m-0 bg-border/70" />
+        <Link
+          href="/notifications"
+          className="block bg-card px-4 py-3 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+          onClick={() => setIsOpen(false)}
+        >
+          Xem tất cả thông báo
+        </Link>
       </DropdownMenuContent>
     </DropdownMenu>
   )
