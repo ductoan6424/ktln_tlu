@@ -39,8 +39,8 @@ export function formatSchoolIdentityCode(role: UserRole, number: number) {
   return `${config.prefix}${String(number).padStart(config.padding, "0")}`
 }
 
-export function buildInstitutionalEmail(code: string) {
-  return `${code.trim().toLowerCase()}@${INSTITUTIONAL_EMAIL_DOMAIN}`
+export function buildInstitutionalEmail(code: string, domain = INSTITUTIONAL_EMAIL_DOMAIN) {
+  return `${code.trim().toLowerCase()}@${domain.trim().toLowerCase()}`
 }
 
 export function generateInitialPassword() {

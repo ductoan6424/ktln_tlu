@@ -15,7 +15,7 @@ import {
   ModerationQueueTable,
   type ModerationAction,
 } from "@/components/admin/moderation/moderation-queue-table"
-import { AdminFilterBar } from "@/components/admin/module/admin-filter-bar"
+import { AdminUrlFilterBar } from "@/components/admin/module/admin-url-filter-bar"
 import { AdminPageHeader } from "@/components/admin/module/admin-page-header"
 import { AdminStatsGrid } from "@/components/admin/module/admin-stats-grid"
 import { useToast } from "@/components/ui/use-toast"
@@ -43,6 +43,7 @@ interface DialogCopy {
 
 interface ModerationClientProps {
   activeTab: ModerationTab
+  query: string
   stats: AdminStatItem[]
   pendingPosts: PendingModerationPost[]
   openReports: ModerationReportItem[]
@@ -51,10 +52,10 @@ interface ModerationClientProps {
 }
 
 const TABS = [
-  { label: "Bài chờ duyệt", value: "pending", href: "/admin/moderation?tab=pending" },
-  { label: "Báo cáo", value: "reports", href: "/admin/moderation?tab=reports" },
-  { label: "Đã xử lý", value: "resolved", href: "/admin/moderation?tab=resolved" },
-  { label: "Lịch sử", value: "history", href: "/admin/moderation?tab=history" },
+  { label: "Bài chờ duyệt", value: "pending" },
+  { label: "Báo cáo", value: "reports" },
+  { label: "Đã xử lý", value: "resolved" },
+  { label: "Lịch sử", value: "history" },
 ] as const
 
 function getDialogCopy(action: ModerationAction | null): DialogCopy {
@@ -108,6 +109,7 @@ function getDialogCopy(action: ModerationAction | null): DialogCopy {
 
 export default function ModerationClient({
   activeTab,
+  query,
   stats,
   pendingPosts,
   openReports,
@@ -171,8 +173,9 @@ export default function ModerationClient({
         description="Theo dõi bài chờ duyệt, báo cáo nội dung và lịch sử xử lý trong UniConnect."
       />
       <AdminStatsGrid stats={stats} />
-      <AdminFilterBar
+      <AdminUrlFilterBar
         activeTab={activeTab}
+        query={query}
         tabs={TABS}
         searchPlaceholder="Tìm nội dung kiểm duyệt..."
       />

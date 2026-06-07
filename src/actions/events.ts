@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { getAuthorizationContext, requireAdminPermission } from "@/lib/auth/authorization"
+import { getEventAdminSettings } from "@/lib/admin/settings/admin-settings-queries"
 import { AppError } from "@/lib/errors"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
@@ -258,6 +259,10 @@ export async function cancelEventRegistration(eventId: string): Promise<ActionRe
   try {
     const context = await getAuthorizationContext()
     if (!context) return errorResult("Bạn cần đăng nhập để hủy đăng ký", "UNAUTHORIZED")
+    const settings = await getEventAdminSettings()
+    if (!settings.allowSelfCancellation) {
+      return errorResult("Sự kiện hiện không cho phép tự hủy đăng ký.", "REGISTRATION_CANCEL_DISABLED")
+    }
 
     const id = eventIdSchema.parse(eventId)
     await prisma.eventRegistration.upsert({
