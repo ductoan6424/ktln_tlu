@@ -34,6 +34,7 @@ export interface AdminModuleRouteLabels {
 const ADMIN_MODULE_ICONS = {
   users: Users,
   subjects: BookOpen,
+  clubs: UsersRound,
   groups: UsersRound,
   events: CalendarDays,
 } satisfies Record<(typeof ADMIN_MODULES)[number]["key"], LucideIcon>
@@ -50,6 +51,12 @@ export const ADMIN_MODULE_ROUTE_LABELS = {
     create: "Tạo mới",
     settings: "Cài đặt phân hệ",
     detail: "Chi tiết lớp học",
+  },
+  clubs: {
+    list: "Quản lý câu lạc bộ",
+    create: "Tạo mới",
+    settings: "Cài đặt phân hệ",
+    detail: "Chi tiết câu lạc bộ",
   },
   groups: {
     list: "Quản lý nhóm",

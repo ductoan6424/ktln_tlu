@@ -26,6 +26,15 @@ describe("admin route meta", () => {
     ])
   })
 
+  it("builds breadcrumbs for the club edit route", () => {
+    expect(getAdminBreadcrumbItems("/admin/clubs/club-01/edit")).toEqual([
+      { label: "Quản trị", href: "/admin/dashboard" },
+      { label: "Quản lý câu lạc bộ", href: "/admin/clubs" },
+      { label: "Chi tiết câu lạc bộ", href: "/admin/clubs/club-01" },
+      { label: "Chỉnh sửa" },
+    ])
+  })
+
   it("keeps nested record routes distinct from detail routes", () => {
     expect(getAdminBreadcrumbItems("/admin/groups/group-01/members")).toEqual([
       { label: "Quản trị", href: "/admin/dashboard" },
