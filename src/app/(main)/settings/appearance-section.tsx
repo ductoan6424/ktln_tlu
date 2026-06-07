@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Check, Monitor, Moon, Save, Sun } from "lucide-react"
 
 import { updateAppearanceSettings } from "@/actions/account-settings"
+import { useAppearance } from "@/components/layout/appearance-provider"
 import { SectionHeader } from "@/components/shared/section-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,9 +12,15 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
-import type { UserSettingsData, UserThemePreference } from "@/lib/settings/user-settings"
+import type {
+  UserSettingsData,
+  UserThemePreference,
+} from "@/lib/settings/user-settings"
 
-type AppearanceSettingsState = Pick<UserSettingsData, "theme" | "compactMode" | "reducedMotion">
+type AppearanceSettingsState = Pick<
+  UserSettingsData,
+  "theme" | "compactMode" | "reducedMotion"
+>
 
 const THEME_OPTIONS: Array<{
   value: UserThemePreference
@@ -25,8 +32,13 @@ const THEME_OPTIONS: Array<{
   { value: "SYSTEM", label: "Theo hệ thống", icon: Monitor },
 ]
 
-export function AppearanceSection({ settings }: { settings: AppearanceSettingsState }) {
+export function AppearanceSection({
+  settings,
+}: {
+  settings: AppearanceSettingsState
+}) {
   const { toast } = useToast()
+  const { setAppearanceSettings } = useAppearance()
   const [values, setValues] = useState(settings)
   const [isPending, startTransition] = useTransition()
 
@@ -41,9 +53,7 @@ export function AppearanceSection({ settings }: { settings: AppearanceSettingsSt
         })
         return
       }
-      document.documentElement.dataset.themePreference = values.theme.toLowerCase()
-      document.documentElement.dataset.density = values.compactMode ? "compact" : "comfortable"
-      document.documentElement.dataset.reducedMotion = values.reducedMotion ? "true" : "false"
+      setAppearanceSettings(values)
       toast({ title: "Đã lưu giao diện" })
     })
   }
@@ -62,7 +72,9 @@ export function AppearanceSection({ settings }: { settings: AppearanceSettingsSt
                 option={option}
                 active={values.theme === option.value}
                 disabled={isPending}
-                onSelect={() => setValues((current) => ({ ...current, theme: option.value }))}
+                onSelect={() =>
+                  setValues((current) => ({ ...current, theme: option.value }))
+                }
               />
             ))}
           </div>
@@ -75,7 +87,9 @@ export function AppearanceSection({ settings }: { settings: AppearanceSettingsSt
           description="Giảm hiệu ứng động trên giao diện."
           checked={values.reducedMotion}
           disabled={isPending}
-          onChange={(checked) => setValues((current) => ({ ...current, reducedMotion: checked }))}
+          onChange={(checked) =>
+            setValues((current) => ({ ...current, reducedMotion: checked }))
+          }
         />
         <Separator />
         <AppearanceToggle
@@ -83,7 +97,9 @@ export function AppearanceSection({ settings }: { settings: AppearanceSettingsSt
           description="Hiển thị nội dung gọn hơn, giảm khoảng cách giữa các phần tử."
           checked={values.compactMode}
           disabled={isPending}
-          onChange={(checked) => setValues((current) => ({ ...current, compactMode: checked }))}
+          onChange={(checked) =>
+            setValues((current) => ({ ...current, compactMode: checked }))
+          }
         />
 
         <div className="flex justify-end">
@@ -113,7 +129,10 @@ function ThemeButton({
     <Button
       type="button"
       variant={active ? "default" : "outline"}
-      className={cn("h-auto justify-start gap-3 px-3 py-3", active && "ring-2 ring-primary/20")}
+      className={cn(
+        "h-auto justify-start gap-3 px-3 py-3",
+        active && "ring-2 ring-primary/20",
+      )}
       disabled={disabled}
       onClick={onSelect}
     >
@@ -143,7 +162,11 @@ function AppearanceToggle({
         <p className="text-sm font-medium">{title}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
+      <Switch
+        checked={checked}
+        onCheckedChange={onChange}
+        disabled={disabled}
+      />
     </div>
   )
 }
