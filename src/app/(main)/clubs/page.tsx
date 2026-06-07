@@ -119,6 +119,8 @@ export default async function ClubsPage({
       title="Câu lạc bộ"
       description="Theo dõi và tham gia các câu lạc bộ chính thức trong trường."
       searchPlaceholder="Tìm kiếm câu lạc bộ..."
+      createHref="/clubs/new"
+      createLabel="Tạo câu lạc bộ"
       tabs={TABS.map((tab) => ({
         ...tab,
         href: buildTabHref(tab.value, query),

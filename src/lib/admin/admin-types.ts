@@ -1,4 +1,4 @@
-export type AdminModuleKey = "users" | "subjects" | "groups" | "events"
+export type AdminModuleKey = "users" | "subjects" | "clubs" | "groups" | "events"
 
 export type AdminIconName = "Users" | "BookOpen" | "UsersRound" | "CalendarDays"
 

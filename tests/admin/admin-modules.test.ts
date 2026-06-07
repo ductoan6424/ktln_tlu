@@ -6,6 +6,7 @@ import { ADMIN_MODULES, getAdminModule } from "@/lib/admin/admin-modules"
 const REQUIRED_RECORD_IDS = {
   users: "user-001",
   subjects: "subject-001",
+  clubs: "club-001",
   groups: "group-001",
   events: "event-001",
 } as const
@@ -46,6 +47,7 @@ describe("admin module registry", () => {
     expect(ADMIN_MODULES.map((module) => module.key)).toEqual([
       "users",
       "subjects",
+      "clubs",
       "groups",
       "events",
     ])
@@ -64,6 +66,7 @@ describe("admin module registry", () => {
   it("backs every configured column with row data", () => {
     expectRowToCoverColumns(getAdminModule("users"), REQUIRED_RECORD_IDS.users)
     expectRowToCoverColumns(getAdminModule("subjects"), REQUIRED_RECORD_IDS.subjects)
+    expectRowToCoverColumns(getAdminModule("clubs"), REQUIRED_RECORD_IDS.clubs)
     expectRowToCoverColumns(getAdminModule("groups"), REQUIRED_RECORD_IDS.groups)
     expectRowToCoverColumns(getAdminModule("events"), REQUIRED_RECORD_IDS.events)
   })
