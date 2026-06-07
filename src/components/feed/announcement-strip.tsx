@@ -70,6 +70,8 @@ interface AnnouncementStripProps {
 // ---------------------------------------------------------------------------
 
 const SCROLL_STEP = 272
+const ANNOUNCEMENT_SCROLL_BUTTON_CLASS =
+  "rounded-full border border-border bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.20)] hover:bg-white hover:text-black dark:border-[#030b54] dark:bg-[#030b54] dark:text-white dark:hover:bg-[#030b54]/90 dark:hover:text-white"
 
 // ---------------------------------------------------------------------------
 // Main section
@@ -162,7 +164,7 @@ export function AnnouncementStrip({
                   size="md"
                   ariaLabel="Xem trước"
                   onClick={() => scroll("left")}
-                  className="rounded-full bg-[#030b54] text-white shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-[#030b54] hover:bg-[#030b54]/90 hover:text-white"
+                  className={ANNOUNCEMENT_SCROLL_BUTTON_CLASS}
                 />
               </div>
             )}
@@ -175,7 +177,7 @@ export function AnnouncementStrip({
                   size="md"
                   ariaLabel="Xem sau"
                   onClick={() => scroll("right")}
-                  className="rounded-full bg-[#030b54] text-white shadow-[0_2px_8px_rgba(0,0,0,0.20)] border border-[#030b54] hover:bg-[#030b54]/90 hover:text-white"
+                  className={ANNOUNCEMENT_SCROLL_BUTTON_CLASS}
                 />
               </div>
             )}

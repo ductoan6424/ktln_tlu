@@ -16,7 +16,9 @@ describe("TLU shell visual contracts", () => {
   })
 
   it("keeps selection primary while unread attention uses the official role", () => {
-    const mobileBottomNav = source("src/components/layout/mobile-bottom-nav.tsx")
+    const mobileBottomNav = source(
+      "src/components/layout/mobile-bottom-nav.tsx",
+    )
     const sidebarNavItem = source("src/components/layout/sidebar-nav-item.tsx")
 
     expect(mobileBottomNav).toContain("bg-official")
@@ -28,7 +30,9 @@ describe("TLU shell visual contracts", () => {
   it("uses the shared surface hierarchy for shell containers", () => {
     const topNavbar = source("src/components/layout/top-navbar.tsx")
     const mainSidebar = source("src/components/layout/main-sidebar.tsx")
-    const mobileBottomNav = source("src/components/layout/mobile-bottom-nav.tsx")
+    const mobileBottomNav = source(
+      "src/components/layout/mobile-bottom-nav.tsx",
+    )
     const pageContainer = source("src/components/layout/page-container.tsx")
 
     expect(topNavbar).toContain("bg-card/95")
@@ -36,5 +40,30 @@ describe("TLU shell visual contracts", () => {
     expect(mainSidebar).toContain("border-border/70 bg-card/95")
     expect(mobileBottomNav).toContain("border-border/70 bg-card/95")
     expect(pageContainer).toContain("max-w-7xl")
+  })
+
+  it("keeps avatar dark mode switch synchronized with appearance settings", () => {
+    const topNavbar = source("src/components/layout/top-navbar.tsx")
+    const mobileBottomNav = source(
+      "src/components/layout/mobile-bottom-nav.tsx",
+    )
+    const themeModeSwitch = source(
+      "src/components/layout/theme-mode-switch.tsx",
+    )
+    const appearanceSection = source(
+      "src/app/(main)/settings/appearance-section.tsx",
+    )
+
+    expect(topNavbar).toContain("ThemeModeSwitch")
+    expect(mobileBottomNav).toContain("ThemeModeSwitch")
+    expect(topNavbar).not.toContain("classList.toggle")
+    expect(mobileBottomNav).not.toContain("classList.toggle")
+    expect(topNavbar).not.toContain("const [darkMode")
+    expect(mobileBottomNav).not.toContain("const [darkMode")
+
+    expect(themeModeSwitch).toContain('theme: checked ? "DARK" : "LIGHT"')
+    expect(themeModeSwitch).toContain("updateAppearanceSettings(nextSettings)")
+    expect(appearanceSection).toContain("setAppearanceSettings(values)")
+    expect(appearanceSection).not.toContain("document.documentElement.dataset")
   })
 })
