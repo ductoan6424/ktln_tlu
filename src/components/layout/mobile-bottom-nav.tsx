@@ -4,15 +4,10 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { logout } from "@/actions/auth"
-import {
-  Home,
-  Users,
-  Bell,
-  MessageSquare,
-  Menu,
-} from "lucide-react"
+import { Home, Users, Bell, MessageSquare, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { ThemeModeSwitch } from "@/components/layout/theme-mode-switch"
 import {
   MOCK_UNREAD_MESSAGE_COUNT,
   MOCK_UNREAD_NOTIFICATION_COUNT,
@@ -24,14 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Switch } from "@/components/ui/switch"
-import {
-  Settings,
-  LogOut,
-  Moon,
-  User,
-  Shield,
-} from "lucide-react"
+import { Settings, LogOut, User, Shield } from "lucide-react"
 
 interface MobileBottomNavProps {
   user?: {
@@ -56,13 +44,7 @@ export function MobileBottomNav({
   messageCount = MOCK_UNREAD_MESSAGE_COUNT,
 }: MobileBottomNavProps) {
   const pathname = usePathname()
-  const [darkMode, setDarkMode] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-
-  const handleDarkModeToggle = (checked: boolean) => {
-    setDarkMode(checked)
-    document.documentElement.classList.toggle("dark", checked)
-  }
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -80,7 +62,8 @@ export function MobileBottomNav({
     <nav className="fixed right-0 bottom-0 left-0 z-50 border-t border-border/70 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur supports-[backdrop-filter]:bg-card/90 lg:hidden">
       <div className="flex h-14 items-center justify-around px-1">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+          const isActive =
+            pathname === item.href || pathname.startsWith(item.href + "/")
           const badge = getBadgeCount(item.href)
 
           return (
@@ -89,9 +72,7 @@ export function MobileBottomNav({
               href={item.href}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative transition-colors",
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground"
+                isActive ? "text-primary" : "text-muted-foreground",
               )}
             >
               <div className="relative">
@@ -114,17 +95,13 @@ export function MobileBottomNav({
           <DropdownMenuTrigger
             className={cn(
               "flex flex-col items-center justify-center gap-0.5 flex-1 h-full outline-none transition-colors",
-              (pathname === "/profile" || pathname === "/settings")
+              pathname === "/profile" || pathname === "/settings"
                 ? "text-primary"
-                : "text-muted-foreground"
+                : "text-muted-foreground",
             )}
           >
             {user ? (
-              <UserAvatar
-                src={user.avatarSrc}
-                name={user.name}
-                size="xs"
-              />
+              <UserAvatar src={user.avatarSrc} name={user.name} size="xs" />
             ) : (
               <Menu className="size-5" />
             )}
@@ -140,7 +117,10 @@ export function MobileBottomNav({
             {/* Profile link */}
             {user && (
               <DropdownMenuItem className="cursor-pointer">
-                <Link href="/profile" className="flex items-center gap-2 w-full">
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-2 w-full"
+                >
                   <User className="size-4" />
                   Trang cá nhân
                 </Link>
@@ -164,20 +144,16 @@ export function MobileBottomNav({
             <DropdownMenuSeparator />
 
             {/* Dark mode toggle */}
-            <div className="flex items-center justify-between p-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Moon className="size-4" />
-                Chế độ tối
-              </div>
-              <Switch
-                checked={darkMode}
-                onCheckedChange={handleDarkModeToggle}
-              />
-            </div>
+            <ThemeModeSwitch />
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={handleLogout} disabled={loggingOut}>
+            <DropdownMenuItem
+              variant="destructive"
+              className="cursor-pointer"
+              onClick={handleLogout}
+              disabled={loggingOut}
+            >
               <LogOut className="size-4" />
               {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
             </DropdownMenuItem>

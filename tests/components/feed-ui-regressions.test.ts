@@ -45,4 +45,14 @@ describe("Feed UI regression contracts", () => {
     expect(topNavbar).not.toContain("max-w-7xl")
     expect(topNavbar).not.toContain("absolute left-1/2 -translate-x-1/2")
   })
+
+  it("uses light and dark aware announcement carousel controls", () => {
+    const announcementStrip = source("src/components/feed/announcement-strip.tsx")
+
+    expect(announcementStrip).toContain("ANNOUNCEMENT_SCROLL_BUTTON_CLASS")
+    expect(announcementStrip).toContain("bg-white text-black")
+    expect(announcementStrip).toContain("hover:bg-white hover:text-black")
+    expect(announcementStrip).toContain("dark:bg-[#030b54] dark:text-white")
+    expect(announcementStrip).toContain("dark:hover:bg-[#030b54]/90 dark:hover:text-white")
+  })
 })

@@ -10,6 +10,7 @@ import { useChatDock } from "@/components/layout/chat-dock"
 import { MessagePopup } from "@/components/layout/message-popup"
 import { NavbarLink } from "@/components/layout/navbar-link"
 import { NotificationPopup } from "@/components/layout/notification-popup"
+import { ThemeModeSwitch } from "@/components/layout/theme-mode-switch"
 import { GlobalSearch } from "@/components/search/global-search"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Button } from "@/components/ui/button"
@@ -20,14 +21,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import {
   CalendarDays,
   ChevronDown,
   Home,
   LogOut,
-  Moon,
   Search,
   Settings,
   Users,
@@ -67,18 +66,12 @@ export function TopNavbar({
   className,
 }: TopNavbarProps) {
   const pathname = usePathname()
-  const [darkMode, setDarkMode] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const { openConversation } = useChatDock()
 
   void notificationCount
   void messageCount
-
-  const handleDarkModeToggle = (checked: boolean) => {
-    setDarkMode(checked)
-    document.documentElement.classList.toggle("dark", checked)
-  }
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -90,15 +83,12 @@ export function TopNavbar({
     <header
       className={cn(
         "fixed top-0 right-0 left-0 z-50 h-[calc(3.5rem+env(safe-area-inset-top))] border-b border-border/70 bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-card/90 lg:h-16 lg:pt-0",
-        className
+        className,
       )}
     >
       {mobileSearchOpen && (
         <div className="absolute inset-0 z-10 flex items-center gap-2 bg-card/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur xl:hidden">
-          <GlobalSearch
-            placeholder={searchPlaceholder}
-            className="flex-1"
-          />
+          <GlobalSearch placeholder={searchPlaceholder} className="flex-1" />
           <Button
             variant="ghost"
             size="icon"
@@ -154,14 +144,8 @@ export function TopNavbar({
 
           {user && (
             <DropdownMenu>
-              <DropdownMenuTrigger
-                className="ml-1 hidden cursor-pointer items-center gap-2 rounded-full py-1 pr-2 pl-1 transition-colors hover:bg-muted outline-none lg:flex"
-              >
-                <UserAvatar
-                  src={user.avatarSrc}
-                  name={user.name}
-                  size="sm"
-                />
+              <DropdownMenuTrigger className="ml-1 hidden cursor-pointer items-center gap-2 rounded-full py-1 pr-2 pl-1 transition-colors hover:bg-muted outline-none lg:flex">
+                <UserAvatar src={user.avatarSrc} name={user.name} size="sm" />
                 <ChevronDown className="size-3.5 text-muted-foreground" />
               </DropdownMenuTrigger>
 
@@ -195,7 +179,10 @@ export function TopNavbar({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem>
-                  <Link href="/settings" className="flex items-center gap-2 w-full">
+                  <Link
+                    href="/settings"
+                    className="flex items-center gap-2 w-full"
+                  >
                     <Settings className="size-4" />
                     Cài đặt và quyền riêng tư
                   </Link>
@@ -203,20 +190,16 @@ export function TopNavbar({
 
                 <DropdownMenuSeparator />
 
-                <div className="flex items-center justify-between p-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Moon className="size-4" />
-                    Chế độ tối
-                  </div>
-                  <Switch
-                    checked={darkMode}
-                    onCheckedChange={handleDarkModeToggle}
-                  />
-                </div>
+                <ThemeModeSwitch />
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={handleLogout} disabled={loggingOut}>
+                <DropdownMenuItem
+                  variant="destructive"
+                  className="cursor-pointer"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                >
                   <LogOut className="size-4" />
                   {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
                 </DropdownMenuItem>
