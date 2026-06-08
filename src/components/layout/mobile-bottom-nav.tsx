@@ -19,13 +19,14 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Settings, LogOut, User, Shield } from "lucide-react"
+import { Settings, LogOut, User, Shield, ShieldCheck } from "lucide-react"
 
 interface MobileBottomNavProps {
   user?: {
     name: string
     subtitle?: string
     avatarSrc?: string
+    canAccessAdmin?: boolean
   }
   notificationCount?: number
   messageCount?: number
@@ -95,7 +96,9 @@ export function MobileBottomNav({
           <DropdownMenuTrigger
             className={cn(
               "flex flex-col items-center justify-center gap-0.5 flex-1 h-full outline-none transition-colors",
-              pathname === "/profile" || pathname === "/settings"
+              pathname === "/profile" ||
+                pathname === "/settings" ||
+                pathname.startsWith("/admin")
                 ? "text-primary"
                 : "text-muted-foreground",
             )}
@@ -123,6 +126,15 @@ export function MobileBottomNav({
                 >
                   <User className="size-4" />
                   Trang cá nhân
+                </Link>
+              </DropdownMenuItem>
+            )}
+
+            {user?.canAccessAdmin && (
+              <DropdownMenuItem className="cursor-pointer">
+                <Link href="/admin" className="flex items-center gap-2 w-full">
+                  <ShieldCheck className="size-4" />
+                  Bảng điều khiển quản trị
                 </Link>
               </DropdownMenuItem>
             )}
