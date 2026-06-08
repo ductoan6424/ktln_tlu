@@ -157,6 +157,12 @@ const reactActGlobal = globalThis as typeof globalThis & {
 
 async function renderFeedPage(
   overrides: Partial<{
+    currentUser: {
+      userId: string
+      displayName: string
+      avatarUrl: string | null
+      role: "STUDENT" | "LECTURER" | "ADMIN"
+    } | null
     deepLinkAnnouncementId: string | null
     announcements: Array<{ id: string; title: string; content: string; publishedAt: string }>
   }> = {},
@@ -170,11 +176,15 @@ async function renderFeedPage(
   await act(async () => {
     root.render(
       createElement(FeedPageClient, {
-        currentUser: {
-          userId: "user-self",
-          displayName: "Self",
-          avatarUrl: null,
-        },
+        currentUser:
+          overrides.currentUser === undefined
+            ? {
+                userId: "user-self",
+                displayName: "Self",
+                avatarUrl: null,
+                role: "STUDENT",
+              }
+            : overrides.currentUser,
         initialPosts: [],
         initialCursor: {
           redisFetched: 0,
@@ -223,6 +233,24 @@ describe("FeedPageClient chat dock migration", () => {
     expect(announcementStripProps).toHaveBeenCalledWith(
       expect.objectContaining({ deepLinkAnnouncementId: "ann-1" }),
     )
+  })
+
+  it.each([
+    ["STUDENT", "Sinh vi\u00ean"],
+    ["LECTURER", "Gi\u1ea3ng vi\u00ean"],
+    ["ADMIN", "Qu\u1ea3n tr\u1ecb"],
+  ] as const)("renders %s as %s in the desktop sidebar", async (role, label) => {
+    const container = await renderFeedPage({
+      currentUser: {
+        userId: `${role.toLowerCase()}-1`,
+        displayName: role,
+        avatarUrl: null,
+        role,
+      },
+    })
+
+    expect(container.textContent).toContain(label)
+    expect(container.textContent).not.toContain("Th\u00e0nh vi\u00ean")
   })
 
   it("keeps the announcement strip mounted when the initial carousel is empty", async () => {

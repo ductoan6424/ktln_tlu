@@ -30,6 +30,7 @@ import type {
   FeedSidebarGroup,
   TrendingSearchItem,
 } from "@/lib/feed/sidebar-queries"
+import type { BaseRole } from "@/lib/auth/base-role"
 import type { PollView } from "@/lib/polls/types"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { useToast } from "@/components/ui/use-toast"
@@ -42,6 +43,16 @@ const LEFT_NAV = [
   { icon: Users, label: "Cộng đồng", href: "/clubs" },
   { icon: Bookmark, label: "Bài viết đã lưu", href: "/saved" },
 ]
+
+const FEED_ROLE_LABELS = {
+  STUDENT: "Sinh vi\u00ean",
+  LECTURER: "Gi\u1ea3ng vi\u00ean",
+  ADMIN: "Qu\u1ea3n tr\u1ecb",
+} as const satisfies Record<BaseRole, string>
+
+function getFeedRoleLabel(role: BaseRole) {
+  return FEED_ROLE_LABELS[role]
+}
 
 const EVENTS_DATA = [
   { month: "Th3", day: "15", title: "Hackathon TLU 2025", location: "Hội trường A1", time: "08:00" },
@@ -113,6 +124,7 @@ interface FeedPageClientProps {
     userId: string
     displayName: string
     avatarUrl: string | null
+    role: BaseRole
   } | null
   initialPosts: FeedPost[]
   initialCursor: FeedCursor
@@ -393,7 +405,7 @@ export function FeedPageClient({
                         {currentUser?.displayName ?? "Khách"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {currentUser ? "Thành viên" : "Đăng nhập để tham gia"}
+                        {currentUser ? getFeedRoleLabel(currentUser.role) : "Đăng nhập để tham gia"}
                       </p>
                     </div>
                   </div>

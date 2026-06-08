@@ -98,6 +98,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         userId: currentUser.userId,
         displayName: currentUser.displayName,
         avatarUrl: currentUser.avatarUrl,
+        role: currentUser.role,
       }
     : null
 
