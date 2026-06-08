@@ -100,13 +100,18 @@ function normalizeStatus(value: unknown): SchoolIdentityStatus | null {
 export function parseSchoolIdentityImportRows(
   rows: unknown[][],
   mode: SchoolIdentityImportMode,
+  options: { defaultRole?: Extract<UserRole, "STUDENT" | "LECTURER"> } = {},
 ) {
   const errors: SchoolIdentityImportError[] = []
   const records: SchoolIdentityImportInput[] = []
   const headerRow = rows[0] ?? []
   const headers = headerRow.map(canonicalHeader)
+  const requiredHeaders =
+    mode === "CREATE" && options.defaultRole
+      ? REQUIRED_HEADERS_BY_MODE.CREATE.filter((header) => header !== "role")
+      : REQUIRED_HEADERS_BY_MODE[mode]
 
-  for (const requiredHeader of REQUIRED_HEADERS_BY_MODE[mode]) {
+  for (const requiredHeader of requiredHeaders) {
     if (!headers.includes(requiredHeader)) {
       errors.push({
         rowNumber: 1,
@@ -127,7 +132,7 @@ export function parseSchoolIdentityImportRows(
     const rowNumber = rowIndex + 2
     if (row.every((value) => cellToString(value).length === 0)) continue
 
-    const role = normalizeRole(getValue(row, "role"))
+    const role = normalizeRole(getValue(row, "role")) ?? (mode === "CREATE" ? options.defaultRole ?? null : null)
     const status = normalizeStatus(getValue(row, "status"))
     const displayName = cellToString(getValue(row, "displayName"))
     const department = cellToString(getValue(row, "department"))

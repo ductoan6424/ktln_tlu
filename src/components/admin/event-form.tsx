@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
+import type { EventAdminSettings } from "@/lib/admin/settings/admin-settings-queries"
 import type { EventRegistrationStatus, EventStatus, EventType } from "@prisma/client"
 
 export type EventFormInitialValues = {
@@ -56,23 +57,26 @@ function formatDateTimeLocal(iso: string | null | undefined): string {
 
 interface EventFormProps {
   initialValues?: EventFormInitialValues
+  defaults?: EventAdminSettings
 }
 
-export function EventForm({ initialValues }: EventFormProps) {
+export function EventForm({ initialValues, defaults }: EventFormProps) {
   const { push, refresh } = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [activeAction, setActiveAction] = useState<"draft" | "publish" | null>(null)
   const [title, setTitle] = useState(initialValues?.title ?? "")
   const [description, setDescription] = useState(initialValues?.description ?? "")
-  const [type, setType] = useState<EventType>(initialValues?.type ?? "OTHER")
+  const [type, setType] = useState<EventType>(initialValues?.type ?? defaults?.defaultType ?? "OTHER")
   const [location, setLocation] = useState(initialValues?.location ?? "")
   const [organizerName, setOrganizerName] = useState(initialValues?.organizerName ?? "")
   const [startAt, setStartAt] = useState(() => formatDateTimeLocal(initialValues?.startAt))
   const [endAt, setEndAt] = useState(() => formatDateTimeLocal(initialValues?.endAt))
-  const [capacity, setCapacity] = useState(initialValues?.capacity?.toString() ?? "")
+  const [capacity, setCapacity] = useState(
+    initialValues?.capacity?.toString() ?? (defaults ? String(defaults.defaultCapacity) : ""),
+  )
   const [registrationStatus, setRegistrationStatus] = useState<EventRegistrationStatus>(
-    initialValues?.registrationStatus ?? "OPEN",
+    initialValues?.registrationStatus ?? defaults?.defaultRegistrationStatus ?? "OPEN",
   )
   const [featured, setFeatured] = useState(initialValues?.featured ?? false)
   const [coverImageUrl, setCoverImageUrl] = useState(initialValues?.coverImageUrl ?? "")
@@ -145,7 +149,11 @@ export function EventForm({ initialValues }: EventFormProps) {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => handleSubmit("draft")} disabled={isPending}>
+          <Button
+            variant={defaults?.defaultPublishMode === "published" && !isEditing ? "outline" : "default"}
+            onClick={() => handleSubmit("draft")}
+            disabled={isPending}
+          >
             {isPending && activeAction === "draft" ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
@@ -154,7 +162,11 @@ export function EventForm({ initialValues }: EventFormProps) {
             Lưu
           </Button>
           {!isEditing && (
-            <Button onClick={() => handleSubmit("publish")} disabled={isPending}>
+            <Button
+              variant={defaults?.defaultPublishMode === "published" ? "default" : "outline"}
+              onClick={() => handleSubmit("publish")}
+              disabled={isPending}
+            >
               {isPending && activeAction === "publish" ? (
                 <Loader2 className="mr-2 size-4 animate-spin" />
               ) : (

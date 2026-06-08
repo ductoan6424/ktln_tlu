@@ -1,3 +1,4 @@
+import { AdminUrlFilterBar } from "@/components/admin/module/admin-url-filter-bar"
 import { AdminListPageShell } from "@/components/admin/shells/admin-list-page-shell"
 import { isBaseRole } from "@/lib/auth/base-role"
 import {
@@ -20,5 +21,19 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
   const query = params.q?.trim() || undefined
   const usersModule = await getUsersAdminModule({ query, role, status })
 
-  return <AdminListPageShell module={usersModule} activeTab={status} query={query} />
+  return (
+    <AdminListPageShell
+      module={usersModule}
+      activeTab={status}
+      query={query}
+      filterBar={(
+        <AdminUrlFilterBar
+          activeTab={status}
+          query={query}
+          tabs={usersModule.tabs}
+          searchPlaceholder="Tìm kiếm người dùng..."
+        />
+      )}
+    />
+  )
 }
