@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const requireAdminPermission = vi.hoisted(() => vi.fn())
+const requireAdminAccess = vi.hoisted(() => vi.fn())
 const requireSystemAdmin = vi.hoisted(() => vi.fn())
 const requireUnitMembership = vi.hoisted(() => vi.fn())
 const validateAnnouncementTargetReferences = vi.hoisted(() => vi.fn())
@@ -58,6 +59,7 @@ const revalidatePath = vi.hoisted(() => vi.fn())
 
 vi.mock("next/cache", () => ({ revalidatePath }))
 vi.mock("@/lib/auth/authorization", () => ({
+  requireAdminAccess,
   requireAdminPermission,
   requireSystemAdmin,
 }))
@@ -151,6 +153,11 @@ function editableAnnouncement(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  requireAdminAccess.mockResolvedValue({
+    profile: { userId: "author-1" },
+    baseRole: "LECTURER",
+    permissionCodes: ["admin.access", "admin.announcements.approve.unit"],
+  })
   requireAdminPermission.mockResolvedValue({ profile: { userId: "author-1" } })
   requireSystemAdmin.mockResolvedValue({ profile: { userId: "admin-1" } })
   requireUnitMembership.mockResolvedValue({
@@ -646,9 +653,7 @@ describe("reviewAnnouncement", () => {
       success: true,
       data: { id: "ann-k38", status: "PENDING_ADMIN_REVIEW" },
     })
-    expect(requireAdminPermission).toHaveBeenCalledWith(
-      "admin.announcements.approve.unit",
-    )
+    expect(requireAdminAccess).toHaveBeenCalled()
     expect(tx.announcementApproval.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         announcementId: "ann-k38",
@@ -691,9 +696,10 @@ describe("reviewAnnouncement", () => {
   })
 
   it("lets a system admin complete unit review without unit approver membership", async () => {
-    requireAdminPermission.mockResolvedValueOnce({
+    requireAdminAccess.mockResolvedValueOnce({
       profile: { userId: "admin-1" },
       baseRole: "ADMIN",
+      permissionCodes: [],
     })
     tx.announcement.findUnique.mockResolvedValueOnce(
       pendingRevision("PENDING_UNIT_REVIEW"),
@@ -740,6 +746,11 @@ describe("reviewAnnouncement", () => {
   })
 
   it("does not allow admin approval when unit approval evidence is missing", async () => {
+    requireAdminAccess.mockResolvedValueOnce({
+      profile: { userId: "admin-1" },
+      baseRole: "ADMIN",
+      permissionCodes: [],
+    })
     const pendingAdmin = pendingRevision("PENDING_ADMIN_REVIEW")
     pendingAdmin.activeRevision.approvals = []
     tx.announcement.findUnique.mockResolvedValueOnce(pendingAdmin)

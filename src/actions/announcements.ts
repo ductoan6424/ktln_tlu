@@ -16,9 +16,9 @@ import {
 import { publishApprovedAnnouncement } from "@/lib/announcements/publication"
 import { requireUnitMembership } from "@/lib/announcements/units"
 import {
+  requireAdminAccess,
   requireAdminPermission,
   requireAuth,
-  requireSystemAdmin,
 } from "@/lib/auth/authorization"
 import {
   UploadValidationError,
@@ -638,6 +638,7 @@ export async function reviewAnnouncement(
   }
 
   try {
+    const reviewer = await requireAdminAccess()
     const status = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${buildAnnouncementMutationLockKey(parsed.data.announcementId)}))`
       const existing = await tx.announcement.findUnique({
@@ -682,14 +683,21 @@ export async function reviewAnnouncement(
       }
 
       let stage: "UNIT" | "ADMIN"
-      let reviewerId: string
+      const reviewerId = reviewer.profile.userId
       if (existing.status === "PENDING_UNIT_REVIEW") {
-        const reviewer = await requireAdminPermission(
-          "admin.announcements.approve.unit",
-        )
-        reviewerId = reviewer.profile.userId
         stage = "UNIT"
         if (reviewer.baseRole !== "ADMIN") {
+          if (
+            !reviewer.permissionCodes.includes(
+              "admin.announcements.approve.unit",
+            )
+          ) {
+            throw new AppError(
+              "Báº¡n khÃ´ng cÃ³ quyá»n thá»±c hiá»‡n hÃ nh Ä‘á»™ng nÃ y",
+              "FORBIDDEN",
+              403,
+            )
+          }
           const membership = await tx.announcementUnitMember.findFirst({
             where: {
               userId: reviewerId,
@@ -709,8 +717,13 @@ export async function reviewAnnouncement(
           }
         }
       } else if (existing.status === "PENDING_ADMIN_REVIEW") {
-        const reviewer = await requireSystemAdmin()
-        reviewerId = reviewer.profile.userId
+        if (reviewer.baseRole !== "ADMIN") {
+          throw new AppError(
+            "Báº¡n khÃ´ng cÃ³ quyá»n quáº£n trá»‹ há»‡ thá»‘ng",
+            "FORBIDDEN",
+            403,
+          )
+        }
         stage = "ADMIN"
         const unitApproved = existing.activeRevision.approvals.some(
           (approval) =>
