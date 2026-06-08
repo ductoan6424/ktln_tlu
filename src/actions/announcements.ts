@@ -6,7 +6,9 @@ import { z } from "zod"
 import { validateAnnouncementTargetReferences } from "@/lib/announcements/target-validation"
 import {
   deriveLegacyAudienceFromTargets,
+  matchesAnnouncementTargets,
   normalizeAnnouncementTargets,
+  type AnnouncementViewerContext,
 } from "@/lib/announcements/targeting"
 import {
   getRequiredApprovalStages,
@@ -178,6 +180,136 @@ function revalidateAnnouncementSurfaces() {
 
 function canManageAnyAnnouncementUnit(actor: { baseRole?: string }) {
   return actor.baseRole === "ADMIN"
+}
+
+async function getAnnouncementViewerContextForUser(
+  userId: string,
+): Promise<AnnouncementViewerContext | null> {
+  const profile = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: {
+      userId: true,
+      role: true,
+      facultyId: true,
+      year: true,
+      deletedAt: true,
+      courseMemberships: {
+        select: { courseId: true },
+      },
+      ownedCourses: {
+        where: { deletedAt: null },
+        select: { id: true },
+      },
+      clubMemberships: {
+        select: { clubId: true },
+      },
+      groupMemberships: {
+        select: { groupId: true },
+      },
+    },
+  })
+
+  if (!profile || profile.deletedAt) return null
+
+  return {
+    userId,
+    role: profile.role,
+    facultyId: profile.facultyId,
+    year: profile.year,
+    courseIds: Array.from(
+      new Set([
+        ...profile.courseMemberships.map((membership) => membership.courseId),
+        ...profile.ownedCourses.map((course) => course.id),
+      ]),
+    ),
+    clubIds: profile.clubMemberships.map((membership) => membership.clubId),
+    groupIds: profile.groupMemberships.map((membership) => membership.groupId),
+  }
+}
+
+async function ensurePublishedAnnouncementRecipientForViewer(
+  announcementId: string,
+  userId: string,
+  options: { requireAcknowledgement?: boolean } = {},
+) {
+  const [viewerContext, announcement] = await Promise.all([
+    getAnnouncementViewerContextForUser(userId),
+    prisma.announcement.findUnique({
+      where: { id: announcementId },
+      select: {
+        id: true,
+        status: true,
+        deletedAt: true,
+        expiresAt: true,
+        publishedAt: true,
+        publishedRevisionId: true,
+        requiresAcknowledgement: true,
+        audience: true,
+        targets: { select: { type: true, value: true } },
+        publishedRevision: {
+          select: {
+            id: true,
+            audience: true,
+            requiresAcknowledgement: true,
+            targets: { select: { type: true, value: true } },
+          },
+        },
+        recipients: {
+          where: { userId },
+          select: { userId: true },
+        },
+      },
+    }),
+  ])
+
+  if (
+    !viewerContext ||
+    !announcement ||
+    announcement.deletedAt ||
+    announcement.status !== "PUBLISHED" ||
+    !announcement.publishedRevisionId ||
+    !announcement.publishedRevision ||
+    (announcement.expiresAt && announcement.expiresAt <= new Date())
+  ) {
+    return false
+  }
+
+  if (
+    options.requireAcknowledgement &&
+    !(
+      announcement.publishedRevision.requiresAcknowledgement ||
+      announcement.requiresAcknowledgement
+    )
+  ) {
+    return false
+  }
+
+  if (announcement.recipients.length > 0) return true
+
+  if (
+    !matchesAnnouncementTargets(
+      viewerContext,
+      announcement.publishedRevision.targets ?? announcement.targets,
+      announcement.publishedRevision.audience ?? announcement.audience,
+    )
+  ) {
+    return false
+  }
+
+  await prisma.announcementRecipient.upsert({
+    where: {
+      announcementId_userId: { announcementId, userId },
+    },
+    create: {
+      announcementId,
+      revisionId: announcement.publishedRevision.id,
+      userId,
+      publishedAt: announcement.publishedAt ?? new Date(),
+    },
+    update: {},
+  })
+
+  return true
 }
 
 function actionFailure<T>(error: unknown, fallback: string): ActionResult<T> {
@@ -986,7 +1118,7 @@ export async function markAnnouncementSeen(
   try {
     const id = z.string().trim().min(1).parse(announcementId)
     const user = await requireAuth()
-    const updated = await prisma.announcementRecipient.updateMany({
+    let updated = await prisma.announcementRecipient.updateMany({
       where: {
         announcementId: id,
         userId: user.id,
@@ -997,6 +1129,26 @@ export async function markAnnouncementSeen(
       data: { seenAt: new Date() },
     })
     if (updated.count !== 1) {
+      const claimed = await ensurePublishedAnnouncementRecipientForViewer(
+        id,
+        user.id,
+      )
+      if (claimed) {
+        updated = await prisma.announcementRecipient.updateMany({
+          where: {
+            announcementId: id,
+            userId: user.id,
+            announcement: {
+              status: { in: ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] },
+            },
+          },
+          data: { seenAt: new Date() },
+        })
+      }
+      if (updated.count === 1) {
+        revalidatePath("/feed")
+        return successResult({ id })
+      }
       return errorResult("Không tìm thấy thông báo.", "NOT_FOUND")
     }
     revalidatePath("/feed")
@@ -1013,15 +1165,54 @@ export async function acknowledgeAnnouncement(
     const id = z.string().trim().min(1).parse(announcementId)
     const user = await requireAuth()
     const now = new Date()
-    const updated = await prisma.announcementRecipient.updateMany({
+    let updated = await prisma.announcementRecipient.updateMany({
       where: {
         announcementId: id,
         userId: user.id,
-        announcement: { status: "PUBLISHED", requiresAcknowledgement: true },
+        announcement: {
+          status: "PUBLISHED",
+          OR: [
+            { requiresAcknowledgement: true },
+            {
+              publishedRevision: {
+                is: { requiresAcknowledgement: true },
+              },
+            },
+          ],
+        },
       },
       data: { acknowledgedAt: now, seenAt: now },
     })
     if (updated.count !== 1) {
+      const claimed = await ensurePublishedAnnouncementRecipientForViewer(
+        id,
+        user.id,
+        { requireAcknowledgement: true },
+      )
+      if (claimed) {
+        updated = await prisma.announcementRecipient.updateMany({
+          where: {
+            announcementId: id,
+            userId: user.id,
+            announcement: {
+              status: "PUBLISHED",
+              OR: [
+                { requiresAcknowledgement: true },
+                {
+                  publishedRevision: {
+                    is: { requiresAcknowledgement: true },
+                  },
+                },
+              ],
+            },
+          },
+          data: { acknowledgedAt: now, seenAt: now },
+        })
+      }
+      if (updated.count === 1) {
+        revalidatePath("/feed")
+        return successResult({ id })
+      }
       return errorResult("Không tìm thấy thông báo.", "NOT_FOUND")
     }
     revalidatePath("/feed")

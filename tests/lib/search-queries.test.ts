@@ -153,8 +153,50 @@ describe("search queries", () => {
     })
 
     expect(results.map((result) => result.id)).toEqual(["ann-workflow"])
-    expect(queryRaw.mock.calls.at(-1)?.[0].strings.join(" ")).toContain(
+    expect(queryRaw.mock.calls.at(-1)?.[0].strings.join(" ")).not.toContain(
       "announcement_recipients",
     )
+  })
+
+  it("matches published workflow announcement search results by revision targets for new students", async () => {
+    queryRaw.mockResolvedValue([
+      {
+        id: "ann-workflow",
+        title: "Lá»‹ch thi K38",
+        subtitle: "TrÆ°á»ng Äáº¡i Há»c ThÄƒng Long",
+        href: "/feed?announcement=ann-workflow",
+        avatar_url: "/logo.svg",
+        excerpt: "Ná»™i dung",
+        exact_score: 0,
+        prefix_score: 0,
+        token_coverage: 1,
+        text_rank: 1,
+        similarity_score: 0,
+      },
+    ])
+    announcementFindMany.mockResolvedValue([
+      {
+        id: "ann-workflow",
+        publishedRevisionId: "rev-1",
+        audience: "ALL",
+        targets: [{ type: "FACULTY", value: "fac-khac" }],
+        publishedRevision: {
+          audience: "STUDENTS",
+          targets: [{ type: "COHORT", value: "38" }],
+        },
+        recipients: [],
+      },
+    ])
+
+    const results = await searchAnnouncements("lich thi", "STUDENT", { limit: 5 }, {
+      userId: "viewer-1",
+      facultyId: "fac-cntt",
+      year: 38,
+      courseIds: [],
+      clubIds: [],
+      groupIds: [],
+    })
+
+    expect(results.map((result) => result.id)).toEqual(["ann-workflow"])
   })
 })

@@ -342,15 +342,6 @@ export async function searchAnnouncements(
       AND deleted_at IS NULL
       AND (expires_at IS NULL OR expires_at > NOW())
       AND (
-        published_revision_id IS NULL
-        OR EXISTS (
-          SELECT 1
-          FROM announcement_recipients recipient
-          WHERE recipient.announcement_id = announcements.announcement_id
-            AND recipient.user_id = ${viewerId ?? ""}
-        )
-      )
-      AND (
         search_vector @@ plainto_tsquery('simple', ${query})
         OR search_text_normalized LIKE ${toContainsPattern(query)}
         OR (${query.length} >= 4 AND search_text_normalized % ${query})
@@ -369,6 +360,12 @@ export async function searchAnnouncements(
       publishedRevisionId: true,
       audience: true,
       targets: { select: { type: true, value: true } },
+      publishedRevision: {
+        select: {
+          audience: true,
+          targets: { select: { type: true, value: true } },
+        },
+      },
       recipients: {
         where: { userId: viewerId ?? "" },
         select: { userId: true },
@@ -390,10 +387,16 @@ export async function searchAnnouncements(
     .filter((row) => {
       const targetRow = targetsByAnnouncementId.get(row.id)
       if (!targetRow) return false
+      const hasRecipient = Boolean(
+        viewerId &&
+          targetRow.recipients.some((recipient) => recipient.userId === viewerId),
+      )
       if (targetRow.publishedRevisionId) {
-        return Boolean(
-          viewerId &&
-            targetRow.recipients.some((recipient) => recipient.userId === viewerId),
+        if (hasRecipient) return true
+        return matchesAnnouncementTargets(
+          viewerContext,
+          targetRow.publishedRevision?.targets ?? targetRow.targets,
+          targetRow.publishedRevision?.audience ?? targetRow.audience,
         )
       }
       return matchesAnnouncementTargets(

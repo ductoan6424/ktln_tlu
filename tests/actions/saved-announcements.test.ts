@@ -75,7 +75,7 @@ describe("saved announcements", () => {
     expect(prisma.savedAnnouncement.create).not.toHaveBeenCalled()
   })
 
-  it("allows saving a workflow notice only from frozen recipient membership", async () => {
+  it("allows saving a workflow notice from frozen recipient membership", async () => {
     prisma.announcement.findUnique.mockResolvedValue({
       id: "ann-workflow",
       deletedAt: null,
@@ -85,6 +85,31 @@ describe("saved announcements", () => {
       expiresAt: null,
       targets: [{ type: "FACULTY", value: "fac-khac" }],
       recipients: [{ userId: "u1" }],
+    })
+    prisma.savedAnnouncement.findUnique.mockResolvedValue(null)
+
+    const result = await toggleSaveAnnouncement("ann-workflow")
+
+    expect(result).toEqual({ success: true, data: { saved: true } })
+    expect(prisma.savedAnnouncement.create).toHaveBeenCalledWith({
+      data: { userId: "u1", announcementId: "ann-workflow" },
+    })
+  })
+
+  it("allows saving a published workflow notice when a new student matches the published revision targets", async () => {
+    prisma.announcement.findUnique.mockResolvedValue({
+      id: "ann-workflow",
+      deletedAt: null,
+      status: "PUBLISHED",
+      publishedRevisionId: "rev-1",
+      audience: "ALL",
+      expiresAt: null,
+      targets: [{ type: "FACULTY", value: "fac-khac" }],
+      publishedRevision: {
+        audience: "STUDENTS",
+        targets: [{ type: "COHORT", value: "38" }],
+      },
+      recipients: [],
     })
     prisma.savedAnnouncement.findUnique.mockResolvedValue(null)
 

@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const prisma = vi.hoisted(() => ({
-  announcement: { findUnique: vi.fn() },
+  announcement: { findMany: vi.fn(), findUnique: vi.fn() },
   faculty: { findMany: vi.fn() },
   course: { findMany: vi.fn() },
 }))
 
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 
-import { getVisibleAnnouncementForViewer } from "@/lib/announcements/queries"
+import {
+  getVisibleAnnouncementForViewer,
+  listActiveAnnouncementsForViewer,
+} from "@/lib/announcements/queries"
 
 const baseAnnouncement = {
   id: "ann-1",
@@ -138,6 +141,113 @@ describe("announcement queries", () => {
     })
     const hidden = await getVisibleAnnouncementForViewer("ann-1", "STUDENT", "u2")
     expect(hidden).toBeNull()
+  })
+
+  it("shows a published workflow notice to a newly created matching student without recipient snapshot", async () => {
+    prisma.announcement.findUnique.mockResolvedValue({
+      ...baseAnnouncement,
+      publishedRevisionId: "rev-1",
+      issuingUnit: { name: "Phong Dao tao" },
+      category: "ACADEMIC",
+      priority: "IMPORTANT",
+      actionDeadlineAt: null,
+      withdrawalReason: null,
+      publishedRevision: {
+        title: "Thong bao K38",
+        content: "Noi dung da phat hanh",
+        audience: "STUDENTS",
+        category: "ACADEMIC",
+        priority: "IMPORTANT",
+        requiresAcknowledgement: false,
+        actionDeadlineAt: null,
+        targets: [{ type: "COHORT", value: "38" }],
+        attachments: [],
+      },
+      recipients: [],
+      replacements: [],
+    })
+
+    const visible = await getVisibleAnnouncementForViewer("ann-1", "STUDENT", "u-new", {
+      facultyId: null,
+      year: 38,
+      courseIds: [],
+      clubIds: [],
+      groupIds: [],
+    })
+
+    expect(visible).toMatchObject({
+      id: "ann-1",
+      title: "Thong bao K38",
+      scopeLabels: ["K38"],
+    })
+  })
+
+  it("keeps a workflow notice hidden from a new student outside the published revision targets", async () => {
+    prisma.announcement.findUnique.mockResolvedValue({
+      ...baseAnnouncement,
+      publishedRevisionId: "rev-1",
+      publishedRevision: {
+        title: "Thong bao K38",
+        content: "Noi dung da phat hanh",
+        audience: "STUDENTS",
+        category: "ACADEMIC",
+        priority: "IMPORTANT",
+        requiresAcknowledgement: false,
+        actionDeadlineAt: null,
+        targets: [{ type: "COHORT", value: "38" }],
+        attachments: [],
+      },
+      recipients: [],
+      replacements: [],
+    })
+
+    const hidden = await getVisibleAnnouncementForViewer("ann-1", "STUDENT", "u-new", {
+      facultyId: null,
+      year: 37,
+      courseIds: [],
+      clubIds: [],
+      groupIds: [],
+    })
+
+    expect(hidden).toBeNull()
+  })
+
+  it("lists active workflow notices for new students by matching published revision targets", async () => {
+    prisma.announcement.findMany.mockResolvedValue([
+      {
+        ...baseAnnouncement,
+        publishedRevisionId: "rev-1",
+        issuingUnit: { name: "Phong Dao tao" },
+        category: "ACADEMIC",
+        priority: "IMPORTANT",
+        actionDeadlineAt: null,
+        withdrawalReason: null,
+        publishedRevision: {
+          title: "Thong bao K38",
+          content: "Noi dung da phat hanh",
+          audience: "STUDENTS",
+          category: "ACADEMIC",
+          priority: "IMPORTANT",
+          requiresAcknowledgement: false,
+          actionDeadlineAt: null,
+          targets: [{ type: "COHORT", value: "38" }],
+          attachments: [],
+        },
+        recipients: [],
+        replacements: [],
+      },
+    ])
+
+    const results = await listActiveAnnouncementsForViewer("STUDENT", 10, "u-new", {
+      facultyId: null,
+      year: 38,
+      courseIds: [],
+      clubIds: [],
+      groupIds: [],
+    })
+
+    expect(results.map((item) => item.id)).toEqual(["ann-1"])
+    expect(results[0]?.scopeLabels).toEqual(["K38"])
   })
 
   it("hides an expired active workflow notice even before scheduled expiry processing runs", async () => {

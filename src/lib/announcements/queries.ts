@@ -310,7 +310,6 @@ export async function listActiveAnnouncementsForViewer(
   )
   const visibilityFilters: Prisma.AnnouncementWhereInput[] = [
     {
-      publishedRevisionId: null,
       status: "PUBLISHED",
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
@@ -319,13 +318,7 @@ export async function listActiveAnnouncementsForViewer(
     visibilityFilters.push({
       publishedRevisionId: { not: null },
       recipients: { some: { userId: viewerId } },
-      OR: [
-        {
-          status: "PUBLISHED",
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        },
-        { status: { in: ["WITHDRAWN", "SUPERSEDED"] } },
-      ],
+      status: { in: ["WITHDRAWN", "SUPERSEDED"] },
     })
   }
 
@@ -381,17 +374,21 @@ export async function listActiveAnnouncementsForViewer(
 
   const visibleRows = rows
     .filter((row) => {
-      if (row.publishedRevisionId) {
-        return Boolean(
-          viewerId &&
-          row.recipients.length > 0 &&
-          (row.status !== "PUBLISHED" || !row.expiresAt || row.expiresAt > now),
-        )
+      const recipient = row.recipients?.[0]
+      if (row.status === "WITHDRAWN" || row.status === "SUPERSEDED") {
+        return Boolean(viewerId && recipient)
       }
-      return (
-        row.status === "PUBLISHED" &&
-        (!row.expiresAt || row.expiresAt > now) &&
-        matchesAnnouncementTargets(viewerContext, row.targets, row.audience)
+      if (row.status !== "PUBLISHED" || (row.expiresAt && row.expiresAt <= now)) {
+        return false
+      }
+      if (row.publishedRevisionId && recipient) {
+        return true
+      }
+      const revision = row.publishedRevision
+      return matchesAnnouncementTargets(
+        viewerContext,
+        revision?.targets ?? row.targets,
+        revision?.audience ?? row.audience,
       )
     })
     .slice(0, take)
@@ -499,30 +496,28 @@ export async function getVisibleAnnouncementForViewer(
   })
 
   if (!row || row.deletedAt) return null
-  if (row.publishedRevisionId) {
+  const recipient = row.recipients?.[0]
+  if (row.status === "WITHDRAWN" || row.status === "SUPERSEDED") {
+    if (!viewerId || !recipient) return null
+  } else if (row.status === "PUBLISHED") {
+    if (row.expiresAt && row.expiresAt <= new Date()) return null
     if (
-      (row.status !== "PUBLISHED" &&
-        row.status !== "WITHDRAWN" &&
-        row.status !== "SUPERSEDED") ||
-      !viewerId ||
-      row.recipients.length === 0 ||
-      (row.status === "PUBLISHED" &&
-        Boolean(row.expiresAt && row.expiresAt <= new Date()))
+      !(row.publishedRevisionId && recipient) &&
+      !matchesAnnouncementTargets(
+        viewerContext,
+        row.publishedRevision?.targets ?? row.targets,
+        row.publishedRevision?.audience ?? row.audience,
+      )
     ) {
       return null
     }
   } else {
-    if (row.status !== "PUBLISHED") return null
-    if (row.expiresAt && row.expiresAt <= new Date()) return null
-    if (!matchesAnnouncementTargets(viewerContext, row.targets, row.audience)) {
-      return null
-    }
+    return null
   }
 
   const revision = row.publishedRevision
   const labelMaps = await buildTargetLabelMaps(revision?.targets ?? row.targets)
   const targets = mapTargets(revision?.targets ?? row.targets, labelMaps)
-  const recipient = row.recipients?.[0]
 
   return {
     id: row.id,

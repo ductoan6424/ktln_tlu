@@ -32,6 +32,20 @@ type SavedAnnouncementTarget = {
   value: string
 }
 
+type SavedAnnouncementVisibilityInput = {
+  deletedAt?: Date | null
+  status?: string
+  expiresAt?: Date | null
+  publishedRevisionId?: string | null
+  recipients?: Array<{ userId: string }>
+  audience: "ALL" | "STUDENTS" | "FACULTY"
+  targets: SavedAnnouncementTarget[]
+  publishedRevision?: {
+    audience: "ALL" | "STUDENTS" | "FACULTY"
+    targets: SavedAnnouncementTarget[]
+  } | null
+}
+
 async function buildTargetLabelMaps(targets: SavedAnnouncementTarget[]) {
   const facultyIds = Array.from(
     new Set(targets.filter((target) => target.type === "FACULTY").map((target) => target.value)),
@@ -118,15 +132,7 @@ async function getViewerContext(userId: string): Promise<AnnouncementViewerConte
 }
 
 function isAnnouncementVisibleToViewer(
-  announcement: {
-    deletedAt?: Date | null
-    status?: string
-    expiresAt?: Date | null
-    publishedRevisionId?: string | null
-    recipients?: Array<{ userId: string }>
-    audience: "ALL" | "STUDENTS" | "FACULTY"
-    targets: Array<{ type: "ROLE" | "FACULTY" | "COHORT" | "COURSE" | "CLUB" | "GROUP" | "USER"; value: string }>
-  },
+  announcement: SavedAnnouncementVisibilityInput,
   viewerContext: AnnouncementViewerContext,
 ) {
   if (announcement.deletedAt) return false
@@ -145,11 +151,18 @@ function isAnnouncementVisibleToViewer(
     ) {
       return false
     }
-    return Boolean(
+    const hasRecipient = Boolean(
       viewerContext.userId &&
         announcement.recipients?.some(
           (recipient) => recipient.userId === viewerContext.userId,
         ),
+    )
+    if (hasRecipient) return true
+    if (announcement.status !== "PUBLISHED") return false
+    return matchesAnnouncementTargets(
+      viewerContext,
+      announcement.publishedRevision?.targets ?? announcement.targets,
+      announcement.publishedRevision?.audience ?? announcement.audience,
     )
   }
   if (announcement.status && announcement.status !== "PUBLISHED") return false
@@ -184,6 +197,12 @@ export async function toggleSaveAnnouncement(
       publishedRevisionId: true,
       audience: true,
       targets: { select: { type: true, value: true } },
+      publishedRevision: {
+        select: {
+          audience: true,
+          targets: { select: { type: true, value: true } },
+        },
+      },
       recipients: {
         where: { userId },
         select: { userId: true },

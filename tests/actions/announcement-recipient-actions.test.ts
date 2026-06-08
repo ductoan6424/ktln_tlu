@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const requireAuth = vi.hoisted(() => vi.fn())
+const requireAdminAccess = vi.hoisted(() => vi.fn())
 const requireAdminPermission = vi.hoisted(() => vi.fn())
 const tx = vi.hoisted(() => ({
   $executeRaw: vi.fn(),
@@ -16,10 +17,13 @@ const tx = vi.hoisted(() => ({
 }))
 const prisma = vi.hoisted(() => ({
   $transaction: vi.fn(),
-  announcementRecipient: { updateMany: vi.fn() },
+  announcement: { findUnique: vi.fn() },
+  announcementRecipient: { updateMany: vi.fn(), upsert: vi.fn() },
+  userProfile: { findUnique: vi.fn() },
 }))
 
 vi.mock("@/lib/auth/authorization", () => ({
+  requireAdminAccess,
   requireAuth,
   requireAdminPermission,
   requireSystemAdmin: vi.fn(),
@@ -37,7 +41,24 @@ import {
 beforeEach(() => {
   vi.clearAllMocks()
   requireAuth.mockResolvedValue({ id: "u1" })
+  requireAdminAccess.mockResolvedValue({
+    profile: { userId: "admin-1" },
+    baseRole: "ADMIN",
+    permissionCodes: ["admin.access"],
+  })
   requireAdminPermission.mockResolvedValue({ profile: { userId: "admin-1" }, baseRole: "ADMIN" })
+  prisma.announcement.findUnique.mockResolvedValue(null)
+  prisma.userProfile.findUnique.mockResolvedValue({
+    userId: "u1",
+    role: "STUDENT",
+    facultyId: "fac-cntt",
+    year: 38,
+    deletedAt: null,
+    courseMemberships: [],
+    ownedCourses: [],
+    clubMemberships: [],
+    groupMemberships: [],
+  })
   tx.$executeRaw.mockResolvedValue(1)
   tx.announcement.create.mockResolvedValue({ id: "ann-replacement" })
   prisma.$transaction.mockImplementation(
@@ -55,7 +76,17 @@ describe("recipient announcement evidence actions", () => {
       where: {
         announcementId: "ann-1",
         userId: "u1",
-        announcement: { status: "PUBLISHED", requiresAcknowledgement: true },
+        announcement: {
+          status: "PUBLISHED",
+          OR: [
+            { requiresAcknowledgement: true },
+            {
+              publishedRevision: {
+                is: { requiresAcknowledgement: true },
+              },
+            },
+          ],
+        },
       },
       data: {
         acknowledgedAt: expect.any(Date),
@@ -79,6 +110,116 @@ describe("recipient announcement evidence actions", () => {
       data: { seenAt: expect.any(Date) },
     })
     expect(result.success).toBe(true)
+  })
+
+  it("creates recipient evidence lazily when a new matching student opens a workflow notice", async () => {
+    prisma.announcementRecipient.updateMany
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 })
+    prisma.announcement.findUnique.mockResolvedValue({
+      id: "ann-1",
+      status: "PUBLISHED",
+      deletedAt: null,
+      expiresAt: null,
+      publishedAt: new Date("2026-06-01T08:00:00.000Z"),
+      publishedRevisionId: "rev-1",
+      requiresAcknowledgement: false,
+      audience: "ALL",
+      targets: [{ type: "FACULTY", value: "fac-khac" }],
+      publishedRevision: {
+        id: "rev-1",
+        audience: "STUDENTS",
+        requiresAcknowledgement: false,
+        targets: [{ type: "COHORT", value: "38" }],
+      },
+      recipients: [],
+    })
+
+    const result = await markAnnouncementSeen("ann-1")
+
+    expect(prisma.announcementRecipient.upsert).toHaveBeenCalledWith({
+      where: {
+        announcementId_userId: { announcementId: "ann-1", userId: "u1" },
+      },
+      create: {
+        announcementId: "ann-1",
+        revisionId: "rev-1",
+        userId: "u1",
+        publishedAt: new Date("2026-06-01T08:00:00.000Z"),
+      },
+      update: {},
+    })
+    expect(prisma.announcementRecipient.updateMany).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({ success: true, data: { id: "ann-1" } })
+  })
+
+  it("creates recipient evidence lazily when a new matching student acknowledges a workflow notice", async () => {
+    prisma.announcementRecipient.updateMany
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 })
+    prisma.announcement.findUnique.mockResolvedValue({
+      id: "ann-1",
+      status: "PUBLISHED",
+      deletedAt: null,
+      expiresAt: null,
+      publishedAt: new Date("2026-06-01T08:00:00.000Z"),
+      publishedRevisionId: "rev-1",
+      requiresAcknowledgement: false,
+      audience: "ALL",
+      targets: [],
+      publishedRevision: {
+        id: "rev-1",
+        audience: "STUDENTS",
+        requiresAcknowledgement: true,
+        targets: [{ type: "COHORT", value: "38" }],
+      },
+      recipients: [],
+    })
+
+    const result = await acknowledgeAnnouncement("ann-1")
+
+    expect(prisma.announcementRecipient.upsert).toHaveBeenCalledWith({
+      where: {
+        announcementId_userId: { announcementId: "ann-1", userId: "u1" },
+      },
+      create: {
+        announcementId: "ann-1",
+        revisionId: "rev-1",
+        userId: "u1",
+        publishedAt: new Date("2026-06-01T08:00:00.000Z"),
+      },
+      update: {},
+    })
+    expect(prisma.announcementRecipient.updateMany).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({ success: true, data: { id: "ann-1" } })
+  })
+
+  it("does not lazily create recipient evidence when the new student is outside workflow targets", async () => {
+    prisma.announcementRecipient.updateMany.mockResolvedValue({ count: 0 })
+    prisma.announcement.findUnique.mockResolvedValue({
+      id: "ann-1",
+      status: "PUBLISHED",
+      deletedAt: null,
+      expiresAt: null,
+      publishedAt: new Date("2026-06-01T08:00:00.000Z"),
+      publishedRevisionId: "rev-1",
+      requiresAcknowledgement: false,
+      audience: "ALL",
+      targets: [],
+      publishedRevision: {
+        id: "rev-1",
+        audience: "STUDENTS",
+        requiresAcknowledgement: false,
+        targets: [{ type: "COHORT", value: "37" }],
+      },
+      recipients: [],
+    })
+
+    const result = await markAnnouncementSeen("ann-1")
+
+    expect(prisma.announcementRecipient.upsert).not.toHaveBeenCalled()
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("NOT_FOUND")
   })
 })
 
