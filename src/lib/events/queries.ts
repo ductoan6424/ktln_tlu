@@ -3,6 +3,7 @@ import type {
   EventStatus,
   EventType,
 } from "@prisma/client"
+import type { Prisma } from "@prisma/client"
 
 import { unstableCache } from "@/lib/cache/unstable-cache"
 import { prisma } from "@/lib/prisma/client"
@@ -233,10 +234,27 @@ export async function listUpcomingEventsForSidebar(params: {
 
 export async function listAdminEvents(params: {
   now?: Date
+  query?: string
+  status?: EventStatus | "all"
 } = {}): Promise<AdminEventItem[]> {
   const now = params.now ?? new Date()
+  const query = params.query?.trim()
+  const where: Prisma.EventWhereInput = {
+    deletedAt: null,
+    ...(params.status && params.status !== "all" ? { status: params.status } : {}),
+  }
+
+  if (query) {
+    where.OR = [
+      { title: { contains: query, mode: "insensitive" } },
+      { description: { contains: query, mode: "insensitive" } },
+      { organizerName: { contains: query, mode: "insensitive" } },
+      { location: { contains: query, mode: "insensitive" } },
+    ]
+  }
+
   const rows = await prisma.event.findMany({
-    where: { deletedAt: null },
+    where,
     include: {
       _count: {
         select: {

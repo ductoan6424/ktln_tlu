@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import type { UserImportSettings } from "@/lib/admin/settings/admin-settings-queries"
 
 type PreviewState = {
   batchId: string
@@ -21,10 +22,16 @@ type PreviewState = {
   status: string
 } | null
 
-export function ImportUsersClient() {
+interface ImportUsersClientProps {
+  settings: UserImportSettings
+}
+
+export function ImportUsersClient({ settings }: ImportUsersClientProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<PreviewState>(null)
-  const [mode, setMode] = useState<"CREATE" | "UPDATE_EXISTING">("CREATE")
+  const [mode, setMode] = useState<"CREATE" | "UPDATE_EXISTING">(
+    settings.duplicateStrategy === "update" ? "UPDATE_EXISTING" : "CREATE",
+  )
   const [passwordCsv, setPasswordCsv] = useState("")
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
@@ -119,6 +126,7 @@ export function ImportUsersClient() {
         title="Import tài khoản trường"
         description="Upload CSV hoặc Excel để tạo tài khoản sinh viên, giảng viên và cán bộ. Mã tài khoản và mật khẩu được hệ thống tự sinh."
         secondaryActions={[
+          { label: "Cài đặt import", href: "/admin/users/settings", variant: "outline" },
           { label: "Quay lại người dùng", href: "/admin/users", variant: "outline" },
         ]}
       />
@@ -130,6 +138,11 @@ export function ImportUsersClient() {
             <p className="text-sm text-muted-foreground">
               Tạo mới cần <code>role</code>, <code>displayName</code>, <code>department</code>. Cập nhật cần thêm <code>code</code>. Cột tùy chọn: <code>status</code>, <code>className</code>, <code>cohort</code>, <code>jobTitle</code>.
             </p>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Badge variant="secondary">Tối đa {settings.maxRows.toLocaleString("vi-VN")} dòng</Badge>
+              <Badge variant="outline">Domain {settings.allowedEmailDomains[0]}</Badge>
+              <Badge variant="outline">Role mặc định {settings.defaultRole}</Badge>
+            </div>
           </div>
 
           <div className="flex gap-2">

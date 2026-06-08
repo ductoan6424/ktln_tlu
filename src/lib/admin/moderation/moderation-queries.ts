@@ -144,9 +144,26 @@ export async function getModerationOverview(now = new Date()): Promise<AdminStat
   ]
 }
 
-export async function listPendingModerationPosts(): Promise<PendingModerationPost[]> {
+export async function listPendingModerationPosts(query?: string): Promise<PendingModerationPost[]> {
+  const search = query?.trim()
   const posts = await prisma.post.findMany({
-    where: { communityStatus: "PENDING_APPROVAL", deletedAt: null },
+    where: {
+      communityStatus: "PENDING_APPROVAL",
+      deletedAt: null,
+      ...(search
+        ? {
+            OR: [
+              { content: { contains: search, mode: "insensitive" } },
+              { reviewReason: { contains: search, mode: "insensitive" } },
+              { author: { displayName: { contains: search, mode: "insensitive" } } },
+              { author: { email: { contains: search, mode: "insensitive" } } },
+              { group: { name: { contains: search, mode: "insensitive" } } },
+              { club: { name: { contains: search, mode: "insensitive" } } },
+              { course: { name: { contains: search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 50,
     select: {
@@ -171,9 +188,28 @@ export async function listPendingModerationPosts(): Promise<PendingModerationPos
   }))
 }
 
-async function mapReports(statusWhere: object): Promise<ModerationReportItem[]> {
+async function mapReports(
+  statusWhere: Prisma.CommunityReportWhereInput,
+  query?: string,
+): Promise<ModerationReportItem[]> {
+  const search = query?.trim()
   const reports = await prisma.communityReport.findMany({
-    where: statusWhere,
+    where: search
+      ? {
+          AND: [
+            statusWhere,
+            {
+              OR: [
+                { reason: { contains: search, mode: "insensitive" } },
+                { note: { contains: search, mode: "insensitive" } },
+                { resolution: { contains: search, mode: "insensitive" } },
+                { reporter: { displayName: { contains: search, mode: "insensitive" } } },
+                { reporter: { email: { contains: search, mode: "insensitive" } } },
+              ],
+            },
+          ],
+        }
+      : statusWhere,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 50,
     include: {
@@ -213,7 +249,7 @@ async function mapReports(statusWhere: object): Promise<ModerationReportItem[]> 
   const postsById = new Map(posts.map((post: ReportContentInput) => [post.id, post]))
   const commentsById = new Map(comments.map((comment: ReportContentInput) => [comment.id, comment]))
 
-  return reports.map((report) => {
+  const mapped = reports.map((report) => {
     const content =
       report.contentType === "POST"
         ? postsById.get(report.contentId)
@@ -236,17 +272,34 @@ async function mapReports(statusWhere: object): Promise<ModerationReportItem[]> 
       content: content ? excerpt(content.content) : null,
     }
   })
+
+  if (!search) return mapped
+  const normalized = search.toLowerCase()
+  return mapped.filter((report) =>
+    [
+      report.reason,
+      report.note,
+      report.resolution,
+      report.reporter.name,
+      report.reporter.email,
+      report.reportedAuthor?.name,
+      report.reportedAuthor?.email,
+      report.content,
+      report.targetType,
+      report.contentType,
+    ].some((value) => value?.toLowerCase().includes(normalized)),
+  )
 }
 
-export function listOpenCommunityReports(): Promise<ModerationReportItem[]> {
-  return mapReports({ status: "OPEN" })
+export function listOpenCommunityReports(query?: string): Promise<ModerationReportItem[]> {
+  return mapReports({ status: "OPEN" }, query)
 }
 
-export function listResolvedCommunityReports(): Promise<ModerationReportItem[]> {
-  return mapReports({ status: { in: ["RESOLVED", "DISMISSED"] } })
+export function listResolvedCommunityReports(query?: string): Promise<ModerationReportItem[]> {
+  return mapReports({ status: { in: ["RESOLVED", "DISMISSED"] } }, query)
 }
 
-export async function listModerationHistory(): Promise<ModerationHistoryItem[]> {
+export async function listModerationHistory(query?: string): Promise<ModerationHistoryItem[]> {
   const [communityLogs, postLogs, accountLogs] = await Promise.all([
     prisma.communityModerationLog.findMany({
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -294,7 +347,16 @@ export async function listModerationHistory(): Promise<ModerationHistoryItem[]> 
     })),
   ]
 
-  return history
+  const normalized = query?.trim().toLowerCase()
+  const filteredHistory = normalized
+    ? history.filter((item) =>
+        [item.action, item.subject, item.actorName, item.reason, item.source].some((value) =>
+          value?.toLowerCase().includes(normalized),
+        ),
+      )
+    : history
+
+  return filteredHistory
     .sort((left, right) => {
       const timeDiff = Date.parse(right.createdAt) - Date.parse(left.createdAt)
       if (timeDiff !== 0) return timeDiff
