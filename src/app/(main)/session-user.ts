@@ -2,6 +2,7 @@ export interface SessionUser {
   name: string
   subtitle?: string
   avatarSrc?: string
+  canAccessAdmin?: boolean
 }
 
 type AuthUserLike = {
@@ -22,7 +23,8 @@ type ProfileLike = {
 
 export function buildSessionUser(
   authUser: AuthUserLike,
-  profile: ProfileLike
+  profile: ProfileLike,
+  options?: { canAccessAdmin?: boolean },
 ): SessionUser | undefined {
   if (!authUser) {
     return undefined
@@ -45,5 +47,6 @@ export function buildSessionUser(
       profile?.avatarUrl
       ?? authUser.user_metadata?.avatar_url
       ?? undefined,
+    canAccessAdmin: options?.canAccessAdmin,
   }
 }
