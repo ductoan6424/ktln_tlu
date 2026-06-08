@@ -29,6 +29,7 @@ import {
   LogOut,
   Search,
   Settings,
+  ShieldCheck,
   Users,
   UsersRound,
   X,
@@ -50,6 +51,7 @@ interface TopNavbarProps {
     name: string
     subtitle?: string
     avatarSrc?: string
+    canAccessAdmin?: boolean
   }
   notificationCount?: number
   messageCount?: number
@@ -177,6 +179,22 @@ export function TopNavbar({
                 </div>
 
                 <DropdownMenuSeparator />
+
+                {user.canAccessAdmin && (
+                  <>
+                    <DropdownMenuItem>
+                      <Link
+                        href="/admin"
+                        className="flex items-center gap-2 w-full"
+                      >
+                        <ShieldCheck className="size-4" />
+                        Bảng điều khiển quản trị
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                  </>
+                )}
 
                 <DropdownMenuItem>
                   <Link
