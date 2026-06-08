@@ -4,6 +4,7 @@ import { AppearanceProvider } from "@/components/layout/appearance-provider"
 import { ChatDock } from "@/components/layout/chat-dock"
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
 import { TopNavbar } from "@/components/layout/top-navbar"
+import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import type { ModuleFlagKey } from "@/lib/config/system-settings"
 import { getModuleFlags } from "@/lib/settings/queries"
@@ -51,9 +52,15 @@ export default async function MainLayout({
     redirect("/complete-contact-email")
   }
 
+  const authorizationContext = userContext.profile
+    ? await getAuthorizationContext().catch(() => null)
+    : null
+  const canAccessAdmin =
+    authorizationContext?.isAdmin ?? userContext.profile?.role === "ADMIN"
   const sessionUser = buildSessionUser(
     userContext.authUser,
     userContext.profile,
+    { canAccessAdmin },
   )
   const visibleNavItems = filterNavItemsByFlags(MAIN_NAV_ITEMS, moduleFlags)
   const appearanceSettings = userContext.settings
