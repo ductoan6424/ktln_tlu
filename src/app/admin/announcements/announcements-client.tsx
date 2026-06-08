@@ -86,6 +86,20 @@ function toFormValues(item: AnnouncementDto): AnnouncementFormInitialValues {
   }
 }
 
+export function canReviewAnnouncementItem(
+  item: Pick<AnnouncementDto, "status" | "issuingUnit">,
+  options: { approverUnitIds: string[]; isSystemAdmin: boolean },
+) {
+  if (item.status === "PENDING_ADMIN_REVIEW") return options.isSystemAdmin
+  if (item.status !== "PENDING_UNIT_REVIEW") return false
+  return (
+    options.isSystemAdmin ||
+    Boolean(
+      item.issuingUnit && options.approverUnitIds.includes(item.issuingUnit.id),
+    )
+  )
+}
+
 export default function AnnouncementsClient({
   initialItems,
   initialTotal,
@@ -104,7 +118,9 @@ export default function AnnouncementsClient({
   const [draftPreview, setDraftPreview] =
     useState<AnnouncementFormInitialValues | null>(null)
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
-  const [withdrawTarget, setWithdrawTarget] = useState<AnnouncementDto | null>(null)
+  const [withdrawTarget, setWithdrawTarget] = useState<AnnouncementDto | null>(
+    null,
+  )
   const [withdrawReason, setWithdrawReason] = useState("")
 
   const filteredItems = useMemo(() => {
@@ -115,11 +131,7 @@ export default function AnnouncementsClient({
     initialItems.find((item) => item.id === selectedReviewId) ?? null
 
   function canReview(item: AnnouncementDto) {
-    if (item.status === "PENDING_ADMIN_REVIEW") return isSystemAdmin
-    return (
-      item.status === "PENDING_UNIT_REVIEW" &&
-      Boolean(item.issuingUnit && approverUnitIds.includes(item.issuingUnit.id))
-    )
+    return canReviewAnnouncementItem(item, { approverUnitIds, isSystemAdmin })
   }
 
   function handleEdit(item: AnnouncementDto) {
@@ -173,13 +185,17 @@ export default function AnnouncementsClient({
     if (!withdrawReason.trim()) {
       toast({
         title: "Cần nhập lý do thu hồi",
-        description: "Lý do được lưu trong nhật ký kiểm toán và hiển thị cho người nhận.",
+        description:
+          "Lý do được lưu trong nhật ký kiểm toán và hiển thị cho người nhận.",
         variant: "destructive",
       })
       return
     }
     startTransition(async () => {
-      const result = await withdrawAnnouncement(withdrawTarget.id, withdrawReason)
+      const result = await withdrawAnnouncement(
+        withdrawTarget.id,
+        withdrawReason,
+      )
       if (!result.success) {
         toast({
           title: "Không thể thu hồi",
@@ -211,7 +227,8 @@ export default function AnnouncementsClient({
       }
       toast({
         title: "Đã tạo bản nháp thay thế",
-        description: "Bản thay thế phải đi qua quy trình duyệt trước khi phát hành.",
+        description:
+          "Bản thay thế phải đi qua quy trình duyệt trước khi phát hành.",
       })
       setQueueTab("DRAFT")
       router.refresh()
@@ -294,21 +311,31 @@ export default function AnnouncementsClient({
                         Thu hồi: {withdrawTarget.title}
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        Bản ghi người nhận sẽ được giữ lại làm bằng chứng giao nhận.
+                        Bản ghi người nhận sẽ được giữ lại làm bằng chứng giao
+                        nhận.
                       </p>
                     </div>
-                    <label htmlFor="announcement-withdrawal-reason" className="text-sm font-medium">
+                    <label
+                      htmlFor="announcement-withdrawal-reason"
+                      className="text-sm font-medium"
+                    >
                       Lý do thu hồi
                     </label>
                     <Textarea
                       id="announcement-withdrawal-reason"
                       value={withdrawReason}
-                      onChange={(event) => setWithdrawReason(event.target.value)}
+                      onChange={(event) =>
+                        setWithdrawReason(event.target.value)
+                      }
                       placeholder="Nhập lý do để thông báo rõ cho người nhận"
                       maxLength={1000}
                     />
                     <div className="flex gap-2">
-                      <Button type="button" disabled={isPending} onClick={handleWithdraw}>
+                      <Button
+                        type="button"
+                        disabled={isPending}
+                        onClick={handleWithdraw}
+                      >
                         Xác nhận thu hồi
                       </Button>
                       <Button

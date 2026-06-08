@@ -384,8 +384,8 @@ export async function listActiveAnnouncementsForViewer(
       if (row.publishedRevisionId) {
         return Boolean(
           viewerId &&
-            row.recipients.length > 0 &&
-            (row.status !== "PUBLISHED" || !row.expiresAt || row.expiresAt > now),
+          row.recipients.length > 0 &&
+          (row.status !== "PUBLISHED" || !row.expiresAt || row.expiresAt > now),
         )
       }
       return (
@@ -914,6 +914,7 @@ export async function listAnnouncementWorkQueue(params: {
       status === "PENDING_ADMIN_REVIEW",
   )
   const filters: Array<Record<string, unknown>> = []
+  const isSystemAdmin = viewer?.role === "ADMIN"
 
   if (authorStatuses.length > 0) {
     filters.push({
@@ -921,13 +922,17 @@ export async function listAnnouncementWorkQueue(params: {
       status: { in: authorStatuses },
     })
   }
-  if (unitStatuses.length > 0 && approverMemberships.length > 0) {
+  if (unitStatuses.length > 0 && isSystemAdmin) {
+    filters.push({
+      status: { in: unitStatuses },
+    })
+  } else if (unitStatuses.length > 0 && approverMemberships.length > 0) {
     filters.push({
       issuingUnitId: { in: approverMemberships.map(({ unitId }) => unitId) },
       status: { in: unitStatuses },
     })
   }
-  if (adminStatuses.length > 0 && viewer?.role === "ADMIN") {
+  if (adminStatuses.length > 0 && isSystemAdmin) {
     filters.push({ status: { in: adminStatuses } })
   }
 

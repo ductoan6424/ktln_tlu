@@ -65,8 +65,12 @@ vi.mock("@/lib/announcements/units", () => ({ requireUnitMembership }))
 vi.mock("@/lib/announcements/target-validation", () => ({
   validateAnnouncementTargetReferences,
 }))
-vi.mock("@/lib/announcements/fanout", () => ({ fanoutAnnouncementNotification }))
-vi.mock("@/lib/announcements/publication", () => ({ publishApprovedAnnouncement }))
+vi.mock("@/lib/announcements/fanout", () => ({
+  fanoutAnnouncementNotification,
+}))
+vi.mock("@/lib/announcements/publication", () => ({
+  publishApprovedAnnouncement,
+}))
 vi.mock("@/lib/cloudinary/upload", () => ({
   UploadValidationError: class UploadValidationError extends Error {},
   uploadAnnouncementAttachment,
@@ -149,7 +153,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   requireAdminPermission.mockResolvedValue({ profile: { userId: "author-1" } })
   requireSystemAdmin.mockResolvedValue({ profile: { userId: "admin-1" } })
-  requireUnitMembership.mockResolvedValue({ unitId: "unit-pdt", role: "AUTHOR" })
+  requireUnitMembership.mockResolvedValue({
+    unitId: "unit-pdt",
+    role: "AUTHOR",
+  })
   validateAnnouncementTargetReferences.mockResolvedValue(null)
   uploadAnnouncementAttachment.mockResolvedValue({
     url: "https://cdn.example.com/notice.pdf",
@@ -167,7 +174,10 @@ beforeEach(() => {
   tx.announcementRevision.create.mockResolvedValue({ id: "rev-1" })
   tx.course.findMany.mockResolvedValue([])
   prisma.announcement.findUnique.mockResolvedValue(editableAnnouncement())
-  prisma.announcement.create.mockResolvedValue({ id: "ann-1", status: "DRAFT" })
+  prisma.announcement.create.mockResolvedValue({
+    id: "ann-1",
+    status: "DRAFT",
+  })
   prisma.announcement.update.mockResolvedValue({ id: "ann-1" })
   prisma.$transaction.mockImplementation(
     async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
@@ -176,7 +186,9 @@ beforeEach(() => {
 
 describe("createAnnouncement", () => {
   it("creates only an editable draft with uploaded and linked attachments", async () => {
-    const file = new File(["notice"], "notice.pdf", { type: "application/pdf" })
+    const file = new File(["notice"], "notice.pdf", {
+      type: "application/pdf",
+    })
 
     const result = await createAnnouncement({
       ...validDraftInput,
@@ -187,7 +199,9 @@ describe("createAnnouncement", () => {
       success: true,
       data: { id: "ann-1", status: "DRAFT" },
     })
-    expect(requireAdminPermission).toHaveBeenCalledWith("admin.announcements.compose")
+    expect(requireAdminPermission).toHaveBeenCalledWith(
+      "admin.announcements.compose",
+    )
     expect(requireUnitMembership).toHaveBeenCalledWith(
       "author-1",
       "unit-pdt",
@@ -325,7 +339,10 @@ describe("updateAnnouncement", () => {
       where: { announcementId: "ann-1" },
     })
     expect(tx.announcementAuditEvent.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ action: "DRAFT_UPDATED", announcementId: "ann-1" }),
+      data: expect.objectContaining({
+        action: "DRAFT_UPDATED",
+        announcementId: "ann-1",
+      }),
     })
   })
 
@@ -395,7 +412,10 @@ describe("updateAnnouncement", () => {
       editableAnnouncement({ status: "PENDING_UNIT_REVIEW" }),
     )
 
-    const result = await updateAnnouncement({ ...validDraftInput, id: "ann-1" })
+    const result = await updateAnnouncement({
+      ...validDraftInput,
+      id: "ann-1",
+    })
 
     expect(result.success).toBe(false)
     expect(result.code).toBe("INVALID_STATUS")
@@ -511,7 +531,10 @@ describe("publishAnnouncement controlled publication", () => {
 
     const result = await publishAnnouncement("ann-1")
 
-    expect(publishApprovedAnnouncement).toHaveBeenCalledWith("ann-1", "author-1")
+    expect(publishApprovedAnnouncement).toHaveBeenCalledWith(
+      "ann-1",
+      "author-1",
+    )
     expect(result).toEqual({
       success: true,
       data: { id: "ann-1", status: "PUBLISHED", recipients: 2 },
@@ -579,7 +602,9 @@ describe("publishAnnouncement controlled publication", () => {
 })
 
 describe("reviewAnnouncement", () => {
-  function pendingRevision(status: "PENDING_UNIT_REVIEW" | "PENDING_ADMIN_REVIEW") {
+  function pendingRevision(
+    status: "PENDING_UNIT_REVIEW" | "PENDING_ADMIN_REVIEW",
+  ) {
     return {
       id: "ann-k38",
       status,
@@ -596,7 +621,9 @@ describe("reviewAnnouncement", () => {
       activeRevision: {
         id: "rev-k38",
         targets: [{ type: "COHORT", value: "38" }],
-        auditEvents: [] as Array<{ metadata: { requiresAdminApproval: boolean } }>,
+        auditEvents: [] as Array<{
+          metadata: { requiresAdminApproval: boolean }
+        }>,
         approvals:
           status === "PENDING_ADMIN_REVIEW"
             ? [{ stage: "UNIT", decision: "APPROVED" }]
@@ -663,6 +690,27 @@ describe("reviewAnnouncement", () => {
     })
   })
 
+  it("lets a system admin complete unit review without unit approver membership", async () => {
+    requireAdminPermission.mockResolvedValueOnce({
+      profile: { userId: "admin-1" },
+      baseRole: "ADMIN",
+    })
+    tx.announcement.findUnique.mockResolvedValueOnce(
+      pendingRevision("PENDING_UNIT_REVIEW"),
+    )
+
+    const result = await reviewAnnouncement({
+      announcementId: "ann-k38",
+      decision: "APPROVED",
+    })
+
+    expect(result).toEqual({
+      success: true,
+      data: { id: "ann-k38", status: "PENDING_ADMIN_REVIEW" },
+    })
+    expect(tx.announcementUnitMember.findFirst).not.toHaveBeenCalled()
+  })
+
   it("uses the approval route frozen at submission even if current scope data now appears local", async () => {
     const submittedBroad = pendingRevision("PENDING_UNIT_REVIEW")
     submittedBroad.issuingUnit = {
@@ -672,7 +720,9 @@ describe("reviewAnnouncement", () => {
       clubId: null,
       groupId: null,
     }
-    submittedBroad.activeRevision.targets = [{ type: "FACULTY", value: "faculty-it" }]
+    submittedBroad.activeRevision.targets = [
+      { type: "FACULTY", value: "faculty-it" },
+    ]
     submittedBroad.activeRevision.auditEvents = [
       { metadata: { requiresAdminApproval: true } },
     ]

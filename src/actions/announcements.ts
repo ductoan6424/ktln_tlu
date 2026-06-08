@@ -29,7 +29,10 @@ import { AppError } from "@/lib/errors"
 import { prisma } from "@/lib/prisma/client"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
-import { announcementDecisionSchema, announcementInputSchema } from "@/utils/validators"
+import {
+  announcementDecisionSchema,
+  announcementInputSchema,
+} from "@/utils/validators"
 
 type DraftInput = z.infer<typeof announcementInputSchema>
 
@@ -42,7 +45,9 @@ type DraftAttachmentInput = {
   sizeBytes: number | null
 }
 
-function parseArrayFromFormData(rawValue: FormDataEntryValue | null): unknown[] {
+function parseArrayFromFormData(
+  rawValue: FormDataEntryValue | null,
+): unknown[] {
   if (typeof rawValue !== "string" || rawValue.trim().length === 0) return []
   try {
     const parsed = JSON.parse(rawValue) as unknown
@@ -70,15 +75,21 @@ function normalizeDraftInput(rawInput: unknown) {
         priority: String(rawInput.get("priority") ?? "").trim() || undefined,
         audience: String(rawInput.get("audience") ?? "").trim() || undefined,
         targets: parseArrayFromFormData(rawInput.get("targets")),
-        pinToTop: rawInput.get("pinToTop") === "true" || rawInput.get("pinToTop") === "on",
-        sendEmail: rawInput.get("sendEmail") === "true" || rawInput.get("sendEmail") === "on",
+        pinToTop:
+          rawInput.get("pinToTop") === "true" ||
+          rawInput.get("pinToTop") === "on",
+        sendEmail:
+          rawInput.get("sendEmail") === "true" ||
+          rawInput.get("sendEmail") === "on",
         requiresAcknowledgement:
           rawInput.get("requiresAcknowledgement") === "true" ||
           rawInput.get("requiresAcknowledgement") === "on",
         scheduledAt: String(rawInput.get("scheduledAt") ?? "").trim(),
         actionDeadlineAt: String(rawInput.get("actionDeadlineAt") ?? "").trim(),
         expiresAt: String(rawInput.get("expiresAt") ?? "").trim(),
-        retainedAttachmentIds: parseArrayFromFormData(rawInput.get("retainedAttachmentIds")),
+        retainedAttachmentIds: parseArrayFromFormData(
+          rawInput.get("retainedAttachmentIds"),
+        ),
         links: parseArrayFromFormData(rawInput.get("links")),
       },
       attachments: extractFiles(rawInput.getAll("attachments")),
@@ -215,13 +226,17 @@ export async function createAnnouncement(
     }
 
     const targets = toTargetCreateManyData(validated.data.targets)
-    const targetValidationError = await validateAnnouncementTargetReferences(targets)
+    const targetValidationError =
+      await validateAnnouncementTargetReferences(targets)
     if (targetValidationError) {
       return errorResult(targetValidationError, "VALIDATION_ERROR")
     }
 
     const uploaded = await uploadDraftFiles(normalized.attachments)
-    const attachments = buildDraftAttachmentInputs(uploaded, validated.data.links)
+    const attachments = buildDraftAttachmentInputs(
+      uploaded,
+      validated.data.links,
+    )
     const fallbackAudience =
       targets.length > 0
         ? deriveLegacyAudienceFromTargets(targets)
@@ -303,13 +318,17 @@ export async function updateAnnouncement(
     }
 
     const targets = toTargetCreateManyData(parsed.data.targets)
-    const targetValidationError = await validateAnnouncementTargetReferences(targets)
+    const targetValidationError =
+      await validateAnnouncementTargetReferences(targets)
     if (targetValidationError) {
       return errorResult(targetValidationError, "VALIDATION_ERROR")
     }
 
     const uploaded = await uploadDraftFiles(normalized.attachments)
-    const submittedAttachments = buildDraftAttachmentInputs(uploaded, parsed.data.links)
+    const submittedAttachments = buildDraftAttachmentInputs(
+      uploaded,
+      parsed.data.links,
+    )
     const fallbackAudience =
       targets.length > 0
         ? deriveLegacyAudienceFromTargets(targets)
@@ -608,7 +627,9 @@ export async function submitAnnouncementForReview(
 export async function reviewAnnouncement(
   rawInput: unknown,
 ): Promise<ActionResult<{ id: string; status: string }>> {
-  const parsed = announcementDecisionSchema.safeParse(normalizeReviewInput(rawInput))
+  const parsed = announcementDecisionSchema.safeParse(
+    normalizeReviewInput(rawInput),
+  )
   if (!parsed.success) {
     return errorResult(
       parsed.error.issues[0]?.message ?? "Dữ liệu duyệt không hợp lệ",
@@ -653,38 +674,47 @@ export async function reviewAnnouncement(
         !existing.activeRevisionId ||
         !existing.activeRevision
       ) {
-        throw new AppError("Thông báo hoặc phiên bản duyệt không tồn tại.", "NOT_FOUND", 404)
+        throw new AppError(
+          "Thông báo hoặc phiên bản duyệt không tồn tại.",
+          "NOT_FOUND",
+          404,
+        )
       }
 
       let stage: "UNIT" | "ADMIN"
       let reviewerId: string
       if (existing.status === "PENDING_UNIT_REVIEW") {
-        const reviewer = await requireAdminPermission("admin.announcements.approve.unit")
+        const reviewer = await requireAdminPermission(
+          "admin.announcements.approve.unit",
+        )
         reviewerId = reviewer.profile.userId
         stage = "UNIT"
-        const membership = await tx.announcementUnitMember.findFirst({
-          where: {
-            userId: reviewerId,
-            unitId: existing.issuingUnit.id,
-            role: "APPROVER",
-            isActive: true,
-            unit: { isActive: true },
-          },
-          select: { unitId: true },
-        })
-        if (!membership) {
-          throw new AppError(
-            "Bạn không có thẩm quyền duyệt cho đơn vị ban hành này.",
-            "FORBIDDEN",
-            403,
-          )
+        if (reviewer.baseRole !== "ADMIN") {
+          const membership = await tx.announcementUnitMember.findFirst({
+            where: {
+              userId: reviewerId,
+              unitId: existing.issuingUnit.id,
+              role: "APPROVER",
+              isActive: true,
+              unit: { isActive: true },
+            },
+            select: { unitId: true },
+          })
+          if (!membership) {
+            throw new AppError(
+              "Bạn không có thẩm quyền duyệt cho đơn vị ban hành này.",
+              "FORBIDDEN",
+              403,
+            )
+          }
         }
       } else if (existing.status === "PENDING_ADMIN_REVIEW") {
         const reviewer = await requireSystemAdmin()
         reviewerId = reviewer.profile.userId
         stage = "ADMIN"
         const unitApproved = existing.activeRevision.approvals.some(
-          (approval) => approval.stage === "UNIT" && approval.decision === "APPROVED",
+          (approval) =>
+            approval.stage === "UNIT" && approval.decision === "APPROVED",
         )
         if (!unitApproved) {
           throw new AppError(
@@ -694,16 +724,27 @@ export async function reviewAnnouncement(
           )
         }
       } else {
-        throw new AppError("Thông báo không ở trạng thái chờ duyệt.", "INVALID_STATUS", 409)
+        throw new AppError(
+          "Thông báo không ở trạng thái chờ duyệt.",
+          "INVALID_STATUS",
+          409,
+        )
       }
 
       if (
-        existing.activeRevision.approvals.some((approval) => approval.stage === stage)
+        existing.activeRevision.approvals.some(
+          (approval) => approval.stage === stage,
+        )
       ) {
-        throw new AppError("Cấp duyệt này đã có quyết định.", "ALREADY_REVIEWED", 409)
+        throw new AppError(
+          "Cấp duyệt này đã có quyết định.",
+          "ALREADY_REVIEWED",
+          409,
+        )
       }
 
-      const submissionMetadata = existing.activeRevision.auditEvents[0]?.metadata
+      const submissionMetadata =
+        existing.activeRevision.auditEvents[0]?.metadata
       const frozenRequiresAdminApproval =
         submissionMetadata &&
         typeof submissionMetadata === "object" &&
@@ -742,19 +783,38 @@ export async function reviewAnnouncement(
       }
 
       if (stage === "ADMIN" && !stages.includes("ADMIN")) {
-        throw new AppError("Thông báo không cần duyệt cấp trường.", "INVALID_APPROVAL_ROUTE", 409)
+        throw new AppError(
+          "Thông báo không cần duyệt cấp trường.",
+          "INVALID_APPROVAL_ROUTE",
+          409,
+        )
       }
 
-      let nextStatus: "PENDING_ADMIN_REVIEW" | "APPROVED" | "CHANGES_REQUESTED" | "REJECTED"
+      let nextStatus:
+        | "PENDING_ADMIN_REVIEW"
+        | "APPROVED"
+        | "CHANGES_REQUESTED"
+        | "REJECTED"
       if (parsed.data.decision === "APPROVED") {
         try {
-          const approvedStatus = nextStatusAfterApproval(stages, stage, existing.status)
-          if (approvedStatus !== "PENDING_ADMIN_REVIEW" && approvedStatus !== "APPROVED") {
+          const approvedStatus = nextStatusAfterApproval(
+            stages,
+            stage,
+            existing.status,
+          )
+          if (
+            approvedStatus !== "PENDING_ADMIN_REVIEW" &&
+            approvedStatus !== "APPROVED"
+          ) {
             throw new Error("Invalid approved status")
           }
           nextStatus = approvedStatus
         } catch {
-          throw new AppError("Thứ tự duyệt thông báo không hợp lệ.", "INVALID_APPROVAL_ROUTE", 409)
+          throw new AppError(
+            "Thứ tự duyệt thông báo không hợp lệ.",
+            "INVALID_APPROVAL_ROUTE",
+            409,
+          )
         }
       } else {
         nextStatus =
@@ -783,7 +843,9 @@ export async function reviewAnnouncement(
           revisionId: existing.activeRevision.id,
           actorId: reviewerId,
           action: `${stage}_${parsed.data.decision}`,
-          metadata: parsed.data.comment ? { comment: parsed.data.comment } : undefined,
+          metadata: parsed.data.comment
+            ? { comment: parsed.data.comment }
+            : undefined,
         },
       })
 
@@ -800,11 +862,19 @@ export async function reviewAnnouncement(
 export async function publishAnnouncement(
   announcementId: string,
   _options: { sendEmail?: boolean } = {},
-): Promise<ActionResult<{ id: string; status: "SCHEDULED" | "PUBLISHED"; recipients: number }>> {
+): Promise<
+  ActionResult<{
+    id: string
+    status: "SCHEDULED" | "PUBLISHED"
+    recipients: number
+  }>
+> {
   try {
     void _options
     const id = z.string().trim().min(1).parse(announcementId)
-    const publisher = await requireAdminPermission("admin.announcements.compose")
+    const publisher = await requireAdminPermission(
+      "admin.announcements.compose",
+    )
     const publicationMode = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`announcement-publish:${id}`}))`
       const announcement = await tx.announcement.findUnique({
@@ -813,7 +883,9 @@ export async function publishAnnouncement(
           id: true,
           status: true,
           activeRevisionId: true,
-          activeRevision: { select: { scheduledAt: true, issuingUnitId: true } },
+          activeRevision: {
+            select: { scheduledAt: true, issuingUnitId: true },
+          },
         },
       })
       if (
@@ -863,7 +935,10 @@ export async function publishAnnouncement(
             revisionId: announcement.activeRevisionId,
             actorId: publisher.profile.userId,
             action: "SCHEDULED",
-            metadata: { scheduledAt: announcement.activeRevision.scheduledAt.toISOString() },
+            metadata: {
+              scheduledAt:
+                announcement.activeRevision.scheduledAt.toISOString(),
+            },
           },
         })
         return "SCHEDULED" as const
@@ -877,9 +952,16 @@ export async function publishAnnouncement(
       return successResult({ id, status: "SCHEDULED", recipients: 0 })
     }
 
-    const publication = await publishApprovedAnnouncement(id, publisher.profile.userId)
+    const publication = await publishApprovedAnnouncement(
+      id,
+      publisher.profile.userId,
+    )
     revalidateAnnouncementSurfaces()
-    return successResult({ id, status: "PUBLISHED", recipients: publication.recipients })
+    return successResult({
+      id,
+      status: "PUBLISHED",
+      recipients: publication.recipients,
+    })
   } catch (error) {
     return actionFailure(error, "Không thể phát hành thông báo")
   }
@@ -895,7 +977,9 @@ export async function markAnnouncementSeen(
       where: {
         announcementId: id,
         userId: user.id,
-        announcement: { status: { in: ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] } },
+        announcement: {
+          status: { in: ["PUBLISHED", "WITHDRAWN", "SUPERSEDED"] },
+        },
       },
       data: { seenAt: new Date() },
     })
@@ -955,8 +1039,16 @@ export async function withdrawAnnouncement(
           publishedRevisionId: true,
         },
       })
-      if (!announcement || announcement.deletedAt || announcement.status !== "PUBLISHED") {
-        throw new AppError("Thông báo không ở trạng thái có thể thu hồi.", "INVALID_STATUS", 409)
+      if (
+        !announcement ||
+        announcement.deletedAt ||
+        announcement.status !== "PUBLISHED"
+      ) {
+        throw new AppError(
+          "Thông báo không ở trạng thái có thể thu hồi.",
+          "INVALID_STATUS",
+          409,
+        )
       }
       if (actor.baseRole !== "ADMIN") {
         const membership = await tx.announcementUnitMember.findFirst({
@@ -970,7 +1062,11 @@ export async function withdrawAnnouncement(
           select: { unitId: true },
         })
         if (!membership) {
-          throw new AppError("Bạn không có thẩm quyền thu hồi thông báo này.", "FORBIDDEN", 403)
+          throw new AppError(
+            "Bạn không có thẩm quyền thu hồi thông báo này.",
+            "FORBIDDEN",
+            403,
+          )
         }
       }
       await tx.announcement.update({
@@ -1011,8 +1107,17 @@ export async function createReplacementAnnouncement(
           },
         },
       })
-      if (!source || source.deletedAt || source.status !== "PUBLISHED" || !source.publishedRevision) {
-        throw new AppError("Thông báo gốc không thể tạo bản thay thế.", "INVALID_STATUS", 409)
+      if (
+        !source ||
+        source.deletedAt ||
+        source.status !== "PUBLISHED" ||
+        !source.publishedRevision
+      ) {
+        throw new AppError(
+          "Thông báo gốc không thể tạo bản thay thế.",
+          "INVALID_STATUS",
+          409,
+        )
       }
       const revision = source.publishedRevision
       const membership = await tx.announcementUnitMember.findFirst({
@@ -1026,7 +1131,11 @@ export async function createReplacementAnnouncement(
         select: { unitId: true },
       })
       if (!membership) {
-        throw new AppError("Bạn không có thẩm quyền tạo bản thay thế.", "FORBIDDEN", 403)
+        throw new AppError(
+          "Bạn không có thẩm quyền tạo bản thay thế.",
+          "FORBIDDEN",
+          403,
+        )
       }
 
       const replacement = await tx.announcement.create({

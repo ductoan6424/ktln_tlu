@@ -32,11 +32,18 @@ beforeEach(() => {
 
 describe("listAnnouncementWorkQueue", () => {
   it("gives an assigned unit approver only author drafts and that unit review queue", async () => {
-    prisma.announcementUnitMember.findMany.mockResolvedValue([{ unitId: "unit-cntt" }])
+    prisma.announcementUnitMember.findMany.mockResolvedValue([
+      { unitId: "unit-cntt" },
+    ])
 
     await listAnnouncementWorkQueue({
       viewerId: "reviewer-1",
-      statuses: ["DRAFT", "CHANGES_REQUESTED", "PENDING_UNIT_REVIEW", "PENDING_ADMIN_REVIEW"],
+      statuses: [
+        "DRAFT",
+        "CHANGES_REQUESTED",
+        "PENDING_UNIT_REVIEW",
+        "PENDING_ADMIN_REVIEW",
+      ],
     })
 
     expect(prisma.announcement.findMany).toHaveBeenCalledWith(
@@ -71,6 +78,24 @@ describe("listAnnouncementWorkQueue", () => {
         where: {
           deletedAt: null,
           OR: [{ status: { in: ["PENDING_ADMIN_REVIEW"] } }],
+        },
+      }),
+    )
+  })
+
+  it("adds all unit review items for a system admin without unit memberships", async () => {
+    prisma.userProfile.findUnique.mockResolvedValueOnce({ role: "ADMIN" })
+
+    await listAnnouncementWorkQueue({
+      viewerId: "admin-1",
+      statuses: ["PENDING_UNIT_REVIEW"],
+    })
+
+    expect(prisma.announcement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          deletedAt: null,
+          OR: [{ status: { in: ["PENDING_UNIT_REVIEW"] } }],
         },
       }),
     )

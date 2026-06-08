@@ -7,6 +7,8 @@ vi.mock("@/actions/announcements", () => ({
   updateAnnouncement: vi.fn(),
   submitAnnouncementForReview: vi.fn(),
   publishAnnouncement: vi.fn(),
+  withdrawAnnouncement: vi.fn(),
+  createReplacementAnnouncement: vi.fn(),
   reviewAnnouncement: vi.fn(),
 }))
 vi.mock("@/components/ui/use-toast", () => ({
@@ -21,6 +23,7 @@ import { AnnouncementList } from "@/components/admin/announcement-list"
 import { AnnouncementPreview } from "@/components/admin/announcement-preview"
 import { AnnouncementReviewPanel } from "@/components/admin/announcement-review-panel"
 import { AnnouncementTimeline } from "@/components/admin/announcement-timeline"
+import { canReviewAnnouncementItem } from "@/app/admin/announcements/announcements-client"
 
 describe("announcement governance admin components", () => {
   it("uses official preview anatomy for school notices", () => {
@@ -86,6 +89,34 @@ describe("announcement governance admin components", () => {
     expect(markup).toContain("Đơn vị yêu cầu sửa")
     expect(markup).toContain("Phong Dao tao")
     expect(markup).toContain("Cap nhat han nop")
+  })
+
+  it("lets system admins review unit-stage notices without unit assignments", () => {
+    const unit = {
+      id: "unit-pdt",
+      code: "PDT",
+      name: "Phong Dao tao",
+      type: "DEPARTMENT",
+    } as const
+
+    expect(
+      canReviewAnnouncementItem(
+        { status: "PENDING_UNIT_REVIEW", issuingUnit: unit },
+        { approverUnitIds: [], isSystemAdmin: true },
+      ),
+    ).toBe(true)
+    expect(
+      canReviewAnnouncementItem(
+        { status: "PENDING_UNIT_REVIEW", issuingUnit: unit },
+        { approverUnitIds: [], isSystemAdmin: false },
+      ),
+    ).toBe(false)
+    expect(
+      canReviewAnnouncementItem(
+        { status: "PENDING_ADMIN_REVIEW", issuingUnit: unit },
+        { approverUnitIds: ["unit-pdt"], isSystemAdmin: false },
+      ),
+    ).toBe(false)
   })
 
   it("renders official authoring controls without a direct publish bypass", () => {
