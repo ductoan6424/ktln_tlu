@@ -16,7 +16,7 @@ function typeLabel(type: CourseAnnouncementDto["type"]) {
     GENERAL: "Chung",
     CLASS_CANCELLED: "Nghỉ học",
     SCHEDULE_CHANGE: "Đổi lịch/phòng",
-    ASSIGNMENT_REMINDER: "Nhac bai tap",
+    ASSIGNMENT_REMINDER: "Nhắc bài tập",
   }
   return labels[type]
 }
@@ -73,7 +73,7 @@ export function CourseAnnouncementsPanel({
                 <option value="GENERAL">Chung</option>
                 <option value="CLASS_CANCELLED">Nghỉ học</option>
                 <option value="SCHEDULE_CHANGE">Đổi lịch/phòng</option>
-                <option value="ASSIGNMENT_REMINDER">Nhac bai tap</option>
+                <option value="ASSIGNMENT_REMINDER">Nhắc bài tập</option>
               </select>
               <select name="priority" defaultValue="NORMAL" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
                 <option value="NORMAL">Thường</option>

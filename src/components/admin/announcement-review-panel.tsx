@@ -153,7 +153,7 @@ export function AnnouncementReviewPanel({
             required
             value={rejectComment}
             onChange={(event) => setRejectComment(event.target.value)}
-            placeholder="Ly do tu choi"
+            placeholder="Lý to từ chối"
           />
           <Button
             type="button"

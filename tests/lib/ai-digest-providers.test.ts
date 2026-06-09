@@ -21,7 +21,7 @@ const validDigest: ProviderDigest = {
   actionItems: [
     {
       announcementId: "announcement-1",
-      summary: "Lam bai tap",
+      summary: "Làm bài tập",
     },
   ],
   expiringSoon: [],
