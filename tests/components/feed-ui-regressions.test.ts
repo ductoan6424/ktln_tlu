@@ -24,12 +24,15 @@ describe("Feed UI regression contracts", () => {
     expect(postDetailDialog).toContain("md:pr-14")
   })
 
-  it("derives mobile notification and message badges from mock unread data", () => {
+  it("derives mobile notification and message badges from live unread counts", () => {
     const mobileBottomNav = source("src/components/layout/mobile-bottom-nav.tsx")
     const mainLayout = source("src/app/(main)/layout.tsx")
 
-    expect(mobileBottomNav).toContain("MOCK_UNREAD_NOTIFICATION_COUNT")
-    expect(mobileBottomNav).toContain("MOCK_UNREAD_MESSAGE_COUNT")
+    expect(mobileBottomNav).toContain("getMyUnreadNotificationCount")
+    expect(mobileBottomNav).toContain("getMyUnreadMessageCount")
+    expect(mobileBottomNav).not.toContain("MOCK_UNREAD_NOTIFICATION_COUNT")
+    expect(mobileBottomNav).not.toContain("MOCK_UNREAD_MESSAGE_COUNT")
+    expect(mainLayout).toContain("userId={userContext.userId}")
     expect(mainLayout).not.toContain("notificationCount={3}")
     expect(mainLayout).not.toContain("messageCount={5}")
   })
@@ -44,6 +47,13 @@ describe("Feed UI regression contracts", () => {
     expect(topNavbar).toContain("xl:hidden")
     expect(topNavbar).not.toContain("max-w-7xl")
     expect(topNavbar).not.toContain("absolute left-1/2 -translate-x-1/2")
+  })
+
+  it("prevents iOS input focus zoom on mobile controls", () => {
+    const globals = source("src/app/globals.css")
+
+    expect(globals).toContain("@media (max-width: 767px)")
+    expect(globals).toContain("font-size: 16px !important")
   })
 
   it("uses light and dark aware announcement carousel controls", () => {

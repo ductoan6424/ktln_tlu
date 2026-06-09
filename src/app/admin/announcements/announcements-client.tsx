@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { ListFilter, Plus } from "lucide-react"
 
@@ -117,18 +117,32 @@ export default function AnnouncementsClient({
     useState<AnnouncementFormInitialValues | null>(null)
   const [draftPreview, setDraftPreview] =
     useState<AnnouncementFormInitialValues | null>(null)
+  const [items, setItems] = useState(initialItems)
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
   const [withdrawTarget, setWithdrawTarget] = useState<AnnouncementDto | null>(
     null,
   )
   const [withdrawReason, setWithdrawReason] = useState("")
 
+  useEffect(() => {
+    setItems(initialItems)
+  }, [initialItems])
+
   const filteredItems = useMemo(() => {
-    if (queueTab === "ALL") return initialItems
-    return initialItems.filter((item) => item.status === queueTab)
-  }, [initialItems, queueTab])
+    if (queueTab === "ALL") return items
+    return items.filter((item) => item.status === queueTab)
+  }, [items, queueTab])
   const selectedReview =
-    initialItems.find((item) => item.id === selectedReviewId) ?? null
+    items.find((item) => item.id === selectedReviewId) ?? null
+
+  function patchAnnouncementItem(
+    id: string,
+    patch: Partial<AnnouncementDto>,
+  ) {
+    setItems((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    )
+  }
 
   function canReview(item: AnnouncementDto) {
     return canReviewAnnouncementItem(item, { approverUnitIds, isSystemAdmin })
@@ -171,7 +185,21 @@ export default function AnnouncementsClient({
             ? "Thông báo sẽ phát hành theo lịch đã được duyệt."
             : `Đã tạo ${result.data?.recipients ?? 0} bản ghi người nhận.`,
       })
-      router.refresh()
+      if (result.data) {
+        patchAnnouncementItem(item.id, {
+          status: result.data.status,
+          recipientSummary:
+            result.data.status === "PUBLISHED"
+              ? {
+                  total: result.data.recipients,
+                  notified: 0,
+                  emailSent: 0,
+                  seen: 0,
+                  acknowledged: 0,
+                }
+              : item.recipientSummary,
+        })
+      }
     })
   }
 
@@ -208,9 +236,11 @@ export default function AnnouncementsClient({
         title: "Đã thu hồi thông báo",
         description: "Người nhận vẫn thấy bản ghi đã giao kèm lý do thu hồi.",
       })
+      patchAnnouncementItem(withdrawTarget.id, {
+        status: "WITHDRAWN",
+      })
       setWithdrawTarget(null)
       setWithdrawReason("")
-      router.refresh()
     })
   }
 
@@ -368,6 +398,12 @@ export default function AnnouncementsClient({
                   <AnnouncementReviewPanel
                     announcementId={selectedReview.id}
                     status={selectedReview.status}
+                    onReviewed={(status) => {
+                      patchAnnouncementItem(selectedReview.id, {
+                        status: status as AnnouncementDto["status"],
+                      })
+                      setSelectedReviewId(null)
+                    }}
                     revision={{
                       version: selectedReview.activeRevision.version,
                       title: selectedReview.activeRevision.title,

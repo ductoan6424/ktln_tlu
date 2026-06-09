@@ -723,6 +723,37 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
   }
 }
 
+export async function getMyUnreadMessageCount(): Promise<ActionResult<{ unreadCount: number }>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return successResult({ unreadCount: 0 })
+    }
+
+    const rows = await prisma.$queryRaw<Array<{ unread_count: number | bigint }>>`
+      SELECT COUNT(*) AS unread_count
+      FROM messages message
+      INNER JOIN conversation_participants participant
+        ON participant.conversation_id = message.conversation_id
+        AND participant.user_id = ${currentUser.userId}
+      WHERE message.deleted_at IS NULL
+        AND message.sender_id <> ${currentUser.userId}
+        AND (
+          participant.last_read_at IS NULL
+          OR message.created_at > participant.last_read_at
+        )
+    `
+    const rawCount = rows[0]?.unread_count ?? 0
+    const unreadCount =
+      typeof rawCount === "bigint" ? Number(rawCount) : Number(rawCount)
+
+    return successResult({ unreadCount })
+  } catch {
+    return errorResult("KhÃ´ng thá»ƒ láº¥y sá»‘ tin nháº¯n chÆ°a Ä‘á»c.", "FETCH_FAILED")
+  }
+}
+
 export async function searchChatUsers(
   rawInput: unknown,
 ): Promise<ActionResult<ChatUserSearchResult[]>> {

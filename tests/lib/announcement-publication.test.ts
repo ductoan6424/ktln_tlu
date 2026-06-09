@@ -150,6 +150,25 @@ describe("publishApprovedAnnouncement", () => {
     expect(result).toEqual({ recipients: 2 })
   })
 
+  it("can publish recipient snapshots without waiting for delivery dispatch", async () => {
+    tx.announcement.findUnique.mockResolvedValue(approvedAnnouncement())
+    resolveRevisionRecipients.mockResolvedValue({ userIds: ["u1", "u2"] })
+
+    const result = await publishApprovedAnnouncement("ann-1", "admin-1", {
+      dispatchDelivery: false,
+    })
+
+    expect(tx.announcementRecipient.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ userId: "u1" }),
+        expect.objectContaining({ userId: "u2" }),
+      ]),
+      skipDuplicates: true,
+    })
+    expect(fanoutAnnouncementNotification).not.toHaveBeenCalled()
+    expect(result).toEqual({ recipients: 2 })
+  })
+
   it("does not resolve a new population when an already published record is retried", async () => {
     tx.announcement.findUnique.mockResolvedValue(
       approvedAnnouncement({ status: "PUBLISHED", publishedRevisionId: "rev-1" }),

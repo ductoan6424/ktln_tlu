@@ -90,7 +90,7 @@ export default async function MainLayout({
           <main className="min-h-dvh pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pt-16 lg:pb-0">
             {children}
           </main>
-          <MobileBottomNav user={sessionUser} />
+          <MobileBottomNav user={sessionUser} userId={userContext.userId} />
         </ChatDock>
       </div>
     </AppearanceProvider>

@@ -30,6 +30,9 @@ const tx = vi.hoisted(() => ({
   announcementRevision: {
     create: vi.fn(),
   },
+  announcementRevisionTarget: {
+    findMany: vi.fn(),
+  },
   announcementApproval: {
     create: vi.fn(),
   },
@@ -179,6 +182,7 @@ beforeEach(() => {
   tx.announcement.update.mockResolvedValue({ id: "ann-1" })
   tx.announcementUnitMember.findFirst.mockResolvedValue({ unitId: "unit-pdt" })
   tx.announcementRevision.create.mockResolvedValue({ id: "rev-1" })
+  tx.announcementRevisionTarget.findMany.mockResolvedValue([])
   tx.course.findMany.mockResolvedValue([])
   prisma.announcement.findUnique.mockResolvedValue(editableAnnouncement())
   prisma.announcement.create.mockResolvedValue({
@@ -541,6 +545,7 @@ describe("publishAnnouncement controlled publication", () => {
     expect(publishApprovedAnnouncement).toHaveBeenCalledWith(
       "ann-1",
       "author-1",
+      { dispatchDelivery: false },
     )
     expect(result).toEqual({
       success: true,
@@ -564,7 +569,11 @@ describe("publishAnnouncement controlled publication", () => {
 
     expect(result.success).toBe(true)
     expect(tx.announcementUnitMember.findFirst).not.toHaveBeenCalled()
-    expect(publishApprovedAnnouncement).toHaveBeenCalledWith("ann-1", "admin-1")
+    expect(publishApprovedAnnouncement).toHaveBeenCalledWith(
+      "ann-1",
+      "admin-1",
+      { dispatchDelivery: false },
+    )
   })
 
   it("does not let an unrelated composer publish an approved unit revision", async () => {

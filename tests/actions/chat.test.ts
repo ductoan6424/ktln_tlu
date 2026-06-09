@@ -8,6 +8,7 @@ const sendPushToUser = vi.hoisted(() => vi.fn())
 const shouldSendMessageDisturbance = vi.hoisted(() => vi.fn())
 const uploadChatAttachment = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
+  $queryRaw: vi.fn(),
   userProfile: {
     findUnique: vi.fn(),
   },
@@ -42,7 +43,12 @@ vi.mock("@/lib/cloudinary/upload", () => ({
   uploadChatAttachment,
 }))
 
-import { getChatSessionUser, getDirectConversationDetails, sendConversationMessage } from "@/actions/chat"
+import {
+  getChatSessionUser,
+  getDirectConversationDetails,
+  getMyUnreadMessageCount,
+  sendConversationMessage,
+} from "@/actions/chat"
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -87,6 +93,33 @@ describe("getChatSessionUser", () => {
       error: "Bạn cần đăng nhập để sử dụng chat",
       code: "UNAUTHORIZED",
     })
+  })
+})
+
+describe("getMyUnreadMessageCount", () => {
+  it("returns zero when user is not authenticated", async () => {
+    mockNoSession()
+
+    const result = await getMyUnreadMessageCount()
+
+    expect(result).toEqual({ success: true, data: { unreadCount: 0 } })
+    expect(prisma.$queryRaw).not.toHaveBeenCalled()
+  })
+
+  it("counts unread messages with one aggregate query", async () => {
+    mockWithSession("user-self")
+    prisma.userProfile.findUnique.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Báº¡n",
+      avatarUrl: null,
+      deletedAt: null,
+    })
+    prisma.$queryRaw.mockResolvedValue([{ unread_count: BigInt(7) }])
+
+    const result = await getMyUnreadMessageCount()
+
+    expect(result).toEqual({ success: true, data: { unreadCount: 7 } })
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1)
   })
 })
 

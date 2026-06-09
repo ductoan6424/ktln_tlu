@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/use-toast"
 type AnnouncementReviewPanelProps = {
   announcementId: string
   status: "PENDING_UNIT_REVIEW" | "PENDING_ADMIN_REVIEW"
+  onReviewed?: (status: string) => void
   revision: {
     version: number
     title: string
@@ -35,6 +36,7 @@ function stageLabel(status: AnnouncementReviewPanelProps["status"]) {
 export function AnnouncementReviewPanel({
   announcementId,
   status,
+  onReviewed,
   revision,
 }: AnnouncementReviewPanelProps) {
   const router = useRouter()
@@ -65,7 +67,12 @@ export function AnnouncementReviewPanel({
         title: "Đã ghi nhận quyết định",
         description: "Trạng thái thông báo đã được cập nhật.",
       })
-      router.refresh()
+      if (result.data?.status) {
+        onReviewed?.(result.data.status)
+      }
+      if (!onReviewed) {
+        router.refresh()
+      }
     })
   }
 

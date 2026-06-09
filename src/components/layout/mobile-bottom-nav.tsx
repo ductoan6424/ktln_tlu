@@ -2,16 +2,16 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { logout } from "@/actions/auth"
+import { getMyUnreadMessageCount } from "@/actions/chat"
+import { getMyUnreadNotificationCount } from "@/actions/notifications"
 import { Home, Users, Bell, MessageSquare, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { ThemeModeSwitch } from "@/components/layout/theme-mode-switch"
-import {
-  MOCK_UNREAD_MESSAGE_COUNT,
-  MOCK_UNREAD_NOTIFICATION_COUNT,
-} from "@/components/layout/mock-data"
+import { useInboxNotification } from "@/hooks/use-inbox-notification"
+import { useNotificationsRealtime } from "@/hooks/use-notifications-realtime"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -28,6 +28,7 @@ interface MobileBottomNavProps {
     avatarSrc?: string
     canAccessAdmin?: boolean
   }
+  userId?: string | null
   notificationCount?: number
   messageCount?: number
 }
@@ -41,11 +42,60 @@ const NAV_ITEMS = [
 
 export function MobileBottomNav({
   user,
-  notificationCount = MOCK_UNREAD_NOTIFICATION_COUNT,
-  messageCount = MOCK_UNREAD_MESSAGE_COUNT,
+  userId,
+  notificationCount = 0,
+  messageCount = 0,
 }: MobileBottomNavProps) {
   const pathname = usePathname()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [unreadNotificationCount, setUnreadNotificationCount] =
+    useState(notificationCount)
+  const [unreadMessageCount, setUnreadMessageCount] = useState(messageCount)
+
+  const refreshUnreadCounts = useCallback(async () => {
+    if (!userId) {
+      return
+    }
+
+    const [notificationResult, messageResult] = await Promise.all([
+      getMyUnreadNotificationCount(),
+      getMyUnreadMessageCount(),
+    ])
+
+    if (notificationResult.success && notificationResult.data) {
+      setUnreadNotificationCount(notificationResult.data.unreadCount)
+    }
+    if (messageResult.success && messageResult.data) {
+      setUnreadMessageCount(messageResult.data.unreadCount)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void refreshUnreadCounts()
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [pathname, refreshUnreadCounts])
+
+  useEffect(() => {
+    const handleFocus = () => {
+      void refreshUnreadCounts()
+    }
+    window.addEventListener("focus", handleFocus)
+    return () => window.removeEventListener("focus", handleFocus)
+  }, [refreshUnreadCounts])
+
+  useNotificationsRealtime({
+    userId: userId ?? null,
+    onUnreadCountChange: setUnreadNotificationCount,
+  })
+
+  useInboxNotification({
+    userId: userId ?? null,
+    onIncoming: () => {
+      void refreshUnreadCounts()
+    },
+  })
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -54,8 +104,8 @@ export function MobileBottomNav({
   }
 
   const getBadgeCount = (href: string) => {
-    if (href === "/notifications") return notificationCount
-    if (href === "/messages") return messageCount
+    if (href === "/notifications") return unreadNotificationCount
+    if (href === "/messages") return unreadMessageCount
     return undefined
   }
 

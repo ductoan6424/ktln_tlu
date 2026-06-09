@@ -787,7 +787,6 @@ export async function reviewAnnouncement(
           },
           activeRevision: {
             include: {
-              targets: { select: { type: true, value: true } },
               approvals: { select: { stage: true, decision: true } },
               auditEvents: {
                 where: { action: "SUBMITTED_FOR_UNIT_REVIEW" },
@@ -902,7 +901,11 @@ export async function reviewAnnouncement(
       if (frozenRequiresAdminApproval !== undefined) {
         stages = frozenRequiresAdminApproval ? ["UNIT", "ADMIN"] : ["UNIT"]
       } else {
-        const courseTargetIds = existing.activeRevision.targets
+        const revisionTargets = await tx.announcementRevisionTarget.findMany({
+          where: { revisionId: existing.activeRevision.id },
+          select: { type: true, value: true },
+        })
+        const courseTargetIds = revisionTargets
           .filter((target) => target.type === "COURSE")
           .map((target) => target.value)
         const courses =
@@ -920,7 +923,7 @@ export async function reviewAnnouncement(
         )
         stages = getRequiredApprovalStages({
           unit: existing.issuingUnit,
-          targets: existing.activeRevision.targets,
+          targets: revisionTargets,
           courseFacultyIds: courseTargetIds.map(
             (courseId) => courseFaculties.get(courseId) ?? "",
           ),
@@ -1100,6 +1103,7 @@ export async function publishAnnouncement(
     const publication = await publishApprovedAnnouncement(
       id,
       publisher.profile.userId,
+      { dispatchDelivery: false },
     )
     revalidateAnnouncementSurfaces()
     return successResult({

@@ -20,6 +20,7 @@ function emptyFanoutResult(): AnnouncementFanoutResult {
 export async function publishApprovedAnnouncement(
   announcementId: string,
   actorId: string | null,
+  options: { dispatchDelivery?: boolean } = {},
 ): Promise<{ recipients: number }> {
   const publication = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${publicationLockKey(announcementId)}))`
@@ -124,7 +125,9 @@ export async function publishApprovedAnnouncement(
     return { recipients: userIds.length }
   })
 
-  await dispatchUndeliveredAnnouncementRecipients(announcementId)
+  if (options.dispatchDelivery ?? true) {
+    await dispatchUndeliveredAnnouncementRecipients(announcementId)
+  }
   return publication
 }
 
