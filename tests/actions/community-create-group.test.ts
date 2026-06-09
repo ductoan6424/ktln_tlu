@@ -46,7 +46,7 @@ describe("createGroup", () => {
     await expect(
       createGroup({
         name: "Nhom Python",
-        description: "Trao doi bai tap",
+        description: "Trao đổi bài tập",
         visibility: "PRIVATE",
         requirePostApproval: true,
         chatEnabled: true,

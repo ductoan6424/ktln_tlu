@@ -115,7 +115,7 @@ export function CommunityDetailShell({
     ...(target.type === "COURSE" && learningPanels
       ? [
           { value: "announcements" as const, label: "Thông báo" },
-          { value: "assignments" as const, label: "Bai tap" },
+          { value: "assignments" as const, label: "Bài tập" },
         ]
       : []),
     ...(target.chatEnabled
