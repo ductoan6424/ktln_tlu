@@ -9,6 +9,7 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { BreadcrumbNav } from "@/components/admin/breadcrumb-nav"
 import { SearchInput } from "@/components/shared/search-input"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,7 +138,7 @@ function AdminGlobalSearch() {
             {query.trim().length < 2 ? (
               <p className="px-3 py-2 text-sm text-muted-foreground">Nhập ít nhất 2 ký tự.</p>
             ) : isPending ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">Đang tìm...</p>
+              <AdminSearchSkeletonList />
             ) : results.length === 0 ? (
               <p className="px-3 py-2 text-sm text-muted-foreground">Không có kết quả phù hợp.</p>
             ) : (
@@ -157,6 +158,20 @@ function AdminGlobalSearch() {
           </div>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function AdminSearchSkeletonList() {
+  return (
+    <div aria-busy="true" className="flex flex-col">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="flex flex-col gap-2 rounded-md px-3 py-2">
+          <Skeleton className="h-3 w-14" />
+          <Skeleton className="h-4 w-44" />
+          <Skeleton className="h-3 w-full" />
+        </div>
+      ))}
     </div>
   )
 }

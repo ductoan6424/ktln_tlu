@@ -11,6 +11,7 @@ import {
 } from "@/actions/search"
 import { SearchInput } from "@/components/shared/search-input"
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { UserRowSkeletonList } from "@/components/shared/user-row-skeleton"
 import { cn } from "@/lib/utils"
 import type { SearchSuggestion } from "@/lib/search/types"
 
@@ -106,7 +107,7 @@ export function GlobalSearch({
 
   const trimmedQuery = query.trim()
   const showRecent = trimmedQuery.length === 0
-  const optionCount = showRecent ? recent.length : suggestions.length + 1
+  const optionCount = showRecent ? recent.length : loading ? 0 : suggestions.length + 1
 
   useEffect(() => {
     if (!open || !showRecent) return
@@ -253,42 +254,45 @@ export function GlobalSearch({
           ) : (
             <div role="listbox" aria-label="Gợi ý tìm kiếm">
               {loading ? (
-                <p className="px-4 py-3 text-sm text-muted-foreground">Đang tìm…</p>
-              ) : null}
+                <UserRowSkeletonList count={3} className="px-4 py-3" />
+              ) : (
+                <>
 
-              {suggestions.map((item, index) => (
-                <button
-                  key={`${item.type}-${item.id}`}
-                  type="button"
-                  className={cn(
-                    "flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted",
-                    activeIndex === index ? "bg-muted" : undefined,
-                  )}
-                  onClick={() => void goToSearch(trimmedQuery, item.type)}
-                >
-                  <UserAvatar src={item.avatarUrl ?? undefined} name={item.title} size="sm" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{item.title}</span>
-                    {item.subtitle ? (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {item.subtitle}
+                  {suggestions.map((item, index) => (
+                    <button
+                      key={`${item.type}-${item.id}`}
+                      type="button"
+                      className={cn(
+                        "flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted",
+                        activeIndex === index ? "bg-muted" : undefined,
+                      )}
+                      onClick={() => void goToSearch(trimmedQuery, item.type)}
+                    >
+                      <UserAvatar src={item.avatarUrl ?? undefined} name={item.title} size="sm" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">{item.title}</span>
+                        {item.subtitle ? (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {item.subtitle}
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </span>
-                </button>
-              ))}
+                    </button>
+                  ))}
 
-              <button
-                type="button"
-                className={cn(
-                  "flex w-full items-center gap-3 border-t px-4 py-3 text-left text-sm hover:bg-muted",
-                  activeIndex === suggestions.length ? "bg-muted" : undefined,
-                )}
-                onClick={() => void goToSearch(trimmedQuery)}
-              >
-                <Search className="size-4 shrink-0 text-muted-foreground" />
-                <span className="truncate">Xem tất cả kết quả cho &quot;{trimmedQuery}&quot;</span>
-              </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex w-full items-center gap-3 border-t px-4 py-3 text-left text-sm hover:bg-muted",
+                      activeIndex === suggestions.length ? "bg-muted" : undefined,
+                    )}
+                    onClick={() => void goToSearch(trimmedQuery)}
+                  >
+                    <Search className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">Xem tất cả kết quả cho &quot;{trimmedQuery}&quot;</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

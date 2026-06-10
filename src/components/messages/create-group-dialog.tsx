@@ -5,6 +5,7 @@ import { Check, Loader2, Search, X } from "lucide-react"
 
 import { createGroupConversation, searchChatUsers } from "@/actions/chat"
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { UserRowSkeletonList } from "@/components/shared/user-row-skeleton"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -219,10 +220,7 @@ export function CreateGroupDialog({
 
           <div className="max-h-72 overflow-y-auto rounded-lg border border-border">
             {isLoadingUsers ? (
-              <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Đang tìm thành viên…
-              </div>
+              <UserRowSkeletonList count={4} showTrailing />
             ) : users.length === 0 ? (
               <p className="px-3 py-4 text-sm text-muted-foreground">
                 Không tìm thấy thành viên phù hợp.

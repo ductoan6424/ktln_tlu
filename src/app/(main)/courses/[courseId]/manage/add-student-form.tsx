@@ -23,6 +23,7 @@ import {
 } from "@/components/communities/manage/manage-ui"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { parseCsvRows, parseStudentCodesFromRows } from "@/lib/courses/student-import"
 
@@ -37,6 +38,19 @@ type StudentSuggestion = {
 type AddStudentFormProps = {
   courseId: string
   courseHref?: string
+}
+
+function StudentSuggestionSkeletonList() {
+  return (
+    <div aria-busy="true" className="overflow-hidden rounded-lg border border-border">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="flex flex-col gap-2 border-b border-border px-3 py-2 last:border-b-0">
+          <Skeleton className="h-4 w-44" />
+          <Skeleton className="h-3 w-56 max-w-full" />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function formatBulkSummary(result: {
@@ -247,7 +261,7 @@ export function AddStudentForm({
         </label>
 
         {suggestionPending ? (
-          <p className="text-xs text-muted-foreground">Đang tìm sinh viên…</p>
+          <StudentSuggestionSkeletonList />
         ) : suggestionError ? (
           <p className="text-xs text-destructive">{suggestionError}</p>
         ) : suggestions.length > 0 ? (
@@ -302,9 +316,7 @@ export function AddStudentForm({
                 className="size-36 rounded-md border border-border bg-card p-2"
               />
             ) : (
-              <div className="flex size-36 items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground">
-                Đang tạo QR…
-              </div>
+              <Skeleton className="size-36 rounded-md" />
             )}
             <p className="break-all text-xs text-muted-foreground">{courseJoinUrl}</p>
           </div>

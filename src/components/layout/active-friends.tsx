@@ -9,6 +9,7 @@ import { listActiveFriends } from "@/actions/users"
 import type { ContactGroup } from "@/actions/users"
 import { CreateGroupDialog } from "@/components/messages/create-group-dialog"
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { UserRowSkeletonList } from "@/components/shared/user-row-skeleton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
@@ -423,10 +424,13 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
         )}
 
         <div className="space-y-0.5">
-          {normalizedQuery && isSearching && (
-            <p className="p-2 text-sm text-muted-foreground">Đang tìm kiếm…</p>
+          {!normalizedQuery && isLoading && (
+            <UserRowSkeletonList count={5} className="h-11 rounded-md px-2" showMeta={false} />
           )}
-          {visibleContacts.map((contact) => (
+          {normalizedQuery && isSearching && (
+            <UserRowSkeletonList count={3} className="h-11 rounded-md px-2" showMeta={false} />
+          )}
+          {!isLoading && visibleContacts.map((contact) => (
             <Button
               key={contact.id}
               variant="ghost"
@@ -447,7 +451,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
           ))}
         </div>
 
-        {(visibleGroups.length > 0 || !normalizedQuery) && (
+        {(visibleGroups.length > 0 || (!normalizedQuery && !isLoading)) && (
           <div className="mt-3 border-t border-border pt-3">
             <p className="mb-2 px-1 text-base font-bold text-muted-foreground">Nhóm chat</p>
             <div className="space-y-0.5">

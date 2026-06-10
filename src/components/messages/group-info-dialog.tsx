@@ -25,6 +25,7 @@ import {
   searchChatUsers,
 } from "@/actions/chat"
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { UserRowSkeletonList } from "@/components/shared/user-row-skeleton"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -40,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
 import { notifyContactGroupChanged } from "@/lib/contacts/events"
 import { cn } from "@/lib/utils"
@@ -52,6 +54,28 @@ interface GroupInfoDialogProps {
   onGroupRenamed?: (conversationId: string, name: string) => void
   onGroupMembersChanged?: (conversationId: string, participantCount: number) => void
   onLeftGroup?: (conversationId: string) => void
+}
+
+function GroupInfoDetailsSkeleton() {
+  return (
+    <div aria-busy="true" className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
+      <div className="flex h-12 items-center gap-4 px-2">
+        <Skeleton className="size-5" />
+        <Skeleton className="h-4 w-36" />
+      </div>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex h-9 items-center justify-between px-2">
+          <Skeleton className="h-5 w-44" />
+          <div className="flex gap-2">
+            <Skeleton className="size-8 rounded-full" />
+            <Skeleton className="size-8 rounded-full" />
+          </div>
+        </div>
+        <UserRowSkeletonList count={5} className="min-h-16 rounded-lg px-2" />
+      </section>
+    </div>
+  )
 }
 
 export function GroupInfoDialog({
@@ -395,11 +419,20 @@ export function GroupInfoDialog({
       />
       <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-lg lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
         <header className="flex h-16 shrink-0 items-start justify-between border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold">{details?.name ?? "Nhóm chat"}</h2>
-            <p className="truncate text-xs text-muted-foreground">
-              {details ? `${details.participantCount} thành viên` : "Đang tải thông tin"}
-            </p>
+          <div className="min-w-0 flex-1">
+            {details ? (
+              <>
+                <h2 className="truncate text-base font-semibold">{details.name}</h2>
+                <p className="truncate text-xs text-muted-foreground">
+                  {details.participantCount} thành viên
+                </p>
+              </>
+            ) : (
+              <div aria-busy="true" className="flex flex-col gap-2 pt-0.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -412,10 +445,7 @@ export function GroupInfoDialog({
         </header>
 
         {isLoading || !details ? (
-          <div className="flex items-center gap-2 px-5 py-8 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Đang tải thông tin nhóm…
-          </div>
+          <GroupInfoDetailsSkeleton />
         ) : (
           <div className="flex-1 overflow-y-auto px-3 py-4">
             {details.currentUserIsAdmin && (
@@ -647,10 +677,7 @@ export function GroupInfoDialog({
 
             <div className="max-h-72 overflow-y-auto rounded-lg border border-border">
               {isLoadingUsers ? (
-                <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Đang tìm…
-                </div>
+                <UserRowSkeletonList count={4} showTrailing />
               ) : availableUsers.length === 0 ? (
                 <p className="px-3 py-4 text-sm text-muted-foreground">
                   Không có thành viên phù hợp.
