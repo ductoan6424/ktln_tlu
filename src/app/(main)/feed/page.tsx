@@ -22,11 +22,13 @@ interface FeedPageProps {
 }
 
 export default async function FeedPage({ searchParams }: FeedPageProps) {
-  const params = await searchParams
+  const [params, userContext] = await Promise.all([
+    searchParams,
+    getCurrentUserContext(),
+  ])
   const deepLinkPostId = typeof params.post === "string" ? params.post : null
   const deepLinkAnnouncementId =
     typeof params.announcement === "string" ? params.announcement : null
-  const userContext = await getCurrentUserContext()
   const currentUser = userContext.profile
   const currentUserId = userContext.userId
   const joinedCommunityIds = {

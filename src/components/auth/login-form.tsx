@@ -31,7 +31,7 @@ const initialLoginState: LoginState = {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-  const { push, refresh } = useRouter()
+  const { push } = useRouter()
   const [state, setState] = useReducer(
     (current: LoginState, next: Partial<LoginState>) => ({ ...current, ...next }),
     initialLoginState,
@@ -51,7 +51,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
     if (result.success) {
       push("/feed")
-      refresh()
       onSuccess?.()
     } else {
       setState({ error: result.error ?? "Đăng nhập thất bại." })

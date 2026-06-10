@@ -4,7 +4,6 @@ import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import { prisma } from "@/lib/prisma/client"
 
-export const dynamic = "force-dynamic"
 export const metadata = { title: "Lớp học" }
 
 const TABS = [

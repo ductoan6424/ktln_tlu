@@ -1,5 +1,6 @@
 "use server"
 
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 import { getAblyRestClient } from "@/lib/ably/server"
@@ -660,28 +661,36 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
       },
     })
 
-    const unreadCountResults = await Promise.all(
-      participations.map((item) =>
-        prisma.message.count({
-          where: {
-            conversationId: item.conversationId,
-            deletedAt: null,
-            senderId: {
-              not: currentUser.userId,
-            },
-            ...(item.lastReadAt
-              ? {
-                  createdAt: {
-                    gt: item.lastReadAt,
-                  },
-                }
-              : {}),
-          },
-        }),
-      ),
+    const conversationIds = participations.map((item) => item.conversationId)
+    const unreadCountRows = conversationIds.length > 0
+      ? await prisma.$queryRaw<
+          Array<{ conversation_id: string; unread_count: number | bigint }>
+        >(Prisma.sql`
+          SELECT participant.conversation_id, COUNT(*) AS unread_count
+          FROM conversation_participants participant
+          INNER JOIN messages message
+            ON message.conversation_id = participant.conversation_id
+          WHERE participant.user_id = ${currentUser.userId}
+            AND participant.conversation_id IN (${Prisma.join(conversationIds)})
+            AND message.deleted_at IS NULL
+            AND message.sender_id <> ${currentUser.userId}
+            AND (
+              participant.last_read_at IS NULL
+              OR message.created_at > participant.last_read_at
+            )
+          GROUP BY participant.conversation_id
+        `)
+      : []
+    const unreadCountByConversationId = new Map(
+      unreadCountRows.map((row) => [
+        row.conversation_id,
+        typeof row.unread_count === "bigint"
+          ? Number(row.unread_count)
+          : Number(row.unread_count),
+      ]),
     )
 
-    const conversations: ChatConversationItem[] = participations.map((item, index) => {
+    const conversations: ChatConversationItem[] = participations.map((item) => {
       const peers = item.conversation.participants
         .filter((participant) => participant.userId !== currentUser.userId)
         .map((participant) => participant.user)
@@ -711,7 +720,7 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
         communityTargetId: item.conversation.communityTargetId,
         isOnline: false,
         participantCount,
-        unreadCount: unreadCountResults[index] ?? 0,
+        unreadCount: unreadCountByConversationId.get(item.conversationId) ?? 0,
         lastMessage: lastMessage?.content ?? "Chưa có tin nhắn",
         lastMessageAt: lastMessage ? formatRelativeTime(lastMessage.createdAt) : null,
       }

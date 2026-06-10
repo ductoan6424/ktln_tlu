@@ -1,10 +1,9 @@
 import { CommunityListPage } from "@/components/communities/community-list-page"
 import type { CommunityCardItem } from "@/components/communities/community-card"
-import { getAuthorizationContext } from "@/lib/auth/authorization"
+import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import { prisma } from "@/lib/prisma/client"
 
-export const dynamic = "force-dynamic"
 export const metadata = { title: "Nhóm" }
 
 const TABS = [
@@ -41,8 +40,8 @@ export default async function GroupsPage({
   const params = (await searchParams) ?? {}
   const activeTab = normalizeTab(getParam(params, "tab"))
   const query = getParam(params, "q").trim()
-  const context = await getAuthorizationContext().catch(() => null)
-  const userId = context?.profile.userId ?? null
+  const context = await getCurrentUserContext()
+  const userId = context.userId
 
   const [pendingRequests, invites] = userId
     ? await Promise.all([
