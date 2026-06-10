@@ -516,6 +516,7 @@ function mapProviderError(error: unknown): never {
     console.warn("Announcement AI digest provider failed", {
       code: error.code,
       message: error.message,
+      cause: summarizeDigestErrorCause(error.cause),
     })
 
     if (error.code === "RATE_LIMITED") {
@@ -530,6 +531,31 @@ function mapProviderError(error: unknown): never {
   }
 
   throw error
+}
+
+function summarizeDigestErrorCause(cause: unknown) {
+  if (cause instanceof z.ZodError) {
+    return {
+      name: cause.name,
+      issues: cause.issues.map((issue) => ({
+        path: issue.path.join("."),
+        message: issue.message,
+      })),
+    }
+  }
+
+  if (cause instanceof Error) {
+    return {
+      name: cause.name,
+      message: cause.message,
+    }
+  }
+
+  if (cause === undefined) {
+    return undefined
+  }
+
+  return { value: String(cause) }
 }
 
 function summarizeCacheError(error: unknown) {

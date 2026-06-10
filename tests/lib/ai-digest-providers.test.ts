@@ -456,6 +456,19 @@ describe("createNexusDigestProvider", () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
+  it("falls back to a safe overview when Nexus omits one", async () => {
+    const fetchMock = mockFetch(jsonResponse(chatBody(JSON.stringify({
+      ...validDigest,
+      overview: "",
+    }))))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual({
+      ...validDigest,
+      overview: "Da tao ban tom tat cac thong bao trong pham vi da chon.",
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   it("parses Nexus SSE data events when the proxy returns a streamed chat body", async () => {
     const fetchMock = mockFetch(eventStreamResponse(chatBody(JSON.stringify(validDigest))))
 
@@ -539,7 +552,6 @@ describe("createNexusDigestProvider", () => {
   it.each([
     ["missing content", chatBody(""), "INVALID_RESPONSE"],
     ["malformed JSON", chatBody("{bad json"), "INVALID_RESPONSE"],
-    ["runtime invalid JSON shape", chatBody(JSON.stringify({ ...validDigest, overview: "" })), "INVALID_RESPONSE"],
     ["null response body", null, "INVALID_RESPONSE"],
     ["missing choices", { choices: [] }, "INVALID_RESPONSE"],
   ] as const)("maps %s to INVALID_RESPONSE", async (_case, body, code) => {

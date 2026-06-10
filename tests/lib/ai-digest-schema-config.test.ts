@@ -41,7 +41,7 @@ describe("getAiDigestConfig", () => {
       dailyLimit: 5,
       maxAnnouncements: 50,
       maxInputCharacters: 60000,
-      providerTimeoutMs: 30000,
+      providerTimeoutMs: 90000,
       timeZone: "Asia/Bangkok",
     })
   })
@@ -83,7 +83,7 @@ describe("getAiDigestConfig", () => {
       dailyLimit: 5,
       maxAnnouncements: 50,
       maxInputCharacters: 60000,
-      providerTimeoutMs: 30000,
+      providerTimeoutMs: 90000,
       timeZone: "Asia/Bangkok",
     })
   })

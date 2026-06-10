@@ -283,15 +283,40 @@ function parseProviderDigestText(text: string): ProviderDigest {
 function normalizeNexusDigestCandidate(value: unknown): unknown {
   const root = unwrapDigestObject(value)
 
+  if (Array.isArray(root)) {
+    return {
+      overview: "Da tao ban tom tat cac thong bao trong pham vi da chon.",
+      actionItems: [],
+      expiringSoon: [],
+      announcements: normalizeNexusReferences(root, 50),
+    }
+  }
+
   if (!isObject(root)) {
     return value
   }
 
+  const overview = normalizeNexusText(
+    root.overview ?? root.summary ?? root.tongQuan ?? root.tong_quan,
+    NEXUS_OVERVIEW_MAX_LENGTH,
+  )
+
   return {
-    overview: normalizeNexusText(root.overview, NEXUS_OVERVIEW_MAX_LENGTH),
-    actionItems: normalizeNexusReferences(root.actionItems ?? root.action_items, 20),
-    expiringSoon: normalizeNexusReferences(root.expiringSoon ?? root.expiring_soon, 20),
-    announcements: normalizeNexusReferences(root.announcements, 50),
+    overview: typeof overview === "string" && overview.length > 0
+      ? overview
+      : "Da tao ban tom tat cac thong bao trong pham vi da chon.",
+    actionItems: normalizeNexusReferences(
+      root.actionItems ?? root.action_items ?? root.actions ?? root.tasks ?? root.todos,
+      20,
+    ),
+    expiringSoon: normalizeNexusReferences(
+      root.expiringSoon ?? root.expiring_soon ?? root.deadlines ?? root.upcomingDeadlines,
+      20,
+    ),
+    announcements: normalizeNexusReferences(
+      root.announcements ?? root.items ?? root.summaries ?? root.notifications,
+      50,
+    ),
   }
 }
 
@@ -317,11 +342,22 @@ function unwrapDigestObject(value: unknown): unknown {
 function hasDigestFields(value: Record<string, unknown>): boolean {
   return (
     "overview" in value ||
+    "summary" in value ||
+    "tongQuan" in value ||
+    "tong_quan" in value ||
     "actionItems" in value ||
     "action_items" in value ||
+    "actions" in value ||
+    "tasks" in value ||
+    "todos" in value ||
     "expiringSoon" in value ||
     "expiring_soon" in value ||
-    "announcements" in value
+    "deadlines" in value ||
+    "upcomingDeadlines" in value ||
+    "announcements" in value ||
+    "items" in value ||
+    "summaries" in value ||
+    "notifications" in value
   )
 }
 
@@ -335,8 +371,8 @@ function normalizeNexusReferences(value: unknown, maxItems: number) {
       return []
     }
 
-    const rawId = item.announcementId ?? item.announcement_id ?? item.sourceId ?? item.id
-    const rawSummary = item.summary ?? item.text ?? item.content
+    const rawId = item.announcementId ?? item.announcement_id ?? item.sourceId ?? item.source_id ?? item.id
+    const rawSummary = item.summary ?? item.text ?? item.content ?? item.description ?? item.note
     const announcementId = normalizeNexusText(rawId, Number.POSITIVE_INFINITY)
     const summary = normalizeNexusText(rawSummary, NEXUS_SUMMARY_MAX_LENGTH)
 

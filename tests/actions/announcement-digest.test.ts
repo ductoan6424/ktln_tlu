@@ -159,7 +159,13 @@ describe("createAnnouncementDigest", () => {
       range: { type: "preset", days: 7 },
     })
 
-    expect(consoleError).toHaveBeenCalledWith("Failed to create announcement AI digest")
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to create announcement AI digest",
+      {
+        name: "Error",
+        message: "[redacted-url]",
+      },
+    )
     expect(result).toEqual({
       success: false,
       error: "Tinh nang AI tam thoi chua kha dung.",
@@ -167,7 +173,7 @@ describe("createAnnouncementDigest", () => {
     })
     const serializedLogs = consoleError.mock.calls
       .flat()
-      .map((value) => value instanceof Error ? `${value.message}\n${value.stack}` : String(value))
+      .map((value) => JSON.stringify(value))
       .join("\n")
 
     expect(serializedLogs).not.toContain("secret")

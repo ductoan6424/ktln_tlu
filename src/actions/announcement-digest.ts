@@ -13,6 +13,33 @@ import { generateAnnouncementDigest } from "@/lib/ai-digest/service"
 import { AppError } from "@/lib/errors"
 import { errorResult, successResult, type ActionResult } from "@/types/api"
 
+function redactDiagnosticText(value: string) {
+  return value
+    .replace(/\b(?:redis|rediss|postgres(?:ql)?|mysql):\/\/\S+/gi, "[redacted-url]")
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "[redacted-key]")
+}
+
+function summarizeAnnouncementDigestActionError(error: unknown) {
+  if (error instanceof z.ZodError) {
+    return {
+      name: error.name,
+      issues: error.issues.map((issue) => ({
+        path: issue.path.join("."),
+        message: issue.message,
+      })),
+    }
+  }
+
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: redactDiagnosticText(error.message),
+    }
+  }
+
+  return { value: redactDiagnosticText(String(error)) }
+}
+
 export async function createAnnouncementDigest(
   rawInput: unknown,
 ): Promise<ActionResult<AnnouncementDigestDto>> {
@@ -39,7 +66,10 @@ export async function createAnnouncementDigest(
       return errorResult(error.message, error.code)
     }
 
-    console.error("Failed to create announcement AI digest")
+    console.error(
+      "Failed to create announcement AI digest",
+      summarizeAnnouncementDigestActionError(error),
+    )
     return errorResult("Tinh nang AI tam thoi chua kha dung.", "UNAVAILABLE")
   }
 }

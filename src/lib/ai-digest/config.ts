@@ -7,7 +7,7 @@ const aiDigestEnvSchema = z.object({
   AI_DIGEST_DAILY_LIMIT: z.coerce.number().int().min(1).max(100).default(5),
   AI_DIGEST_MAX_ANNOUNCEMENTS: z.coerce.number().int().min(1).max(50).default(50),
   AI_DIGEST_MAX_INPUT_CHARACTERS: z.coerce.number().int().min(1000).max(500000).default(60000),
-  AI_DIGEST_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
+  AI_DIGEST_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(90000),
   AI_DIGEST_TIME_ZONE: z.string().trim().min(1).default("Asia/Bangkok"),
   OPENAI_API_KEY: z.string().trim().min(1).optional(),
   GOOGLE_AI_API_KEY: z.string().trim().min(1).optional(),
