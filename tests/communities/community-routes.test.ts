@@ -240,6 +240,60 @@ describe("community routes", () => {
     expect(markup).not.toContain("internal-feed")
   })
 
+  it("sets detail metadata titles from group, club, and course names", async () => {
+    prisma.group.findFirst.mockResolvedValueOnce({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: false,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.club.findFirst.mockResolvedValueOnce({
+      id: "club-1",
+      shortId: "clb123",
+      name: "Python Club",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: false,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.course.findFirst.mockResolvedValueOnce({
+      id: "course-1",
+      shortId: "c12345",
+      name: "Data Structures",
+      code: "CS201",
+      requirePostApproval: false,
+      chatEnabled: false,
+      chatMode: "OPEN",
+      lecturerId: "lecturer-1",
+      deletedAt: null,
+    })
+
+    const groupPage = await import("@/app/(main)/groups/[slugId]/page")
+    const clubPage = await import("@/app/(main)/clubs/[slugId]/page")
+    const coursePage = await import("@/app/(main)/courses/[courseId]/page")
+
+    await expect(
+      groupPage.generateMetadata({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+      }),
+    ).resolves.toEqual({ title: "Python Group" })
+    await expect(
+      clubPage.generateMetadata({
+        params: Promise.resolve({ slugId: "python-club-clb123" }),
+      }),
+    ).resolves.toEqual({ title: "Python Club" })
+    await expect(
+      coursePage.generateMetadata({
+        params: Promise.resolve({ courseId: "cs201-c12345" }),
+      }),
+    ).resolves.toEqual({ title: "Data Structures" })
+  })
+
   it("renders working join and request actions for available groups", async () => {
     prisma.group.findMany.mockResolvedValue([
       {
@@ -375,6 +429,7 @@ describe("community routes", () => {
         sharedPost: null,
         communityContext: {
           type: "GROUP",
+          id: "group-1",
           name: "Python Group",
           href: "/groups/python-group-abc123",
           avatarUrl: null,
@@ -403,8 +458,212 @@ describe("community routes", () => {
       pageSize: 20,
     })
     expect(markup).toContain("Published group update")
-    expect(markup).toContain("/messages?conversation=conv-1")
+    expect(markup).toContain("/groups/python-group-abc123?tab=chat")
     expect(markup).not.toContain("Hello chat")
+  })
+
+  it("renders group detail member tab with invite form for regular members", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: true,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "MEMBER" })
+    prisma.group.findUnique.mockResolvedValue({
+      description: "Practice together",
+      _count: { members: 2 },
+    })
+    prisma.groupMember.findMany.mockResolvedValue([
+      {
+        role: "MEMBER",
+        joinedAt: new Date("2026-05-02T08:00:00.000Z"),
+        user: {
+          userId: "viewer-1",
+          displayName: "Viewer",
+          avatarUrl: null,
+          email: "viewer@example.edu",
+          studentId: "SV001",
+        },
+      },
+      {
+        role: "MEMBER",
+        joinedAt: new Date("2026-05-03T08:00:00.000Z"),
+        user: {
+          userId: "member-1",
+          displayName: "Thanh Member",
+          avatarUrl: null,
+          email: "member@example.edu",
+          studentId: "SV002",
+        },
+      },
+    ])
+    getCommunityDetailPosts.mockResolvedValue([
+      {
+        id: "post-1",
+        content: "Feed content should stay hidden",
+        imageUrl: null,
+        createdAt: "2026-05-08T08:00:00.000Z",
+        visibility: "PUBLIC",
+        authorId: "student-1",
+        authorDisplayName: "Student One",
+        authorAvatarUrl: null,
+        authorCoverUrl: null,
+        isLiked: false,
+        likes: 0,
+        comments: 0,
+        isFromFollowed: false,
+        permissions: { canDelete: false, canHide: true, deleteRole: null },
+        sharedPost: null,
+        communityContext: null,
+        attachments: [],
+        poll: null,
+      },
+    ])
+
+    const page = await import("@/app/(main)/groups/[slugId]/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+        searchParams: Promise.resolve({ tab: "members" }),
+      }),
+    )
+
+    expect(markup).toContain("Thanh Member")
+    expect(markup).toContain("SV002")
+    expect(markup).toContain('name="identifier"')
+    expect(markup).not.toContain('name="memberId" value="member-1"')
+    expect(markup).not.toContain("Feed content should stay hidden")
+  })
+
+  it("renders group detail member tab moderation actions for moderators", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: true,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "MODERATOR" })
+    prisma.group.findUnique.mockResolvedValue({
+      description: "Practice together",
+      _count: { members: 2 },
+    })
+    prisma.groupMember.findMany.mockResolvedValue([
+      {
+        role: "MODERATOR",
+        joinedAt: new Date("2026-05-02T08:00:00.000Z"),
+        user: {
+          userId: "viewer-1",
+          displayName: "Mod Viewer",
+          avatarUrl: null,
+          email: "mod@example.edu",
+          studentId: "SV001",
+        },
+      },
+      {
+        role: "MEMBER",
+        joinedAt: new Date("2026-05-03T08:00:00.000Z"),
+        user: {
+          userId: "member-1",
+          displayName: "Thanh Member",
+          avatarUrl: null,
+          email: "member@example.edu",
+          studentId: "SV002",
+        },
+      },
+    ])
+
+    const page = await import("@/app/(main)/groups/[slugId]/page")
+    const markup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+        searchParams: Promise.resolve({ tab: "members" }),
+      }),
+    )
+
+    expect(markup).toContain('name="memberId" value="member-1"')
+    expect(markup).toContain('name="role"')
+    expect(markup).toContain("MODERATOR")
+    expect(markup).toContain("Xo")
+  })
+
+  it("renders group detail about and chat tabs without feed content", async () => {
+    prisma.group.findFirst.mockResolvedValue({
+      id: "group-1",
+      shortId: "abc123",
+      name: "Python Group",
+      communityVisibility: "PUBLIC",
+      requirePostApproval: false,
+      chatEnabled: true,
+      chatMode: "OPEN",
+      memberInviteEnabled: true,
+    })
+    prisma.groupMember.findUnique.mockResolvedValue({ role: "MEMBER" })
+    prisma.group.findUnique.mockResolvedValue({
+      description: "Practice together",
+      _count: { members: 12 },
+    })
+    prisma.communityRule.findMany.mockResolvedValue([
+      {
+        id: "rule-1",
+        title: "Rule One",
+        description: "Respect everyone",
+      },
+    ])
+    getOrCreateCommunityConversation.mockResolvedValue({
+      success: true,
+      data: { conversationId: "conv-1" },
+    })
+    getCommunityDetailPosts.mockResolvedValue([
+      {
+        id: "post-1",
+        content: "Feed content should stay hidden",
+        imageUrl: null,
+        createdAt: "2026-05-08T08:00:00.000Z",
+        visibility: "PUBLIC",
+        authorId: "student-1",
+        authorDisplayName: "Student One",
+        authorAvatarUrl: null,
+        authorCoverUrl: null,
+        isLiked: false,
+        likes: 0,
+        comments: 0,
+        isFromFollowed: false,
+        permissions: { canDelete: false, canHide: true, deleteRole: null },
+        sharedPost: null,
+        communityContext: null,
+        attachments: [],
+        poll: null,
+      },
+    ])
+
+    const page = await import("@/app/(main)/groups/[slugId]/page")
+    const aboutMarkup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+        searchParams: Promise.resolve({ tab: "about" }),
+      }),
+    )
+    const chatMarkup = renderToStaticMarkup(
+      await page.default({
+        params: Promise.resolve({ slugId: "python-group-abc123" }),
+        searchParams: Promise.resolve({ tab: "chat" }),
+      }),
+    )
+
+    expect(aboutMarkup).toContain("Rule One")
+    expect(aboutMarkup).toContain("Respect everyone")
+    expect(aboutMarkup).not.toContain("Feed content should stay hidden")
+    expect(chatMarkup).toContain("/messages?conversation=conv-1")
+    expect(chatMarkup).not.toContain("Feed content should stay hidden")
   })
 
   it("renders group manage members with real member data", async () => {

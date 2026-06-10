@@ -1,8 +1,12 @@
-import { AdminSettingsPageShell } from "@/components/admin/shells/admin-settings-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { EventAdminSettingsForm } from "@/components/admin/settings/event-admin-settings-form"
+import { requireAdminPermission } from "@/lib/auth/authorization"
+import { getEventAdminSettings } from "@/lib/admin/settings/admin-settings-queries"
 
-const eventsModule = getAdminModule("events")
+export const dynamic = "force-dynamic"
 
-export default function AdminEventSettingsPage() {
-  return <AdminSettingsPageShell module={eventsModule} />
+export default async function AdminEventSettingsPage() {
+  await requireAdminPermission("admin.events.manage")
+  const settings = await getEventAdminSettings()
+
+  return <EventAdminSettingsForm settings={settings} />
 }

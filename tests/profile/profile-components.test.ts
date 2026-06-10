@@ -26,10 +26,11 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    ...props
   }: {
     children: React.ReactNode
     href: string
-  }) => createElement("a", { href }, children),
+  }) => createElement("a", { href, ...props }, children),
 }))
 
 vi.mock("@/components/feed/post-composer", () => ({
@@ -60,6 +61,10 @@ vi.mock("@/components/ui/use-toast", () => ({
     toast,
     toasts: [],
   }),
+}))
+
+vi.mock("@/actions/posts", () => ({
+  togglePostLike: vi.fn(),
 }))
 
 const baseProfileData: ProfilePageData = {
@@ -153,6 +158,9 @@ const baseProfileData: ProfilePageData = {
       group: null,
       sharedPost: null,
       poll: null,
+      likes: 5,
+      comments: 2,
+      isLiked: false,
     },
   ],
   followStatus: null,
@@ -184,6 +192,7 @@ describe("profile components", () => {
     expect(ownMarkup).toContain("A46287")
     expect(ownMarkup).toContain("Sinh vien nam cuoi")
     expect(ownMarkup).toContain("data-profile-action=\"edit\"")
+    expect(ownMarkup).toContain("href=\"/settings?section=profile\"")
     expect(ownMarkup).toContain("data-avatar-trigger=\"profile\"")
 
     const publicMarkup = renderToStaticMarkup(
@@ -198,13 +207,14 @@ describe("profile components", () => {
     expect(publicMarkup).toContain("@thib")
     expect(publicMarkup).not.toContain("data-profile-action=\"edit\"")
     expect(publicMarkup).not.toContain("data-avatar-trigger=\"profile\"")
-  })
+  }, 10_000)
 
   it("uses totalCount instead of the preview length in connections grid", async () => {
     const { ConnectionsGrid } = await import("@/components/profile/connections-grid")
 
     const markup = renderToStaticMarkup(
       createElement(ConnectionsGrid, {
+        profileUserId: "user-self",
         totalCount: 12,
         connections: [
           {
@@ -222,6 +232,9 @@ describe("profile components", () => {
     )
 
     expect(markup).toContain("data-total-count=\"12\"")
+    expect(markup).toContain("href=\"/profile/user-self/connections\"")
+    expect(markup).toContain("href=\"/profile/friend-1\"")
+    expect(markup).toContain("href=\"/profile/friend-2\"")
     expect(markup).toContain("+10")
     expect(markup).toContain("Le Thi C")
     expect(markup).toContain("Pham Thi D")

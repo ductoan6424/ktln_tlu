@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation"
 
 import { getOrCreateCommunityConversation } from "@/actions/chat"
 import { CommunityDetailShell } from "@/components/communities/community-detail-shell"
+import type { CommunityDetailTab } from "@/components/communities/community-detail-shell"
 import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { getCommunityPermissions } from "@/lib/communities/policy"
 import {
@@ -14,12 +15,38 @@ import { prisma } from "@/lib/prisma/client"
 
 export const dynamic = "force-dynamic"
 
+type SearchParams = Record<string, string | string[] | undefined>
+type GroupDetailPageProps = {
+  params: Promise<{ slugId: string }>
+  searchParams?: Promise<SearchParams>
+}
+
+function getParam(params: SearchParams, key: string) {
+  const value = params[key]
+  return Array.isArray(value) ? value[0] ?? "" : value ?? ""
+}
+
+function normalizeDetailTab(value: string): CommunityDetailTab {
+  return value === "members" || value === "about" || value === "chat"
+    ? value
+    : "feed"
+}
+
+export async function generateMetadata({ params }: GroupDetailPageProps) {
+  const { slugId } = await params
+  const target = await getCommunityBySlugId("GROUP", slugId)
+
+  return {
+    title: target?.name ?? "Nhóm",
+  }
+}
+
 export default async function GroupDetailPage({
   params,
-}: {
-  params: Promise<{ slugId: string }>
-}) {
+  searchParams,
+}: GroupDetailPageProps) {
   const { slugId } = await params
+  const queryParamsPromise = searchParams ?? Promise.resolve({})
   const target = await getCommunityBySlugId("GROUP", slugId)
   if (!target) notFound()
 
@@ -28,7 +55,7 @@ export default async function GroupDetailPage({
 
   const context = await getAuthorizationContext().catch(() => null)
   const userId = context?.profile.userId ?? null
-  const [membershipRole, group, rules, pendingInvite] = await Promise.all([
+  const [membershipRole, group, rules, pendingInvite, members, queryParams] = await Promise.all([
     getViewerMembershipRole("GROUP", target.id, userId),
     prisma.group.findUnique({
       where: { id: target.id },
@@ -54,6 +81,22 @@ export default async function GroupDetailPage({
           select: { id: true },
         })
       : null,
+    prisma.groupMember.findMany({
+      where: { groupId: target.id },
+      orderBy: { joinedAt: "asc" },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            displayName: true,
+            avatarUrl: true,
+            email: true,
+            studentId: true,
+          },
+        },
+      },
+    }),
+    queryParamsPromise,
   ])
 
   if (!group) notFound()
@@ -99,9 +142,11 @@ export default async function GroupDetailPage({
       canViewPosts={permissions.canViewPosts}
       canPost={permissions.canPost}
       canManage={permissions.canManage}
+      canInvite={permissions.canInvite}
       joinMode={permissions.joinMode}
       hasPendingInvite={Boolean(pendingInvite) && !membershipRole}
       slugId={slugId}
+      activeTab={normalizeDetailTab(getParam(queryParams, "tab"))}
       viewer={
         context
           ? {
@@ -112,6 +157,15 @@ export default async function GroupDetailPage({
           : null
       }
       rules={rules}
+      members={(members ?? []).map((member) => ({
+        userId: member.user.userId,
+        displayName: member.user.displayName,
+        avatarUrl: member.user.avatarUrl,
+        email: member.user.email,
+        studentId: member.user.studentId,
+        role: member.role,
+        joinedAt: member.joinedAt,
+      }))}
       posts={posts}
       chat={chat}
     />

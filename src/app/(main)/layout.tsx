@@ -1,12 +1,15 @@
 import { MAIN_NAV_ITEMS, type MainNavItem } from "@/app/(main)/main-nav-items"
 import { buildSessionUser } from "@/app/(main)/session-user"
+import { AppearanceProvider } from "@/components/layout/appearance-provider"
 import { ChatDock } from "@/components/layout/chat-dock"
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
 import { TopNavbar } from "@/components/layout/top-navbar"
+import { hasAdminAccess } from "@/lib/auth/authorization"
+import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import type { ModuleFlagKey } from "@/lib/config/system-settings"
-import { prisma } from "@/lib/prisma/client"
 import { getModuleFlags } from "@/lib/settings/queries"
-import { createClient } from "@/lib/supabase/server"
+import { cn } from "@/lib/utils"
+import { redirect } from "next/navigation"
 
 const NAV_HREF_TO_FLAG: Record<string, ModuleFlagKey> = {
   "/feed": "feed",
@@ -32,48 +35,62 @@ export default async function MainLayout({
   children: React.ReactNode
 }) {
   // Khởi chạy song song các tác vụ độc lập với auth
-  const moduleFlagsPromise = getModuleFlags()
-
-  const supabase = await createClient()
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser()
-
-  const [profile, moduleFlags] = await Promise.all([
-    authUser
-      ? prisma.userProfile.findUnique({
-          where: { userId: authUser.id },
-          select: {
-            displayName: true,
-            major: true,
-            email: true,
-            avatarUrl: true,
-          },
-        })
-      : Promise.resolve(null),
-    moduleFlagsPromise,
+  const [userContext, moduleFlags] = await Promise.all([
+    getCurrentUserContext(),
+    getModuleFlags(),
   ])
 
-  const sessionUser = buildSessionUser(authUser, profile)
+  if (!userContext.authUser) {
+    redirect("/login")
+  }
+
+  if (userContext.accountGateStatus === "INACTIVE") {
+    redirect("/account-inactive")
+  }
+
+  if (userContext.accountGateStatus === "CONTACT_EMAIL_REQUIRED") {
+    redirect("/complete-contact-email")
+  }
+
+  const canAccessAdmin = userContext.profile
+    ? await hasAdminAccess(userContext.profile.userId, userContext.profile.role)
+    : false
+  const sessionUser = buildSessionUser(
+    userContext.authUser,
+    userContext.profile,
+    { canAccessAdmin },
+  )
   const visibleNavItems = filterNavItemsByFlags(MAIN_NAV_ITEMS, moduleFlags)
+  const appearanceSettings = userContext.settings
 
   return (
-    <div className="min-h-dvh bg-muted/30">
-      <ChatDock userId={authUser?.id ?? null}>
-        <TopNavbar
-          navItems={visibleNavItems}
-          user={sessionUser}
-          notificationCount={3}
-          messageCount={5}
-          searchPlaceholder="Tìm kiếm trong cộng đồng..."
-        />
-        <main className="min-h-dvh pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pt-16 lg:pb-0">{children}</main>
-        <MobileBottomNav
-          user={sessionUser}
-          notificationCount={3}
-          messageCount={5}
-        />
-      </ChatDock>
-    </div>
+    <AppearanceProvider initialSettings={appearanceSettings}>
+      <div
+        data-appearance-root
+        className={cn(
+          "min-h-dvh bg-muted/30",
+          appearanceSettings.theme === "DARK" && "dark",
+        )}
+        data-theme-preference={appearanceSettings.theme.toLowerCase()}
+        data-density={
+          appearanceSettings.compactMode ? "compact" : "comfortable"
+        }
+        data-reduced-motion={
+          appearanceSettings.reducedMotion ? "true" : "false"
+        }
+      >
+        <ChatDock userId={userContext.userId}>
+          <TopNavbar
+            navItems={visibleNavItems}
+            user={sessionUser}
+            searchPlaceholder="Tìm kiếm trong cộng đồng..."
+          />
+          <main className="min-h-dvh pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pt-16 lg:pb-0">
+            {children}
+          </main>
+          <MobileBottomNav user={sessionUser} userId={userContext.userId} />
+        </ChatDock>
+      </div>
+    </AppearanceProvider>
   )
 }

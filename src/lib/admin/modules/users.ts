@@ -47,11 +47,11 @@ const USERS_RECORDS: AdminRecord<UserCells>[] = [
   },
   {
     id: "user-003",
-    title: "Phạm Gia Huy",
+    title: "Phạm Gia Hủy",
     subtitle: "Quản trị viên",
     status: "blocked",
     cells: {
-      title: "Phạm Gia Huy",
+      title: "Phạm Gia Hủy",
       email: "phamgiahuy@example.edu",
       role: "Quản trị viên",
       faculty: "Khối quản trị",
@@ -189,7 +189,7 @@ const detailSectionsById: Record<string, AdminDetailSection[]> = {
     {
       title: "Thông tin cơ bản",
       items: [
-        { label: "Họ và tên", value: "Phạm Gia Huy" },
+        { label: "Họ và tên", value: "Phạm Gia Hủy" },
         { label: "Vai trò", value: "Quản trị viên" },
         { label: "Trạng thái", value: "Đã chặn" },
       ],
@@ -243,10 +243,10 @@ export const USERS_ADMIN_MODULE: AdminModuleDefinition<UserCells> = {
   records: USERS_RECORDS,
   quickActions: [
     {
-      label: "Mời người dùng",
-      href: "/admin/users/new",
+      label: "Import tài khoản",
+      href: "/admin/users/import",
       icon: "Users",
-      description: "Khởi tạo lời mời tài khoản mới",
+      description: "Upload CSV/XLSX để tạo tài khoản trường",
     },
     {
       label: "Mở cài đặt",
@@ -261,7 +261,7 @@ export const USERS_ADMIN_MODULE: AdminModuleDefinition<UserCells> = {
   settingsSections,
   buildDetailPath: (id) => `/admin/users/${id}`,
   buildEditPath: (id) => `/admin/users/${id}/edit`,
-  buildNewPath: () => "/admin/users/new",
+  buildNewPath: () => "/admin/users/import",
   buildSettingsPath: () => "/admin/users/settings",
   getRecord: (id) => USERS_RECORDS.find((record) => record.id === id),
 }

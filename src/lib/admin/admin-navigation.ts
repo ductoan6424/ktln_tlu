@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Settings,
+  ShieldAlert,
   Users,
   UsersRound,
 } from "lucide-react"
@@ -33,6 +34,7 @@ export interface AdminModuleRouteLabels {
 const ADMIN_MODULE_ICONS = {
   users: Users,
   subjects: BookOpen,
+  clubs: UsersRound,
   groups: UsersRound,
   events: CalendarDays,
 } satisfies Record<(typeof ADMIN_MODULES)[number]["key"], LucideIcon>
@@ -45,10 +47,16 @@ export const ADMIN_MODULE_ROUTE_LABELS = {
     detail: "Chi tiết người dùng",
   },
   subjects: {
-    list: "Quản lý môn học",
+    list: "Quản lý lớp học",
     create: "Tạo mới",
     settings: "Cài đặt phân hệ",
-    detail: "Chi tiết môn học",
+    detail: "Chi tiết lớp học",
+  },
+  clubs: {
+    list: "Quản lý câu lạc bộ",
+    create: "Tạo mới",
+    settings: "Cài đặt phân hệ",
+    detail: "Chi tiết câu lạc bộ",
   },
   groups: {
     list: "Quản lý nhóm",
@@ -78,6 +86,11 @@ export const ADMIN_CORE_NAV_ITEMS = [
     icon: LayoutDashboard,
     label: "Bảng điều khiển",
     href: "/admin/dashboard",
+  },
+  {
+    icon: ShieldAlert,
+    label: "Kiểm duyệt",
+    href: "/admin/moderation",
   },
   {
     icon: Megaphone,

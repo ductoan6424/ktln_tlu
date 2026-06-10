@@ -337,7 +337,7 @@ async function reviewCommunityPost(
     const auth = await getTargetAuthorization(input)
     if (auth.error) return auth.error
     if (!auth.permissions?.canApprovePost || !auth.context || !auth.target) {
-      return errorResult("Báº¡n khÃ´ng cÃ³ quyá»n duyá»‡t bÃ i viáº¿t", "FORBIDDEN")
+      return errorResult("Bạn không có quyền duyệt bài viết", "FORBIDDEN")
     }
 
     const post = await prisma.post.findFirst({
@@ -356,7 +356,7 @@ async function reviewCommunityPost(
       },
     })
     if (!post) {
-      return errorResult("KhÃ´ng tÃ¬m tháº¥y bÃ i viáº¿t Ä‘ang chá» duyá»‡t", "NOT_FOUND")
+      return errorResult("Không tìm thấy bài viết đang chờ duyệt", "NOT_FOUND")
     }
 
     await prisma.post.update({
@@ -417,7 +417,7 @@ async function reviewCommunityPost(
     return successResult({ postId: post.id })
   } catch (error) {
     if (error instanceof z.ZodError) return validationError(error)
-    return errorResult("KhÃ´ng thá»ƒ duyá»‡t bÃ i viáº¿t", "UPDATE_FAILED")
+    return errorResult("Không thể duyệt bài viết", "UPDATE_FAILED")
   }
 }
 

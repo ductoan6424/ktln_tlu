@@ -45,6 +45,12 @@ const DURATION_OPTIONS: Array<{ value: PollDurationPreset; label: string }> = [
   { value: "never", label: "Không giới hạn" },
 ]
 
+let pollOptionKeySeed = 0
+
+function createOptionKeys(count: number) {
+  return Array.from({ length: count }, () => `poll-option-${pollOptionKeySeed++}`)
+}
+
 function emptyDraft(): PollDraft {
   return {
     question: "",
@@ -63,12 +69,17 @@ export function PollComposerModal({
 }: PollComposerModalProps) {
   const [draft, setDraft] = useState<PollDraft>(() => initialValue ?? emptyDraft())
   const [error, setError] = useState<string | null>(null)
+  const [optionKeys, setOptionKeys] = useState(() =>
+    createOptionKeys((initialValue ?? emptyDraft()).options.length),
+  )
 
   // Reset state khi mở modal — sync từ prop initialValue do cha kiểm soát open
   useEffect(() => {
     if (!open) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ draft với initialValue mỗi lần parent mở modal
-    setDraft(initialValue ?? emptyDraft())
+    const nextDraft = initialValue ?? emptyDraft()
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync draft when parent reopens the controlled modal
+    setDraft(nextDraft)
+    setOptionKeys(createOptionKeys(nextDraft.options.length))
     setError(null)
   }, [open, initialValue])
 
@@ -82,20 +93,22 @@ export function PollComposerModal({
   }
 
   const addOption = () => {
+    if (draft.options.length >= POLL_OPTIONS_MAX_COUNT) return
     setDraft((current) => {
-      if (current.options.length >= POLL_OPTIONS_MAX_COUNT) return current
       return { ...current, options: [...current.options, { content: "" }] }
     })
+    setOptionKeys((current) => [...current, ...createOptionKeys(1)])
   }
 
   const removeOption = (index: number) => {
+    if (draft.options.length <= POLL_OPTIONS_MIN_COUNT) return
     setDraft((current) => {
-      if (current.options.length <= POLL_OPTIONS_MIN_COUNT) return current
       return {
         ...current,
         options: current.options.filter((_, i) => i !== index),
       }
     })
+    setOptionKeys((current) => current.filter((_, i) => i !== index))
   }
 
   const handleTypeChange = (type: PollTypeInput) => {
@@ -129,10 +142,11 @@ export function PollComposerModal({
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-foreground">
+            <label className="text-[13px] font-medium text-foreground" htmlFor="poll-question">
               Câu hỏi
             </label>
             <Input
+              id="poll-question"
               value={draft.question}
               onChange={(event) =>
                 setDraft((current) => ({
@@ -149,12 +163,12 @@ export function PollComposerModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-foreground">
+            <p className="text-[13px] font-medium text-foreground">
               Đáp án
-            </label>
+            </p>
             <div className="space-y-2">
               {draft.options.map((option, index) => (
-                <div key={index} className="flex items-center gap-2">
+                <div key={optionKeys[index]} className="flex items-center gap-2">
                   <Input
                     value={option.content}
                     onChange={(event) => updateOption(index, event.target.value)}
@@ -189,9 +203,9 @@ export function PollComposerModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-foreground">
+            <p className="text-[13px] font-medium text-foreground">
               Hình thức
-            </label>
+            </p>
             <Tabs
               value={draft.type}
               onValueChange={(value) => handleTypeChange(value as PollTypeInput)}
@@ -204,9 +218,9 @@ export function PollComposerModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-foreground">
+            <p className="text-[13px] font-medium text-foreground">
               Thời hạn
-            </label>
+            </p>
             <Tabs
               value={draft.durationPreset}
               onValueChange={(value) =>

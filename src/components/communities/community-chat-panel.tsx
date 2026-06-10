@@ -50,10 +50,11 @@ export function CommunityChatPanel({
   messages = EMPTY_MESSAGES,
   className,
 }: CommunityChatPanelProps) {
-  const [items, setItems] = useState(messages)
+  const [itemsOverride, setItemsOverride] = useState<ChatMessageItem[] | null>(null)
   const [isSending, setIsSending] = useState(false)
+  const items = itemsOverride ?? messages
   const sortedMessages = useMemo(
-    () => [...items].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    () => items.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [items],
   )
   const statusLabel = readonlyLabel ?? "Phòng chat đang ở chế độ chỉ đọc."
@@ -80,10 +81,10 @@ export function CommunityChatPanel({
       return false
     }
 
-    setItems((current) =>
-      current.some((item) => item.id === result.data!.id)
-        ? current
-        : [...current, result.data!],
+    setItemsOverride(
+      items.some((item) => item.id === result.data!.id)
+        ? items
+        : [...items, result.data!],
     )
 
     return true
@@ -96,7 +97,7 @@ export function CommunityChatPanel({
         className,
       )}
     >
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {sortedMessages.length === 0 ? (
           <div className="flex h-full min-h-48 items-center justify-center text-sm text-muted-foreground">
             Chưa có tin nhắn.

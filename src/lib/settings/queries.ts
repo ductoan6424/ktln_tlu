@@ -1,3 +1,4 @@
+import { unstableCache } from "@/lib/cache/unstable-cache"
 import { prisma } from "@/lib/prisma/client"
 import {
   MODULE_FLAG_KEYS,
@@ -57,7 +58,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
 
 export type ModuleFlagsMap = Record<ModuleFlagKey, boolean>
 
-export async function getModuleFlags(): Promise<ModuleFlagsMap> {
+async function loadModuleFlags(): Promise<ModuleFlagsMap> {
   const rows = await prisma.moduleFlag.findMany({
     where: { key: { in: [...MODULE_FLAG_KEYS] } },
     select: { key: true, enabled: true },
@@ -71,6 +72,10 @@ export async function getModuleFlags(): Promise<ModuleFlagsMap> {
   }
   return result
 }
+
+export const getModuleFlags = unstableCache(loadModuleFlags, ["module-flags"], {
+  revalidate: 60,
+})
 
 export async function isModuleEnabled(key: ModuleFlagKey): Promise<boolean> {
   const flag = await prisma.moduleFlag.findUnique({

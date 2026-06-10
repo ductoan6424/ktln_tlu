@@ -19,7 +19,7 @@ export function MemberItem({
     <div className={cn("flex items-center gap-3", className)}>
       <UserAvatar src={avatar} name={name} size="md" />
       <div>
-        <h4 className="text-sm font-bold">{name}</h4>
+        <h4 className="text-sm font-semibold">{name}</h4>
         {role && (
           <p className="text-xs text-muted-foreground">{role}</p>
         )}

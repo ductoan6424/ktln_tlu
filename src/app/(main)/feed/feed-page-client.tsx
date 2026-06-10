@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { memo, useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item"
@@ -20,12 +20,17 @@ import { PageContainer } from "@/components/layout/page-container"
 import { SidebarGroupItem } from "@/components/layout/sidebar-group-item"
 import { ActiveFriends } from "@/components/layout/active-friends"
 import { useChatDock } from "@/components/layout/chat-dock"
-import { mockGroups } from "@/components/layout/mock-data"
 import type { ActiveFriend } from "@/components/layout/mock-data"
 import { openDirectConversation } from "@/actions/chat"
 import { loadFeedPosts, togglePostLike, getPostById } from "@/actions/posts"
 import { FEED_PAGE_SIZE } from "@/lib/config/posts"
+import type { EventSidebarItem } from "@/lib/events/queries"
 import type { FeedCursor, FeedPostCommunityContext } from "@/lib/feed/queries"
+import type {
+  FeedSidebarGroup,
+  TrendingSearchItem,
+} from "@/lib/feed/sidebar-queries"
+import type { BaseRole } from "@/lib/auth/base-role"
 import type { PollView } from "@/lib/polls/types"
 import { PostDetailDialog } from "@/components/feed/post-detail-dialog"
 import { useToast } from "@/components/ui/use-toast"
@@ -39,11 +44,15 @@ const LEFT_NAV = [
   { icon: Bookmark, label: "Bài viết đã lưu", href: "/saved" },
 ]
 
-const TRENDING_DATA = [
-  { category: "Xu hướng", title: "#KhaiGiangK67", stats: "1.2k bài viết" },
-  { category: "Học thuật", title: "Lịch thi cuối kỳ HK2", stats: "856 sinh viên thảo luận" },
-  { category: "Thể thao", title: "Giải bóng đá Khoa CNTT", stats: "2.4k quan tâm" },
-]
+const FEED_ROLE_LABELS = {
+  STUDENT: "Sinh vi\u00ean",
+  LECTURER: "Gi\u1ea3ng vi\u00ean",
+  ADMIN: "Qu\u1ea3n tr\u1ecb",
+} as const satisfies Record<BaseRole, string>
+
+function getFeedRoleLabel(role: BaseRole) {
+  return FEED_ROLE_LABELS[role]
+}
 
 const EVENTS_DATA = [
   { month: "Th3", day: "15", title: "Hackathon TLU 2025", location: "Hội trường A1", time: "08:00" },
@@ -52,6 +61,12 @@ const EVENTS_DATA = [
 
 // Tránh tạo array mới mỗi render → ổn định reference để React.memo làm việc
 const EMPTY_ANNOUNCEMENTS: AnnouncementStripItem[] = []
+const EMPTY_SIDEBAR_GROUPS: FeedSidebarGroup[] = []
+const EMPTY_TRENDING_SEARCHES: TrendingSearchItem[] = []
+const EMPTY_EVENTS: EventSidebarItem[] = EVENTS_DATA.map((event, index) => ({
+  id: `mock-${index}`,
+  ...event,
+}))
 
 interface SharedPostData {
   id: string
@@ -109,12 +124,17 @@ interface FeedPageClientProps {
     userId: string
     displayName: string
     avatarUrl: string | null
+    role: BaseRole
   } | null
   initialPosts: FeedPost[]
   initialCursor: FeedCursor
   initialHasMore: boolean
   deepLinkPostId?: string | null
+  deepLinkAnnouncementId?: string | null
   announcements?: AnnouncementStripItem[]
+  upcomingEvents?: EventSidebarItem[]
+  sidebarGroups?: FeedSidebarGroup[]
+  trendingSearches?: TrendingSearchItem[]
 }
 
 export function FeedPageClient({
@@ -123,30 +143,55 @@ export function FeedPageClient({
   initialCursor,
   initialHasMore,
   deepLinkPostId,
+  deepLinkAnnouncementId,
   announcements = EMPTY_ANNOUNCEMENTS,
+  upcomingEvents = EMPTY_EVENTS,
+  sidebarGroups = EMPTY_SIDEBAR_GROUPS,
+  trendingSearches = EMPTY_TRENDING_SEARCHES,
 }: FeedPageClientProps) {
-  const [posts, setPosts] = useState<FeedPost[]>(initialPosts)
+  const [postsOverride, setPostsOverride] = useState<{
+    source: FeedPost[]
+    value: FeedPost[]
+  } | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const posts = postsOverride?.source === initialPosts ? postsOverride.value : initialPosts
+  const replacePosts = useCallback(
+    (value: FeedPost[] | null) => {
+      setPostsOverride(value ? { source: initialPosts, value } : null)
+    },
+    [initialPosts],
+  )
+  const updatePosts = useCallback(
+    (updater: (current: FeedPost[]) => FeedPost[]) => {
+      setPostsOverride({ source: initialPosts, value: updater(posts) })
+    },
+    [initialPosts, posts],
+  )
 
   const hasMoreRef = useRef<boolean>(initialHasMore)
   const cursorRef = useRef<FeedCursor>(initialCursor)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const rollbackRef = useRef<FeedPost[] | null>(null)
   const openingDirectConversationsRef = useRef(new Set<string>())
+  const postsRef = useRef<FeedPost[]>(posts)
+  useEffect(() => {
+    postsRef.current = posts
+  }, [posts])
   const { toast } = useToast()
   const { openConversation } = useChatDock()
 
   // Sync lại state khi server revalidate `/feed` (vd: sau khi đăng bài mới)
   // → Next.js truyền `initialPosts` mới, nhưng useState chỉ init 1 lần nên cần effect này
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync posts với kết quả revalidate từ server
-    setPosts(initialPosts)
     cursorRef.current = initialCursor
     hasMoreRef.current = initialHasMore
-  }, [initialPosts, initialCursor, initialHasMore])
+  }, [initialCursor, initialHasMore])
 
-  const [deepLinkData, setDeepLinkData] = useState<DeepLinkPost | null>(null)
-  const [isDeepLinkOpen, setIsDeepLinkOpen] = useState(false)
+  const [deepLinkState, setDeepLinkState] = useState<{
+    data: DeepLinkPost | null
+    isOpen: boolean
+  }>({ data: null, isOpen: false })
+  const { data: deepLinkData, isOpen: isDeepLinkOpen } = deepLinkState
   const deepLinkHandledRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -155,8 +200,7 @@ export function FeedPageClient({
 
     const existingPost = posts.find((p) => p.id === deepLinkPostId)
     if (existingPost) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- open the dialog in response to a deep-link query param
-      setDeepLinkData({
+      setDeepLinkState({ data: {
         postId: existingPost.id,
         authorName: existingPost.author.displayName,
         authorAvatar: existingPost.author.avatarUrl ?? undefined,
@@ -171,8 +215,7 @@ export function FeedPageClient({
         permissions: existingPost.permissions,
         communityContext: existingPost.communityContext ?? null,
         sharedPost: existingPost.sharedPost ?? null,
-      })
-      setIsDeepLinkOpen(true)
+      }, isOpen: true })
       return
     }
 
@@ -182,7 +225,7 @@ export function FeedPageClient({
         return
       }
       const p = result.data
-      setDeepLinkData({
+      setDeepLinkState({ data: {
         postId: p.id,
         authorName: p.authorDisplayName,
         authorAvatar: p.authorAvatarUrl ?? undefined,
@@ -197,22 +240,23 @@ export function FeedPageClient({
         permissions: p.permissions,
         communityContext: p.communityContext ?? null,
         sharedPost: p.sharedPost ?? null,
-      })
-      setIsDeepLinkOpen(true)
+      }, isOpen: true })
     })
   }, [deepLinkPostId, posts, currentUser, toast])
 
+  const currentUserIdValue = currentUser?.userId ?? null
   const handleLike = useCallback(
     async (postId: string) => {
-      const post = posts.find((p) => p.id === postId)
+      const snapshot = postsRef.current
+      const post = snapshot.find((p) => p.id === postId)
       if (!post) return
 
-      if (currentUser && post.authorId === currentUser.userId) return
+      if (currentUserIdValue && post.authorId === currentUserIdValue) return
 
-      rollbackRef.current = posts
+      rollbackRef.current = snapshot
 
-      setPosts((prev) =>
-        prev.map((p) =>
+      replacePosts(
+        snapshot.map((p) =>
           p.id === postId
             ? {
                 ...p,
@@ -220,13 +264,13 @@ export function FeedPageClient({
                 likes: p.isLiked ? p.likes - 1 : p.likes + 1,
               }
             : p
-        )
+        ),
       )
 
       const result = await togglePostLike(postId)
 
       if (!result.success) {
-        setPosts(rollbackRef.current ?? posts)
+        replacePosts(rollbackRef.current ?? null)
         if (result.code !== "CANNOT_LIKE_OWN") {
           toast({
             title: "Lỗi",
@@ -236,7 +280,14 @@ export function FeedPageClient({
         }
       }
     },
-    [posts, currentUser, toast]
+    [currentUserIdValue, replacePosts, toast]
+  )
+
+  const handleRemovePost = useCallback(
+    (postId: string) => {
+      replacePosts(postsRef.current.filter((p) => p.id !== postId))
+    },
+    [replacePosts],
   )
 
   const loadMore = useCallback(async () => {
@@ -270,10 +321,10 @@ export function FeedPageClient({
         poll: post.poll ?? null,
       }))
 
-      setPosts((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id))
+      updatePosts((currentPosts) => {
+        const existingIds = new Set(currentPosts.map((p) => p.id))
         const filtered = newPosts.filter((p) => !existingIds.has(p.id))
-        return [...prev, ...filtered]
+        return [...currentPosts, ...filtered]
       })
       cursorRef.current = page.nextCursor
       hasMoreRef.current = page.hasMore
@@ -282,7 +333,7 @@ export function FeedPageClient({
     }
 
     setIsLoadingMore(false)
-  }, [isLoadingMore])
+  }, [isLoadingMore, updatePosts])
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -336,14 +387,14 @@ export function FeedPageClient({
     <>
       <PageContainer
         variant="full"
-        className="h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] overflow-hidden py-0 lg:h-[calc(100dvh_-_4rem)]"
+        className="relative min-h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] py-0 lg:min-h-[calc(100dvh_-_4rem)] lg:pl-[304px] lg:pr-6 xl:pr-[304px]"
       >
-        <div className="flex h-full min-h-0 gap-5 lg:gap-6">
-          <aside className="hidden min-h-0 overscroll-contain lg:block lg:w-[280px] xl:w-[300px] shrink-0 overflow-y-auto">
-            <div className="py-6 flex flex-col gap-2 w-full">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-4">
+        <div className="min-h-full">
+          <aside className="fixed top-16 bottom-0 left-0 hidden w-[280px] overscroll-contain overflow-y-auto lg:block">
+            <div className="flex w-full flex-col gap-2 px-4 py-6">
+              <Card className="rounded-lg border-border/70 shadow-sm">
+                <CardContent className="flex flex-col gap-4 p-4">
+                  <div className="flex items-center gap-3">
                     <UserAvatar
                       name={currentUser?.displayName ?? ""}
                       src={currentUser?.avatarUrl ?? undefined}
@@ -354,11 +405,11 @@ export function FeedPageClient({
                         {currentUser?.displayName ?? "Khách"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {currentUser ? "Thành viên" : "Đăng nhập để tham gia"}
+                        {currentUser ? getFeedRoleLabel(currentUser.role) : "Đăng nhập để tham gia"}
                       </p>
                     </div>
                   </div>
-                  <nav className="space-y-1">
+                  <nav className="flex flex-col gap-1">
                     {LEFT_NAV.map((item) => (
                       <SidebarNavItem
                         key={item.href}
@@ -369,32 +420,39 @@ export function FeedPageClient({
                       />
                     ))}
                   </nav>
-                  <div className="mt-4">
+                  <div>
                     <p className="px-1 py-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
                       Nhóm của bạn
                     </p>
-                    <div className="space-y-0.5">
-                      {mockGroups.map((group) => (
-                        <SidebarGroupItem key={group.id} group={group} />
-                      ))}
-                    </div>
+                    {sidebarGroups.length === 0 ? (
+                      <p className="px-1 py-2 text-xs text-muted-foreground">
+                        Chưa tham gia nhóm nào.
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-0.5">
+                        {sidebarGroups.map((group) => (
+                          <SidebarGroupItem key={group.id} group={group} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </div>
           </aside>
 
-          <section className="min-h-0 flex-1 min-w-0 overscroll-contain overflow-y-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="py-6 max-w-[640px] mx-auto flex flex-col gap-3">
+          <section className="mx-auto w-full max-w-[660px]">
+            <div className="flex flex-col gap-4 py-6">
               <PostComposer
                 userName={currentUser?.displayName ?? ""}
                 userAvatar={currentUser?.avatarUrl ?? undefined}
                 variant="full"
               />
 
-              {announcements.length > 0 && (
-                <AnnouncementStrip announcements={announcements} />
-              )}
+              <AnnouncementStrip
+                announcements={announcements}
+                deepLinkAnnouncementId={deepLinkAnnouncementId}
+              />
 
               <DividerLabel label="Cập nhật gần đây" />
 
@@ -403,33 +461,12 @@ export function FeedPageClient({
               ) : (
                 <>
                   {posts.map((post) => (
-                    <PostCard
+                    <FeedPostCardRow
                       key={post.id}
-                      postId={post.id}
-                      authorName={post.author.displayName}
-                      authorAvatar={post.author.avatarUrl ?? undefined}
-                      authorCover={post.author.coverUrl ?? undefined}
-                      createdAt={post.createdAt}
-                      content={post.content}
-                      imageUrl={post.imageUrl ?? undefined}
-                      likes={post.likes}
-                      comments={undefined}
-                      isLiked={post.isLiked}
-                      isSaved={post.isSaved}
+                      post={post}
                       currentUser={currentUser}
-                      currentUserId={currentUser?.userId ?? null}
-                      authorId={post.authorId}
-                      onLike={() => handleLike(post.id)}
-                      permissions={post.permissions}
-                      communityContext={post.communityContext ?? null}
-                      onDeleted={() =>
-                        setPosts((prev) => prev.filter((p) => p.id !== post.id))
-                      }
-                      onHidden={() =>
-                        setPosts((prev) => prev.filter((p) => p.id !== post.id))
-                      }
-                      sharedPost={post.sharedPost}
-                      poll={post.poll}
+                      onLike={handleLike}
+                      onRemove={handleRemovePost}
                     />
                   ))}
 
@@ -448,28 +485,37 @@ export function FeedPageClient({
             </div>
           </section>
 
-          <aside className="hidden min-h-0 overscroll-contain xl:block xl:w-[280px] shrink-0 overflow-y-auto">
-            <div className="py-6 flex flex-col gap-4 w-full">
-              <Card>
-                <CardContent className="p-5">
-                  <p className="font-bold text-sm mb-4">
+          <aside className="fixed top-16 right-0 bottom-0 hidden w-[280px] overscroll-contain overflow-y-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:block">
+            <div className="flex w-full flex-col gap-4 px-4 py-6">
+              <Card className="rounded-lg border-border/70 shadow-sm">
+                <CardContent className="flex flex-col gap-4 p-5">
+                  <p className="text-sm font-bold">
                     Xu hướng trong trường
                   </p>
-                  <div className="space-y-4">
-                    {TRENDING_DATA.map((item) => (
-                      <TrendingItem
-                        key={item.title}
-                        category={item.category}
-                        title={item.title}
-                        stats={item.stats}
-                      />
-                    ))}
-                  </div>
+                  {trendingSearches.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Chưa có dữ liệu tìm kiếm.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {trendingSearches.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          className="block rounded-xl transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <TrendingItem
+                            category={item.category}
+                            title={item.title}
+                            stats={item.stats}
+                          />
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-5">
+              <Card className="rounded-lg border-border/70 shadow-sm">
+                <CardContent className="flex flex-col gap-4 p-5">
                   <SectionHeader
                     title="Sự kiện sắp tới"
                     action={
@@ -480,20 +526,23 @@ export function FeedPageClient({
                         Xem tất cả
                       </Link>
                     }
-                    className="mb-4"
                   />
-                  <div className="space-y-4">
-                    {EVENTS_DATA.map((event) => (
-                      <EventItem
-                        key={event.title}
-                        month={event.month}
-                        day={event.day}
-                        title={event.title}
-                        location={event.location}
-                        time={event.time}
-                      />
-                    ))}
-                  </div>
+                  {upcomingEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Chưa có sự kiện sắp tới.</p>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {upcomingEvents.map((event) => (
+                        <EventItem
+                          key={event.id}
+                          month={event.month}
+                          day={event.day}
+                          title={event.title}
+                          location={event.location}
+                          time={event.time}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -511,7 +560,7 @@ export function FeedPageClient({
       {deepLinkData && (
         <PostDetailDialog
           open={isDeepLinkOpen}
-          onOpenChange={setIsDeepLinkOpen}
+          onOpenChange={(isOpen) => setDeepLinkState((state) => ({ ...state, isOpen }))}
           postId={deepLinkData.postId}
           authorName={deepLinkData.authorName}
           authorAvatar={deepLinkData.authorAvatar}
@@ -528,12 +577,12 @@ export function FeedPageClient({
           permissions={deepLinkData.permissions}
           communityContext={deepLinkData.communityContext ?? null}
           onDeleted={() => {
-            setIsDeepLinkOpen(false)
-            setPosts((prev) => prev.filter((p) => p.id !== deepLinkData.postId))
+            setDeepLinkState((state) => ({ ...state, isOpen: false }))
+            handleRemovePost(deepLinkData.postId)
           }}
           onHidden={() => {
-            setIsDeepLinkOpen(false)
-            setPosts((prev) => prev.filter((p) => p.id !== deepLinkData.postId))
+            setDeepLinkState((state) => ({ ...state, isOpen: false }))
+            handleRemovePost(deepLinkData.postId)
           }}
           sharedPost={deepLinkData.sharedPost}
         />
@@ -541,3 +590,46 @@ export function FeedPageClient({
     </>
   )
 }
+
+interface FeedPostCardRowProps {
+  post: FeedPost
+  currentUser: FeedPageClientProps["currentUser"]
+  onLike: (postId: string) => void
+  onRemove: (postId: string) => void
+}
+
+const FeedPostCardRow = memo(function FeedPostCardRow({
+  post,
+  currentUser,
+  onLike,
+  onRemove,
+}: FeedPostCardRowProps) {
+  const handleLike = useCallback(() => onLike(post.id), [onLike, post.id])
+  const handleRemove = useCallback(() => onRemove(post.id), [onRemove, post.id])
+
+  return (
+    <PostCard
+      postId={post.id}
+      authorName={post.author.displayName}
+      authorAvatar={post.author.avatarUrl ?? undefined}
+      authorCover={post.author.coverUrl ?? undefined}
+      createdAt={post.createdAt}
+      content={post.content}
+      imageUrl={post.imageUrl ?? undefined}
+      likes={post.likes}
+      comments={undefined}
+      isLiked={post.isLiked}
+      isSaved={post.isSaved}
+      currentUser={currentUser}
+      currentUserId={currentUser?.userId ?? null}
+      authorId={post.authorId}
+      onLike={handleLike}
+      permissions={post.permissions}
+      communityContext={post.communityContext ?? null}
+      onDeleted={handleRemove}
+      onHidden={handleRemove}
+      sharedPost={post.sharedPost}
+      poll={post.poll}
+    />
+  )
+})

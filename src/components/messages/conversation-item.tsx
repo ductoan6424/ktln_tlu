@@ -17,6 +17,7 @@ interface ConversationItemProps {
   status?: UserStatus
   isGroup?: boolean
   onClick?: () => void
+  className?: string
 }
 
 export function ConversationItem({
@@ -29,6 +30,7 @@ export function ConversationItem({
   status = "offline",
   isGroup = false,
   onClick,
+  className,
 }: ConversationItemProps) {
   return (
     <Button
@@ -36,10 +38,11 @@ export function ConversationItem({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "h-auto w-full justify-start gap-4 rounded-none border-0 px-4 py-4 text-left whitespace-normal",
+        "h-auto w-full justify-start gap-4 rounded-none border-0 border-l-4 px-4 py-4 text-left whitespace-normal",
         isActive
-          ? "border-r-4 border-primary bg-primary/5 hover:bg-primary/5"
-          : "border-b border-border/50 hover:bg-muted"
+          ? "border-l-4 border-brand-indigo bg-primary/10 text-brand-indigo hover:bg-primary/10"
+          : "border-l-4 border-transparent border-b border-border/50 hover:bg-muted/70",
+        className
       )}
     >
       <UserAvatar
@@ -64,7 +67,7 @@ export function ConversationItem({
           <span
             className={cn(
               "text-[11px] shrink-0 ml-2",
-              isActive ? "text-primary font-medium" : "text-muted-foreground"
+              isActive ? "font-medium text-brand-indigo" : "text-muted-foreground"
             )}
           >
             {time}
@@ -73,14 +76,14 @@ export function ConversationItem({
         <p
           className={cn(
             "text-sm truncate mt-0.5",
-            unreadCount > 0 ? "text-primary font-medium" : "text-muted-foreground"
+            unreadCount > 0 ? "font-medium text-brand-indigo" : "text-muted-foreground"
           )}
         >
           {lastMessage}
         </p>
       </div>
       {unreadCount > 0 && (
-        <span className="size-5 bg-primary rounded-full flex items-center justify-center text-[10px] text-primary-foreground font-bold shrink-0">
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-scarlet text-white text-[10px] font-bold">
           {unreadCount}
         </span>
       )}
@@ -90,7 +93,7 @@ export function ConversationItem({
 
 export function ConversationItemSkeleton() {
   return (
-    <div className="flex items-center gap-4 px-4 py-4">
+    <div className="flex items-center gap-4 p-4">
       <Skeleton className="size-12 rounded-full" />
       <div className="flex-1 space-y-1.5">
         <Skeleton className="h-3.5 w-28" />

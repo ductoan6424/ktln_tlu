@@ -1,10 +1,16 @@
 import Link from "next/link"
 import { Users } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { GroupData } from "./mock-data"
+
+interface SidebarGroupItemData {
+  id: string
+  name: string
+  memberCount: number
+  href: string
+}
 
 interface SidebarGroupItemProps {
-  group: GroupData
+  group: SidebarGroupItemData
   className?: string
 }
 
@@ -13,13 +19,13 @@ export function SidebarGroupItem({ group, className }: SidebarGroupItemProps) {
     <Link
       href={group.href}
       className={cn(
-        "group flex items-center gap-2.5 px-1 py-1.5 rounded-lg hover:bg-muted transition-colors",
+        "group flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-muted transition-colors",
         className
       )}
     >
       {/* Icon tròn */}
-      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-        <Users className="w-4 h-4 text-muted-foreground" />
+      <div className="size-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+        <Users className="size-4 text-muted-foreground" />
       </div>
 
       {/* Tên + số thành viên */}

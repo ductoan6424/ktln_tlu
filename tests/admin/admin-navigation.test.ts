@@ -10,6 +10,7 @@ describe("admin navigation", () => {
     expect(ADMIN_MANAGEMENT_NAV_ITEMS.map((item) => item.href)).toEqual([
       "/admin/users",
       "/admin/subjects",
+      "/admin/clubs",
       "/admin/groups",
       "/admin/events",
     ])
@@ -18,6 +19,7 @@ describe("admin navigation", () => {
   it("exports core nav items in the expected order", () => {
     expect(ADMIN_CORE_NAV_ITEMS.map((item) => item.href)).toEqual([
       "/admin/dashboard",
+      "/admin/moderation",
       "/admin/announcements",
       "/admin/analytics",
       "/admin/settings",
@@ -27,13 +29,15 @@ describe("admin navigation", () => {
   it("exports translated labels for core and management nav items", () => {
     expect(ADMIN_MANAGEMENT_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Người dùng",
-      "Môn học",
+      "Lớp học",
+      "Câu lạc bộ",
       "Nhóm",
       "Sự kiện",
     ])
 
     expect(ADMIN_CORE_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Bảng điều khiển",
+      "Kiểm duyệt",
       "Thông báo",
       "Phân tích",
       "Cài đặt hệ thống",

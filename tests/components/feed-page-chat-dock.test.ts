@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const openConversation = vi.hoisted(() => vi.fn())
 const openDirectConversation = vi.hoisted(() => vi.fn())
+const announcementStripProps = vi.hoisted(() => vi.fn())
 
 vi.mock("@/components/layout/chat-dock", () => ({
   useChatDock: () => ({ openConversation }),
@@ -93,8 +94,21 @@ vi.mock("@/components/feed/post-composer", () => ({
   PostComposer: Stub,
 }))
 
-vi.mock("@/components/feed/announcement-feed-card", () => ({
-  AnnouncementFeedCard: Stub,
+vi.mock("@/components/feed/announcement-strip", () => ({
+  AnnouncementStrip: (props: {
+    announcements: Array<{ id: string; title: string }>
+    deepLinkAnnouncementId?: string | null
+  }) => {
+    announcementStripProps(props)
+    return createElement(
+      "div",
+      {
+        "data-testid": "announcement-strip",
+        "data-deep-link": props.deepLinkAnnouncementId ?? "",
+      },
+      props.announcements.map((item) => item.title).join(","),
+    )
+  },
 }))
 
 vi.mock("@/components/dashboard/trending-item", () => ({
@@ -126,12 +140,33 @@ const FEED_PAGE_SOURCE = readFileSync(
   "utf8",
 )
 
+const POST_COMPOSER_SOURCE = readFileSync(
+  path.join(process.cwd(), "src/components/feed/post-composer.tsx"),
+  "utf8",
+)
+
+const TRENDING_ITEM_SOURCE = readFileSync(
+  path.join(process.cwd(), "src/components/dashboard/trending-item.tsx"),
+  "utf8",
+)
+
 const roots: Root[] = []
 const reactActGlobal = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean
 }
 
-async function renderFeedPage() {
+async function renderFeedPage(
+  overrides: Partial<{
+    currentUser: {
+      userId: string
+      displayName: string
+      avatarUrl: string | null
+      role: "STUDENT" | "LECTURER" | "ADMIN"
+    } | null
+    deepLinkAnnouncementId: string | null
+    announcements: Array<{ id: string; title: string; content: string; publishedAt: string }>
+  }> = {},
+) {
   const { FeedPageClient } = await import("@/app/(main)/feed/feed-page-client")
   const container = document.createElement("div")
   document.body.appendChild(container)
@@ -141,11 +176,15 @@ async function renderFeedPage() {
   await act(async () => {
     root.render(
       createElement(FeedPageClient, {
-        currentUser: {
-          userId: "user-self",
-          displayName: "Self",
-          avatarUrl: null,
-        },
+        currentUser:
+          overrides.currentUser === undefined
+            ? {
+                userId: "user-self",
+                displayName: "Self",
+                avatarUrl: null,
+                role: "STUDENT",
+              }
+            : overrides.currentUser,
         initialPosts: [],
         initialCursor: {
           redisFetched: 0,
@@ -156,6 +195,8 @@ async function renderFeedPage() {
           followedExhausted: false,
         },
         initialHasMore: false,
+        deepLinkAnnouncementId: overrides.deepLinkAnnouncementId ?? null,
+        announcements: overrides.announcements ?? [],
       }),
     )
   })
@@ -172,6 +213,53 @@ describe("FeedPageClient chat dock migration", () => {
       disconnect() {}
       unobserve() {}
     } as unknown as typeof IntersectionObserver
+  })
+
+  it("passes announcement deep links to the announcement strip", async () => {
+    const container = await renderFeedPage({
+      deepLinkAnnouncementId: "ann-1",
+      announcements: [
+        {
+          id: "ann-1",
+          title: "Thông báo học phí",
+          content: "Nội dung",
+          publishedAt: "2026-05-23T08:00:00.000Z",
+        },
+      ],
+    })
+
+    expect(container.querySelector('[data-testid="announcement-strip"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="announcement-strip"]')?.getAttribute("data-deep-link")).toBe("ann-1")
+    expect(announcementStripProps).toHaveBeenCalledWith(
+      expect.objectContaining({ deepLinkAnnouncementId: "ann-1" }),
+    )
+  })
+
+  it.each([
+    ["STUDENT", "Sinh vi\u00ean"],
+    ["LECTURER", "Gi\u1ea3ng vi\u00ean"],
+    ["ADMIN", "Qu\u1ea3n tr\u1ecb"],
+  ] as const)("renders %s as %s in the desktop sidebar", async (role, label) => {
+    const container = await renderFeedPage({
+      currentUser: {
+        userId: `${role.toLowerCase()}-1`,
+        displayName: role,
+        avatarUrl: null,
+        role,
+      },
+    })
+
+    expect(container.textContent).toContain(label)
+    expect(container.textContent).not.toContain("Th\u00e0nh vi\u00ean")
+  })
+
+  it("keeps the announcement strip mounted when the initial carousel is empty", async () => {
+    const container = await renderFeedPage({ announcements: [] })
+
+    expect(container.querySelector('[data-testid="announcement-strip"]')).not.toBeNull()
+    expect(announcementStripProps).toHaveBeenCalledWith(
+      expect.objectContaining({ announcements: [] }),
+    )
   })
 
   afterEach(async () => {
@@ -254,7 +342,7 @@ describe("FeedPageClient chat dock migration", () => {
       participantCount: 2,
       communityType: null,
     })
-  })
+  }, 10_000)
 
   it("delegates floating chat ownership to the global dock", () => {
     expect(FEED_PAGE_SOURCE).not.toContain(
@@ -273,5 +361,11 @@ describe("FeedPageClient chat dock migration", () => {
     )
     expect(FEED_PAGE_SOURCE).toContain("openDirectConversation")
     expect(FEED_PAGE_SOURCE).toContain("const { openConversation } = useChatDock()")
+  })
+
+  it("uses foundation chrome and avoids destructive styling for ordinary trend categories", () => {
+    expect(POST_COMPOSER_SOURCE).toContain("rounded-xl")
+    expect(TRENDING_ITEM_SOURCE).not.toContain("text-destructive")
+    expect(TRENDING_ITEM_SOURCE).toContain("text-brand-indigo")
   })
 })

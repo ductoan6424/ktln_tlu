@@ -21,9 +21,9 @@ const STATUS_SIZE_MAP = {
 } as const
 
 const STATUS_COLOR_MAP = {
-  online: "bg-green-500",
-  offline: "bg-slate-300",
-  away: "bg-orange-400",
+  online: "bg-success",
+  offline: "bg-muted-foreground",
+  away: "bg-warning",
 } as const
 
 interface UserAvatarProps {
@@ -53,8 +53,8 @@ export function UserAvatar({
     .toUpperCase()
 
   return (
-    <div className={cn("relative inline-flex shrink-0", className)}>
-      <Avatar className={cn(SIZE_MAP[size], "border border-border")}>
+    <div className="relative inline-flex shrink-0">
+      <Avatar className={cn(SIZE_MAP[size], "border border-border", className)}>
         <AvatarImage src={src} alt={alt || name} className="object-cover" />
         <AvatarFallback className="bg-muted text-muted-foreground text-xs font-semibold">
           {initials || "?"}

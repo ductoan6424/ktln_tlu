@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import Image from "next/image"
 
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -65,15 +65,17 @@ export function ChatBubble({
           target="_blank"
           rel="noreferrer"
           className={cn(
-            "overflow-hidden rounded-2xl border border-border/70",
-            isOwn ? "rounded-tr-none" : "rounded-tl-none",
+            "overflow-hidden rounded-[1.125rem] border border-border/70",
+            isOwn ? "rounded-br-sm" : "rounded-bl-sm",
           )}
         >
-          <img
+          <Image
             src={attachment.url}
             alt={attachment.name}
+            width={512}
+            height={256}
+            unoptimized
             className="block max-h-64 w-auto max-w-full object-cover"
-            loading="lazy"
           />
         </a>
       )}
@@ -94,8 +96,8 @@ export function ChatBubble({
           className={cn(
             "px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-all max-w-full",
             isOwn
-              ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-none shadow-md shadow-primary/10"
-              : "bg-muted rounded-2xl rounded-tl-none shadow-sm"
+              ? "rounded-[1.125rem] rounded-br-sm bg-primary text-primary-foreground shadow-sm"
+              : "rounded-[1.125rem] rounded-bl-sm border border-border/70 bg-card text-card-foreground shadow-sm"
           )}
         >
           {message}
@@ -140,7 +142,7 @@ export function ChatBubbleSkeleton({ isOwn = false }: { isOwn?: boolean }) {
       <Skeleton
         className={cn(
           "h-12 w-64 rounded-2xl",
-          isOwn ? "rounded-tr-none" : "rounded-tl-none"
+          isOwn ? "rounded-br-sm" : "rounded-bl-sm"
         )}
       />
     </div>

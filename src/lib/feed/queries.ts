@@ -1,7 +1,11 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma/client";
 import { formatRelativeTime } from "@/utils/formatters";
-import { canHidePost, resolveDeleteRole } from "@/lib/auth/post-permissions";
+import {
+  canHidePost,
+  resolveDeleteRolesBatch,
+  type DeleteRole,
+} from "@/lib/auth/post-permissions";
 import { getPollsForPosts } from "@/lib/polls/queries";
 import type { PollView } from "@/lib/polls/types";
 import { getFeedFanoutConfig } from "@/lib/feed/config";
@@ -10,6 +14,10 @@ import {
   getPersonalizedFeedPostIds,
 } from "@/lib/feed/fanout";
 import { buildCommunityPath } from "@/lib/communities/urls";
+import {
+  buildVisiblePostSqlWhere,
+  buildVisiblePostWhere,
+} from "@/lib/posts/visibility";
 
 export type FeedCursor = {
   redisFetched: number;
@@ -36,6 +44,7 @@ export type FeedSharedPost = {
 
 export type FeedPostCommunityContext = {
   type: "GROUP" | "CLUB" | "COURSE";
+  id: string;
   name: string;
   href: string;
   avatarUrl: string | null;
@@ -88,7 +97,7 @@ export const INITIAL_FEED_CURSOR: FeedCursor = {
   followedExhausted: false,
 };
 
-type RawFeedPost = Prisma.PostGetPayload<{
+type RawFeedPostBase = Prisma.PostGetPayload<{
   include: {
     author: { select: { displayName: true; avatarUrl: true; coverUrl: true } };
     likes: { where: { userId: string }; select: { id: true } };
@@ -125,6 +134,11 @@ type RawFeedPost = Prisma.PostGetPayload<{
   };
 }>;
 
+type RawFeedPost = Omit<RawFeedPostBase, "likes"> & {
+  likes?: Array<{ id: string }> | false;
+  savedBy?: Array<{ userId: string }> | false;
+};
+
 type FeedCandidatePost = {
   id: string;
   authorId: string;
@@ -133,6 +147,7 @@ type FeedCandidatePost = {
 
 type RedisFeedCandidatePost = FeedCandidatePost & {
   redisIndex: number;
+  post?: RawFeedPost;
 };
 
 type FeedCandidateSource =
@@ -146,9 +161,23 @@ type SelectedFeedCandidate = FeedCandidatePost & {
   isFromFollowed: boolean;
   source: FeedCandidateSource;
   redisIndex?: number;
+  post?: RawFeedPost;
 };
 
 type CandidateSourceCounts = Record<FeedCandidateSource, number>;
+
+type RawFeedCandidateRow = FeedCandidatePost & {
+  source: FeedCandidateSource;
+  redisIndex: number | null;
+};
+
+type HybridCandidateBuckets = {
+  freshness: FeedCandidatePost[];
+  redis: RedisFeedCandidatePost[];
+  celebrity: FeedCandidatePost[];
+  fallback: FeedCandidatePost[];
+  rest: FeedCandidatePost[];
+};
 
 const candidateSelect = {
   id: true,
@@ -226,34 +255,33 @@ function buildPostInclude(viewerId: string | null) {
   } as const;
 }
 
-async function mapRawPost(
+function buildFeedPermissions(
   post: RawFeedPost,
   viewerId: string | null,
-  isFromFollowed: boolean,
-  poll: PollView | null,
-): Promise<FeedPostDto> {
-  let permissions: FeedPostPermissions = {
-    canDelete: false,
-    canHide: false,
-    deleteRole: null,
-  };
-
-  if (viewerId) {
-    const ctx = {
+  role: DeleteRole | null,
+): FeedPostPermissions {
+  if (!viewerId) {
+    return { canDelete: false, canHide: false, deleteRole: null };
+  }
+  return {
+    canDelete: role !== null,
+    canHide: canHidePost(viewerId, {
       postId: post.id,
       authorId: post.authorId,
       clubId: post.clubId,
       groupId: post.groupId,
-    };
-    const role = await resolveDeleteRole(viewerId, ctx);
-    permissions = {
-      canDelete: role !== null,
-      canHide: canHidePost(viewerId, ctx),
-      deleteRole:
-        role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
-    };
-  }
+    }),
+    deleteRole:
+      role === "AUTHOR" ? "AUTHOR" : role !== null ? "MODERATOR" : null,
+  };
+}
 
+function mapRawPost(
+  post: RawFeedPost,
+  isFromFollowed: boolean,
+  poll: PollView | null,
+  permissions: FeedPostPermissions,
+): FeedPostDto {
   const sharedPost =
     post.sharedPost && !post.sharedPost.deletedAt
       ? {
@@ -265,11 +293,12 @@ async function mapRawPost(
         }
       : null;
 
-  const likesArr = Array.isArray((post as any).likes) ? (post as any).likes : [];
-  const savedArr = Array.isArray((post as any).savedBy) ? (post as any).savedBy : [];
+  const likesArr = Array.isArray(post.likes) ? post.likes : [];
+  const savedArr = Array.isArray(post.savedBy) ? post.savedBy : [];
   const communityContext: FeedPostCommunityContext | null = post.group
     ? {
         type: "GROUP",
+        id: post.groupId!,
         name: post.group.name,
         href: buildCommunityPath("GROUP", post.group.name, post.group.shortId),
         avatarUrl: post.group.coverUrl,
@@ -277,6 +306,7 @@ async function mapRawPost(
     : post.club
       ? {
           type: "CLUB",
+          id: post.clubId!,
           name: post.club.name,
           href: buildCommunityPath("CLUB", post.club.name, post.club.shortId),
           avatarUrl: post.club.logoUrl ?? post.club.coverUrl,
@@ -284,6 +314,7 @@ async function mapRawPost(
       : post.course
         ? {
             type: "COURSE",
+            id: post.courseId!,
             name: post.course.name,
             href: buildCommunityPath("COURSE", post.course.code, post.course.shortId),
             avatarUrl: post.course.coverUrl,
@@ -335,24 +366,12 @@ export function buildCommunityFeedWhere({
   joinedCourseIds,
   hiddenIds,
 }: CommunityFeedWhereInput): Prisma.PostWhereInput {
-  return {
-    visibility: "PUBLIC",
-    deletedAt: null,
-    communityStatus: "PUBLISHED",
-    OR: [
-      { groupId: null, clubId: null, courseId: null },
-      ...(joinedGroupIds.length > 0
-        ? [{ groupId: { in: joinedGroupIds } }]
-        : []),
-      ...(joinedClubIds.length > 0
-        ? [{ clubId: { in: joinedClubIds } }]
-        : []),
-      ...(joinedCourseIds.length > 0
-        ? [{ courseId: { in: joinedCourseIds } }]
-        : []),
-    ],
-    ...(hiddenIds.length > 0 ? { id: { notIn: hiddenIds } } : {}),
-  };
+  return buildVisiblePostWhere({
+    joinedGroupIds,
+    joinedClubIds,
+    joinedCourseIds,
+    hiddenIds,
+  });
 }
 
 export function buildCommunityDetailPostWhere(
@@ -389,14 +408,33 @@ export async function getCommunityDetailPosts(input: {
     orderBy: { createdAt: "desc" },
     take: input.pageSize ?? 20,
   })) as RawFeedPost[];
-  const pollMap = await getPollsForPosts(
-    posts.map((post) => post.id),
-    input.viewerId,
-  );
 
-  return Promise.all(
-    posts.map((post) =>
-      mapRawPost(post, input.viewerId, false, pollMap.get(post.id) ?? null),
+  const postIds = posts.map((post) => post.id);
+  const [pollMap, permissionsMap] = await Promise.all([
+    getPollsForPosts(postIds, input.viewerId),
+    input.viewerId
+      ? resolveDeleteRolesBatch(
+          input.viewerId,
+          posts.map((post) => ({
+            postId: post.id,
+            authorId: post.authorId,
+            clubId: post.clubId,
+            groupId: post.groupId,
+          })),
+        )
+      : Promise.resolve(new Map<string, DeleteRole | null>()),
+  ]);
+
+  return posts.map((post) =>
+    mapRawPost(
+      post,
+      false,
+      pollMap.get(post.id) ?? null,
+      buildFeedPermissions(
+        post,
+        input.viewerId,
+        permissionsMap.get(post.id) ?? null,
+      ),
     ),
   );
 }
@@ -465,6 +503,24 @@ function createCandidateSourceCounts(): CandidateSourceCounts {
     freshness: 0,
     fallback: 0,
     rest: 0,
+  };
+}
+
+function toSelectedFeedCandidate(
+  post: FeedCandidatePost,
+  source: FeedCandidateSource,
+  isFromFollowed: boolean,
+  redisIndex?: number,
+): SelectedFeedCandidate {
+  const postWithData = post as FeedCandidatePost & { post?: RawFeedPost };
+  return {
+    id: post.id,
+    authorId: post.authorId,
+    createdAt: post.createdAt,
+    isFromFollowed,
+    source,
+    redisIndex,
+    ...(postWithData.post ? { post: postWithData.post } : {}),
   };
 }
 
@@ -566,14 +622,154 @@ function getOverreadTake(
   );
 }
 
+function sqlTextArray(values: string[]) {
+  return values.length > 0
+    ? Prisma.sql`ARRAY[${Prisma.join(values)}]::text[]`
+    : Prisma.sql`ARRAY[]::text[]`;
+}
+
+function splitHybridCandidateRows(rows: RawFeedCandidateRow[]): HybridCandidateBuckets {
+  const buckets: HybridCandidateBuckets = {
+    freshness: [],
+    redis: [],
+    celebrity: [],
+    fallback: [],
+    rest: [],
+  };
+
+  for (const row of rows) {
+    if (row.source === "redis") {
+      if (row.redisIndex === null) continue;
+      buckets.redis.push({ ...row, redisIndex: row.redisIndex });
+      continue;
+    }
+    buckets[row.source].push(row);
+  }
+
+  buckets.freshness.sort(byCreatedAtDesc);
+  buckets.redis.sort(byCreatedAtDesc);
+  buckets.celebrity.sort(byCreatedAtDesc);
+  buckets.fallback.sort(byCreatedAtDesc);
+  buckets.rest.sort(byCreatedAtDesc);
+
+  return buckets;
+}
+
+async function getHybridCandidateBuckets(input: {
+  viewerId: string;
+  joinedCommunityIds: Awaited<ReturnType<typeof getJoinedCommunityIds>>;
+  hiddenIds: string[];
+  followingIds: string[];
+  followedCelebrityIds: string[];
+  personalizedIds: string[];
+  freshnessSince: Date;
+  freshnessFetched: number;
+  freshnessQuota: number;
+  redisFetched: number;
+  celebrityFetched: number;
+  followedFetched: number;
+  restFetched: number;
+  candidateTake: number;
+}): Promise<HybridCandidateBuckets> {
+  const visibleWhere = buildVisiblePostSqlWhere({
+    ...input.joinedCommunityIds,
+    hiddenIds: input.hiddenIds,
+  });
+  const followingArray = sqlTextArray(input.followingIds);
+  const personalizedArray = sqlTextArray(input.personalizedIds);
+  const celebrityArray = sqlTextArray(input.followedCelebrityIds);
+
+  const rows = await prisma.$queryRaw<RawFeedCandidateRow[]>(Prisma.sql`
+    WITH freshness AS (
+      SELECT
+        p.post_id AS id,
+        p.author_id AS "authorId",
+        p.created_at AS "createdAt",
+        'freshness'::text AS source,
+        NULL::int AS "redisIndex"
+      FROM posts p
+      WHERE ${visibleWhere}
+        AND p.created_at >= ${input.freshnessSince}
+      ORDER BY p.created_at DESC
+      OFFSET ${input.freshnessFetched}
+      LIMIT ${input.freshnessQuota}
+    ),
+    redis AS (
+      SELECT
+        p.post_id AS id,
+        p.author_id AS "authorId",
+        p.created_at AS "createdAt",
+        'redis'::text AS source,
+        (array_position(${personalizedArray}, p.post_id) - 1)::int AS "redisIndex"
+      FROM posts p
+      WHERE ${visibleWhere}
+        AND p.post_id = ANY(${personalizedArray})
+        AND (p.author_id = ${input.viewerId} OR p.author_id = ANY(${followingArray}))
+      ORDER BY p.created_at DESC
+    ),
+    celebrity AS (
+      SELECT
+        p.post_id AS id,
+        p.author_id AS "authorId",
+        p.created_at AS "createdAt",
+        'celebrity'::text AS source,
+        NULL::int AS "redisIndex"
+      FROM posts p
+      WHERE ${visibleWhere}
+        AND p.author_id = ANY(${celebrityArray})
+      ORDER BY p.created_at DESC
+      OFFSET ${input.celebrityFetched}
+      LIMIT ${input.candidateTake}
+    ),
+    fallback AS (
+      SELECT
+        p.post_id AS id,
+        p.author_id AS "authorId",
+        p.created_at AS "createdAt",
+        'fallback'::text AS source,
+        NULL::int AS "redisIndex"
+      FROM posts p
+      WHERE ${visibleWhere}
+        AND p.author_id = ANY(${followingArray})
+      ORDER BY p.created_at DESC
+      OFFSET ${input.followedFetched}
+      LIMIT ${input.candidateTake}
+    ),
+    rest AS (
+      SELECT
+        p.post_id AS id,
+        p.author_id AS "authorId",
+        p.created_at AS "createdAt",
+        'rest'::text AS source,
+        NULL::int AS "redisIndex"
+      FROM posts p
+      WHERE ${visibleWhere}
+        AND NOT (p.author_id = ANY(${followingArray}))
+      ORDER BY p.created_at DESC
+      OFFSET ${input.restFetched}
+      LIMIT ${input.candidateTake}
+    )
+    SELECT * FROM freshness
+    UNION ALL SELECT * FROM redis
+    UNION ALL SELECT * FROM celebrity
+    UNION ALL SELECT * FROM fallback
+    UNION ALL SELECT * FROM rest
+  `);
+
+  return splitHybridCandidateRows(rows);
+}
+
 export async function getFeedPosts(
   viewerId: string | null,
   cursor: FeedCursor,
   pageSize: number,
+  options: {
+    joinedCommunityIds?: Awaited<ReturnType<typeof getJoinedCommunityIds>>;
+  } = {},
 ): Promise<FeedPage> {
   const [hiddenIds, joinedCommunityIds, followingIds, config] = await Promise.all([
     getHiddenPostIds(viewerId),
-    getJoinedCommunityIds(viewerId),
+    options.joinedCommunityIds ?? getJoinedCommunityIds(viewerId),
     viewerId ? getFollowingIds(viewerId) : Promise.resolve<string[]>([]),
     getFeedFanoutConfig(),
   ]);
@@ -589,6 +785,48 @@ export async function getFeedPosts(
     Math.ceil(pageSize * config.freshnessOverlayRatio),
   );
 
+  if (viewerId && noFollowing) {
+    const posts = (await prisma.post.findMany({
+      where: baseWhere,
+      include: buildPostInclude(viewerId),
+      orderBy: { createdAt: "desc" },
+      skip: cursor.restFetched ?? 0,
+      take: pageSize,
+    })) as RawFeedPost[];
+    const postIds = posts.map((post) => post.id);
+    const [pollMap, permissionsMap] = await Promise.all([
+      getPollsForPosts(postIds, viewerId),
+      viewerId
+        ? resolveDeleteRolesBatch(
+            viewerId,
+            posts.map((post) => ({
+              postId: post.id,
+              authorId: post.authorId,
+              clubId: post.clubId,
+              groupId: post.groupId,
+            })),
+          )
+        : Promise.resolve(new Map<string, DeleteRole | null>()),
+    ]);
+
+    return {
+      posts: posts.map((post) =>
+        mapRawPost(
+          post,
+          false,
+          pollMap.get(post.id) ?? null,
+          buildFeedPermissions(post, viewerId, permissionsMap.get(post.id) ?? null),
+        ),
+      ),
+      nextCursor: {
+        ...cursor,
+        restFetched: (cursor.restFetched ?? 0) + posts.length,
+        followedExhausted: true,
+      },
+      hasMore: posts.length >= pageSize,
+    };
+  }
+
   let redisFetched = cursor.redisFetched ?? 0;
   let celebrityFetched = cursor.celebrityFetched ?? 0;
   let freshnessFetched = cursor.freshnessFetched ?? 0;
@@ -601,93 +839,142 @@ export async function getFeedPosts(
   let redisCandidates: RedisFeedCandidatePost[] = [];
   let celebrityCandidates: FeedCandidatePost[] = [];
   let personalizedIdCount = 0;
+  const useHybridCandidateQuery = Boolean(viewerId && followingIds.length > 0);
+  const hybridCandidateBuckets = useHybridCandidateQuery
+    ? await (async () => {
+        const personalizedIds = await getPersonalizedFeedPostIds(
+          viewerId!,
+          redisFetched,
+          config.redisReadCandidateLimit,
+        );
+        personalizedIdCount = personalizedIds.length;
+        const celebrityAuthorIds = await getCelebrityAuthorIds();
+        const followedCelebrityIds = celebrityAuthorIds.filter((authorId) =>
+          followingSet.has(authorId),
+        );
 
-  const freshnessCandidates = (await prisma.post.findMany({
-    where: {
-      ...baseWhere,
-      createdAt: {
-        gte: new Date(Date.now() - config.freshnessWindowMinutes * 60 * 1000),
+        return getHybridCandidateBuckets({
+          viewerId: viewerId!,
+          joinedCommunityIds,
+          hiddenIds,
+          followingIds,
+          followedCelebrityIds,
+          personalizedIds,
+          freshnessSince: new Date(
+            Date.now() - config.freshnessWindowMinutes * 60 * 1000,
+          ),
+          freshnessFetched,
+          freshnessQuota,
+          redisFetched,
+          celebrityFetched,
+          followedFetched,
+          restFetched,
+          candidateTake: Math.max(1, pageSize * 3),
+        });
+      })()
+    : null;
+
+  const freshnessCandidates = hybridCandidateBuckets?.freshness ??
+    ((await prisma.post.findMany({
+      where: {
+        ...baseWhere,
+        createdAt: {
+          gte: new Date(Date.now() - config.freshnessWindowMinutes * 60 * 1000),
+        },
       },
-    },
-    select: candidateSelect,
-    orderBy: { createdAt: "desc" },
-    skip: freshnessFetched,
-    take: Math.max(freshnessQuota, 0),
-  })) as FeedCandidatePost[];
+      select: candidateSelect,
+      orderBy: { createdAt: "desc" },
+      skip: freshnessFetched,
+      take: Math.max(freshnessQuota, 0),
+    })) as FeedCandidatePost[]);
   consumeCandidates(
     selected,
     seenIds,
-    freshnessCandidates.map((post) => ({
-      ...post,
-      isFromFollowed: followingSet.has(post.authorId),
-      source: "freshness",
-    })),
+    freshnessCandidates.map((post) =>
+      toSelectedFeedCandidate(
+        post,
+        "freshness",
+        followingSet.has(post.authorId),
+      ),
+    ),
     pageSize,
   );
   freshnessFetched += freshnessCandidates.length;
 
   if (viewerId) {
-    const personalizedIds = await getPersonalizedFeedPostIds(
-      viewerId,
-      redisFetched,
-      config.redisReadCandidateLimit,
-    );
-    personalizedIdCount = personalizedIds.length;
+    if (hybridCandidateBuckets) {
+      redisCandidates = hybridCandidateBuckets.redis;
+    } else {
+      const personalizedIds = await getPersonalizedFeedPostIds(
+        viewerId,
+        redisFetched,
+        config.redisReadCandidateLimit,
+      );
+      personalizedIdCount = personalizedIds.length;
 
-    if (personalizedIds.length > 0) {
-      const rows = (await prisma.post.findMany({
-        where: buildIdWhere(personalizedIds, baseWhere),
-        select: candidateSelect,
-        orderBy: { createdAt: "desc" },
-      })) as FeedCandidatePost[];
+      if (personalizedIds.length > 0) {
+        const rows = (await prisma.post.findMany({
+          where: buildIdWhere(personalizedIds, baseWhere),
+          select: candidateSelect,
+          orderBy: { createdAt: "desc" },
+        })) as FeedCandidatePost[];
 
-      const rowsById = new Map(rows.map((post) => [post.id, post]));
-      redisCandidates = personalizedIds.flatMap((postId, redisIndex) => {
-        const post = rowsById.get(postId);
-        if (!post) return [];
-        if (post.authorId !== viewerId && !followingSet.has(post.authorId)) {
-          return [];
-        }
-        return [{ ...post, redisIndex }];
-      });
+        const rowsById = new Map(rows.map((post) => [post.id, post]));
+        redisCandidates = personalizedIds.flatMap((postId, redisIndex) => {
+          const post = rowsById.get(postId);
+          if (!post) return [];
+          if (post.authorId !== viewerId && !followingSet.has(post.authorId)) {
+            return [];
+          }
+          return [{ ...post, redisIndex }];
+        });
+      }
     }
 
     if (followingIds.length > 0) {
-      const celebrityAuthorIds = await getCelebrityAuthorIds();
-      const followedCelebrityIds = celebrityAuthorIds.filter((authorId) =>
-        followingSet.has(authorId),
-      );
+      if (hybridCandidateBuckets) {
+        celebrityCandidates = hybridCandidateBuckets.celebrity;
+      } else {
+        const celebrityAuthorIds = await getCelebrityAuthorIds();
+        const followedCelebrityIds = celebrityAuthorIds.filter((authorId) =>
+          followingSet.has(authorId),
+        );
 
-      if (followedCelebrityIds.length > 0) {
-        celebrityCandidates = (await prisma.post.findMany({
-          where: {
-            ...baseWhere,
-            authorId: { in: followedCelebrityIds },
-          },
-          select: candidateSelect,
-          orderBy: { createdAt: "desc" },
-          skip: celebrityFetched,
-          take: config.celebrityReadCandidateLimit,
-        })) as FeedCandidatePost[];
+        if (followedCelebrityIds.length > 0) {
+          celebrityCandidates = (await prisma.post.findMany({
+            where: {
+              ...baseWhere,
+              authorId: { in: followedCelebrityIds },
+            },
+            select: candidateSelect,
+            orderBy: { createdAt: "desc" },
+            skip: celebrityFetched,
+            take: config.celebrityReadCandidateLimit,
+          })) as FeedCandidatePost[];
+        }
       }
     }
   }
 
-  const followedCandidates = [
-    ...redisCandidates.map((post) => ({ ...post, source: "redis" as const })),
-    ...celebrityCandidates.map((post) => ({
+  const followedCandidates: SelectedFeedCandidate[] = [
+    ...redisCandidates.map((post) => ({
       ...post,
-      source: "celebrity" as const,
+      isFromFollowed: followingSet.has(post.authorId),
+      source: "redis" as const,
     })),
+    ...celebrityCandidates.map((post) =>
+      toSelectedFeedCandidate(
+        post,
+        "celebrity",
+        followingSet.has(post.authorId),
+      ),
+    ),
   ].sort(byCreatedAtDesc);
 
   const followedConsumption = consumeCandidates(
     selected,
     seenIds,
-    followedCandidates.map((post) => ({
-      ...post,
-      isFromFollowed: followingSet.has(post.authorId),
-    })),
+    followedCandidates,
     pageSize,
   );
   if (personalizedIdCount > 0) {
@@ -717,25 +1004,28 @@ export async function getFeedPosts(
       followedCandidates.length,
       pageSize,
     ));
-    const fallbackFollowedCandidates = (await prisma.post.findMany({
-      where: {
-        ...baseWhere,
-        authorId: { in: followingIds },
-      },
-      select: candidateSelect,
-      orderBy: { createdAt: "desc" },
-      skip: followedFetched,
-      take: fallbackTake,
-    })) as FeedCandidatePost[];
+    const fallbackFollowedCandidates = hybridCandidateBuckets?.fallback ??
+      ((await prisma.post.findMany({
+        where: {
+          ...baseWhere,
+          authorId: { in: followingIds },
+        },
+        select: candidateSelect,
+        orderBy: { createdAt: "desc" },
+        skip: followedFetched,
+        take: fallbackTake,
+      })) as FeedCandidatePost[]);
 
     const fallbackConsumption = consumeCandidates(
       selected,
       seenIds,
-      fallbackFollowedCandidates.map((post) => ({
-        ...post,
-        isFromFollowed: followingSet.has(post.authorId),
-        source: "fallback",
-      })),
+      fallbackFollowedCandidates.map((post) =>
+        toSelectedFeedCandidate(
+          post,
+          "fallback",
+          followingSet.has(post.authorId),
+        ),
+      ),
       pageSize,
     );
     followedFetched += fallbackConsumption.consumed;
@@ -761,27 +1051,26 @@ export async function getFeedPosts(
       followedCandidates.length,
       pageSize,
     ));
-    const restCandidates = (await prisma.post.findMany({
-      where: {
-        ...baseWhere,
-        ...(followingIds.length > 0
-          ? { authorId: { notIn: followingIds } }
-          : {}),
-      },
-      select: candidateSelect,
-      orderBy: { createdAt: "desc" },
-      skip: restFetched,
-      take: restTake,
-    })) as FeedCandidatePost[];
+    const restCandidates = hybridCandidateBuckets?.rest ??
+      ((await prisma.post.findMany({
+        where: {
+          ...baseWhere,
+          ...(followingIds.length > 0
+            ? { authorId: { notIn: followingIds } }
+            : {}),
+        },
+        select: candidateSelect,
+        orderBy: { createdAt: "desc" },
+        skip: restFetched,
+        take: restTake,
+      })) as FeedCandidatePost[]);
 
     const restConsumption = consumeCandidates(
       selected,
       seenIds,
-      restCandidates.map((post) => ({
-        ...post,
-        isFromFollowed: false,
-        source: "rest",
-      })),
+      restCandidates.map((post) =>
+        toSelectedFeedCandidate(post, "rest", false),
+      ),
       pageSize,
     );
     restFetched += restConsumption.consumed;
@@ -791,27 +1080,49 @@ export async function getFeedPosts(
   const selectedById = new Map(
     selected.map((post) => [post.id, post] as const),
   );
-  const fullPosts =
-    selectedIds.length > 0
+  const preloadedPostById = new Map(
+    selected
+      .map((candidate) => candidate.post)
+      .filter((post): post is RawFeedPost => Boolean(post))
+      .map((post) => [post.id, post] as const),
+  );
+  const missingSelectedIds = selectedIds.filter(
+    (postId) => !preloadedPostById.has(postId),
+  );
+  const hydratedPosts =
+    missingSelectedIds.length > 0
       ? ((await prisma.post.findMany({
-          where: buildIdWhere(selectedIds, baseWhere),
+          where: buildIdWhere(missingSelectedIds, baseWhere),
           include: buildPostInclude(viewerId),
         })) as RawFeedPost[])
       : [];
-  const fullPostById = new Map(fullPosts.map((post) => [post.id, post]));
+  const hydratedPostById = new Map(
+    hydratedPosts.map((post) => [post.id, post] as const),
+  );
   const orderedFullPosts = selectedIds
-    .map((id) => fullPostById.get(id))
+    .map((id) => preloadedPostById.get(id) ?? hydratedPostById.get(id))
     .filter((post): post is RawFeedPost => Boolean(post));
-  const pollMap = await getPollsForPosts(selectedIds, viewerId);
+  const [pollMap, permissionsMap] = await Promise.all([
+    getPollsForPosts(selectedIds, viewerId),
+    viewerId
+      ? resolveDeleteRolesBatch(
+          viewerId,
+          orderedFullPosts.map((post) => ({
+            postId: post.id,
+            authorId: post.authorId,
+            clubId: post.clubId,
+            groupId: post.groupId,
+          })),
+        )
+      : Promise.resolve(new Map<string, DeleteRole | null>()),
+  ]);
 
-  const posts = await Promise.all(
-    orderedFullPosts.map((post) =>
-      mapRawPost(
-        post,
-        viewerId,
-        selectedById.get(post.id)?.isFromFollowed ?? false,
-        pollMap.get(post.id) ?? null,
-      ),
+  const posts = orderedFullPosts.map((post) =>
+    mapRawPost(
+      post,
+      selectedById.get(post.id)?.isFromFollowed ?? false,
+      pollMap.get(post.id) ?? null,
+      buildFeedPermissions(post, viewerId, permissionsMap.get(post.id) ?? null),
     ),
   );
 

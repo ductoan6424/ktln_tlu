@@ -42,7 +42,7 @@ export function CommunityListPage({
     <PageContainer variant="centered" className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{title}</h1>
+          <h1 className="text-2xl font-semibold">{title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
         {createHref && createLabel ? (
@@ -62,7 +62,7 @@ export function CommunityListPage({
           />
         </form>
 
-        <nav className="flex gap-2 overflow-x-auto">
+        <nav className="flex flex-wrap gap-2">
           {tabs.map((tab) => (
             <Link key={tab.value} href={tab.href}>
               <Button

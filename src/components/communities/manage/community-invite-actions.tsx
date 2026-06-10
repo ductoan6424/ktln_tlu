@@ -6,7 +6,7 @@ import { X } from "lucide-react"
 
 import { cancelCommunityInvite } from "@/actions/community-management"
 import { Button } from "@/components/ui/button"
-import { facebookSecondaryButton } from "@/components/communities/manage/manage-ui"
+import { manageSecondaryButton } from "@/components/communities/manage/manage-ui"
 
 type CommunityInviteActionsProps = {
   type: "GROUP" | "CLUB"
@@ -19,13 +19,13 @@ export function CommunityInviteActions({
   slugId,
   inviteId,
 }: CommunityInviteActionsProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
 
   return (
     <form
-      className="mt-3 border-t border-[#e4e6eb] pt-3"
+      className="mt-3 border-t border-border pt-3"
       action={(formData) => {
         startTransition(async () => {
           const result = await cancelCommunityInvite({
@@ -38,7 +38,7 @@ export function CommunityInviteActions({
               ? "Đã huỷ lời mời."
               : result.error ?? "Không thể huỷ.",
           )
-          if (result.success) router.refresh()
+          if (result.success) refresh()
         })
       }}
     >
@@ -48,12 +48,12 @@ export function CommunityInviteActions({
         variant="outline"
         type="submit"
         disabled={pending}
-        className={facebookSecondaryButton}
+        className={manageSecondaryButton}
       >
         <X data-icon="inline-start" />
         Huỷ lời mời
       </Button>
-      {message ? <p className="mt-2 text-xs text-[#65676b]">{message}</p> : null}
+      {message ? <p className="mt-2 text-xs text-muted-foreground">{message}</p> : null}
     </form>
   )
 }

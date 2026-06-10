@@ -18,13 +18,17 @@ export interface CommentWithAuthorFlat {
 interface CommentItemProps {
   comment: CommentWithAuthorFlat
   canDelete?: boolean
+  canReport?: boolean
   onDelete?: (commentId: string) => void
+  onReport?: (commentId: string) => void
 }
 
 export function CommentItem({
   comment,
   canDelete = false,
+  canReport = false,
   onDelete,
+  onReport,
 }: CommentItemProps) {
   return (
     <div className="flex gap-2">
@@ -48,9 +52,19 @@ export function CommentItem({
               variant="link"
               size="sm"
               onClick={() => onDelete?.(comment.id)}
-              className="text-xs font-medium text-destructive h-auto px-0 py-0"
+              className="text-xs font-medium text-destructive h-auto p-0"
             >
               Xóa
+            </Button>
+          )}
+          {canReport && (
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => onReport?.(comment.id)}
+              className="h-auto p-0 text-xs font-medium text-muted-foreground"
+            >
+              Báo cáo
             </Button>
           )}
           <span className="text-xs text-muted-foreground">

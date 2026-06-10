@@ -50,10 +50,13 @@ next-env.d.ts
 /product-template
 /.agents
 /.claude
+/.codex-backups
 /superpowers
+/.superpowers
 /.playwright-mcp
 /vercel
 /.worktrees
 CLAUDE.md
-/docs/superpowers
+/docs/
+/react-doctor-report.json
 /.planning

@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useReducer } from "react"
 import { Check, Loader2, Search, X } from "lucide-react"
 
 import { createGroupConversation, searchChatUsers } from "@/actions/chat"
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { UserRowSkeletonList } from "@/components/shared/user-row-skeleton"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -26,18 +27,73 @@ interface CreateGroupDialogProps {
   onCreated: (conversation: ChatConversationItem) => void
 }
 
+type CreateGroupState = {
+  groupName: string
+  query: string
+  users: ChatUserSearchResult[]
+  selectedUsers: ChatUserSearchResult[]
+  isLoadingUsers: boolean
+  isSubmitting: boolean
+}
+
+type CreateGroupAction =
+  | { type: "setGroupName"; groupName: string }
+  | { type: "setQuery"; query: string }
+  | { type: "setUsersLoading"; isLoadingUsers: boolean }
+  | { type: "usersLoaded"; users: ChatUserSearchResult[] }
+  | { type: "toggleUser"; user: ChatUserSearchResult }
+  | { type: "removeUser"; userId: string }
+  | { type: "setSubmitting"; isSubmitting: boolean }
+  | { type: "reset" }
+
+const initialCreateGroupState: CreateGroupState = {
+  groupName: "",
+  query: "",
+  users: [],
+  selectedUsers: [],
+  isLoadingUsers: false,
+  isSubmitting: false,
+}
+
+function createGroupReducer(
+  state: CreateGroupState,
+  action: CreateGroupAction,
+): CreateGroupState {
+  switch (action.type) {
+    case "setGroupName":
+      return { ...state, groupName: action.groupName }
+    case "setQuery":
+      return { ...state, query: action.query }
+    case "setUsersLoading":
+      return { ...state, isLoadingUsers: action.isLoadingUsers }
+    case "usersLoaded":
+      return { ...state, users: action.users, isLoadingUsers: false }
+    case "toggleUser": {
+      const selectedUsers = state.selectedUsers.some((item) => item.userId === action.user.userId)
+        ? state.selectedUsers.filter((item) => item.userId !== action.user.userId)
+        : [...state.selectedUsers, action.user]
+      return { ...state, selectedUsers }
+    }
+    case "removeUser":
+      return {
+        ...state,
+        selectedUsers: state.selectedUsers.filter((item) => item.userId !== action.userId),
+      }
+    case "setSubmitting":
+      return { ...state, isSubmitting: action.isSubmitting }
+    case "reset":
+      return initialCreateGroupState
+  }
+}
+
 export function CreateGroupDialog({
   open,
   onOpenChange,
   onCreated,
 }: CreateGroupDialogProps) {
   const { toast } = useToast()
-  const [groupName, setGroupName] = useState("")
-  const [query, setQuery] = useState("")
-  const [users, setUsers] = useState<ChatUserSearchResult[]>([])
-  const [selectedUsers, setSelectedUsers] = useState<ChatUserSearchResult[]>([])
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [state, dispatch] = useReducer(createGroupReducer, initialCreateGroupState)
+  const { groupName, query, users, selectedUsers, isLoadingUsers, isSubmitting } = state
 
   const selectedIds = useMemo(
     () => new Set(selectedUsers.map((user) => user.userId)),
@@ -51,11 +107,10 @@ export function CreateGroupDialog({
 
     let isDisposed = false
     const timeoutId = setTimeout(async () => {
-      setIsLoadingUsers(true)
+      dispatch({ type: "setUsersLoading", isLoadingUsers: true })
       const result = await searchChatUsers({ query, limit: 20 })
       if (!isDisposed) {
-        setUsers(result.success && result.data ? result.data : [])
-        setIsLoadingUsers(false)
+        dispatch({ type: "usersLoaded", users: result.success && result.data ? result.data : [] })
       }
     }, 200)
 
@@ -66,12 +121,7 @@ export function CreateGroupDialog({
   }, [open, query])
 
   const reset = () => {
-    setGroupName("")
-    setQuery("")
-    setUsers([])
-    setSelectedUsers([])
-    setIsLoadingUsers(false)
-    setIsSubmitting(false)
+    dispatch({ type: "reset" })
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -82,15 +132,11 @@ export function CreateGroupDialog({
   }
 
   const toggleUser = (user: ChatUserSearchResult) => {
-    setSelectedUsers((prev) =>
-      prev.some((item) => item.userId === user.userId)
-        ? prev.filter((item) => item.userId !== user.userId)
-        : [...prev, user],
-    )
+    dispatch({ type: "toggleUser", user })
   }
 
   const removeSelectedUser = (userId: string) => {
-    setSelectedUsers((prev) => prev.filter((item) => item.userId !== userId))
+    dispatch({ type: "removeUser", userId })
   }
 
   const handleCreate = async () => {
@@ -103,12 +149,12 @@ export function CreateGroupDialog({
       return
     }
 
-    setIsSubmitting(true)
+    dispatch({ type: "setSubmitting", isSubmitting: true })
     const result = await createGroupConversation({
       name: groupName,
       participantIds: selectedUsers.map((user) => user.userId),
     })
-    setIsSubmitting(false)
+    dispatch({ type: "setSubmitting", isSubmitting: false })
 
     if (!result.success || !result.data) {
       toast({
@@ -140,7 +186,7 @@ export function CreateGroupDialog({
         <div className="px-5 pb-4 space-y-4">
           <Input
             value={groupName}
-            onChange={(event) => setGroupName(event.target.value)}
+            onChange={(event) => dispatch({ type: "setGroupName", groupName: event.target.value })}
             placeholder="Tên nhóm"
             maxLength={80}
           />
@@ -166,7 +212,7 @@ export function CreateGroupDialog({
             <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => dispatch({ type: "setQuery", query: event.target.value })}
               placeholder="Tìm thành viên"
               className="pl-8"
             />
@@ -174,10 +220,7 @@ export function CreateGroupDialog({
 
           <div className="max-h-72 overflow-y-auto rounded-lg border border-border">
             {isLoadingUsers ? (
-              <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Đang tìm thành viên...
-              </div>
+              <UserRowSkeletonList count={4} showTrailing />
             ) : users.length === 0 ? (
               <p className="px-3 py-4 text-sm text-muted-foreground">
                 Không tìm thấy thành viên phù hợp.
@@ -193,7 +236,7 @@ export function CreateGroupDialog({
                     variant="ghost"
                     className={cn(
                       "h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 text-left",
-                      isSelected && "bg-primary/5",
+                      isSelected && "bg-primary/10",
                     )}
                     onClick={() => toggleUser(user)}
                   >
@@ -225,7 +268,7 @@ export function CreateGroupDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-5">
+        <DialogFooter className="px-5 pt-3 pb-5 border-t border-border bg-background">
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Hủy
           </Button>

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useReducer, useRef } from "react"
 import { MoreHorizontal, Plus, Search, UsersRound, X } from "lucide-react"
 
 import { getChatSessionUser } from "@/actions/chat"
@@ -9,6 +9,7 @@ import { listActiveFriends } from "@/actions/users"
 import type { ContactGroup } from "@/actions/users"
 import { CreateGroupDialog } from "@/components/messages/create-group-dialog"
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { UserRowSkeletonList } from "@/components/shared/user-row-skeleton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
@@ -40,17 +41,121 @@ function normalizeSearch(value: string) {
   return value.trim().toLocaleLowerCase("vi-VN")
 }
 
+type ActiveFriendsState = {
+  sessionUser: ChatSessionUser | null
+  contacts: ActiveFriend[]
+  groups: ContactGroup[]
+  searchContacts: ActiveFriend[] | null
+  searchGroups: ContactGroup[] | null
+  isLoading: boolean
+  isSearching: boolean
+  isSearchOpen: boolean
+  isCreateGroupOpen: boolean
+  hasOpenedCreateGroup: boolean
+  query: string
+}
+
+type ActiveFriendsAction =
+  | {
+      type: "loaded"
+      sessionUser: ChatSessionUser | null
+      contacts: ActiveFriend[]
+      groups: ContactGroup[]
+    }
+  | { type: "contactsLoaded"; contacts: ActiveFriend[]; groups: ContactGroup[]; isSearch: boolean }
+  | { type: "setSearching"; isSearching: boolean }
+  | { type: "setSearchOpen"; isSearchOpen: boolean }
+  | { type: "setCreateGroupOpen"; isCreateGroupOpen: boolean }
+  | { type: "setQuery"; query: string }
+  | { type: "closeSearch" }
+  | { type: "groupCreated"; group: ContactGroup }
+
+const initialActiveFriendsState: ActiveFriendsState = {
+  sessionUser: null,
+  contacts: [],
+  groups: [],
+  searchContacts: null,
+  searchGroups: null,
+  isLoading: true,
+  isSearching: false,
+  isSearchOpen: false,
+  isCreateGroupOpen: false,
+  hasOpenedCreateGroup: false,
+  query: "",
+}
+
+function activeFriendsReducer(
+  state: ActiveFriendsState,
+  action: ActiveFriendsAction,
+): ActiveFriendsState {
+  switch (action.type) {
+    case "loaded":
+      return {
+        ...state,
+        sessionUser: action.sessionUser,
+        contacts: action.contacts,
+        groups: action.groups,
+        isLoading: false,
+      }
+    case "contactsLoaded":
+      return action.isSearch
+        ? {
+            ...state,
+            searchContacts: action.contacts,
+            searchGroups: action.groups,
+            isSearching: false,
+          }
+        : {
+            ...state,
+            contacts: action.contacts,
+            groups: action.groups,
+            isLoading: false,
+          }
+    case "setSearching":
+      return { ...state, isSearching: action.isSearching }
+    case "setSearchOpen":
+      return { ...state, isSearchOpen: action.isSearchOpen }
+    case "setCreateGroupOpen":
+      return {
+        ...state,
+        isCreateGroupOpen: action.isCreateGroupOpen,
+        hasOpenedCreateGroup:
+          state.hasOpenedCreateGroup || action.isCreateGroupOpen,
+      }
+    case "setQuery":
+      return { ...state, query: action.query }
+    case "closeSearch":
+      return {
+        ...state,
+        query: "",
+        searchContacts: null,
+        searchGroups: null,
+        isSearching: false,
+        isSearchOpen: false,
+      }
+    case "groupCreated":
+      return {
+        ...state,
+        groups: [action.group, ...state.groups.filter((group) => group.id !== action.group.id)],
+      }
+  }
+}
+
 export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) {
-  const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
-  const [contacts, setContacts] = useState<ActiveFriend[]>([])
-  const [groups, setGroups] = useState<ContactGroup[]>([])
-  const [searchContacts, setSearchContacts] = useState<ActiveFriend[] | null>(null)
-  const [searchGroups, setSearchGroups] = useState<ContactGroup[] | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSearching, setIsSearching] = useState(false)
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
-  const [query, setQuery] = useState("")
+  const [state, dispatch] = useReducer(activeFriendsReducer, initialActiveFriendsState)
+  const {
+    sessionUser,
+    contacts,
+    groups,
+    searchContacts,
+    searchGroups,
+    isLoading,
+    isSearching,
+    isSearchOpen,
+    isCreateGroupOpen,
+    hasOpenedCreateGroup,
+    query,
+  } = state
   const normalizedQuery = normalizeSearch(query)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -66,20 +171,12 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
         listActiveFriends(),
       ])
 
-      if (sessionResult.success && sessionResult.data) {
-        setSessionUser(sessionResult.data)
-      }
-
-      if (!contactsResult.success || !contactsResult.data) {
-        setContacts([])
-        setGroups([])
-        setIsLoading(false)
-        return
-      }
-
-      setContacts(contactsResult.data.contacts)
-      setGroups(contactsResult.data.groups)
-      setIsLoading(false)
+      dispatch({
+        type: "loaded",
+        sessionUser: sessionResult.success && sessionResult.data ? sessionResult.data : null,
+        contacts: contactsResult.success && contactsResult.data ? contactsResult.data.contacts : [],
+        groups: contactsResult.success && contactsResult.data ? contactsResult.data.groups : [],
+      })
     }
 
     void fetchContacts()
@@ -89,28 +186,23 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
     let isDisposed = false
 
     const refreshContacts = async () => {
-      const result = await listActiveFriends(normalizedQuery ? { query } : undefined)
       if (isDisposed) {
         return
       }
 
-      if (!result.success || !result.data) {
-        if (normalizedQuery) {
-          setSearchContacts([])
-          setSearchGroups([])
-        } else {
-          setContacts([])
-          setGroups([])
-        }
-        return
-      }
+      const result = await listActiveFriends(normalizedQuery ? { query } : undefined)
 
-      if (normalizedQuery) {
-        setSearchContacts(result.data.contacts)
-        setSearchGroups(result.data.groups)
-      } else {
-        setContacts(result.data.contacts)
-        setGroups(result.data.groups)
+      if (!isDisposed) {
+        if (!result.success || !result.data) {
+          dispatch({ type: "contactsLoaded", contacts: [], groups: [], isSearch: Boolean(normalizedQuery) })
+        } else {
+          dispatch({
+            type: "contactsLoaded",
+            contacts: result.data.contacts,
+            groups: result.data.groups,
+            isSearch: Boolean(normalizedQuery),
+          })
+        }
       }
     }
 
@@ -183,20 +275,25 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
 
     let isDisposed = false
     const timeoutId = setTimeout(async () => {
-      setIsSearching(true)
-      const result = await listActiveFriends({ query })
       if (isDisposed) {
         return
       }
 
-      if (result.success && result.data) {
-        setSearchContacts(result.data.contacts)
-        setSearchGroups(result.data.groups)
-      } else {
-        setSearchContacts([])
-        setSearchGroups([])
+      dispatch({ type: "setSearching", isSearching: true })
+      const result = await listActiveFriends({ query })
+
+      if (!isDisposed) {
+        if (result.success && result.data) {
+          dispatch({
+            type: "contactsLoaded",
+            contacts: result.data.contacts,
+            groups: result.data.groups,
+            isSearch: true,
+          })
+        } else {
+          dispatch({ type: "contactsLoaded", contacts: [], groups: [], isSearch: true })
+        }
       }
-      setIsSearching(false)
     }, 250)
 
     return () => {
@@ -252,32 +349,31 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
     visibleGroups.length === 0
 
   const closeSearch = () => {
-    setQuery("")
-    setSearchContacts(null)
-    setSearchGroups(null)
-    setIsSearching(false)
-    setIsSearchOpen(false)
+    dispatch({ type: "closeSearch" })
   }
 
   return (
     <>
-      <CreateGroupDialog
-        open={isCreateGroupOpen}
-        onOpenChange={setIsCreateGroupOpen}
-        onCreated={(conversation) => {
-          setGroups((prev) => [
-            {
-              id: conversation.id,
-              name: conversation.name,
-              participantCount: conversation.participantCount,
-              lastMessage: conversation.lastMessage,
-              lastMessageAt: conversation.lastMessageAt,
-              unreadCount: conversation.unreadCount,
-            },
-            ...prev.filter((group) => group.id !== conversation.id),
-          ])
-        }}
-      />
+      {/* Lazy mount: chỉ render sau lần mở đầu tiên; giữ mount cho animation đóng */}
+      {hasOpenedCreateGroup && (
+        <CreateGroupDialog
+          open={isCreateGroupOpen}
+          onOpenChange={(isCreateGroupOpen) => dispatch({ type: "setCreateGroupOpen", isCreateGroupOpen })}
+          onCreated={(conversation) => {
+            dispatch({
+              type: "groupCreated",
+              group: {
+                id: conversation.id,
+                name: conversation.name,
+                participantCount: conversation.participantCount,
+                lastMessage: conversation.lastMessage,
+                lastMessageAt: conversation.lastMessageAt,
+                unreadCount: conversation.unreadCount,
+              },
+            })
+          }}
+        />
+      )}
 
       <Card className={cn("border-none bg-transparent shadow-none", className)}>
         <CardContent className="p-0">
@@ -289,7 +385,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
               size="icon-sm"
               className="rounded-full text-muted-foreground"
               aria-label="Tìm liên hệ"
-              onClick={() => setIsSearchOpen((open) => !open)}
+              onClick={() => dispatch({ type: "setSearchOpen", isSearchOpen: !isSearchOpen })}
             >
               <Search className="size-4" />
             </Button>
@@ -310,7 +406,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
             <input
               ref={searchInputRef}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => dispatch({ type: "setQuery", query: event.target.value })}
               placeholder="Tìm kiếm"
               className="h-6 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
@@ -328,10 +424,13 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
         )}
 
         <div className="space-y-0.5">
-          {normalizedQuery && isSearching && (
-            <p className="px-2 py-2 text-sm text-muted-foreground">Đang tìm kiếm...</p>
+          {!normalizedQuery && isLoading && (
+            <UserRowSkeletonList count={5} className="h-11 rounded-md px-2" showMeta={false} />
           )}
-          {visibleContacts.map((contact) => (
+          {normalizedQuery && isSearching && (
+            <UserRowSkeletonList count={3} className="h-11 rounded-md px-2" showMeta={false} />
+          )}
+          {!isLoading && visibleContacts.map((contact) => (
             <Button
               key={contact.id}
               variant="ghost"
@@ -352,7 +451,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
           ))}
         </div>
 
-        {(visibleGroups.length > 0 || !normalizedQuery) && (
+        {(visibleGroups.length > 0 || (!normalizedQuery && !isLoading)) && (
           <div className="mt-3 border-t border-border pt-3">
             <p className="mb-2 px-1 text-base font-bold text-muted-foreground">Nhóm chat</p>
             <div className="space-y-0.5">
@@ -378,7 +477,7 @@ export function ActiveFriends({ onFriendClick, className }: ActiveFriendsProps) 
                 <button
                   type="button"
                   className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm font-semibold hover:bg-muted"
-                  onClick={() => setIsCreateGroupOpen(true)}
+                  onClick={() => dispatch({ type: "setCreateGroupOpen", isCreateGroupOpen: true })}
                 >
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
                     <Plus className="size-5" />

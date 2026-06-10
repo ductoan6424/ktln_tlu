@@ -16,10 +16,11 @@ const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 ngày
 // Banner khuyến khích cài PWA. Lắng nghe `beforeinstallprompt`.
 // Ẩn sau khi user cài hoặc bỏ qua (trong 7 ngày).
 export function InstallPrompt() {
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
-    null,
-  )
-  const [visible, setVisible] = useState(false)
+  const [promptState, setPromptState] = useState<{
+    deferred: BeforeInstallPromptEvent | null
+    visible: boolean
+  }>({ deferred: null, visible: false })
+  const { deferred, visible } = promptState
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -36,14 +37,12 @@ export function InstallPrompt() {
 
     const handler = (e: Event) => {
       e.preventDefault()
-      setDeferred(e as BeforeInstallPromptEvent)
-      setVisible(true)
+      setPromptState({ deferred: e as BeforeInstallPromptEvent, visible: true })
     }
 
     window.addEventListener("beforeinstallprompt", handler)
     window.addEventListener("appinstalled", () => {
-      setVisible(false)
-      setDeferred(null)
+      setPromptState({ deferred: null, visible: false })
     })
 
     return () => window.removeEventListener("beforeinstallprompt", handler)
@@ -59,21 +58,20 @@ export function InstallPrompt() {
         localStorage.setItem(DISMISS_KEY, String(Date.now()))
       }
     } finally {
-      setVisible(false)
-      setDeferred(null)
+      setPromptState({ deferred: null, visible: false })
     }
   }
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()))
-    setVisible(false)
+    setPromptState((state) => ({ ...state, visible: false }))
   }
 
   return (
     <div className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 rounded-lg border bg-card p-4 shadow-lg">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Download className="h-5 w-5" aria-hidden />
+        <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Download className="size-5" aria-hidden />
         </div>
         <div className="flex-1">
           <p className="text-sm font-medium">Cài TLU Community lên thiết bị</p>
@@ -95,7 +93,7 @@ export function InstallPrompt() {
           onClick={handleDismiss}
           className="text-muted-foreground hover:text-foreground"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </button>
       </div>
     </div>

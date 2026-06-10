@@ -70,14 +70,14 @@ export function CommunitySettingsPanel({
           return (
             <Card key={stat.label} className={`${manageSurface} gap-2 py-4`}>
               <CardContent className="flex items-center gap-3 px-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e7f3ff] text-[#1877f2]">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Icon className="size-5" aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase text-[#65676b]">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">
                     {stat.label}
                   </p>
-                  <p className="text-2xl font-bold text-[#050505]">{stat.value}</p>
+                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
                 </div>
               </CardContent>
             </Card>
@@ -97,28 +97,28 @@ export function CommunitySettingsPanel({
 
       <Card className={`${manageSurface} gap-0 py-0`}>
         <CardHeader className={manageHeader}>
-          <CardTitle className="text-lg font-bold text-[#050505]">
+          <CardTitle className="text-lg font-bold text-foreground">
             Cài đặt hiện tại
           </CardTitle>
-          <CardDescription className="text-[#65676b]">
+          <CardDescription className="text-muted-foreground">
             Tổng quan nhanh các cấu hình đang áp dụng cho không gian này.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
           <div className={manageSoftItem}>
-            <p className="text-sm font-semibold text-[#050505]">Hiển thị</p>
-            <Badge className="mt-2 bg-[#e4e6eb] text-[#050505]" variant="secondary">
+            <p className="text-sm font-semibold text-foreground">Hiển thị</p>
+            <Badge className="mt-2" variant="secondary">
               {visibility === "PRIVATE" ? "Riêng tư" : "Công khai"}
             </Badge>
           </div>
           <div className={manageSoftItem}>
-            <p className="text-sm font-semibold text-[#050505]">Duyệt bài viết</p>
+            <p className="text-sm font-semibold text-foreground">Duyệt bài viết</p>
             <Badge
               className={
                 requirePostApproval
-                  ? "mt-2 bg-[#e7f3ff] text-[#1877f2]"
-                  : "mt-2 bg-[#e4e6eb] text-[#050505]"
+                  ? "mt-2 bg-primary/10 text-primary"
+                  : "mt-2"
               }
               variant={requirePostApproval ? "default" : "secondary"}
             >
@@ -126,12 +126,12 @@ export function CommunitySettingsPanel({
             </Badge>
           </div>
           <div className={manageSoftItem}>
-            <p className="text-sm font-semibold text-[#050505]">Chat</p>
+            <p className="text-sm font-semibold text-foreground">Chat</p>
             <Badge
               className={
                 chatEnabled
-                  ? "mt-2 bg-[#e7f3ff] text-[#1877f2]"
-                  : "mt-2 bg-[#e4e6eb] text-[#050505]"
+                  ? "mt-2 bg-primary/10 text-primary"
+                  : "mt-2"
               }
               variant={chatEnabled ? "default" : "secondary"}
             >
@@ -139,14 +139,14 @@ export function CommunitySettingsPanel({
             </Badge>
           </div>
           <div className={manageSoftItem}>
-            <p className="text-sm font-semibold text-[#050505]">
+            <p className="text-sm font-semibold text-foreground">
               Lời mời thành viên
             </p>
             <Badge
               className={
                 memberInviteEnabled
-                  ? "mt-2 bg-[#e7f3ff] text-[#1877f2]"
-                  : "mt-2 bg-[#e4e6eb] text-[#050505]"
+                  ? "mt-2 bg-primary/10 text-primary"
+                  : "mt-2"
               }
               variant={memberInviteEnabled ? "default" : "secondary"}
             >

@@ -20,12 +20,12 @@ export function CompetitionCard({
   return (
     <div
       className={cn(
-        "border-l-4 p-4 rounded-r-lg bg-muted",
-        isPrimary ? "border-primary" : "border-muted-foreground/30",
+        "border p-4 rounded-lg bg-muted",
+        isPrimary ? "border-primary/60" : "border-muted-foreground/30",
         className
       )}
     >
-      <h4 className="font-bold text-sm leading-tight">{title}</h4>
+      <h4 className="font-semibold text-sm leading-tight">{title}</h4>
       <div className="flex flex-col gap-1 mt-1.5 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Calendar className="size-3" />
@@ -42,7 +42,7 @@ export function CompetitionCard({
 
 export function CompetitionCardSkeleton() {
   return (
-    <div className="border-l-4 border-muted p-4 rounded-r-lg bg-muted">
+    <div className="border border-muted p-4 rounded-lg bg-muted">
       <Skeleton className="h-4 w-40" />
       <div className="space-y-1 mt-1.5">
         <Skeleton className="h-3 w-24" />

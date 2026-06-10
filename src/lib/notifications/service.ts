@@ -2,6 +2,7 @@ import type { NotificationType, Prisma } from "@prisma/client"
 
 import { getAblyRestClient } from "@/lib/ably/server"
 import { sendPushToUser } from "@/lib/push/service"
+import { shouldSendNotificationDisturbance } from "@/lib/settings/user-settings"
 import {
   NOTIFICATION_AGGREGATION_WINDOW_MS,
   NOTIFICATION_EVENT_CREATED,
@@ -208,6 +209,10 @@ export async function createNotification(
         typeof input.extraMetadata?.commentId === "string"
           ? (input.extraMetadata.commentId as string)
           : null,
+      announcementId:
+        typeof input.extraMetadata?.announcementId === "string"
+          ? (input.extraMetadata.announcementId as string)
+          : null,
     })
 
   const result = await runInClient(async (db) => {
@@ -230,6 +235,10 @@ export async function createNotification(
         postExcerpt: input.postExcerpt,
         commentExcerpt: input.commentExcerpt,
         pollQuestion: input.pollQuestion,
+        announcementTitle:
+          typeof input.extraMetadata?.announcementTitle === "string"
+            ? (input.extraMetadata.announcementTitle as string)
+            : null,
       })
 
       const updated = await db.notification.update({
@@ -263,6 +272,10 @@ export async function createNotification(
       postExcerpt: input.postExcerpt,
       commentExcerpt: input.commentExcerpt,
       pollQuestion: input.pollQuestion,
+      announcementTitle:
+        typeof input.extraMetadata?.announcementTitle === "string"
+          ? (input.extraMetadata.announcementTitle as string)
+          : null,
     })
 
     const created = await db.notification.create({
@@ -295,16 +308,18 @@ export async function createNotification(
     unreadCount,
   })
   
-  void sendPushToUser(input.recipientId, {
-    title: item.title,
-    body: item.content,
-    url: item.link ?? "/notifications",
-    icon: item.actor?.avatarUrl ?? "/icons/icon-192.png",
-    badge: "/icons/badge-72.png",
-    tag: input.groupKey,
-  }).catch((error) => {
-    console.error("createNotification → sendPushToUser error:", error)
-  })
+  if (await shouldSendNotificationDisturbance(input.recipientId, input.type)) {
+    void sendPushToUser(input.recipientId, {
+      title: item.title,
+      body: item.content,
+      url: item.link ?? "/notifications",
+      icon: item.actor?.avatarUrl ?? "/icons/icon-192.png",
+      badge: "/icons/badge-72.png",
+      tag: input.groupKey,
+    }).catch((error) => {
+      console.error("createNotification → sendPushToUser error:", error)
+    })
+  }
 
   return item
 }

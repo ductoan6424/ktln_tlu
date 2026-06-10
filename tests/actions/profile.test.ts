@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 const createClient = vi.hoisted(() => vi.fn())
 const uploadAvatarImage = vi.hoisted(() => vi.fn())
+const uploadCoverImage = vi.hoisted(() => vi.fn())
 const revalidatePath = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
   userProfile: {
@@ -17,10 +18,11 @@ vi.mock("next/cache", () => ({ revalidatePath }))
 vi.mock("@/lib/cloudinary/upload", () => ({
   UploadValidationError: class UploadValidationError extends Error {},
   uploadAvatarImage,
+  uploadCoverImage,
 }))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 
-import { updateUserAvatar } from "@/actions/profile"
+import { updateUserAvatar, updateUserProfile } from "@/actions/profile"
 
 function createValidFile() {
   return new File(["avatar-binary"], "avatar.png", { type: "image/png" })
@@ -228,5 +230,117 @@ describe("updateUserAvatar", () => {
       success: true,
       data: { avatarUrl: "https://cdn.example/avatar-self.png" },
     })
+  })
+})
+
+describe("updateUserProfile", () => {
+  it("returns UNAUTHORIZED when there is no active session", async () => {
+    mockNoSession()
+
+    const result = await updateUserProfile({
+      displayName: "Nguyen Van A",
+      bio: "Sinh vien nam cuoi",
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Bạn cần đăng nhập để thực hiện",
+      code: "UNAUTHORIZED",
+    })
+    expect(prisma.userProfile.update).not.toHaveBeenCalled()
+  })
+
+  it("validates display name before updating the profile", async () => {
+    mockWithSession()
+
+    const result = await updateUserProfile({
+      displayName: "A",
+      bio: "Bio hop le",
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: "Họ và tên phải có từ 2 đến 100 ký tự.",
+      code: "VALIDATION_ERROR",
+    })
+    expect(prisma.userProfile.update).not.toHaveBeenCalled()
+  })
+
+  it("updates editable profile fields, syncs auth metadata, and revalidates profile surfaces", async () => {
+    const { updateUser } = mockWithSession("user-self")
+    prisma.userProfile.update.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Nguyen Van B",
+      bio: "Bio moi",
+    })
+
+    const result = await updateUserProfile({
+      displayName: "  Nguyen Van B  ",
+      bio: "  Bio moi  ",
+    })
+
+    expect(prisma.userProfile.update).toHaveBeenCalledWith({
+      where: { userId: "user-self" },
+      data: {
+        displayName: "Nguyen Van B",
+        bio: "Bio moi",
+      },
+      select: {
+        displayName: true,
+        bio: true,
+      },
+    })
+    expect(updateUser).toHaveBeenCalledWith({
+      data: { display_name: "Nguyen Van B" },
+    })
+    expect(revalidatePath).toHaveBeenCalledWith("/settings")
+    expect(revalidatePath).toHaveBeenCalledWith("/profile")
+    expect(revalidatePath).toHaveBeenCalledWith("/profile/user-self")
+    expect(revalidatePath).toHaveBeenCalledWith("/feed")
+    expect(result).toEqual({
+      success: true,
+      data: {
+        displayName: "Nguyen Van B",
+        bio: "Bio moi",
+      },
+    })
+  })
+
+  it("rolls editable profile fields back when Supabase metadata sync fails", async () => {
+    const { updateUser } = mockWithSession("user-self")
+    prisma.userProfile.findUnique.mockResolvedValue({
+      displayName: "Nguyen Van A",
+      bio: "Bio cu",
+    })
+    prisma.userProfile.update.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Nguyen Van B",
+      bio: "Bio moi",
+    })
+    prisma.userProfile.updateMany.mockResolvedValue({ count: 1 })
+    updateUser.mockResolvedValue({ data: null, error: { message: "sync failed" } })
+
+    const result = await updateUserProfile({
+      displayName: "Nguyen Van B",
+      bio: "Bio moi",
+    })
+
+    expect(prisma.userProfile.findUnique).toHaveBeenCalledWith({
+      where: { userId: "user-self" },
+      select: { displayName: true, bio: true },
+    })
+    expect(prisma.userProfile.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-self",
+        displayName: "Nguyen Van B",
+        bio: "Bio moi",
+      },
+      data: {
+        displayName: "Nguyen Van A",
+        bio: "Bio cu",
+      },
+    })
+    expect(result.success).toBe(false)
+    expect(result.code).toBe("PROFILE_UPDATE_ERROR")
   })
 })

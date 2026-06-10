@@ -35,17 +35,18 @@ export function PollDisplay({
   authorId,
   className,
 }: PollDisplayProps) {
-  const [poll, setPoll] = useState<PollView>(initialPoll)
+  const [pollOverride, setPollOverride] = useState<PollView | null>(null)
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(
     () => new Set(initialPoll.myOptionIds),
   )
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const poll = pollOverride ?? initialPoll
 
   // Đồng bộ lại state khi parent truyền poll mới (vd: sau revalidate hoặc realtime update)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync từ prop khi parent revalidate poll
-    setPoll(initialPoll)
+    setPollOverride(null)
     setSelectedOptionIds(new Set(initialPoll.myOptionIds))
   }, [initialPoll])
 
@@ -53,7 +54,8 @@ export function PollDisplay({
   // Giữ nguyên `myOptionIds`, `canVote`, `options[].isVotedByMe` của viewer hiện tại
   // vì payload được build từ góc nhìn của người vừa thực hiện hành động.
   const handleRealtimeUpdate = useCallback((incoming: PollView) => {
-    setPoll((current) => {
+    setPollOverride((currentPoll) => {
+      const current = currentPoll ?? initialPoll
       const myOptionIdSet = new Set(current.myOptionIds)
       const mergedOptions = incoming.options.map((opt) => ({
         id: opt.id,
@@ -76,7 +78,7 @@ export function PollDisplay({
         canVote: incoming.isClosed ? false : current.canVote,
       }
     })
-  }, [])
+  }, [initialPoll])
 
   usePollRealtime({ postId: initialPoll.postId, onUpdated: handleRealtimeUpdate })
 
@@ -120,7 +122,7 @@ export function PollDisplay({
         setError(result.error ?? "Không thể bình chọn")
         return
       }
-      setPoll(result.data)
+      setPollOverride(result.data)
       setSelectedOptionIds(new Set(result.data.myOptionIds))
     })
   }
@@ -138,7 +140,7 @@ export function PollDisplay({
         setError(result.error ?? "Không thể thu hồi bình chọn")
         return
       }
-      setPoll(result.data)
+        setPollOverride(result.data)
       setSelectedOptionIds(new Set())
     })
   }
@@ -153,12 +155,13 @@ export function PollDisplay({
         setError(result.error ?? "Không thể đóng khảo sát")
         return
       }
-      setPoll(result.data)
+      setPollOverride(result.data)
     })
   }
 
   return (
     <div
+      role="presentation"
       className={cn(
         "rounded-xl border border-border bg-muted/30 p-3",
         className,

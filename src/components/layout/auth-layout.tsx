@@ -9,36 +9,69 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-muted">
-      {/* Header */}
-      <header className="w-full px-6 py-6 lg:px-12 flex justify-between items-center">
-        <AppLogo size="md" />
-        <Link
-          href="/support"
-          className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-        >
-          <HelpCircle className="size-4" />
-          Trung tâm hỗ trợ
-        </Link>
-      </header>
+    <div className="min-h-dvh bg-background">
+      <div className="grid min-h-dvh lg:grid-cols-[minmax(360px,44%)_1fr]">
+        <aside className="brand-panel relative hidden overflow-hidden p-10 lg:flex lg:flex-col lg:justify-between xl:p-14">
+          <div className="pointer-events-none absolute inset-0 tlu-geometry opacity-55" />
+          <div className="relative">
+            <AppLogo size="md" className="[&_h1]:text-white" />
+          </div>
+          <div className="relative max-w-md">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
+              TLU Community
+            </p>
+            <h1 className="mt-4 text-4xl font-semibold leading-tight text-white">
+              Cộng đồng Đại học Thăng Long
+            </h1>
+            <p className="mt-4 text-base leading-relaxed text-white/75">
+              Kết nối học tập, hoạt động và thông báo chính thức trong một
+              không gian đáng tin cậy.
+            </p>
+          </div>
+          <p className="relative text-xs font-medium text-white/60">
+            Đại học Thăng Long
+          </p>
+        </aside>
 
-      {/* Nội dung chính */}
-      <main className="flex-grow flex items-center justify-center px-4 relative overflow-hidden">
-        {/* Hoa văn nền nhẹ */}
-        <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
-            backgroundSize: "20px 20px",
-          }}
-        />
-        <div className="w-full max-w-[440px] z-10">
-          {children}
-        </div>
-      </main>
+        <section className="flex min-h-dvh flex-col">
+          <header className="flex items-center justify-between gap-4 px-4 py-5 sm:px-8 lg:px-10">
+            <AppLogo size="sm" className="lg:hidden" />
+            <div className="hidden lg:block" aria-hidden="true" />
+            <Link
+              href="/support"
+              className="flex items-center justify-end gap-1.5 text-right text-sm font-medium leading-tight text-muted-foreground transition-colors hover:text-primary"
+            >
+              <HelpCircle className="size-4 shrink-0" />
+              Trung tâm hỗ trợ
+            </Link>
+          </header>
 
-      {/* Footer */}
-      <PageFooter variant="simple" />
+          <div className="mx-4 overflow-hidden rounded-[2rem] sm:mx-8 lg:hidden">
+            <div className="brand-panel relative overflow-hidden px-6 py-7 text-white">
+              <div className="pointer-events-none absolute inset-0 tlu-geometry opacity-55" />
+              <div className="relative">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
+                  TLU Community
+                </p>
+                <p className="mt-2 text-2xl font-semibold leading-tight">
+                  Cộng đồng Đại học Thăng Long
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-white/75">
+                  Kết nối học tập và thông báo chính thức.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <main className="flex flex-1 items-center justify-center px-4 pb-8 sm:px-8">
+            <div className="w-full max-w-[460px]">
+              {children}
+            </div>
+          </main>
+
+          <PageFooter variant="simple" className="bg-transparent" />
+        </section>
+      </div>
     </div>
   )
 }

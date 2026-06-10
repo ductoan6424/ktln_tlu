@@ -43,21 +43,21 @@ export function AnnouncementCard({
             sizes="(max-width: 768px) 100vw, 600px"
             className="object-cover transition-transform duration-700 group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-indigo/90 via-brand-indigo/70 to-transparent" />
         </div>
 
         {/* Nội dung overlay */}
         <div className="absolute bottom-0 left-0 p-8 text-primary-foreground w-2/3">
-          <StatusBadge variant="muted" size="sm" className="bg-white/20 backdrop-blur-md text-white border-none mb-3">
+          <StatusBadge variant="official" size="sm" className="mb-3">
             {tag}
           </StatusBadge>
-          <h4 className="text-2xl font-bold mb-2">{title}</h4>
+          <h4 className="text-2xl font-semibold mb-2">{title}</h4>
           <p className="text-sm opacity-90 mb-4">{description}</p>
           <Button
             variant="secondary"
             size="sm"
             onClick={onAction}
-            className="font-bold shadow-lg"
+            className="font-bold"
           >
             {actionLabel}
           </Button>
@@ -74,10 +74,10 @@ export function AnnouncementCard({
       )}
     >
       <CardContent className="p-8">
-        <StatusBadge variant="primary" size="sm" className="mb-3">
+        <StatusBadge variant="official" size="sm" className="mb-3">
           {tag}
         </StatusBadge>
-        <h4 className="text-xl font-bold mb-2">{title}</h4>
+        <h4 className="text-xl font-semibold mb-2">{title}</h4>
         <p className="text-muted-foreground text-sm mb-4">{description}</p>
         <Button variant="outline" size="sm" onClick={onAction} className="font-bold">
           {actionLabel}

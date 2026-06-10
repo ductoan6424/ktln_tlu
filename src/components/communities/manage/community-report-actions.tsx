@@ -12,9 +12,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  facebookDangerButton,
-  facebookPrimaryButton,
-  facebookSecondaryButton,
+  manageDangerButton,
+  managePrimaryButton,
+  manageSecondaryButton,
   manageInput,
 } from "@/components/communities/manage/manage-ui"
 
@@ -33,12 +33,12 @@ export function CommunityReportActions({
   contentType,
   contentId,
 }: CommunityReportActionsProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
 
   return (
-    <div className="mt-4 flex flex-col gap-2 border-t border-[#e4e6eb] pt-3">
+    <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3">
       <form
         className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]"
         action={(formData) => {
@@ -58,7 +58,7 @@ export function CommunityReportActions({
                 ? "Đã cập nhật báo cáo."
                 : result.error ?? "Không thể xử lý.",
             )
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }}
       >
@@ -74,7 +74,7 @@ export function CommunityReportActions({
           value="resolve"
           type="submit"
           disabled={pending}
-          className={facebookPrimaryButton}
+          className={managePrimaryButton}
         >
           <Check data-icon="inline-start" />
           Đã xử lý
@@ -86,7 +86,7 @@ export function CommunityReportActions({
           variant="outline"
           type="submit"
           disabled={pending}
-          className={facebookSecondaryButton}
+          className={manageSecondaryButton}
         >
           <X data-icon="inline-start" />
           Bỏ qua
@@ -109,7 +109,7 @@ export function CommunityReportActions({
                 ? "Đã xoá nội dung bị báo cáo."
                 : result.error ?? "Không thể xoá.",
             )
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }}
       >
@@ -122,14 +122,14 @@ export function CommunityReportActions({
           variant="outline"
           type="submit"
           disabled={pending}
-          className={facebookDangerButton}
+          className={manageDangerButton}
         >
           <Trash2 data-icon="inline-start" />
           Xoá nội dung
         </Button>
       </form>
 
-      {message ? <p className="text-xs text-[#65676b]">{message}</p> : null}
+      {message ? <p className="text-xs text-muted-foreground">{message}</p> : null}
     </div>
   )
 }

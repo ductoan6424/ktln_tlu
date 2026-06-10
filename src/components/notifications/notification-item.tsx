@@ -35,10 +35,18 @@ export function NotificationItem({
 }: NotificationItemProps) {
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onClick?.()
+        }
+      }}
       className={cn(
         "flex gap-4 p-4 cursor-pointer transition-colors hover:bg-muted rounded-lg group",
-        isUnread && "bg-primary/5",
+        isUnread && "bg-primary/10",
         className
       )}
     >

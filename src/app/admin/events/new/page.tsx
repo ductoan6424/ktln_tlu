@@ -1,8 +1,10 @@
-import { AdminFormPageShell } from "@/components/admin/shells/admin-form-page-shell"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { EventForm } from "@/components/admin/event-form"
+import { getEventAdminSettings } from "@/lib/admin/settings/admin-settings-queries"
 
-const eventsModule = getAdminModule("events")
+export const dynamic = "force-dynamic"
 
-export default function AdminNewEventPage() {
-  return <AdminFormPageShell module={eventsModule} mode="create" />
+export default async function AdminNewEventPage() {
+  const defaults = await getEventAdminSettings()
+
+  return <EventForm defaults={defaults} />
 }

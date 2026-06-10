@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { PostHeader, PostHeaderSkeleton } from "@/components/feed/post-header"
 import { PostActions } from "@/components/feed/post-actions"
@@ -30,6 +30,7 @@ interface SharedPostData {
 
 export interface PostCommunityContext {
   type: "GROUP" | "CLUB" | "COURSE"
+  id: string
   name: string
   href: string
   avatarUrl: string | null
@@ -69,7 +70,7 @@ interface PostCardProps {
   poll?: PollView | null
 }
 
-export function PostCard({
+function PostCardImpl({
   postId,
   authorName,
   authorAvatar,
@@ -103,10 +104,20 @@ export function PostCard({
   poll,
 }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [hasOpenedDetail, setHasOpenedDetail] = useState(false)
 
-  const handleOpenDetail = () => setIsDetailOpen(true)
+  const handleOpenDetail = useCallback(() => {
+    setIsDetailOpen(true)
+    setHasOpenedDetail(true)
+  }, [])
 
-  // Normalize userId vs id field
+  const handleDetailOpenChange = useCallback((nextOpen: boolean) => {
+    setIsDetailOpen(nextOpen)
+    if (nextOpen) {
+      setHasOpenedDetail(true)
+    }
+  }, [])
+
   const resolvedCurrentUser = currentUser
     ? {
         id: currentUser.id ?? currentUser.userId ?? "",
@@ -114,22 +125,27 @@ export function PostCard({
         avatarUrl: currentUser.avatarUrl,
       }
     : null
+  const viewerId = currentUserId ?? resolvedCurrentUser?.id ?? null
+  const reportTarget =
+    viewerId && postId && authorId && viewerId !== authorId && communityContext
+      ? { targetType: communityContext.type, targetId: communityContext.id }
+      : null
 
   return (
     <>
       <Card
         className={cn(
-          "overflow-hidden relative",
+          "relative overflow-hidden rounded-lg border-border/70 shadow-sm",
           isPinned && "border-2 border-primary/20",
           className
         )}
       >
         {/* Thanh accent cho bài ghim */}
         {isPinned && (
-          <div className="absolute top-0 left-0 w-1 h-full bg-destructive" />
+          <div className="absolute left-0 top-0 h-full w-1 bg-primary" />
         )}
 
-        <CardContent className="px-3 py-3 md:px-4 md:py-3">
+        <CardContent className="px-4 py-4 md:px-5 md:py-4">
           {/* Header */}
           <PostHeader
             authorId={authorId}
@@ -150,6 +166,7 @@ export function PostCard({
                   canDelete={permissions.canDelete}
                   canHide={permissions.canHide}
                   deleteRole={permissions.deleteRole}
+                  reportTarget={reportTarget}
                   isSaved={isSaved}
                   onDeleted={onDeleted}
                   onHidden={onHidden}
@@ -183,7 +200,7 @@ export function PostCard({
               />
             ) : (
               imageUrl && (
-                <div className="rounded-md overflow-hidden mt-2.5 border border-border">
+                <div className="mt-2.5 overflow-hidden rounded-xl border border-border/70">
                   <div className="relative aspect-video w-full">
                     <Image
                       src={imageUrl}
@@ -232,46 +249,51 @@ export function PostCard({
         </CardContent>
       </Card>
 
-      {/* Dialog chi tiết bài đăng */}
-      <PostDetailDialog
-        open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-        postId={postId}
-        authorName={authorName}
-        authorAvatar={authorAvatar}
-        authorCover={authorCover}
-        createdAt={createdAt}
-        content={content}
-        imageUrl={imageUrl}
-        tag={tag}
-        tagVariant={tagVariant}
-        isVerified={isVerified}
-        subtitle={subtitle}
-        likes={likes}
-        comments={comments}
-        shares={shares}
-        isLiked={isLiked}
-        currentUser={resolvedCurrentUser}
-        currentUserId={currentUserId}
-        authorId={authorId}
-        onLike={onLike}
-        permissions={permissions}
-        onDeleted={onDeleted}
-        onHidden={onHidden}
-        sharedPost={sharedPost}
-        communityContext={communityContext}
-        poll={poll}
-      />
+      {/* Lazy mount: chỉ render PostDetailDialog khi user đã mở ít nhất 1 lần */}
+      {hasOpenedDetail && (
+        <PostDetailDialog
+          open={isDetailOpen}
+          onOpenChange={handleDetailOpenChange}
+          postId={postId}
+          authorName={authorName}
+          authorAvatar={authorAvatar}
+          authorCover={authorCover}
+          createdAt={createdAt}
+          content={content}
+          imageUrl={imageUrl}
+          tag={tag}
+          tagVariant={tagVariant}
+          isVerified={isVerified}
+          subtitle={subtitle}
+          likes={likes}
+          comments={comments}
+          shares={shares}
+          isLiked={isLiked}
+          currentUser={resolvedCurrentUser}
+          currentUserId={currentUserId}
+          authorId={authorId}
+          onLike={onLike}
+          permissions={permissions}
+          onDeleted={onDeleted}
+          onHidden={onHidden}
+          reportTarget={reportTarget}
+          sharedPost={sharedPost}
+          communityContext={communityContext}
+          poll={poll}
+        />
+      )}
     </>
   )
 }
 
+export const PostCard = memo(PostCardImpl)
+
 export function PostCardSkeleton() {
   return (
-    <Card>
-      <CardContent className="px-3 py-3 md:px-4 md:py-3 space-y-2.5">
+    <Card className="rounded-lg border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-2.5 px-4 py-4 md:px-5 md:py-4">
         <PostHeaderSkeleton />
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-4/5" />
         </div>

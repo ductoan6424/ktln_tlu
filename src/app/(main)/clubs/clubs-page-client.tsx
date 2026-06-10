@@ -124,7 +124,7 @@ export function ClubsPageClient({ currentUser }: { currentUser: CurrentUser | nu
             {/* Ban chủ nhiệm */}
             <Card>
               <CardContent className="p-5">
-                <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
+                <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
                   🛡️ Ban chủ nhiệm
                 </h3>
                 <div className="space-y-4">
@@ -148,7 +148,7 @@ export function ClubsPageClient({ currentUser }: { currentUser: CurrentUser | nu
             {/* Cuộc thi */}
             <Card>
               <CardContent className="p-5">
-                <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
+                <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
                   🏆 Cuộc thi sắp tới
                 </h3>
                 <div className="space-y-4">

@@ -25,6 +25,7 @@ import {
   searchChatUsers,
 } from "@/actions/chat"
 import { UserAvatar } from "@/components/shared/user-avatar"
+import { UserRowSkeletonList } from "@/components/shared/user-row-skeleton"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -40,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
 import { notifyContactGroupChanged } from "@/lib/contacts/events"
 import { cn } from "@/lib/utils"
@@ -52,6 +54,28 @@ interface GroupInfoDialogProps {
   onGroupRenamed?: (conversationId: string, name: string) => void
   onGroupMembersChanged?: (conversationId: string, participantCount: number) => void
   onLeftGroup?: (conversationId: string) => void
+}
+
+function GroupInfoDetailsSkeleton() {
+  return (
+    <div aria-busy="true" className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
+      <div className="flex h-12 items-center gap-4 px-2">
+        <Skeleton className="size-5" />
+        <Skeleton className="h-4 w-36" />
+      </div>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex h-9 items-center justify-between px-2">
+          <Skeleton className="h-5 w-44" />
+          <div className="flex gap-2">
+            <Skeleton className="size-8 rounded-full" />
+            <Skeleton className="size-8 rounded-full" />
+          </div>
+        </div>
+        <UserRowSkeletonList count={5} className="min-h-16 rounded-lg px-2" />
+      </section>
+    </div>
+  )
 }
 
 export function GroupInfoDialog({
@@ -117,24 +141,27 @@ export function GroupInfoDialog({
 
     let isDisposed = false
     const loadDetails = async () => {
-      setIsLoading(true)
-      const result = await getGroupConversationDetails({ conversationId })
       if (isDisposed) {
         return
       }
 
-      if (result.success && result.data) {
-        setDetails(result.data)
-        setGroupName(result.data.name)
-      } else {
-        setDetails(null)
-        toast({
-          title: "Không thể tải nhóm",
-          description: result.error ?? "Vui lòng thử lại.",
-          variant: "destructive",
-        })
+      setIsLoading(true)
+      const result = await getGroupConversationDetails({ conversationId })
+
+      if (!isDisposed) {
+        if (result.success && result.data) {
+          setDetails(result.data)
+          setGroupName(result.data.name)
+        } else {
+          setDetails(null)
+          toast({
+            title: "Không thể tải nhóm",
+            description: result.error ?? "Vui lòng thử lại.",
+            variant: "destructive",
+          })
+        }
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
 
     void loadDetails()
@@ -151,14 +178,17 @@ export function GroupInfoDialog({
 
     let isDisposed = false
     const timeoutId = setTimeout(async () => {
-      setIsLoadingUsers(true)
-      const result = await searchChatUsers({ query: addMemberQuery, limit: 20 })
       if (isDisposed) {
         return
       }
 
-      setUsers(result.success && result.data ? result.data : [])
-      setIsLoadingUsers(false)
+      setIsLoadingUsers(true)
+      const result = await searchChatUsers({ query: addMemberQuery, limit: 20 })
+
+      if (!isDisposed) {
+        setUsers(result.success && result.data ? result.data : [])
+        setIsLoadingUsers(false)
+      }
     }, 200)
 
     return () => {
@@ -383,17 +413,26 @@ export function GroupInfoDialog({
       <Button
         type="button"
         variant="ghost"
-        className="fixed inset-0 z-40 h-auto w-auto rounded-none bg-background/60 p-0 backdrop-blur-sm hover:bg-background/60 lg:hidden"
+        className="fixed inset-0 z-40 size-auto rounded-none bg-background/60 p-0 backdrop-blur-sm hover:bg-background/60 lg:hidden"
         aria-label="Đóng thông tin nhóm"
         onClick={() => handleOpenChange(false)}
       />
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
+      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-lg lg:static lg:z-auto lg:h-full lg:w-80 lg:max-w-none lg:shrink-0 lg:shadow-none xl:w-[360px]">
         <header className="flex h-16 shrink-0 items-start justify-between border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-bold">{details?.name ?? "Nhóm chat"}</h2>
-            <p className="truncate text-xs text-muted-foreground">
-              {details ? `${details.participantCount} thành viên` : "Đang tải thông tin"}
-            </p>
+          <div className="min-w-0 flex-1">
+            {details ? (
+              <>
+                <h2 className="truncate text-base font-semibold">{details.name}</h2>
+                <p className="truncate text-xs text-muted-foreground">
+                  {details.participantCount} thành viên
+                </p>
+              </>
+            ) : (
+              <div aria-busy="true" className="flex flex-col gap-2 pt-0.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -406,10 +445,7 @@ export function GroupInfoDialog({
         </header>
 
         {isLoading || !details ? (
-          <div className="flex items-center gap-2 px-5 py-8 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Đang tải thông tin nhóm...
-          </div>
+          <GroupInfoDetailsSkeleton />
         ) : (
           <div className="flex-1 overflow-y-auto px-3 py-4">
             {details.currentUserIsAdmin && (
@@ -426,7 +462,7 @@ export function GroupInfoDialog({
 
             <section className="space-y-1">
               <div className="flex h-9 items-center justify-between px-2">
-                <h3 className="text-base font-bold">Thành viên trong đoạn chat</h3>
+                <h3 className="text-base font-semibold">Thành viên trong đoạn chat</h3>
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
@@ -478,7 +514,7 @@ export function GroupInfoDialog({
                   !member.isAdmin
 
                 return (
-                  <div key={member.userId} className="flex min-h-16 items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/70">
+                  <div key={member.userId} className="flex min-h-16 items-center gap-3 rounded-lg p-2 hover:bg-muted/70">
                     <UserAvatar
                       src={member.avatarUrl ?? undefined}
                       name={member.displayName}
@@ -641,10 +677,7 @@ export function GroupInfoDialog({
 
             <div className="max-h-72 overflow-y-auto rounded-lg border border-border">
               {isLoadingUsers ? (
-                <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Đang tìm...
-                </div>
+                <UserRowSkeletonList count={4} showTrailing />
               ) : availableUsers.length === 0 ? (
                 <p className="px-3 py-4 text-sm text-muted-foreground">
                   Không có thành viên phù hợp.
@@ -660,7 +693,7 @@ export function GroupInfoDialog({
                       variant="ghost"
                       className={cn(
                         "h-auto w-full justify-start gap-3 rounded-none px-3 py-2.5 text-left",
-                        isSelected && "bg-primary/5",
+                        isSelected && "bg-primary/10",
                       )}
                       onClick={() => toggleUser(user)}
                     >

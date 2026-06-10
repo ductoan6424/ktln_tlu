@@ -1,6 +1,11 @@
 "use client"
 
-import type { ProfilePageData } from "@/app/(main)/profile/profile-page-data"
+import { useCallback, useState } from "react"
+import type {
+  ProfilePageData,
+  ProfilePostDto,
+} from "@/app/(main)/profile/profile-page-data"
+import { togglePostLike } from "@/actions/posts"
 import { PostCard } from "@/components/feed/post-card"
 import { PostComposer } from "@/components/feed/post-composer"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -11,6 +16,7 @@ import { ProfileClubGroupCard } from "@/components/profile/profile-club-group-ca
 import { ProfileHeader } from "@/components/profile/profile-header"
 import { ProfileOverviewCard } from "@/components/profile/profile-overview-card"
 import { ProfileTabs } from "@/components/profile/profile-tabs"
+import { useToast } from "@/components/ui/use-toast"
 import { FileText } from "lucide-react"
 
 interface ProfilePageContentProps {
@@ -25,7 +31,12 @@ function getPostSubtitle(data: ProfilePageData) {
   return [data.profile.major, data.profile.studentId].filter(Boolean).join(" • ")
 }
 
-function renderPostsPanel(data: ProfilePageData) {
+interface ProfilePostsPanelProps extends ProfilePageContentProps {
+  posts: ProfilePostDto[]
+  onLike: (postId: string) => void
+}
+
+function ProfilePostsPanel({ data, posts, onLike }: ProfilePostsPanelProps) {
   const postSubtitle = getPostSubtitle(data)
 
   return (
@@ -37,7 +48,7 @@ function renderPostsPanel(data: ProfilePageData) {
         />
       )}
 
-      {data.posts.length === 0 ? (
+      {posts.length === 0 ? (
         <Card>
           <CardContent className="p-0">
             <EmptyState
@@ -56,7 +67,7 @@ function renderPostsPanel(data: ProfilePageData) {
           </CardContent>
         </Card>
       ) : (
-        data.posts.map((post) => (
+        posts.map((post) => (
           <PostCard
             key={post.id}
             postId={post.id}
@@ -67,8 +78,12 @@ function renderPostsPanel(data: ProfilePageData) {
             imageUrl={post.imageUrl ?? undefined}
             tag={post.club?.name ?? post.group?.name}
             subtitle={postSubtitle || undefined}
+            likes={post.likes}
+            comments={post.comments}
+            isLiked={post.isLiked}
             currentUserId={data.viewerId}
             authorId={data.profile.userId}
+            onLike={() => onLike(post.id)}
             sharedPost={post.sharedPost}
             poll={post.poll}
           />
@@ -78,13 +93,14 @@ function renderPostsPanel(data: ProfilePageData) {
   )
 }
 
-function renderInfoPanel(data: ProfilePageData) {
+function ProfileInfoPanel({ data }: ProfilePageContentProps) {
   return (
     <div className="space-y-4">
       <ProfileOverviewCard profile={data.profile} stats={data.stats} />
       <ConnectionsGrid
         connections={data.connectionsPreview.items}
         totalCount={data.connectionsPreview.totalCount}
+        profileUserId={data.profileUserId}
       />
       <ProfileClubGroupCard clubs={data.clubs} groups={data.groups} />
     </div>
@@ -92,6 +108,64 @@ function renderInfoPanel(data: ProfilePageData) {
 }
 
 export function ProfilePageContent({ data }: ProfilePageContentProps) {
+  const { toast } = useToast()
+  const [posts, setPosts] = useState(data.posts)
+
+  const handleLike = useCallback(
+    async (postId: string) => {
+      const post = posts.find((item) => item.id === postId)
+      if (!post) return
+
+      if (data.viewerId === data.profile.userId) return
+
+      const previousPosts = posts
+
+      setPosts((currentPosts) =>
+        currentPosts.map((item) =>
+          item.id === postId
+            ? {
+                ...item,
+                isLiked: !item.isLiked,
+                likes: item.isLiked ? item.likes - 1 : item.likes + 1,
+              }
+            : item
+        )
+      )
+
+      const result = await togglePostLike(postId)
+
+      if (!result.success) {
+        setPosts(previousPosts)
+        if (result.code !== "CANNOT_LIKE_OWN") {
+          toast({
+            title: "Lỗi",
+            description:
+              result.error ?? "Không thể thực hiện thao tác. Vui lòng thử lại.",
+            variant: "destructive",
+          })
+        }
+        return
+      }
+
+      const likeResult = result.data
+
+      if (likeResult) {
+        setPosts((currentPosts) =>
+          currentPosts.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  isLiked: likeResult.liked,
+                  likes: likeResult.likes,
+                }
+              : item
+          )
+        )
+      }
+    },
+    [data.profile.userId, data.viewerId, posts, toast]
+  )
+
   return (
     <PageContainer variant="centered" className="space-y-6">
       <ProfileHeader
@@ -115,6 +189,7 @@ export function ProfilePageContent({ data }: ProfilePageContentProps) {
           <ConnectionsGrid
             connections={data.connectionsPreview.items}
             totalCount={data.connectionsPreview.totalCount}
+            profileUserId={data.profileUserId}
           />
           <ProfileClubGroupCard clubs={data.clubs} groups={data.groups} />
         </aside>
@@ -122,8 +197,14 @@ export function ProfilePageContent({ data }: ProfilePageContentProps) {
         <section className="lg:col-span-8">
           <ProfileTabs
             postsCount={data.stats.postsCount}
-            postsContent={renderPostsPanel(data)}
-            infoContent={renderInfoPanel(data)}
+            postsContent={
+              <ProfilePostsPanel
+                data={data}
+                posts={posts}
+                onLike={handleLike}
+              />
+            }
+            infoContent={<ProfileInfoPanel data={data} />}
           />
         </section>
       </div>

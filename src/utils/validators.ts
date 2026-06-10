@@ -4,6 +4,14 @@ import {
   ANNOUNCEMENT_TITLE_MAX,
   ANNOUNCEMENT_CONTENT_MAX,
 } from "@/lib/config/announcements";
+import { TLU_LATEST_COHORT } from "@/lib/announcements/targeting";
+import {
+  EVENT_CAPACITY_MAX,
+  EVENT_DESCRIPTION_MAX,
+  EVENT_LOCATION_MAX,
+  EVENT_ORGANIZER_MAX,
+  EVENT_TITLE_MAX,
+} from "@/lib/config/events";
 import {
   POLL_OPTIONS_MAX_COUNT,
   POLL_OPTIONS_MIN_COUNT,
@@ -104,6 +112,92 @@ export const pollInputSchema = z
 
 // Validation schema cho thông báo chính thức
 export const announcementAudienceSchema = z.enum(["ALL", "STUDENTS", "FACULTY"]);
+export const announcementCategorySchema = z.enum([
+  "ACADEMIC",
+  "TUITION",
+  "EXAMINATION",
+  "STUDENT_AFFAIRS",
+  "EVENT",
+  "SYSTEM",
+  "EMERGENCY",
+  "OTHER",
+]);
+export const announcementPrioritySchema = z.enum(["NORMAL", "IMPORTANT", "URGENT"]);
+export const announcementTargetTypeSchema = z.enum([
+  "ROLE",
+  "FACULTY",
+  "COHORT",
+  "COURSE",
+  "CLUB",
+  "GROUP",
+  "USER",
+]);
+
+const announcementTargetValueSchema = z.string().trim().min(1, "Đối tượng nhận không hợp lệ");
+
+export const announcementTargetInputSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("ROLE"),
+    value: z.enum(["STUDENT", "LECTURER", "ADMIN"], {
+      message: "Vai trò nhận thông báo không hợp lệ",
+    }),
+  }),
+  z.object({
+    type: z.literal("COHORT"),
+    value: announcementTargetValueSchema
+      .regex(/^\d+$/, "Khoá nhận thông báo không hợp lệ")
+      .refine(
+        (value) => {
+          const cohort = Number(value)
+          return Number.isInteger(cohort) && cohort >= 1 && cohort <= TLU_LATEST_COHORT
+        },
+        `Khoá nhận thông báo phải từ K1 đến K${TLU_LATEST_COHORT}`,
+      ),
+  }),
+  z.object({ type: z.literal("FACULTY"), value: announcementTargetValueSchema }),
+  z.object({ type: z.literal("COURSE"), value: announcementTargetValueSchema }),
+  z.object({ type: z.literal("CLUB"), value: announcementTargetValueSchema }),
+  z.object({ type: z.literal("GROUP"), value: announcementTargetValueSchema }),
+  z.object({ type: z.literal("USER"), value: announcementTargetValueSchema }),
+]);
+
+export const announcementLinkSchema = z.object({
+  source: z.literal("LINK"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Tên liên kết không được để trống")
+    .max(200, "Tên liên kết tối đa 200 ký tự"),
+  url: z
+    .string()
+    .url("Liên kết không hợp lệ")
+    .refine(
+      (url) => {
+        try {
+          return new URL(url).protocol === "https:";
+        } catch {
+          return false;
+        }
+      },
+      "Liên kết phải dùng HTTPS",
+    ),
+});
+
+export const announcementDecisionSchema = z
+  .object({
+    announcementId: z.string().trim().min(1, "Thông báo không hợp lệ"),
+    decision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REJECTED"]),
+    comment: z.string().trim().max(1000, "Lý do tối đa 1000 ký tự").optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.decision !== "APPROVED" && !value.comment) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["comment"],
+        message: "Cần nhập lý do",
+      });
+    }
+  });
 
 export const announcementInputSchema = z.object({
   title: z
@@ -116,15 +210,90 @@ export const announcementInputSchema = z.object({
     .trim()
     .min(1, "Nội dung không được để trống")
     .max(ANNOUNCEMENT_CONTENT_MAX, `Nội dung tối đa ${ANNOUNCEMENT_CONTENT_MAX} ký tự`),
+  issuingUnitId: z.string().trim().min(1, "Cần chọn đơn vị ban hành"),
+  category: announcementCategorySchema.default("OTHER"),
+  priority: announcementPrioritySchema.default("NORMAL"),
   audience: announcementAudienceSchema.default("ALL"),
+  targets: z.array(announcementTargetInputSchema).default([]),
   pinToTop: z.boolean().default(false),
   sendEmail: z.boolean().default(false),
+  requiresAcknowledgement: z.boolean().default(false),
+  scheduledAt: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .or(z.literal("")),
+  actionDeadlineAt: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .or(z.literal("")),
   expiresAt: z
     .string()
     .datetime({ offset: true })
     .optional()
     .or(z.literal("")),
+  retainedAttachmentIds: z.array(z.string().trim().min(1)).default([]),
+  links: z.array(announcementLinkSchema).default([]),
 });
+
+export const eventTypeSchema = z.enum([
+  "ACADEMIC",
+  "CLUB",
+  "WORKSHOP",
+  "INTERNAL",
+  "SPORTS",
+  "CULTURE",
+  "CAREER",
+  "OTHER",
+]);
+
+export const eventRegistrationStatusSchema = z.enum([
+  "OPEN",
+  "APPROVAL_REQUIRED",
+  "CLOSED",
+]);
+
+export const eventInputSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, "Tiêu đề sự kiện không được để trống")
+      .max(EVENT_TITLE_MAX, `Tiêu đề tối đa ${EVENT_TITLE_MAX} ký tự`),
+    description: z
+      .string()
+      .trim()
+      .min(1, "Mô tả sự kiện không được để trống")
+      .max(EVENT_DESCRIPTION_MAX, `Mô tả tối đa ${EVENT_DESCRIPTION_MAX} ký tự`),
+    type: eventTypeSchema.default("OTHER"),
+    location: z
+      .string()
+      .trim()
+      .min(1, "Địa điểm không được để trống")
+      .max(EVENT_LOCATION_MAX, `Địa điểm tối đa ${EVENT_LOCATION_MAX} ký tự`),
+    organizerName: z
+      .string()
+      .trim()
+      .min(1, "Đơn vị tổ chức không được để trống")
+      .max(EVENT_ORGANIZER_MAX, `Đơn vị tổ chức tối đa ${EVENT_ORGANIZER_MAX} ký tự`),
+    startAt: z.string().datetime({ offset: true }),
+    endAt: z.string().datetime({ offset: true }),
+    capacity: z
+      .number()
+      .int("Sức chứa phải là số nguyên")
+      .min(0, "Sức chứa không được âm")
+      .max(EVENT_CAPACITY_MAX, `Sức chứa tối đa ${EVENT_CAPACITY_MAX}`)
+      .nullable()
+      .optional(),
+    registrationStatus: eventRegistrationStatusSchema.default("OPEN"),
+    featured: z.boolean().default(false),
+    coverImageUrl: z.string().url("URL ảnh bìa không hợp lệ").optional().or(z.literal("")),
+  })
+  .refine((data) => new Date(data.endAt).getTime() > new Date(data.startAt).getTime(), {
+    message: "Thời gian kết thúc phải sau thời gian bắt đầu",
+    path: ["endAt"],
+  });
 
 // Export inferred types
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -134,6 +303,14 @@ export type CommentInput = z.infer<typeof commentSchema>;
 export type PostDeleteReasonInput = z.infer<typeof postDeleteReasonSchema>;
 export type AnnouncementInput = z.infer<typeof announcementInputSchema>;
 export type AnnouncementAudienceInput = z.infer<typeof announcementAudienceSchema>;
+export type AnnouncementCategoryInput = z.infer<typeof announcementCategorySchema>;
+export type AnnouncementPriorityInput = z.infer<typeof announcementPrioritySchema>;
+export type AnnouncementTargetInput = z.infer<typeof announcementTargetInputSchema>;
+export type AnnouncementLinkInput = z.infer<typeof announcementLinkSchema>;
+export type AnnouncementDecisionInput = z.infer<typeof announcementDecisionSchema>;
+export type EventInput = z.infer<typeof eventInputSchema>;
+export type EventTypeInput = z.infer<typeof eventTypeSchema>;
+export type EventRegistrationStatusInput = z.infer<typeof eventRegistrationStatusSchema>;
 export type PollInput = z.infer<typeof pollInputSchema>;
 export type PollOptionInput = z.infer<typeof pollOptionSchema>;
 export type PollTypeInput = z.infer<typeof pollTypeSchema>;

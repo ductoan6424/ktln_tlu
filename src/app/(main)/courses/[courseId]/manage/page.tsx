@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 
+import { getOrCreateCommunityConversation } from "@/actions/chat"
+import { CommunityManageChatPanel } from "@/components/communities/manage/community-manage-chat-panel"
 import { CommunityManageShell } from "@/components/communities/manage/community-manage-shell"
 import { CommunityMembersPanel } from "@/components/communities/manage/community-members-panel"
 import { CommunityPostsPanel } from "@/components/communities/manage/community-posts-panel"
@@ -62,7 +64,7 @@ export default async function ManageCoursePage({
   }
 
   const activeTab = normalizeTab(getParam(queryParams ?? {}, "tab"))
-  const [rules, requests, reports, pendingPosts, pinnedPosts] = await Promise.all([
+  const [rules, requests, reports, pendingPosts, pinnedPosts, chatConversation] = await Promise.all([
     prisma.communityRule.findMany({
       where: { targetType: "COURSE", targetId: course.id },
       orderBy: { position: "asc" },
@@ -102,6 +104,9 @@ export default async function ManageCoursePage({
         },
       },
     }),
+    activeTab === "chat" && course.chatEnabled
+      ? getOrCreateCommunityConversation("COURSE", courseId)
+      : null,
   ])
 
   const href = buildCommunityPath("COURSE", course.code, course.shortId)
@@ -122,13 +127,13 @@ export default async function ManageCoursePage({
           <Card className={`${manageSurface} gap-0 py-0`}>
             <CardContent className="space-y-0 p-0">
               <div className={`${manageHeader} space-y-1`}>
-                <h2 className="text-lg font-bold text-[#050505]">Thêm sinh viên</h2>
-                <p className="text-sm text-[#65676b]">
+                <h2 className="text-lg font-semibold text-foreground">Thêm sinh viên</h2>
+                <p className="text-sm text-muted-foreground">
                   Thêm một hoặc nhiều sinh viên vào lớp bằng mã sinh viên.
                 </p>
               </div>
               <div className="p-4 sm:p-5">
-                <AddStudentForm courseId={course.id} />
+                <AddStudentForm courseId={course.id} courseHref={href} />
               </div>
             </CardContent>
           </Card>
@@ -136,6 +141,7 @@ export default async function ManageCoursePage({
           <CommunityMembersPanel
             title="Danh sách lớp"
             description={`Tổng ${course.members.length} sinh viên đã được thêm vào lớp học.`}
+            countLabel="sinh viên"
             targetType="COURSE"
             slugId={courseId}
             managerId={context?.profile.userId ?? null}
@@ -209,7 +215,24 @@ export default async function ManageCoursePage({
             badgeLabel: `#${pinnedPost.position + 1}`,
           }))}
         />
-      ) : activeTab === "chat" || activeTab === "settings" ? (
+      ) : activeTab === "chat" ? (
+        <CommunityManageChatPanel
+          chatEnabled={course.chatEnabled}
+          chatMode={course.chatMode}
+          canSend={course.chatEnabled && course.chatMode !== "READ_ONLY"}
+          conversationId={
+            chatConversation?.success && chatConversation.data
+              ? chatConversation.data.conversationId
+              : null
+          }
+          conversationError={
+            chatConversation && !chatConversation.success
+              ? chatConversation.error
+              : null
+          }
+          settingsHref={`${href}/manage?tab=settings`}
+        />
+      ) : activeTab === "settings" ? (
         <CourseSettingsPanel
           courseId={course.id}
           name={course.name}

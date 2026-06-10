@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation"
 
 import { getOrCreateCommunityConversation } from "@/actions/chat"
 import { CommunityDetailShell } from "@/components/communities/community-detail-shell"
+import type { CommunityDetailTab } from "@/components/communities/community-detail-shell"
 import { getAuthorizationContext } from "@/lib/auth/authorization"
 import { getCommunityPermissions } from "@/lib/communities/policy"
 import {
@@ -14,12 +15,38 @@ import { prisma } from "@/lib/prisma/client"
 
 export const dynamic = "force-dynamic"
 
+type SearchParams = Record<string, string | string[] | undefined>
+type ClubDetailPageProps = {
+  params: Promise<{ slugId: string }>
+  searchParams?: Promise<SearchParams>
+}
+
+function getParam(params: SearchParams, key: string) {
+  const value = params[key]
+  return Array.isArray(value) ? value[0] ?? "" : value ?? ""
+}
+
+function normalizeDetailTab(value: string): CommunityDetailTab {
+  return value === "members" || value === "about" || value === "chat"
+    ? value
+    : "feed"
+}
+
+export async function generateMetadata({ params }: ClubDetailPageProps) {
+  const { slugId } = await params
+  const target = await getCommunityBySlugId("CLUB", slugId)
+
+  return {
+    title: target?.name ?? "Câu lạc bộ",
+  }
+}
+
 export default async function ClubDetailPage({
   params,
-}: {
-  params: Promise<{ slugId: string }>
-}) {
+  searchParams,
+}: ClubDetailPageProps) {
   const { slugId } = await params
+  const queryParamsPromise = searchParams ?? Promise.resolve({})
   const target = await getCommunityBySlugId("CLUB", slugId)
   if (!target) notFound()
 
@@ -28,7 +55,7 @@ export default async function ClubDetailPage({
 
   const context = await getAuthorizationContext().catch(() => null)
   const userId = context?.profile.userId ?? null
-  const [membershipRole, club, rules, pendingInvite] = await Promise.all([
+  const [membershipRole, club, rules, pendingInvite, members, queryParams] = await Promise.all([
     getViewerMembershipRole("CLUB", target.id, userId),
     prisma.club.findUnique({
       where: { id: target.id },
@@ -54,6 +81,22 @@ export default async function ClubDetailPage({
           select: { id: true },
         })
       : null,
+    prisma.clubMember.findMany({
+      where: { clubId: target.id },
+      orderBy: { joinedAt: "asc" },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            displayName: true,
+            avatarUrl: true,
+            email: true,
+            studentId: true,
+          },
+        },
+      },
+    }),
+    queryParamsPromise,
   ])
 
   if (!club) notFound()
@@ -99,9 +142,11 @@ export default async function ClubDetailPage({
       canViewPosts={permissions.canViewPosts}
       canPost={permissions.canPost}
       canManage={permissions.canManage}
+      canInvite={permissions.canInvite}
       joinMode={permissions.joinMode}
       hasPendingInvite={Boolean(pendingInvite) && !membershipRole}
       slugId={slugId}
+      activeTab={normalizeDetailTab(getParam(queryParams, "tab"))}
       viewer={
         context
           ? {
@@ -112,6 +157,15 @@ export default async function ClubDetailPage({
           : null
       }
       rules={rules}
+      members={(members ?? []).map((member) => ({
+        userId: member.user.userId,
+        displayName: member.user.displayName,
+        avatarUrl: member.user.avatarUrl,
+        email: member.user.email,
+        studentId: member.user.studentId,
+        role: member.role,
+        joinedAt: member.joinedAt,
+      }))}
       posts={posts}
       chat={chat}
     />

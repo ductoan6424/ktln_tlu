@@ -43,26 +43,23 @@ function FormField({
 
 // ─── Success state ───────────────────────────────────────────────────────────
 
-function SuccessState({ email }: { email: string }) {
+function SuccessState() {
   return (
     <div className="space-y-6 text-center animate-in fade-in duration-300">
       <div className="flex justify-center">
         <div className="relative">
-          <div className="size-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-            <Check className="size-8 text-emerald-600 dark:text-emerald-400" />
+          <div className="size-16 rounded-full bg-success-soft flex items-center justify-center">
+            <Check className="size-8 text-success" />
           </div>
         </div>
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-xl font-bold text-foreground">
+        <h2 className="text-xl font-semibold text-foreground">
           Đã gửi email khôi phục!
         </h2>
         <p className="text-sm text-muted-foreground">
-          Chúng tôi đã gửi liên kết đặt lại mật khẩu đến
-        </p>
-        <p className="text-sm font-semibold text-foreground font-mono break-all">
-          {email}
+          Nếu tài khoản tồn tại, liên kết đặt lại mật khẩu đã được gửi đến email liên hệ đã xác thực.
         </p>
       </div>
 
@@ -137,27 +134,27 @@ export function ForgotPasswordCard() {
 
   if (submitted) {
     return (
-      <Card className="shadow-2xl shadow-foreground/5 border">
-        <CardContent className="p-8 lg:p-10">
-          <SuccessState email={email} />
+      <Card className="border-border/70 shadow-sm">
+        <CardContent className="p-6 sm:p-8">
+          <SuccessState />
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="p-6 sm:p-8">
         {/* Tiêu đề */}
-        <div className="text-center mb-8">
+        <div className="mb-6 text-center sm:mb-8">
           <div className="flex justify-center mb-4">
             <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Mail className="size-6 text-primary" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold mb-1.5">Quên mật khẩu?</h1>
+          <h1 className="text-2xl font-semibold mb-1.5">Quên mật khẩu?</h1>
           <p className="text-sm text-muted-foreground">
-            Nhập email đã đăng ký để khôi phục mật khẩu
+            Nhập email trường hoặc email liên hệ đã xác thực để khôi phục mật khẩu
           </p>
         </div>
 
@@ -190,7 +187,7 @@ export function ForgotPasswordCard() {
             {loading ? (
               <>
                 <Loader2 className="size-4 animate-spin mr-2" />
-                Đang gửi...
+                Đang gửi…
               </>
             ) : (
               "Gửi liên kết khôi phục"
@@ -212,14 +209,14 @@ export function ForgotPasswordCard() {
 
 export function ForgotPasswordCardSkeleton() {
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10 space-y-6">
-        <div className="text-center space-y-3">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-3 text-center">
           <Skeleton className="size-12 rounded-full mx-auto" />
           <Skeleton className="h-7 w-48 mx-auto" />
           <Skeleton className="h-4 w-64 mx-auto" />
         </div>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-11 w-full rounded-lg" />
         </div>

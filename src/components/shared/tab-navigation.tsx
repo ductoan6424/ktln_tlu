@@ -14,7 +14,7 @@ interface TabNavigationProps {
   tabs: Tab[]
   activeTab: string
   onTabChange: (value: string) => void
-  variant?: "underline" | "pill"
+  variant?: "underline" | "pill" | "pill-grid"
   className?: string
 }
 
@@ -25,16 +25,44 @@ export function TabNavigation({
   variant = "underline",
   className,
 }: TabNavigationProps) {
-  if (variant === "pill") {
+  if (variant === "pill-grid") {
     return (
-      <div className={cn("flex gap-2 overflow-x-auto", className)}>
+      <div
+        className={cn(
+          "grid w-full grid-cols-3 gap-1 rounded-xl border border-border/60 bg-muted/60 p-1 sm:grid-cols-6",
+          className
+        )}
+      >
         {tabs.map((tab) => (
           <Button
             key={tab.value}
-            variant={activeTab === tab.value ? "default" : "secondary"}
+            variant={activeTab === tab.value ? "default" : "ghost"}
             size="sm"
             onClick={() => onTabChange(tab.value)}
-            className="rounded-full text-xs font-medium whitespace-nowrap"
+            className="min-h-8 w-full rounded-lg px-2 text-xs font-medium"
+          >
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+    )
+  }
+
+  if (variant === "pill") {
+    return (
+      <div
+        className={cn(
+          "flex w-fit gap-1 overflow-x-auto rounded-full border border-border/60 bg-muted/60 p-1",
+          className
+        )}
+      >
+        {tabs.map((tab) => (
+          <Button
+            key={tab.value}
+            variant={activeTab === tab.value ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onTabChange(tab.value)}
+            className="min-h-8 rounded-full px-4 text-xs font-medium whitespace-nowrap"
           >
             {tab.label}
           </Button>
@@ -46,7 +74,7 @@ export function TabNavigation({
   return (
     <div
       className={cn(
-        "flex border-b border-border overflow-x-auto",
+        "flex gap-1 overflow-x-auto border-b border-border",
         className
       )}
     >
@@ -58,7 +86,7 @@ export function TabNavigation({
             variant="ghost"
             onClick={() => onTabChange(tab.value)}
             className={cn(
-              "px-4 py-3 rounded-none text-sm font-medium whitespace-nowrap gap-2 border-b-2",
+              "gap-2 rounded-none border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap",
               activeTab === tab.value
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"

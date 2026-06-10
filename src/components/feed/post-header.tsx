@@ -58,13 +58,13 @@ export function PostHeader({
   )
 
   const nameNode = (
-    <h4 className="font-bold text-sm hover:underline cursor-pointer">
+    <h4 className="truncate text-sm font-semibold hover:underline cursor-pointer">
       {authorName}
     </h4>
   )
 
   const triggerWrapper = (
-    <span className="flex items-start gap-3">
+    <span className="flex min-w-0 flex-1 items-start gap-3">
       {profileHref ? (
         <Link href={profileHref} className="shrink-0" aria-label={`Trang cá nhân của ${authorName}`}>
           {avatarNode}
@@ -72,10 +72,12 @@ export function PostHeader({
       ) : (
         avatarNode
       )}
-        <span className="block">
-          <span className="flex items-center gap-1.5">
+        <span className="block min-w-0">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {profileHref ? (
-              <Link href={profileHref}>{nameNode}</Link>
+              <Link href={profileHref} className="min-w-0 max-w-full">
+                {nameNode}
+              </Link>
             ) : (
               nameNode
             )}
@@ -86,7 +88,7 @@ export function PostHeader({
                 </span>
                 <Link
                   href={communityContext.href}
-                  className="text-sm font-semibold hover:underline"
+                  className="min-w-0 max-w-full truncate text-sm font-semibold hover:underline"
                 >
                   {communityContext.name}
                 </Link>
@@ -121,7 +123,7 @@ export function PostHeader({
   )
 
   return (
-    <div className="flex justify-between items-start">
+    <div className="flex min-w-0 items-start justify-between gap-2">
       {authorId ? (
         <UserHoverCard
           userId={authorId}

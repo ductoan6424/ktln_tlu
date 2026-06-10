@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
-  __resetToastStore,
-  getToasts,
-  subscribe,
-  toast,
+  addToast,
+  getToastSnapshot,
+  resetToastStore,
+  subscribeToToastStore,
 } from "@/components/ui/use-toast"
 
 afterEach(() => {
   vi.clearAllTimers()
   vi.useRealTimers()
-  __resetToastStore()
+  resetToastStore()
 })
 
 describe("toast store", () => {
@@ -17,13 +17,13 @@ describe("toast store", () => {
     vi.useFakeTimers()
 
     const observedCounts: number[] = []
-    const unsubscribe = subscribe(() => {
-      observedCounts.push(getToasts().length)
+    const unsubscribe = subscribeToToastStore(() => {
+      observedCounts.push(getToastSnapshot().length)
     })
 
-    toast({ title: "Ảnh đại diện đã được cập nhật" })
+    addToast({ title: "Ảnh đại diện đã được cập nhật" })
 
-    expect(getToasts()).toHaveLength(1)
+    expect(getToastSnapshot()).toHaveLength(1)
     expect(observedCounts).toEqual([1])
 
     unsubscribe()
@@ -32,11 +32,11 @@ describe("toast store", () => {
   it("removes a toast after the timeout expires", () => {
     vi.useFakeTimers()
 
-    toast({ title: "Tạm thời" })
-    expect(getToasts()).toHaveLength(1)
+    addToast({ title: "Tạm thời" })
+    expect(getToastSnapshot()).toHaveLength(1)
 
     vi.advanceTimersByTime(5000)
 
-    expect(getToasts()).toHaveLength(0)
+    expect(getToastSnapshot()).toHaveLength(0)
   })
 })

@@ -12,9 +12,9 @@ interface AcademicUpdateCardProps {
 const TYPE_CONFIG = {
   deadline: {
     label: "Hạn nộp sắp tới",
-    bg: "bg-orange-50",
-    border: "border-orange-200",
-    labelColor: "text-destructive",
+    bg: "bg-warning-soft",
+    border: "border-warning/20",
+    labelColor: "text-warning",
     icon: Clock,
   },
   exam: {
@@ -48,7 +48,7 @@ export function AcademicUpdateCard({
         <Icon className="size-3" />
         {config.label}
       </div>
-      <h4 className="text-sm font-bold">{title}</h4>
+      <h4 className="text-sm font-semibold">{title}</h4>
       <p className="text-xs text-muted-foreground mt-0.5">{detail}</p>
     </div>
   )

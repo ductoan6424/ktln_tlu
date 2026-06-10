@@ -1,15 +1,15 @@
-import {
-  AdminDataTable,
-} from "@/components/admin/module/admin-data-table"
 import { AdminActionList } from "@/components/admin/module/admin-action-list"
+import { AdminDataTable } from "@/components/admin/module/admin-data-table"
 import { AdminFilterBar } from "@/components/admin/module/admin-filter-bar"
 import { AdminPageHeader } from "@/components/admin/module/admin-page-header"
 import { AdminStatsGrid } from "@/components/admin/module/admin-stats-grid"
-import type { AdminModuleDefinition, AdminCellValues } from "@/lib/admin/admin-types"
+import type { AdminCellValues, AdminModuleDefinition } from "@/lib/admin/admin-types"
+import type { ReactNode } from "react"
 
 interface AdminListPageShellProps<Cells extends AdminCellValues> {
   module: AdminModuleDefinition<Cells>
   activeTab?: string
+  filterBar?: ReactNode
   query?: string
 }
 
@@ -24,6 +24,7 @@ function buildCreateLabel(entityName: string) {
 export function AdminListPageShell<Cells extends AdminCellValues>({
   module,
   activeTab: activeTabProp,
+  filterBar,
   query: queryProp,
 }: AdminListPageShellProps<Cells>) {
   const hasHrefTabs = Boolean(module.tabs[0]?.href)
@@ -42,12 +43,14 @@ export function AdminListPageShell<Cells extends AdminCellValues>({
         }}
       />
       <AdminStatsGrid stats={module.stats} />
-      <AdminFilterBar
-        activeTab={activeTab}
-        query={query}
-        tabs={module.tabs}
-        searchPlaceholder={`Tìm kiếm ${module.entityNamePlural}...`}
-      />
+      {filterBar ?? (
+        <AdminFilterBar
+          activeTab={activeTab}
+          query={query}
+          tabs={module.tabs}
+          searchPlaceholder={`Tìm kiếm ${module.entityNamePlural}...`}
+        />
+      )}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <AdminDataTable
           columns={module.columns}

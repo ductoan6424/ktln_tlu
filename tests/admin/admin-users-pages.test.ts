@@ -1,4 +1,5 @@
 import { createElement } from "react"
+import type { ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -13,14 +14,20 @@ const requireAdminPermission = vi.hoisted(() => vi.fn())
 const requireSystemAdmin = vi.hoisted(() => vi.fn())
 const getUsersAdminModule = vi.hoisted(() => vi.fn())
 const getUserAccessEditorData = vi.hoisted(() => vi.fn())
+const getAdminUserDetail = vi.hoisted(() => vi.fn())
+const listActiveOrganizationUnits = vi.hoisted(() => vi.fn())
+const listActiveAnnouncementUnitAssignmentsForUser = vi.hoisted(() => vi.fn())
 const updateUserAccess = vi.hoisted(() => vi.fn())
+const updateAnnouncementUnitAssignments = vi.hoisted(() => vi.fn())
+const lockUserAccount = vi.hoisted(() => vi.fn())
+const unlockUserAccount = vi.hoisted(() => vi.fn())
 
 vi.mock("next/link", () => ({
   default: ({
     children,
     href,
   }: {
-    children: unknown
+    children: ReactNode
     href: string
   }) => createElement("a", { href }, children),
 }))
@@ -35,10 +42,22 @@ vi.mock("@/lib/auth/authorization", () => ({
 vi.mock("@/lib/admin/users/users-admin-data", () => ({
   getUsersAdminModule,
   getUserAccessEditorData,
+  getAdminUserDetail,
+}))
+
+vi.mock("@/lib/announcements/units", () => ({
+  listActiveOrganizationUnits,
+  listActiveAnnouncementUnitAssignmentsForUser,
 }))
 
 vi.mock("@/actions/admin-users", () => ({
   updateUserAccess,
+  lockUserAccount,
+  unlockUserAccount,
+}))
+
+vi.mock("@/actions/announcement-units", () => ({
+  updateAnnouncementUnitAssignments,
 }))
 
 const records = [
@@ -104,6 +123,79 @@ beforeEach(() => {
       },
     ],
   })
+  listActiveOrganizationUnits.mockResolvedValue([
+    {
+      id: "unit-faculty-it",
+      code: "FACULTY_IT",
+      name: "Khoa Công nghệ thông tin",
+      type: "FACULTY",
+      facultyId: "faculty-it",
+      clubId: null,
+      groupId: null,
+    },
+  ])
+  listActiveAnnouncementUnitAssignmentsForUser.mockResolvedValue([
+    { unitId: "unit-faculty-it", role: "AUTHOR" },
+  ])
+  getAdminUserDetail.mockResolvedValue({
+    user: {
+      userId: "user-001",
+      email: "nguyenductoan@example.edu",
+      displayName: "Nguyễn Đức Toàn",
+      avatarUrl: null,
+      baseRole: "STUDENT",
+      baseRoleLabel: "Sinh viên",
+      major: "Công nghệ thông tin",
+      studentId: "A46287",
+      year: 4,
+      joinedAt: "2025-09-01",
+      adminRoleNames: ["User Admin"],
+    },
+    accountState: {
+      status: "ACTIVE",
+      label: "Đang hoạt động",
+      lockedUntil: null,
+      reason: null,
+      note: null,
+      createdAt: null,
+      createdBy: null,
+    },
+    recentPosts: [
+      {
+        id: "post-1",
+        excerpt: "Bài viết gần đây",
+        status: "PUBLISHED",
+        deleted: false,
+        createdAt: "2026-05-20T00:00:00.000Z",
+      },
+    ],
+    recentComments: [
+      {
+        id: "comment-1",
+        postId: "post-1",
+        excerpt: "Bình luận gần đây",
+        deleted: false,
+        createdAt: "2026-05-20T01:00:00.000Z",
+      },
+    ],
+    relatedReports: [
+      {
+        id: "report-1",
+        reason: "Spam",
+        status: "OPEN",
+        createdAt: "2026-05-20T02:00:00.000Z",
+      },
+    ],
+    adminHistory: [
+      {
+        id: "history-1",
+        action: "ACTIVE",
+        actorName: "Admin One",
+        reason: "Mở khóa",
+        createdAt: "2026-05-20T03:00:00.000Z",
+      },
+    ],
+  })
   requireAdminPermission.mockResolvedValue(undefined)
   requireSystemAdmin.mockResolvedValue(undefined)
 })
@@ -114,7 +206,15 @@ describe("admin users pages", () => {
     const newPage = await import("@/app/admin/users/new/page")
     const settingsPage = await import("@/app/admin/users/settings/page")
 
-    const listMarkup = renderToStaticMarkup(await listPage.default())
+    const listMarkup = renderToStaticMarkup(
+      await listPage.default({
+        searchParams: Promise.resolve({
+          tab: "locked",
+          role: "STUDENT",
+          q: "Nguyễn",
+        }),
+      }),
+    )
     const newMarkup = renderToStaticMarkup(await newPage.default())
     const settingsMarkup = renderToStaticMarkup(await settingsPage.default())
 
@@ -123,6 +223,11 @@ describe("admin users pages", () => {
     expect(newMarkup).toContain("Thêm người dùng")
     expect(settingsMarkup).toContain("Cài đặt người dùng")
     expect(requireAdminPermission).toHaveBeenCalledWith("admin.users.manage")
+    expect(getUsersAdminModule).toHaveBeenCalledWith({
+      query: "Nguyễn",
+      role: "STUDENT",
+      status: "locked",
+    })
   })
 
   it("renders detail and edit routes from Prisma-backed helpers and calls notFound for missing ids", async () => {
@@ -138,10 +243,22 @@ describe("admin users pages", () => {
 
     expect(detailMarkup).toContain("Nguyễn Đức Toàn")
     expect(detailMarkup).toContain("RBAC quản trị")
+    expect(detailMarkup).toContain("Trạng thái tài khoản")
+    expect(detailMarkup).toContain("Đang hoạt động")
+    expect(detailMarkup).toContain("Bài viết gần đây")
+    expect(detailMarkup).toContain("Bình luận gần đây")
+    expect(detailMarkup).toContain("Lịch sử quản trị")
     expect(editMarkup).toContain("Cập nhật Nguyễn Đức Toàn")
     expect(editMarkup).toContain("Vai trò nền")
     expect(editMarkup).toContain("User Admin")
+    expect(editMarkup).toContain("Thẩm quyền thông báo chính thức")
+    expect(editMarkup).toContain("Khoa Công nghệ thông tin")
+    expect(editMarkup).toContain("AUTHOR")
+    expect(editMarkup).toContain("APPROVER")
+    expect(editMarkup).toMatch(/id="announcement-unit-unit-faculty-it-AUTHOR"[^>]*checked=""/)
+    expect(editMarkup).not.toMatch(/id="announcement-unit-unit-faculty-it-APPROVER"[^>]*checked=""/)
     expect(requireSystemAdmin).toHaveBeenCalled()
+    expect(listActiveAnnouncementUnitAssignmentsForUser).toHaveBeenCalledWith("user-001")
 
     getUsersAdminModule.mockResolvedValueOnce({
       ...USERS_ADMIN_MODULE,
@@ -149,6 +266,7 @@ describe("admin users pages", () => {
       getRecord: () => undefined,
       getDetailSections: () => undefined,
     })
+    getAdminUserDetail.mockResolvedValueOnce(null)
     getUserAccessEditorData.mockResolvedValueOnce(null)
 
     await expect(

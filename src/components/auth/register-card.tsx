@@ -39,9 +39,9 @@ function getPasswordStrength(password: string): {
   if (/[^A-Za-z0-9]/.test(password)) score++
 
   if (score <= 1) return { score, label: "Yếu", color: "bg-destructive" }
-  if (score <= 3) return { score, label: "Trung bình", color: "bg-yellow-500" }
-  if (score <= 4) return { score, label: "Khá mạnh", color: "bg-emerald-500" }
-  return { score, label: "Mạnh", color: "bg-emerald-600" }
+  if (score <= 3) return { score, label: "Trung bình", color: "bg-warning" }
+  if (score <= 4) return { score, label: "Khá mạnh", color: "bg-success" }
+  return { score, label: "Mạnh", color: "bg-success" }
 }
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -53,27 +53,29 @@ function StepIndicator({
   currentStep: number
   totalSteps: number
 }) {
+  const steps = Array.from({ length: totalSteps }, (_, stepIndex) => stepIndex + 1)
+
   return (
-    <div className="flex items-center justify-center gap-2 mb-8">
-      {Array.from({ length: totalSteps }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2">
+    <div className="mb-6 flex items-center justify-center gap-2 sm:mb-8">
+      {steps.map((step) => (
+        <div key={`step-${step}`} className="flex items-center gap-2">
           <div
             className={cn(
               "size-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
-              i + 1 < currentStep
+              step < currentStep
                 ? "bg-primary text-primary-foreground"
-                : i + 1 === currentStep
+                : step === currentStep
                   ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
                   : "bg-muted text-muted-foreground"
             )}
           >
-            {i + 1 < currentStep ? <Check className="size-3.5" /> : i + 1}
+            {step < currentStep ? <Check className="size-3.5" /> : step}
           </div>
-          {i < totalSteps - 1 && (
+          {step < totalSteps && (
             <div
               className={cn(
-                "w-8 h-px transition-all duration-300",
-                i + 1 < currentStep ? "bg-primary" : "bg-border"
+                "h-px w-6 transition-all duration-300 sm:w-8",
+                step < currentStep ? "bg-primary" : "bg-border"
               )}
             />
           )}
@@ -170,7 +172,7 @@ function StepAccount({
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <div className="space-y-1">
-        <h2 className="text-lg font-bold text-foreground">Tài khoản</h2>
+        <h2 className="text-lg font-semibold text-foreground">Tài khoản</h2>
         <p className="text-sm text-muted-foreground">
           Thông tin đăng nhập của bạn
         </p>
@@ -201,12 +203,12 @@ function StepAccount({
         {data.password && (
           <div className="space-y-1">
             <div className="flex gap-1">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+              {[1, 2, 3, 4, 5, 6].map((bar) => (
                 <div
-                  key={`bar-${i}`}
+                  key={`bar-${bar}`}
                   className={cn(
                     "h-1 flex-1 rounded-full transition-all duration-300",
-                    i <= strength.score ? strength.color : "bg-border"
+                    bar <= strength.score ? strength.color : "bg-border"
                   )}
                 />
               ))}
@@ -271,7 +273,7 @@ function StepPersonal({
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <div className="space-y-1">
-        <h2 className="text-lg font-bold text-foreground">Thông tin cá nhân</h2>
+        <h2 className="text-lg font-semibold text-foreground">Thông tin cá nhân</h2>
         <p className="text-sm text-muted-foreground">
           Thông tin sinh viên của bạn
         </p>
@@ -332,7 +334,7 @@ function StepPersonal({
         </div>
       </FormField>
 
-      <div className="flex gap-3 pt-1">
+      <div className="flex flex-col gap-3 pt-1 sm:flex-row">
         <Button
           variant="outline"
           onClick={onBack}
@@ -378,35 +380,35 @@ function StepConfirm({
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <div className="space-y-1">
-        <h2 className="text-lg font-bold text-foreground">Xác nhận đăng ký</h2>
+        <h2 className="text-lg font-semibold text-foreground">Xác nhận đăng ký</h2>
         <p className="text-sm text-muted-foreground">
           Kiểm tra thông tin trước khi tiếp tục
         </p>
       </div>
 
       <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
-        <div className="flex justify-between text-sm">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
           <span className="text-muted-foreground">Họ và tên</span>
-          <span className="font-medium text-foreground">{data.fullName}</span>
+          <span className="min-w-0 break-words font-medium text-foreground sm:text-right">{data.fullName}</span>
         </div>
         <div className="h-px bg-border" />
-        <div className="flex justify-between text-sm">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
           <span className="text-muted-foreground">Mã sinh viên</span>
           <span className="font-medium text-foreground font-mono">
             {data.studentId}
           </span>
         </div>
         <div className="h-px bg-border" />
-        <div className="flex justify-between text-sm">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
           <span className="text-muted-foreground">Khoa</span>
-          <span className="font-medium text-foreground text-right max-w-[60%] text-end">
+          <span className="min-w-0 break-words font-medium text-foreground sm:max-w-[60%] sm:text-end">
             {data.faculty}
           </span>
         </div>
         <div className="h-px bg-border" />
-        <div className="flex justify-between text-sm">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
           <span className="text-muted-foreground">Email</span>
-          <span className="font-medium text-foreground font-mono">
+          <span className="min-w-0 break-all font-mono font-medium text-foreground sm:text-right">
             {data.email}
           </span>
         </div>
@@ -421,7 +423,7 @@ function StepConfirm({
         </p>
       </div>
 
-      <div className="flex gap-3 pt-1">
+      <div className="flex flex-col gap-3 pt-1 sm:flex-row">
         <Button
           variant="outline"
           onClick={onBack}
@@ -458,17 +460,17 @@ function SuccessState({ email }: { email: string }) {
   return (
     <div className="space-y-6 text-center animate-in fade-in duration-300">
       <div className="flex justify-center">
-        <div className="size-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-          <Check className="size-8 text-emerald-600 dark:text-emerald-400" />
+        <div className="size-16 rounded-full bg-success-soft flex items-center justify-center">
+          <Check className="size-8 text-success" />
         </div>
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-xl font-bold text-foreground">Đăng ký thành công!</h2>
+        <h2 className="text-xl font-semibold text-foreground">Đăng ký thành công!</h2>
         <p className="text-sm text-muted-foreground">
           Chúng tôi đã gửi email xác thực đến
         </p>
-        <p className="text-sm font-semibold text-foreground font-mono">
+        <p className="break-all font-mono text-sm font-semibold text-foreground">
           {email}
         </p>
         <p className="text-xs text-muted-foreground">
@@ -516,7 +518,7 @@ export function RegisterCard() {
     faculty: "",
   })
 
-  const handleChange = (field: string, value: string) => {
+  const updateRegistrationField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     // Clear error when user types
     if (errors[field]) {
@@ -595,8 +597,8 @@ export function RegisterCard() {
 
   if (submitted) {
     return (
-      <Card className="shadow-2xl shadow-foreground/5 border">
-        <CardContent className="p-8 lg:p-10">
+      <Card className="border-border/70 shadow-sm">
+        <CardContent className="p-6 sm:p-8">
           <SuccessState email={formData.email} />
         </CardContent>
       </Card>
@@ -604,12 +606,12 @@ export function RegisterCard() {
   }
 
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="p-6 sm:p-8">
         {/* Tiêu đề — chỉ hiện ở step 1 */}
         {step === 1 && (
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold mb-1.5">Tạo tài khoản mới</h1>
+          <div className="mb-5 text-center sm:mb-6">
+            <h1 className="text-2xl font-semibold mb-1.5">Tạo tài khoản mới</h1>
             <p className="text-sm text-muted-foreground">
               Tham gia cộng đồng sinh viên TLU
             </p>
@@ -621,7 +623,7 @@ export function RegisterCard() {
         {step === 1 && (
           <StepAccount
             data={formData}
-            onChange={handleChange}
+            onChange={updateRegistrationField}
             onNext={handleNextStep2}
             errors={errors}
           />
@@ -629,7 +631,7 @@ export function RegisterCard() {
         {step === 2 && (
           <StepPersonal
             data={formData}
-            onChange={handleChange}
+            onChange={updateRegistrationField}
             onNext={handleNextStep3}
             onBack={() => setStep(1)}
             errors={errors}
@@ -665,13 +667,13 @@ export function RegisterCard() {
 
 export function RegisterCardSkeleton() {
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10 space-y-6">
-        <div className="text-center space-y-2">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-2 text-center">
           <Skeleton className="h-7 w-48 mx-auto" />
           <Skeleton className="h-4 w-56 mx-auto" />
         </div>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-10 w-full rounded-lg" />

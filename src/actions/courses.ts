@@ -15,6 +15,7 @@ const createCourseSchema = z.object({
   name: z.string().min(2, "Tên lớp học phải có ít nhất 2 ký tự"),
   code: z.string().min(2, "Mã môn học là bắt buộc"),
   description: z.string().optional(),
+  lecturerId: z.string().optional(),
 })
 
 const addStudentSchema = z.object({
@@ -25,6 +26,11 @@ const addStudentSchema = z.object({
 const addStudentsByCodesSchema = z.object({
   courseId: z.string().min(1, "Thiếu lớp học cần cập nhật"),
   studentCodesText: z.string().min(1, "Danh sách mã sinh viên là bắt buộc"),
+})
+
+const searchCourseStudentCandidatesSchema = z.object({
+  courseId: z.string().min(1, "Missing course"),
+  query: z.string().trim().min(1, "Missing student code").max(40),
 })
 
 const booleanFormValueSchema = z.preprocess((value) => {
@@ -65,6 +71,28 @@ export async function createCourse(rawInput: unknown): Promise<ActionResult<{ co
   try {
     const context = await requireCourseCreator()
     const input = createCourseSchema.parse(normalizeFormInput(rawInput))
+    let lecturerId = context.profile.userId
+
+    if (context.baseRole === "ADMIN") {
+      if (!input.lecturerId) {
+        return errorResult("Vui long chon giang vien phu trach lop", "VALIDATION_ERROR")
+      }
+
+      const lecturer = await prisma.userProfile.findUnique({
+        where: { userId: input.lecturerId },
+        select: {
+          userId: true,
+          role: true,
+          deletedAt: true,
+        },
+      })
+
+      if (!lecturer || lecturer.deletedAt || lecturer.role !== "LECTURER") {
+        return errorResult("Giảng viên phu trach không hợp lệ", "VALIDATION_ERROR")
+      }
+
+      lecturerId = lecturer.userId
+    }
 
     const course = await prisma.course.create({
       data: {
@@ -73,7 +101,7 @@ export async function createCourse(rawInput: unknown): Promise<ActionResult<{ co
         slug: slugifyCourseCode(input.code),
         description: input.description?.trim() || null,
         coverUrl: null,
-        lecturerId: context.profile.userId,
+        lecturerId,
       },
     })
 
@@ -166,6 +194,51 @@ export async function addStudentToCourse(
     return errorResult(
       error instanceof Error ? error.message : "Không thể thêm sinh viên vào lớp",
       "UPDATE_FAILED",
+    )
+  }
+}
+
+export async function searchCourseStudentCandidates(
+  rawInput: unknown,
+): Promise<ActionResult<Array<{
+  userId: string
+  displayName: string
+  email: string
+  avatarUrl: string | null
+  studentId: string | null
+}>>> {
+  try {
+    const input = searchCourseStudentCandidatesSchema.parse(normalizeFormInput(rawInput))
+    const management = await requireCourseManagementAccess(input.courseId)
+    const existingUserIds = management.course.members.map((member) => member.user.userId)
+
+    const students = await prisma.userProfile.findMany({
+      where: {
+        role: "STUDENT",
+        deletedAt: null,
+        studentId: { startsWith: input.query.trim().toUpperCase(), mode: "insensitive" },
+        userId: { notIn: existingUserIds },
+      },
+      select: {
+        userId: true,
+        displayName: true,
+        email: true,
+        avatarUrl: true,
+        studentId: true,
+      },
+      orderBy: { studentId: "asc" },
+      take: 8,
+    })
+
+    return successResult(students)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Invalid data", "VALIDATION_ERROR")
+    }
+
+    return errorResult(
+      error instanceof Error ? error.message : "Cannot search students",
+      "SEARCH_FAILED",
     )
   }
 }
@@ -319,11 +392,11 @@ export async function updateCourseSettings(
     return successResult({ courseId: updated.id, href: newHref })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return errorResult(error.issues[0]?.message ?? "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡", "VALIDATION_ERROR")
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
     }
 
     return errorResult(
-      error instanceof Error ? error.message : "KhÃ´ng thá»ƒ cáº­p nháº­t lá»›p há»c",
+      error instanceof Error ? error.message : "Không thể cập nhật lớp học",
       "UPDATE_FAILED",
     )
   }

@@ -3,10 +3,17 @@ import { describe, expect, it } from "vitest"
 import { getAdminBreadcrumbItems } from "@/lib/admin/admin-route-meta"
 
 describe("admin route meta", () => {
+  it("builds breadcrumbs for the moderation route", () => {
+    expect(getAdminBreadcrumbItems("/admin/moderation")).toEqual([
+      { label: "Quản trị", href: "/admin/dashboard" },
+      { label: "Kiểm duyệt" },
+    ])
+  })
+
   it("builds breadcrumbs for the subjects list route", () => {
     expect(getAdminBreadcrumbItems("/admin/subjects")).toEqual([
       { label: "Quản trị", href: "/admin/dashboard" },
-      { label: "Quản lý môn học" },
+      { label: "Quản lý lớp học" },
     ])
   })
 
@@ -15,6 +22,15 @@ describe("admin route meta", () => {
       { label: "Quản trị", href: "/admin/dashboard" },
       { label: "Quản lý nhóm", href: "/admin/groups" },
       { label: "Chi tiết nhóm", href: "/admin/groups/group-01" },
+      { label: "Chỉnh sửa" },
+    ])
+  })
+
+  it("builds breadcrumbs for the club edit route", () => {
+    expect(getAdminBreadcrumbItems("/admin/clubs/club-01/edit")).toEqual([
+      { label: "Quản trị", href: "/admin/dashboard" },
+      { label: "Quản lý câu lạc bộ", href: "/admin/clubs" },
+      { label: "Chi tiết câu lạc bộ", href: "/admin/clubs/club-01" },
       { label: "Chỉnh sửa" },
     ])
   })

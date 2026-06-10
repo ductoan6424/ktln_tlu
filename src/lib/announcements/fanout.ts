@@ -1,61 +1,106 @@
-import type { AnnouncementAudience, UserRole } from "@prisma/client"
-
-import { ANNOUNCEMENT_NOTIFICATION_BATCH_SIZE } from "@/lib/config/announcements"
+import { sendAnnouncementEmail } from "@/lib/email/sender"
+import { createNotification } from "@/lib/notifications/service"
 import { prisma } from "@/lib/prisma/client"
 
-function roleFilterForAudience(audience: AnnouncementAudience): UserRole[] | null {
-  if (audience === "STUDENTS") return ["STUDENT"]
-  if (audience === "FACULTY") return ["LECTURER"]
-  return null
+export type AnnouncementFanoutResult = {
+  recipients: number
+  notifiedUserIds: string[]
+  emailedUserIds: string[]
+  notificationFailedUserIds: string[]
+  emailFailedUserIds: string[]
 }
 
 export async function fanoutAnnouncementNotification(params: {
   announcementId: string
+  notificationUserIds: string[]
+  emailUserIds: string[]
   title: string
-  audience: AnnouncementAudience
-}): Promise<{ recipients: number }> {
-  const { announcementId, title, audience } = params
-  const roleFilter = roleFilterForAudience(audience)
+  content?: string
+  sendEmail?: boolean
+}): Promise<AnnouncementFanoutResult> {
+  const {
+    announcementId,
+    notificationUserIds,
+    emailUserIds,
+    title,
+    content = "",
+    sendEmail = false,
+  } = params
+  const announcementPath = `/feed?announcement=${announcementId}`
+  const notifiedUserIds: string[] = []
+  const notificationFailedUserIds: string[] = []
 
-  const linkPath = `/feed?announcement=${announcementId}`
-
-  const userWhere = {
-    deletedAt: null,
-    ...(roleFilter ? { role: { in: roleFilter } } : {}),
+  for (const userId of notificationUserIds) {
+    await createNotification({
+      recipientId: userId,
+      type: "ANNOUNCEMENT",
+      actor: null,
+      groupKey: `ANNOUNCEMENT:${announcementId}:${userId}`,
+      linkOverride: announcementPath,
+      extraMetadata: {
+        announcementId,
+        announcementTitle: title,
+      },
+    })
+      .then(() => {
+        notifiedUserIds.push(userId)
+      })
+      .catch((error) => {
+        notificationFailedUserIds.push(userId)
+        console.error("Announcement notification fanout failed:", {
+          announcementId,
+          userId,
+          error,
+        })
+      })
   }
 
-  const total = await prisma.userProfile.count({ where: userWhere })
-  if (total === 0) return { recipients: 0 }
+  const emailedUserIds: string[] = []
+  const emailFailedUserIds: string[] = []
 
-  let skip = 0
-  let inserted = 0
-  const excerpt = title.length > 120 ? `${title.slice(0, 117)}...` : title
-
-  while (skip < total) {
-    const batch = await prisma.userProfile.findMany({
-      where: userWhere,
-      select: { userId: true },
-      orderBy: { userId: "asc" },
-      skip,
-      take: ANNOUNCEMENT_NOTIFICATION_BATCH_SIZE,
+  if (sendEmail && emailUserIds.length > 0) {
+    const contactEmails = await prisma.userContactEmail.findMany({
+      where: { userId: { in: emailUserIds } },
+      select: {
+        userId: true,
+        email: true,
+        user: { select: { displayName: true } },
+      },
     })
+    const contactUserIds = new Set(contactEmails.map((contact) => contact.userId))
+    for (const userId of emailUserIds) {
+      if (!contactUserIds.has(userId)) {
+        emailFailedUserIds.push(userId)
+      }
+    }
 
-    if (batch.length === 0) break
-
-    await prisma.notification.createMany({
-      data: batch.map((u) => ({
-        userId: u.userId,
-        type: "ANNOUNCEMENT" as const,
-        title: "Thông báo chính thức",
-        content: excerpt,
-        link: linkPath,
-      })),
-      skipDuplicates: true,
-    })
-
-    inserted += batch.length
-    skip += ANNOUNCEMENT_NOTIFICATION_BATCH_SIZE
+    for (const contact of contactEmails) {
+      await sendAnnouncementEmail(
+        contact.email,
+        contact.user.displayName,
+        title,
+        content,
+        announcementPath,
+      )
+        .then(() => {
+          emailedUserIds.push(contact.userId)
+        })
+        .catch((error) => {
+          emailFailedUserIds.push(contact.userId)
+          console.error("Announcement email fanout failed:", {
+            announcementId,
+            userId: contact.userId,
+            error,
+          })
+        })
+    }
   }
 
-  return { recipients: inserted }
+  return {
+    recipients: notificationUserIds.length,
+    notifiedUserIds: Array.from(new Set(notifiedUserIds)),
+    emailedUserIds: Array.from(new Set(emailedUserIds)),
+    notificationFailedUserIds: Array.from(new Set(notificationFailedUserIds)),
+    emailFailedUserIds: Array.from(new Set(emailFailedUserIds)),
+  }
 }

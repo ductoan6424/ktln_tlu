@@ -26,6 +26,14 @@ export type ProfilePageData = {
   followStatus: FollowStatus | null
 }
 
+export type ProfileConnectionsPageData = {
+  viewerId: string
+  profileUserId: string
+  profile: ProfileSummary
+  totalCount: number
+  connections: ConnectionPreviewItem[]
+}
+
 export type ProfileSummary = {
   userId: string
   displayName: string
@@ -120,6 +128,9 @@ export type ProfilePostDto = {
     authorAvatarUrl: string | null
   } | null
   poll: PollView | null
+  likes: number
+  comments: number
+  isLiked: boolean
 }
 
 type ProfileRecord = {
@@ -212,6 +223,11 @@ type PostRecord = {
     deletedAt: Date | null
     author: { displayName: string; avatarUrl: string | null }
   } | null
+  likes: { id: string }[]
+  _count: {
+    likes: number
+    comments: number
+  }
 }
 
 function toIsoString(date: Date) {
@@ -320,6 +336,9 @@ function mapPost(
       }
       : null,
     poll,
+    likes: post._count.likes,
+    comments: post._count.comments,
+    isLiked: post.likes.length > 0,
   }
 }
 
@@ -531,6 +550,16 @@ export async function getProfilePageData({
         imageUrl: true,
         visibility: true,
         createdAt: true,
+        likes: {
+          where: { userId: viewerId },
+          select: { id: true },
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
         club: {
           select: {
             id: true,
@@ -593,5 +622,95 @@ export async function getProfilePageData({
     },
     posts: posts.map((post) => mapPost(post, pollMap.get(post.id) ?? null)),
     followStatus,
+  }
+}
+
+export async function getProfileConnectionsPageData({
+  viewerId,
+  profileUserId,
+}: ProfilePageParams): Promise<ProfileConnectionsPageData | null> {
+  const profile = await prisma.userProfile.findFirst({
+    where: {
+      userId: profileUserId,
+      deletedAt: null,
+    },
+    select: {
+      userId: true,
+      displayName: true,
+      username: true,
+      avatarUrl: true,
+      coverUrl: true,
+      bio: true,
+      studentId: true,
+      role: true,
+      major: true,
+      year: true,
+      createdAt: true,
+    },
+  })
+
+  if (!profile) {
+    return null
+  }
+
+  const friendshipWhere = {
+    status: FriendshipStatus.APPROVED,
+    requester: {
+      is: {
+        deletedAt: null,
+      },
+    },
+    addressee: {
+      is: {
+        deletedAt: null,
+      },
+    },
+    OR: [
+      { requesterId: profileUserId },
+      { addresseeId: profileUserId },
+    ],
+  }
+
+  const [totalCount, connections] = await Promise.all([
+    prisma.friendship.count({
+      where: friendshipWhere,
+    }),
+    prisma.friendship.findMany({
+      where: friendshipWhere,
+      select: {
+        requesterId: true,
+        addresseeId: true,
+        requester: {
+          select: {
+            userId: true,
+            displayName: true,
+            username: true,
+            avatarUrl: true,
+            studentId: true,
+          },
+        },
+        addressee: {
+          select: {
+            userId: true,
+            displayName: true,
+            username: true,
+            avatarUrl: true,
+            studentId: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: undefined,
+    }),
+  ])
+
+  return {
+    viewerId,
+    profileUserId,
+    profile: mapProfile(profile),
+    totalCount,
+    connections: connections.map((friendship) => mapConnection(friendship, profileUserId)),
   }
 }

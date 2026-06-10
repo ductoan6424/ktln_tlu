@@ -54,31 +54,29 @@ export function CommunityManageShell({
     tabs.find((tab) => tab.value === activeTab)?.label ?? tabs[0]?.label
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#f0f2f5]">
+    <div className="min-h-[calc(100dvh-4rem)] bg-background">
       <PageContainer
         variant="full"
         className="mx-auto max-w-7xl space-y-4 py-4 sm:py-6"
       >
-        <section className="overflow-hidden rounded-xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] ring-1 ring-[#dddfe2]">
-          <div className="h-20 bg-gradient-to-r from-[#1877f2] via-[#2d88ff] to-[#42b72a]" />
-          <div className="-mt-6 flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-            <div className="flex min-w-0 items-end gap-3">
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-full border-4 border-white bg-[#e7f3ff] text-[#1877f2] shadow-sm">
-                <Settings className="size-7" aria-hidden="true" />
-              </div>
-              <div className="min-w-0 pb-1">
-                <h1 className="truncate text-2xl font-bold leading-tight text-[#050505] sm:text-3xl">
-                  {title}
-                </h1>
-                <p className="mt-1 text-sm font-medium text-[#65676b]">
-                  {activeTabLabel}
-                </p>
-              </div>
+        <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <div className="brand-panel relative h-20 overflow-hidden">
+            <div className="absolute -right-8 -top-10 size-28 rounded-full bg-brand-scarlet" />
+            <div className="absolute bottom-0 right-24 size-10 bg-white/10" />
+          </div>
+          <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold leading-tight text-brand-indigo sm:text-2xl">
+                {title}
+              </h1>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                {activeTabLabel}
+              </p>
             </div>
 
             <Link
               href={backHref}
-              className="inline-flex h-9 w-fit items-center gap-2 rounded-lg bg-[#e4e6eb] px-3 text-sm font-semibold text-[#050505] transition hover:bg-[#d8dadf] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#1877f2]/30"
+              className="inline-flex h-9 w-fit items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-brand-indigo transition hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/30"
             >
               <ArrowLeft className="size-4" aria-hidden="true" />
               Quay lại
@@ -87,7 +85,7 @@ export function CommunityManageShell({
         </section>
 
         <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="h-fit rounded-xl bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.12)] ring-1 ring-[#dddfe2] lg:sticky lg:top-4">
+          <aside className="h-fit rounded-lg border border-border bg-card p-2 shadow-sm lg:sticky lg:top-4">
             <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
               {tabs.map((tab) => {
                 const Icon = tabIcons[tab.value] ?? Settings
@@ -98,9 +96,9 @@ export function CommunityManageShell({
                     key={tab.value}
                     href={tab.href}
                     className={cn(
-                      "flex h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-[#050505] transition hover:bg-[#f0f2f5] lg:w-full",
+                      "flex h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-foreground transition hover:bg-muted lg:w-full",
                       isActive &&
-                        "bg-[#e7f3ff] text-[#1877f2] hover:bg-[#e7f3ff]",
+                        "bg-primary/10 text-primary hover:bg-primary/10",
                     )}
                     aria-current={isActive ? "page" : undefined}
                   >

@@ -21,7 +21,8 @@ export function MessageFilterTabs({
       tabs={FILTER_TABS}
       activeTab={activeTab}
       onTabChange={onTabChange}
-      variant="pill"
+      variant="pill-grid"
+      className="grid-cols-2 sm:grid-cols-4"
     />
   )
 }

@@ -48,8 +48,8 @@ export const mockNotifications: NotificationData[] = [
     id: "1",
     type: "like",
     icon: Heart,
-    iconColor: "text-red-500",
-    iconBg: "bg-red-500/10",
+    iconColor: "text-official",
+    iconBg: "bg-official-soft",
     title: "Nguyễn Văn A thích bài viết của bạn",
     description: '"Tuyệt vời quá! Chúc mừng bạn..."',
     time: "2 phút trước",
@@ -60,8 +60,8 @@ export const mockNotifications: NotificationData[] = [
     id: "2",
     type: "comment",
     icon: MessageCircle,
-    iconColor: "text-blue-500",
-    iconBg: "bg-blue-500/10",
+    iconColor: "text-info",
+    iconBg: "bg-info/10",
     title: "Trần Thị B bình luận về bài viết của bạn",
     description: '"Cảm ơn bạn đã chia sẻ thông tin này!"',
     time: "15 phút trước",
@@ -72,8 +72,8 @@ export const mockNotifications: NotificationData[] = [
     id: "3",
     type: "friend_request",
     icon: UserPlus,
-    iconColor: "text-green-500",
-    iconBg: "bg-green-500/10",
+    iconColor: "text-success",
+    iconBg: "bg-success-soft",
     title: "Lê Văn C muốn kết bạn với bạn",
     description: "12 bạn chung",
     time: "1 giờ trước",
@@ -84,8 +84,8 @@ export const mockNotifications: NotificationData[] = [
     id: "4",
     type: "event",
     icon: Calendar,
-    iconColor: "text-purple-500",
-    iconBg: "bg-purple-500/10",
+    iconColor: "text-primary",
+    iconBg: "bg-primary/10",
     title: "Sự kiện sắp diễn ra: Hội thảo Công nghệ 2024",
     description: "Ngày mai lúc 9:00",
     time: "2 giờ trước",
@@ -96,8 +96,8 @@ export const mockNotifications: NotificationData[] = [
     id: "5",
     type: "photo",
     icon: Image,
-    iconColor: "text-pink-500",
-    iconBg: "bg-pink-500/10",
+    iconColor: "text-info",
+    iconBg: "bg-info/10",
     title: "Phạm Thị D đã thêm ảnh mới",
     description: '"Kỷ niệm ngày sinh nhật"',
     time: "3 giờ trước",
@@ -108,8 +108,8 @@ export const mockNotifications: NotificationData[] = [
     id: "6",
     type: "share",
     icon: Share2,
-    iconColor: "text-orange-500",
-    iconBg: "bg-orange-500/10",
+    iconColor: "text-warning",
+    iconBg: "bg-warning-soft",
     title: "Hoàng Văn E đã chia sẻ bài viết của bạn",
     description: "đến nhóm Công nghệ Thông Tin",
     time: "5 giờ trước",
@@ -120,8 +120,8 @@ export const mockNotifications: NotificationData[] = [
     id: "7",
     type: "system",
     icon: ThumbsUp,
-    iconColor: "text-gray-500",
-    iconBg: "bg-gray-500/10",
+    iconColor: "text-muted-foreground",
+    iconBg: "bg-muted",
     title: "Chào mừng bạn đến với TLU Community!",
     description: "Cảm ơn bạn đã tham gia cùng chúng tôi",
     time: "1 ngày trước",
@@ -187,6 +187,15 @@ export const mockMessages: MessageData[] = [
     isGroup: true,
   },
 ]
+
+export const MOCK_UNREAD_NOTIFICATION_COUNT = mockNotifications.filter(
+  (notification) => notification.isUnread
+).length
+
+export const MOCK_UNREAD_MESSAGE_COUNT = mockMessages.reduce(
+  (total, message) => total + message.unreadCount,
+  0
+)
 
 // Mock Active Friends
 export interface ActiveFriend {

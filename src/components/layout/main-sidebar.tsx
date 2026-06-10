@@ -43,27 +43,27 @@ export function MainSidebar({
   className,
 }: MainSidebarProps) {
   const hasSections = Boolean(sections?.length)
-  const navSpacingClassName = hasSections ? "space-y-4" : "space-y-1"
+  const navSpacingClassName = hasSections ? "gap-4" : "gap-1"
 
   return (
     <aside
       className={cn(
-        "w-64 h-full flex flex-col border-r border-border bg-card shrink-0",
+        "flex h-full w-64 shrink-0 flex-col border-r border-border/70 bg-card/95",
         className
       )}
     >
-      <div className="p-6 shrink-0">
+      <div className="shrink-0 p-6">
         <AppLogo size="md" />
       </div>
 
-      <nav className={cn("flex-1 overflow-y-auto min-h-0 px-4", navSpacingClassName)}>
+      <nav className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto px-4", navSpacingClassName)}>
         {hasSections ? (
           sections?.map((section) => (
-            <div key={section.label} className="space-y-2">
+            <div key={section.label} className="flex flex-col gap-2">
               <div className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {section.label}
               </div>
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 {section.items.map((item) => (
                   <SidebarNavItem
                     key={item.href}
@@ -94,7 +94,7 @@ export function MainSidebar({
       {user && (
         <>
           <Separator />
-          <div className="p-4 shrink-0">
+          <div className="shrink-0 p-4">
             <SidebarUserInfo
               name={user.name}
               role={user.role}

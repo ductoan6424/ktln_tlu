@@ -9,15 +9,24 @@ import {
   markConversationAsRead,
   sendConversationMessage,
 } from "@/actions/chat"
-import { ChatBubble } from "@/components/messages/chat-bubble"
+import { ChatBubble, ChatBubbleSkeleton } from "@/components/messages/chat-bubble"
 import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { ChatHeader } from "@/components/messages/chat-header"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import {
+  createOptimisticMessageId,
+  reconcileIncomingMessage,
+  replaceOptimisticMessage,
+} from "@/lib/chat/optimistic"
 import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/contacts/events"
 import type { ChatConversationBubble, ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime } from "@/utils/formatters"
+
+function getMessageDateKey(createdAt: string) {
+  return createdAt.slice(0, 10)
+}
 
 const ChatMessageRow = memo(function ChatMessageRow({
   message,
@@ -55,7 +64,6 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageItem[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -63,6 +71,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   const [loadError, setLoadError] = useState<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  const nextCursorRef = useRef<string | null>(null)
   const isPrependingRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
 
@@ -76,12 +85,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   })
 
   const handleIncomingMessage = useCallback((message: ChatMessageItem) => {
-    setMessages((prev) => {
-      if (prev.some((item) => item.id === message.id)) {
-        return prev
-      }
-      return [...prev, message]
-    })
+    setMessages((prev) => reconcileIncomingMessage(prev, message))
   }, [])
 
   const { typingUsers, onlineUserIds, publishTyping } = useChatRealtime({
@@ -111,7 +115,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
       if (messagesResult.success && messagesResult.data) {
         setMessages(messagesResult.data.items)
-        setNextCursor(messagesResult.data.nextCursor)
+        nextCursorRef.current = messagesResult.data.nextCursor
         setHasMore(messagesResult.data.hasMore)
         setConversationId(conversation.id)
         void markConversationAsRead(conversation.id)
@@ -126,6 +130,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   }, [conversation.id])
 
   const handleLoadMore = useCallback(async () => {
+    const nextCursor = nextCursorRef.current
     if (!conversationId || !nextCursor || isLoadingMore) {
       return
     }
@@ -149,7 +154,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
     }
 
     setMessages((prev) => [...result.data!.items, ...prev])
-    setNextCursor(result.data.nextCursor)
+    nextCursorRef.current = result.data.nextCursor
     setHasMore(result.data.hasMore)
 
     requestAnimationFrame(() => {
@@ -163,7 +168,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
       currentContainer.scrollTop = Math.max(currentContainer.scrollTop + delta, 0)
       isPrependingRef.current = false
     })
-  }, [conversationId, isLoadingMore, nextCursor])
+  }, [conversationId, isLoadingMore])
 
   const handleMessagesScroll = useCallback(() => {
     const container = messagesContainerRef.current
@@ -202,7 +207,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
     const currentConversationId = conversationId ?? conversation.id
 
-    const optimisticId = `temp-${Date.now()}`
+    const optimisticId = createOptimisticMessageId()
     const optimisticAttachment = attachmentFile
       ? {
           type: attachmentFile.type.startsWith("image/") ? ("image" as const) : ("file" as const),
@@ -215,6 +220,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
     const optimisticMessage: ChatMessageItem = {
       id: optimisticId,
+      clientMutationId: optimisticId,
       conversationId: currentConversationId,
       content: message,
       senderId: sessionUser?.userId ?? "",
@@ -231,6 +237,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
     const formData = new FormData()
     formData.append("conversationId", currentConversationId)
     formData.append("content", message)
+    formData.append("clientMutationId", optimisticId)
     if (attachmentFile) {
       formData.append("attachment", attachmentFile)
     }
@@ -263,13 +270,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
       URL.revokeObjectURL(optimisticAttachment.url)
     }
 
-    setMessages((prev) => {
-      const withoutOptimistic = prev.filter((item) => item.id !== optimisticId)
-      if (withoutOptimistic.some((item) => item.id === result.data!.id)) {
-        return withoutOptimistic
-      }
-      return [...withoutOptimistic, result.data!]
-    })
+    setMessages((prev) => replaceOptimisticMessage(prev, optimisticId, result.data!))
 
     return true
   }
@@ -281,7 +282,9 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
   return (
     <div
-      className="fixed bg-card border border-border rounded-xl shadow-2xl shadow-black/20 flex flex-col overflow-hidden"
+      role="region"
+      aria-label={`Chat với ${conversation.name}`}
+      className="fixed flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg shadow-brand-indigo/10"
       style={{
         width: 320,
         height: 420,
@@ -305,15 +308,22 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
       </div>
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
+        className="flex-1 overflow-y-auto p-3 space-y-3"
         onScroll={handleMessagesScroll}
       >
         {isLoadingMore && hasMore && (
-          <p className="text-xs text-muted-foreground text-center">Đang tải tin nhắn cũ hơn...</p>
+          <div className="flex flex-col gap-2" aria-busy="true" aria-label="Đang tải tin nhắn cũ hơn">
+            <ChatBubbleSkeleton />
+            <ChatBubbleSkeleton isOwn />
+          </div>
         )}
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Đang tải hội thoại...</p>
+          <div className="flex flex-col gap-2" aria-busy="true" aria-label="Đang tải hội thoại">
+            <ChatBubbleSkeleton />
+            <ChatBubbleSkeleton isOwn />
+            <ChatBubbleSkeleton />
+          </div>
         ) : loadError ? (
           <p className="text-sm text-muted-foreground" role="alert">{loadError}</p>
         ) : (
@@ -333,7 +343,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
               const prevMessage = virtualItem.index > 0 ? messages[virtualItem.index - 1] : null
               const showDateDivider = !prevMessage ||
-                new Date(message.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString()
+                getMessageDateKey(message.createdAt) !== getMessageDateKey(prevMessage.createdAt)
 
               return (
                 <div

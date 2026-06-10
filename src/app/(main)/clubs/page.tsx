@@ -1,10 +1,10 @@
 import type { CommunityCardItem } from "@/components/communities/community-card"
 import { CommunityListPage } from "@/components/communities/community-list-page"
-import { getAuthorizationContext } from "@/lib/auth/authorization"
+import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import { prisma } from "@/lib/prisma/client"
 
-export const dynamic = "force-dynamic"
+export const metadata = { title: "Câu lạc bộ" }
 
 const TABS = [
   { label: "Của tôi", value: "my" },
@@ -39,8 +39,8 @@ export default async function ClubsPage({
   const params = (await searchParams) ?? {}
   const activeTab = normalizeTab(getParam(params, "tab"))
   const query = getParam(params, "q").trim()
-  const context = await getAuthorizationContext().catch(() => null)
-  const userId = context?.profile.userId ?? null
+  const context = await getCurrentUserContext()
+  const userId = context.userId
 
   const [pendingRequests, invites] = userId
     ? await Promise.all([
@@ -118,6 +118,8 @@ export default async function ClubsPage({
       title="Câu lạc bộ"
       description="Theo dõi và tham gia các câu lạc bộ chính thức trong trường."
       searchPlaceholder="Tìm kiếm câu lạc bộ..."
+      createHref="/clubs/new"
+      createLabel="Tạo câu lạc bộ"
       tabs={TABS.map((tab) => ({
         ...tab,
         href: buildTabHref(tab.value, query),

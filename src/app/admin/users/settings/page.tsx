@@ -1,11 +1,12 @@
-import { AdminSettingsPageShell } from "@/components/admin/shells/admin-settings-page-shell"
+import { UserImportSettingsForm } from "@/components/admin/settings/user-import-settings-form"
 import { requireAdminPermission } from "@/lib/auth/authorization"
-import { getAdminModule } from "@/lib/admin/admin-modules"
+import { getUserImportSettings } from "@/lib/admin/settings/admin-settings-queries"
 
-const usersModule = getAdminModule("users")
+export const dynamic = "force-dynamic"
 
-export default async function AdminUserSettingsPage() {
+export default async function AdminUsersSettingsPage() {
   await requireAdminPermission("admin.users.manage")
+  const settings = await getUserImportSettings()
 
-  return <AdminSettingsPageShell module={usersModule} />
+  return <UserImportSettingsForm settings={settings} />
 }

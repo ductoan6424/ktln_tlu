@@ -47,8 +47,8 @@ export default async function AdminDashboardPage() {
       value: stats.totalUsers.toLocaleString("vi-VN"),
       change: trendUsers.label,
       positive: trendUsers.positive,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
       href: "/admin/users",
     },
     {
@@ -57,8 +57,8 @@ export default async function AdminDashboardPage() {
       value: stats.totalPosts.toLocaleString("vi-VN"),
       change: trendPosts.label,
       positive: trendPosts.positive,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      color: "text-success",
+      bgColor: "bg-success-soft",
       href: null,
     },
     {
@@ -67,8 +67,8 @@ export default async function AdminDashboardPage() {
       value: stats.eventsThisMonth.toLocaleString("vi-VN"),
       change: trendEvents.label,
       positive: trendEvents.positive,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
+      color: "text-info",
+      bgColor: "bg-info/10",
       href: null,
     },
     {
@@ -77,30 +77,30 @@ export default async function AdminDashboardPage() {
       value: stats.pendingReports.toLocaleString("vi-VN"),
       change: `${stats.pendingReports > 0 ? "Cần xem" : "Ổn định"}`,
       positive: stats.pendingReports === 0,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
+      color: "text-warning",
+      bgColor: "bg-warning-soft",
       href: null,
     },
   ]
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
-          <h1 className="text-2xl font-bold">Bảng điều khiển</h1>
+          <h1 className="text-2xl font-semibold">Bảng điều khiển</h1>
           <p className="text-sm text-muted-foreground">
             Dữ liệu tổng quan lấy trực tiếp từ cơ sở dữ liệu UniConnect
           </p>
         </div>
-        <div className="hidden sm:flex gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">
           <Link href="/admin/announcements">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
               <Megaphone className="size-4 mr-2" />
               Đăng thông báo
             </Button>
           </Link>
           <Link href="/admin/analytics">
-            <Button size="sm">
+            <Button size="sm" className="w-full sm:w-auto">
               <BarChart3 className="size-4 mr-2" />
               Phân tích chi tiết
             </Button>
@@ -120,7 +120,7 @@ export default async function AdminDashboardPage() {
                     <Icon className="size-5" />
                   </div>
                   <span
-                    className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-green-600" : "text-orange-600"}`}
+                    className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-success" : "text-warning"}`}
                   >
                     <TrendIcon className="size-3.5" />
                     {stat.change}

@@ -27,7 +27,7 @@ export function PollCard({
 }: PollCardProps) {
   return (
     <div className={cn("bg-muted rounded-lg p-4 border border-border", className)}>
-      <h5 className="text-xs font-bold uppercase text-muted-foreground mb-3 tracking-wider">
+      <h5 className="text-xs font-semibold uppercase text-muted-foreground mb-3 tracking-wider">
         {title}
       </h5>
       <div className="space-y-2">

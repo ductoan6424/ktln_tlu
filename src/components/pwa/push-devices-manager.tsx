@@ -167,8 +167,8 @@ export function PushDevicesManager() {
   return (
     <div className="space-y-6">
       {/* Toggle thiết bị này */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-0.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0 space-y-0.5">
           <p className="text-sm font-medium">Thông báo đẩy trên thiết bị này</p>
           <p className="text-xs text-muted-foreground">{toggleDescription}</p>
         </div>
@@ -176,6 +176,7 @@ export function PushDevicesManager() {
           checked={subscribed}
           onCheckedChange={handleToggle}
           disabled={toggleDisabled}
+          className="self-start sm:self-auto"
         />
       </div>
 
@@ -183,8 +184,8 @@ export function PushDevicesManager() {
 
       {/* Danh sách thiết bị */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-medium">Thiết bị đã đăng ký nhận thông báo</p>
             <p className="text-xs text-muted-foreground">
               Mỗi trình duyệt/PWA bật thông báo sẽ xuất hiện ở đây.
@@ -265,19 +266,18 @@ function DeviceRow({
   onRevoke: () => void
 }) {
   const parsed = parseUserAgent(device.userAgent)
-  const Icon = pickDeviceIcon(parsed.os)
 
   return (
-    <li className="flex items-center justify-between gap-3 px-4 py-3">
+    <li className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">
         <span className="mt-0.5 flex size-9 flex-shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          <Icon className="size-4" />
+          <DeviceIcon os={parsed.os} />
         </span>
         <div className="min-w-0 space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate text-sm font-medium">{parsed.label}</p>
             {isCurrent && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
                 <CheckCircle2 className="size-3" />
                 Thiết bị này
               </span>
@@ -292,7 +292,7 @@ function DeviceRow({
         type="button"
         size="sm"
         variant="ghost"
-        className="text-destructive hover:text-destructive"
+        className="w-full justify-center text-destructive hover:text-destructive sm:w-auto"
         onClick={onRevoke}
         disabled={isProcessing}
       >
@@ -306,8 +306,8 @@ function DeviceRow({
 function DeviceListSkeleton() {
   return (
     <ul className="divide-y rounded-md border">
-      {[0, 1].map((i) => (
-        <li key={`device-${i}`} className="flex items-center gap-3 px-4 py-3">
+      {[0, 1].map((slot) => (
+        <li key={`device-${slot}`} className="flex items-center gap-3 px-4 py-3">
           <span className="size-9 flex-shrink-0 rounded-md bg-muted animate-pulse" />
           <div className="flex-1 space-y-2">
             <span className="block h-3.5 w-1/2 rounded bg-muted animate-pulse" />
@@ -319,8 +319,8 @@ function DeviceListSkeleton() {
   )
 }
 
-function pickDeviceIcon(os: string) {
-  if (/Android|iOS/.test(os)) return Smartphone
-  if (/Windows|macOS|ChromeOS|Linux/.test(os)) return Laptop
-  return Globe
+function DeviceIcon({ os }: { os: string }) {
+  if (/Android|iOS/.test(os)) return <Smartphone className="size-4" />
+  if (/Windows|macOS|ChromeOS|Linux/.test(os)) return <Laptop className="size-4" />
+  return <Globe className="size-4" />
 }

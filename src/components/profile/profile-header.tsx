@@ -1,14 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { AvatarUploader } from "@/components/profile/avatar-uploader"
 import { CoverUploader } from "@/components/profile/cover-uploader"
 import { FollowButton } from "@/components/profile/follow-button"
+import { ProfileShareButton } from "@/components/profile/profile-share-button"
 import { MessageButton } from "@/components/messages/message-button"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Pencil, Share2 } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Pencil } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 import type { FollowStatus } from "@/lib/follows/queries"
 
 const EMPTY_CLUBS: string[] = []
@@ -68,7 +71,7 @@ export function ProfileHeader({
       </div>
 
       <CardContent className="relative p-6 pt-0">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end">
+        <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-end">
           <div className="-mt-20 md:-mt-24 z-10">
             {isOwnProfile ? (
               <AvatarUploader
@@ -82,20 +85,20 @@ export function ProfileHeader({
                 src={avatar}
                 name={name}
                 size="xl"
-                className="size-32 md:size-36 border-[6px] border-card shadow-lg ring-1 ring-border/10"
+                className="size-32 md:size-36 rounded-full overflow-hidden border-[6px] border-card shadow-sm ring-1 ring-border/10"
               />
             )}
           </div>
 
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">{name}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="break-words text-2xl font-semibold">{name}</h1>
             {username && (
               <p className="mt-1 text-sm font-medium text-muted-foreground">
                 @{username}
               </p>
             )}
             {metaItems.length > 0 && (
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 break-words text-sm text-muted-foreground">
                 {metaItems.join(" • ")}
               </p>
             )}
@@ -115,16 +118,16 @@ export function ProfileHeader({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isOwnProfile && (
-              <Button
-                variant="outline"
-                className="gap-2 font-semibold"
+              <Link
+                href="/settings?section=profile"
+                className={cn(buttonVariants({ variant: "outline" }), "gap-2 font-semibold")}
                 data-profile-action="edit"
               >
                 <Pencil className="size-4" />
                 Sửa hồ sơ
-              </Button>
+              </Link>
             )}
             {!isOwnProfile && targetUserId && followStatus && (
               <>
@@ -135,14 +138,10 @@ export function ProfileHeader({
                 />
               </>
             )}
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Chia sẻ"
-              className="rounded-lg"
-            >
-              <Share2 className="size-5" />
-            </Button>
+            <ProfileShareButton
+              profileUserId={targetUserId ?? ""}
+              displayName={name}
+            />
           </div>
         </div>
       </CardContent>

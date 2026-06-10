@@ -3,7 +3,7 @@
 import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, MessageSquareDashed, MessagesSquare } from "lucide-react"
 
 import {
   getChatSessionUser,
@@ -12,20 +12,31 @@ import {
   markConversationAsRead,
   sendConversationMessage,
 } from "@/actions/chat"
-import { ChatBubble } from "@/components/messages/chat-bubble"
+import { ChatBubble, ChatBubbleSkeleton } from "@/components/messages/chat-bubble"
 import { ChatDateDivider } from "@/components/messages/chat-date-divider"
 import { ChatHeader } from "@/components/messages/chat-header"
 import { CreateGroupDialog } from "@/components/messages/create-group-dialog"
-import { ConversationItem } from "@/components/messages/conversation-item"
+import { ConversationItem, ConversationItemSkeleton } from "@/components/messages/conversation-item"
 import { ConversationList } from "@/components/messages/conversation-list"
+import { DirectInfoDialog } from "@/components/messages/direct-info-dialog"
 import { GroupInfoDialog } from "@/components/messages/group-info-dialog"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/shared/empty-state"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import {
+  createOptimisticMessageId,
+  reconcileIncomingMessage,
+  replaceOptimisticMessage,
+} from "@/lib/chat/optimistic"
 import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/contacts/events"
 import type { ChatConversationItem, ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime, formatRelativeTime } from "@/utils/formatters"
+
+function getMessageDateKey(createdAt: string) {
+  return createdAt.slice(0, 10)
+}
 
 const ChatMessageRow = memo(function ChatMessageRow({
   message,
@@ -53,15 +64,13 @@ const ChatMessageRow = memo(function ChatMessageRow({
 })
 
 function MessagesPageInner() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const requestedConversationId = searchParams.get("conversation")
+  const { push, replace } = useRouter()
+  const requestedConversationId = useSearchParams().get("conversation")
 
   const [sessionUser, setSessionUser] = useState<ChatSessionUser | null>(null)
   const [conversations, setConversations] = useState<ChatConversationItem[]>([])
   const [optimisticConversationId, setOptimisticConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageItem[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isBooting, setIsBooting] = useState(true)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
@@ -69,11 +78,16 @@ function MessagesPageInner() {
   const [isSending, setIsSending] = useState(false)
   const [activeFilter, setActiveFilter] = useState("all")
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
+  const [hasOpenedCreateGroup, setHasOpenedCreateGroup] = useState(false)
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false)
+  const [hasOpenedGroupInfo, setHasOpenedGroupInfo] = useState(false)
+  const [isDirectInfoOpen, setIsDirectInfoOpen] = useState(false)
+  const [hasOpenedDirectInfo, setHasOpenedDirectInfo] = useState(false)
 
   const activeConversationIdRef = useRef<string | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  const nextCursorRef = useRef<string | null>(null)
   const isPrependingRef = useRef(false)
   const previousScrollHeightRef = useRef(0)
 
@@ -127,13 +141,14 @@ function MessagesPageInner() {
     }
   }, [activeConversation?.isGroup, isGroupInfoOpen])
 
+  useEffect(() => {
+    if ((activeConversation?.isGroup || !activeConversation) && isDirectInfoOpen) {
+      setIsDirectInfoOpen(false)
+    }
+  }, [activeConversation, isDirectInfoOpen])
+
   const mergeIncomingMessage = useCallback((message: ChatMessageItem) => {
-    setMessages((prev) => {
-      if (prev.some((item) => item.id === message.id)) {
-        return prev
-      }
-      return [...prev, message]
-    })
+    setMessages((prev) => reconcileIncomingMessage(prev, message))
 
     setConversations((prev) =>
       prev.map((conversation) => {
@@ -175,8 +190,8 @@ function MessagesPageInner() {
 
   const selectConversation = useCallback((conversationId: string) => {
     setOptimisticConversationId(conversationId)
-    router.push(getConversationHref(conversationId), { scroll: false })
-  }, [getConversationHref, router])
+    push(getConversationHref(conversationId), { scroll: false })
+  }, [getConversationHref, push])
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -218,11 +233,11 @@ function MessagesPageInner() {
     }
 
     const fallbackConversationId = conversations[0]?.id ?? null
-    router.replace(
+    replace(
       fallbackConversationId ? getConversationHref(fallbackConversationId) : "/messages",
       { scroll: false },
     )
-  }, [conversations, getConversationHref, isBooting, requestedConversationId, router])
+  }, [conversations, getConversationHref, isBooting, replace, requestedConversationId])
 
   const loadMessages = useCallback(async (conversationId: string, cursor?: string) => {
     const result = await getConversationMessages({ conversationId, cursor })
@@ -240,7 +255,7 @@ function MessagesPageInner() {
     const fetchInitialMessages = async () => {
       if (!activeConversationId) {
         setMessages([])
-        setNextCursor(null)
+        nextCursorRef.current = null
         setHasMore(false)
         setIsLoadingMessages(false)
         return
@@ -249,29 +264,30 @@ function MessagesPageInner() {
       const conversationId = activeConversationId
       setIsLoadingMessages(true)
       setMessages([])
-      setNextCursor(null)
+      nextCursorRef.current = null
       setHasMore(false)
-
-      const data = await loadMessages(conversationId)
 
       if (isDisposed || activeConversationIdRef.current !== conversationId) {
         return
       }
 
-      if (!data) {
-        setMessages([])
-        setNextCursor(null)
-        setHasMore(false)
-        setIsLoadingMessages(false)
-        return
+      const data = await loadMessages(conversationId)
+
+      if (!isDisposed && activeConversationIdRef.current === conversationId) {
+        if (!data) {
+          setMessages([])
+          nextCursorRef.current = null
+          setHasMore(false)
+          setIsLoadingMessages(false)
+        } else {
+          setMessages(data.items)
+          nextCursorRef.current = data.nextCursor
+          setHasMore(data.hasMore)
+          setIsLoadingMessages(false)
+
+          void markConversationAsRead(conversationId)
+        }
       }
-
-      setMessages(data.items)
-      setNextCursor(data.nextCursor)
-      setHasMore(data.hasMore)
-      setIsLoadingMessages(false)
-
-      void markConversationAsRead(conversationId)
       setConversations((prev) =>
         prev.map((conversation) =>
           conversation.id === conversationId
@@ -302,6 +318,7 @@ function MessagesPageInner() {
   }, [activeConversationId, isLoadingMessages, messages.length, rowVirtualizer])
 
   const handleLoadOlder = useCallback(async () => {
+    const nextCursor = nextCursorRef.current
     if (!activeConversationId || !nextCursor || isLoadingMore) {
       return
     }
@@ -323,7 +340,7 @@ function MessagesPageInner() {
     }
 
     setMessages((prev) => [...data.items, ...prev])
-    setNextCursor(data.nextCursor)
+    nextCursorRef.current = data.nextCursor
     setHasMore(data.hasMore)
 
     requestAnimationFrame(() => {
@@ -337,7 +354,7 @@ function MessagesPageInner() {
       currentContainer.scrollTop = Math.max(currentContainer.scrollTop + delta, 0)
       isPrependingRef.current = false
     })
-  }, [activeConversationId, isLoadingMore, loadMessages, nextCursor])
+  }, [activeConversationId, isLoadingMore, loadMessages])
 
   const handleSendMessage = useCallback(
     async ({
@@ -352,7 +369,7 @@ function MessagesPageInner() {
         return false
       }
 
-      const optimisticId = `temp-${Date.now()}`
+      const optimisticId = createOptimisticMessageId()
       const optimisticAttachment = attachmentFile
         ? {
             type: attachmentFile.type.startsWith("image/") ? ("image" as const) : ("file" as const),
@@ -365,6 +382,7 @@ function MessagesPageInner() {
 
       const optimisticMessage: ChatMessageItem = {
         id: optimisticId,
+        clientMutationId: optimisticId,
         conversationId: currentConversationId,
         content: message,
         senderId: sessionUser?.userId ?? "",
@@ -381,6 +399,7 @@ function MessagesPageInner() {
       const formData = new FormData()
       formData.append("conversationId", currentConversationId)
       formData.append("content", message)
+      formData.append("clientMutationId", optimisticId)
       if (attachmentFile) {
         formData.append("attachment", attachmentFile)
       }
@@ -413,14 +432,7 @@ function MessagesPageInner() {
         })
       }
 
-      setMessages((prev) => {
-        const withoutOptimistic = prev.filter((item) => item.id !== optimisticId)
-        if (withoutOptimistic.some((item) => item.id === result.data!.id)) {
-          return withoutOptimistic
-        }
-
-        return [...withoutOptimistic, result.data!]
-      })
+      setMessages((prev) => replaceOptimisticMessage(prev, optimisticId, result.data!))
 
       return true
     },
@@ -483,35 +495,52 @@ function MessagesPageInner() {
       const nextConversationId = nextConversations[0]?.id ?? null
       setOptimisticConversationId(nextConversationId)
       setMessages([])
-      router.replace(
+      replace(
         nextConversationId ? getConversationHref(nextConversationId) : "/messages",
         { scroll: false },
       )
     }
-  }, [activeConversationId, conversations, getConversationHref, router])
+  }, [activeConversationId, conversations, getConversationHref, replace])
 
   return (
     <>
-      <CreateGroupDialog
-        open={isCreateGroupOpen}
-        onOpenChange={setIsCreateGroupOpen}
-        onCreated={(conversation) => {
-          setConversations((prev) => [conversation, ...prev])
-          setOptimisticConversationId(conversation.id)
-          setActiveFilter("all")
-          router.push(getConversationHref(conversation.id), { scroll: false })
-        }}
-      />
+      {/* Lazy mount: chỉ render sau khi user mở lần đầu; giữ mount cho animation đóng */}
+      {hasOpenedCreateGroup && (
+        <CreateGroupDialog
+          open={isCreateGroupOpen}
+          onOpenChange={setIsCreateGroupOpen}
+          onCreated={(conversation) => {
+            setConversations((prev) => [conversation, ...prev])
+            setOptimisticConversationId(conversation.id)
+            setActiveFilter("all")
+            push(getConversationHref(conversation.id), { scroll: false })
+          }}
+        />
+      )}
 
-      <div className="flex h-[calc(100vh-3.5rem-3.5rem)] lg:h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex h-[calc(100dvh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] gap-3 overflow-hidden bg-background p-3 lg:h-[calc(100dvh-4rem)] lg:p-4">
       <div className={activeConversationId ? "hidden lg:flex" : "flex w-full lg:w-auto"}>
         <ConversationList
           activeTab={activeFilter}
           onTabChange={setActiveFilter}
-          onCreateGroupClick={() => setIsCreateGroupOpen(true)}
+          onCreateGroupClick={() => {
+            setHasOpenedCreateGroup(true)
+            setIsCreateGroupOpen(true)
+          }}
         >
           {visibleConversations.map((conv) => (
-            <div key={conv.id} onClick={() => selectConversation(conv.id)}>
+            <div
+              key={conv.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => selectConversation(conv.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  selectConversation(conv.id)
+                }
+              }}
+            >
               <ConversationItem
                 avatar={conv.avatarUrl ?? undefined}
                 name={conv.name}
@@ -524,8 +553,26 @@ function MessagesPageInner() {
               />
             </div>
           ))}
+          {isBooting && (
+            <div className="divide-y divide-border" aria-busy="true" aria-label="Đang tải hội thoại">
+              <ConversationItemSkeleton />
+              <ConversationItemSkeleton />
+              <ConversationItemSkeleton />
+              <ConversationItemSkeleton />
+            </div>
+          )}
           {!isBooting && visibleConversations.length === 0 && (
-            <p className="px-4 py-6 text-sm text-muted-foreground">Bạn chưa có hội thoại nào.</p>
+            <EmptyState
+              icon={MessagesSquare}
+              title={
+                activeFilter === "unread"
+                  ? "Không có hội thoại chưa đọc"
+                  : activeFilter === "groups"
+                    ? "Chưa có nhóm chat"
+                    : "Chưa có hội thoại"
+              }
+              description="Hãy bắt đầu một cuộc hội thoại để kết nối với bạn bè và nhóm của bạn."
+            />
           )}
         </ConversationList>
       </div>
@@ -533,8 +580,8 @@ function MessagesPageInner() {
       <section
         className={
           activeConversationId
-            ? "flex-1 flex flex-col bg-card relative"
-            : "hidden lg:flex flex-1 flex-col bg-card relative"
+            ? "relative flex flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-card shadow-sm"
+            : "relative hidden flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-card shadow-sm lg:flex"
         }
       >
         <div className="lg:hidden absolute top-0 left-0 z-10 h-14 flex items-center pl-2">
@@ -544,7 +591,7 @@ function MessagesPageInner() {
             className="size-9 rounded-full"
             onClick={() => {
               setOptimisticConversationId(null)
-              router.push("/messages", { scroll: false })
+              push("/messages", { scroll: false })
             }}
             aria-label="Quay lại"
           >
@@ -564,7 +611,17 @@ function MessagesPageInner() {
               }
               isGroup={activeConversation.isGroup}
               participantCount={activeConversation.participantCount}
-              onInfoClick={activeConversation.isGroup ? () => setIsGroupInfoOpen(true) : undefined}
+              onInfoClick={
+                activeConversation.isGroup
+                  ? () => {
+                      setHasOpenedGroupInfo(true)
+                      setIsGroupInfoOpen(true)
+                    }
+                  : () => {
+                      setHasOpenedDirectInfo(true)
+                      setIsDirectInfoOpen(true)
+                    }
+              }
               className="lg:pl-4 pl-12"
             />
 
@@ -580,11 +637,26 @@ function MessagesPageInner() {
               }}
             >
               {isLoadingMore && hasMore && (
-                <p className="text-xs text-muted-foreground text-center mb-3">Đang tải tin nhắn cũ hơn...</p>
+                <div className="mb-3 flex flex-col gap-2" aria-busy="true" aria-label="Đang tải tin nhắn cũ hơn">
+                  <ChatBubbleSkeleton />
+                  <ChatBubbleSkeleton isOwn />
+                </div>
               )}
 
               {isLoadingMessages ? (
-                <p className="text-sm text-muted-foreground">Đang tải tin nhắn...</p>
+                <div className="flex flex-col gap-3" aria-busy="true" aria-label="Đang tải tin nhắn">
+                  <ChatBubbleSkeleton />
+                  <ChatBubbleSkeleton isOwn />
+                  <ChatBubbleSkeleton />
+                  <ChatBubbleSkeleton isOwn />
+                  <ChatBubbleSkeleton />
+                </div>
+              ) : messages.length === 0 ? (
+                <EmptyState
+                  icon={MessageSquareDashed}
+                  title="Chưa có tin nhắn nào"
+                  description="Hãy gửi tin nhắn đầu tiên để bắt đầu cuộc trò chuyện."
+                />
               ) : (
                 <div
                   style={{
@@ -599,7 +671,7 @@ function MessagesPageInner() {
 
                     const prevMessage = virtualItem.index > 0 ? messages[virtualItem.index - 1] : null
                     const showDateDivider = !prevMessage ||
-                      new Date(message.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString()
+                      getMessageDateKey(message.createdAt) !== getMessageDateKey(prevMessage.createdAt)
 
                     return (
                       <div
@@ -640,19 +712,37 @@ function MessagesPageInner() {
             />
           </>
         ) : (
-          <div className="h-full flex items-center justify-center text-muted-foreground">
-            Chọn một hội thoại để bắt đầu nhắn tin.
-          </div>
+          <EmptyState
+            icon={MessagesSquare}
+            title="Chọn một hội thoại"
+            description="Chọn hội thoại bên trái để bắt đầu nhắn tin với bạn bè và nhóm."
+            className="h-full"
+          />
         )}
       </section>
-      <GroupInfoDialog
-        conversationId={activeConversation?.isGroup ? activeConversation.id : null}
-        open={isGroupInfoOpen}
-        onOpenChange={setIsGroupInfoOpen}
-        onGroupRenamed={handleGroupRenamed}
-        onGroupMembersChanged={handleGroupMembersChanged}
-        onLeftGroup={handleLeftGroup}
-      />
+      {/* Lazy mount: chỉ render khi user đã mở lần đầu và đang xem nhóm */}
+      {hasOpenedGroupInfo && (
+        <GroupInfoDialog
+          conversationId={activeConversation?.isGroup ? activeConversation.id : null}
+          open={isGroupInfoOpen}
+          onOpenChange={setIsGroupInfoOpen}
+          onGroupRenamed={handleGroupRenamed}
+          onGroupMembersChanged={handleGroupMembersChanged}
+          onLeftGroup={handleLeftGroup}
+        />
+      )}
+      {hasOpenedDirectInfo && (
+        <DirectInfoDialog
+          conversationId={!activeConversation?.isGroup ? activeConversation?.id ?? null : null}
+          open={isDirectInfoOpen}
+          isOnline={
+            activeConversation?.peerUserId
+              ? onlineUserIds.has(activeConversation.peerUserId)
+              : false
+          }
+          onOpenChange={setIsDirectInfoOpen}
+        />
+      )}
       </div>
     </>
   )

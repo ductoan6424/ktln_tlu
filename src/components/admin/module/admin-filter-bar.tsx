@@ -37,6 +37,7 @@ export function AdminFilterBar({
         placeholder={searchPlaceholder}
         value={resolvedQuery}
         onChange={onQueryChange}
+        className="w-full"
       />
     )
   }
@@ -44,10 +45,10 @@ export function AdminFilterBar({
   const hasHrefTabs = Boolean(tabs[0]?.href)
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
+    <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:gap-4 sm:p-4">
       <SearchInput placeholder={searchPlaceholder} value={resolvedQuery} onChange={onQueryChange} />
       {hasHrefTabs ? (
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
           {tabs.map((tab) => {
             const isActive = tab.value === resolvedActiveTab
             const className = cn(
@@ -86,6 +87,7 @@ export function AdminFilterBar({
           activeTab={resolvedActiveTab}
           onTabChange={handleActiveTabChange}
           variant="pill"
+          className="w-full max-w-full"
         />
       )}
     </div>

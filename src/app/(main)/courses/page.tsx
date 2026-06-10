@@ -1,10 +1,10 @@
 import type { CommunityCardItem } from "@/components/communities/community-card"
 import { CommunityListPage } from "@/components/communities/community-list-page"
-import { getAuthorizationContext } from "@/lib/auth/authorization"
+import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import { buildCommunityPath } from "@/lib/communities/urls"
 import { prisma } from "@/lib/prisma/client"
 
-export const dynamic = "force-dynamic"
+export const metadata = { title: "Lớp học" }
 
 const TABS = [
   { label: "Của tôi", value: "my" },
@@ -39,10 +39,10 @@ export default async function CoursesPage({
   const params = (await searchParams) ?? {}
   const activeTab = normalizeTab(getParam(params, "tab"))
   const query = getParam(params, "q").trim()
-  const context = await getAuthorizationContext().catch(() => null)
-  const userId = context?.profile.userId ?? null
+  const context = await getCurrentUserContext()
+  const userId = context.userId
   const canCreateCourse = Boolean(
-    context && (context.baseRole === "LECTURER" || context.baseRole === "ADMIN"),
+    context.profile && (context.profile.role === "LECTURER" || context.profile.role === "ADMIN"),
   )
 
   const [pendingRequests, invites] = userId

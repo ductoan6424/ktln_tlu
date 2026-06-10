@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prisma = vi.hoisted(() => ({
+  $queryRaw: vi.fn(),
   follow: { findMany: vi.fn() },
   hiddenPost: { findMany: vi.fn() },
   post: { findMany: vi.fn() },
   poll: { findMany: vi.fn() },
+  groupMember: { findMany: vi.fn() },
+  clubMember: { findMany: vi.fn() },
+  courseMember: { findMany: vi.fn() },
+  course: { findMany: vi.fn() },
 }));
 
 const fanout = vi.hoisted(() => ({
@@ -32,6 +37,7 @@ vi.mock("@/lib/feed/config", () => ({
 vi.mock("@/lib/auth/post-permissions", () => ({
   resolveDeleteRole: vi.fn().mockResolvedValue(null),
   canHidePost: vi.fn().mockReturnValue(false),
+  resolveDeleteRolesBatch: vi.fn().mockResolvedValue(new Map()),
 }));
 
 import { getFeedPosts, INITIAL_FEED_CURSOR } from "@/lib/feed/queries";
@@ -60,13 +66,19 @@ function makeRawPost(
     authorId: overrides.authorId ?? "author-1",
     clubId: null,
     groupId: null,
+    courseId: null,
     sharedPostId: null,
     mediaUrls: null,
     updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-    author: { displayName: "Tac gia", avatarUrl: null },
+    author: { displayName: "Tac gia", avatarUrl: null, coverUrl: null },
     likes: [],
+    savedBy: [],
     _count: { likes: 0, comments: 0 },
     sharedPost: null,
+    group: null,
+    club: null,
+    course: null,
+    attachments: [],
   };
 }
 
@@ -84,6 +96,61 @@ function makeCandidate(
   };
 }
 
+function getWhereIdIn(where?: {
+  id?: { in?: string[] };
+  AND?: Array<{ id?: { in?: string[] } }>;
+}) {
+  return where?.id?.in ?? where?.AND?.find((clause) => clause.id?.in)?.id?.in;
+}
+
+function rawPostsFromCandidates(
+  candidates: ReturnType<typeof makeCandidate>[] = [],
+) {
+  return candidates.map((candidate) =>
+    makeRawPost({
+      id: candidate.id,
+      authorId: candidate.authorId,
+      createdAt: candidate.createdAt,
+    }),
+  );
+}
+
+function hybridRowsFromBuckets(buckets: {
+  personalized?: ReturnType<typeof makeCandidate>[];
+  celebrity?: ReturnType<typeof makeCandidate>[];
+  fallbackFollowed?: ReturnType<typeof makeCandidate>[];
+  freshness?: ReturnType<typeof makeCandidate>[];
+  rest?: ReturnType<typeof makeCandidate>[];
+}) {
+  return [
+    ...(buckets.freshness ?? []).map((candidate) => ({
+      ...candidate,
+      source: "freshness",
+      redisIndex: null,
+    })),
+    ...(buckets.personalized ?? []).map((candidate, index) => ({
+      ...candidate,
+      source: "redis",
+      redisIndex: (candidate as { redisIndex?: number }).redisIndex ?? index,
+    })),
+    ...(buckets.celebrity ?? []).map((candidate) => ({
+      ...candidate,
+      source: "celebrity",
+      redisIndex: null,
+    })),
+    ...(buckets.fallbackFollowed ?? []).map((candidate) => ({
+      ...candidate,
+      source: "fallback",
+      redisIndex: null,
+    })),
+    ...(buckets.rest ?? []).map((candidate) => ({
+      ...candidate,
+      source: "rest",
+      redisIndex: null,
+    })),
+  ];
+}
+
 function mockHybridPostQueries(buckets: {
   personalized?: ReturnType<typeof makeCandidate>[];
   celebrity?: ReturnType<typeof makeCandidate>[];
@@ -92,18 +159,43 @@ function mockHybridPostQueries(buckets: {
   rest?: ReturnType<typeof makeCandidate>[];
   full?: ReturnType<typeof makeRawPost>[];
 }) {
+  prisma.$queryRaw.mockResolvedValue(hybridRowsFromBuckets(buckets));
   prisma.post.findMany.mockImplementation(
     async (args: {
       include?: unknown;
       where?: {
         id?: { in?: string[] };
+        AND?: Array<{ id?: { in?: string[] } }>;
         authorId?: { in?: string[]; notIn?: string[] };
         createdAt?: { gte?: Date };
       };
       take?: number;
     }) => {
-      if (args.include && args.where?.id?.in) return buckets.full ?? [];
-      if (args.where?.id?.in) return buckets.personalized ?? [];
+      const idIn = getWhereIdIn(args.where);
+
+      if (args.include && idIn) {
+        if (buckets.full) return buckets.full;
+        const personalizedMatches = (buckets.personalized ?? []).filter(
+          (candidate) => idIn.includes(candidate.id),
+        );
+        if (personalizedMatches.length > 0) {
+          return rawPostsFromCandidates(personalizedMatches);
+        }
+        return buckets.full ?? [];
+      }
+      if (args.include && args.where?.createdAt?.gte) {
+        return rawPostsFromCandidates(buckets.freshness);
+      }
+      if (args.include && (args.where?.authorId?.notIn || !args.where?.authorId)) {
+        return rawPostsFromCandidates(buckets.rest);
+      }
+      if (args.include && args.where?.authorId?.in && args.take === 10) {
+        return rawPostsFromCandidates(buckets.celebrity);
+      }
+      if (args.include && args.where?.authorId?.in) {
+        return rawPostsFromCandidates(buckets.fallbackFollowed);
+      }
+      if (idIn) return buckets.personalized ?? [];
       if (args.where?.createdAt?.gte) return buckets.freshness ?? [];
       if (args.where?.authorId?.notIn || !args.where?.authorId)
         return buckets.rest ?? [];
@@ -116,14 +208,23 @@ function mockHybridPostQueries(buckets: {
 }
 
 beforeEach(() => {
+  prisma.$queryRaw.mockReset();
   prisma.follow.findMany.mockReset();
   prisma.hiddenPost.findMany.mockReset();
   prisma.post.findMany.mockReset();
   prisma.poll.findMany.mockReset();
+  prisma.groupMember.findMany.mockReset();
+  prisma.clubMember.findMany.mockReset();
+  prisma.courseMember.findMany.mockReset();
+  prisma.course.findMany.mockReset();
   fanout.getPersonalizedFeedPostIds.mockReset();
   fanout.getCelebrityAuthorIds.mockReset();
   prisma.hiddenPost.findMany.mockResolvedValue([]);
   prisma.poll.findMany.mockResolvedValue([]);
+  prisma.groupMember.findMany.mockResolvedValue([]);
+  prisma.clubMember.findMany.mockResolvedValue([]);
+  prisma.courseMember.findMany.mockResolvedValue([]);
+  prisma.course.findMany.mockResolvedValue([]);
   fanout.getPersonalizedFeedPostIds.mockResolvedValue([]);
   fanout.getCelebrityAuthorIds.mockResolvedValue([]);
 });
@@ -153,22 +254,47 @@ describe("getFeedPosts hybrid feed", () => {
 
   it("logged-in viewer with no follows returns freshness and rest posts", async () => {
     prisma.follow.findMany.mockResolvedValue([]);
-    const freshness = makeCandidate({ id: "fresh-1", authorId: RANDOM_C });
-    const rest = makeCandidate({ id: "rest-1", authorId: RANDOM_C });
-    mockHybridPostQueries({
-      freshness: [freshness],
-      rest: [rest],
-      full: [
+    prisma.post.findMany.mockResolvedValue([
         makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
         makeRawPost({ id: "rest-1", authorId: RANDOM_C }),
-      ],
-    });
+    ]);
 
     const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
 
     expect(result.posts.map((post) => post.id)).toEqual(["fresh-1", "rest-1"]);
     expect(result.posts.every((post) => !post.isFromFollowed)).toBe(true);
     expect(result.nextCursor.followedExhausted).toBe(true);
+    expect(prisma.post.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.any(Object),
+        orderBy: { createdAt: "desc" },
+        skip: 0,
+        take: 2,
+      }),
+    );
+  });
+
+  it("uses provided joined community ids without querying memberships again", async () => {
+    prisma.follow.findMany.mockResolvedValue([]);
+    const freshness = makeCandidate({ id: "fresh-1", authorId: RANDOM_C });
+    mockHybridPostQueries({
+      freshness: [freshness],
+      full: [makeRawPost({ id: "fresh-1", authorId: RANDOM_C })],
+    });
+
+    await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 1, {
+      joinedCommunityIds: {
+        joinedGroupIds: ["group-1"],
+        joinedClubIds: ["club-1"],
+        joinedCourseIds: ["course-1"],
+      },
+    });
+
+    expect(prisma.groupMember.findMany).not.toHaveBeenCalled();
+    expect(prisma.clubMember.findMany).not.toHaveBeenCalled();
+    expect(prisma.courseMember.findMany).not.toHaveBeenCalled();
+    expect(prisma.course.findMany).not.toHaveBeenCalled();
   });
 
   it("merges freshness overlay before followed cache and rest fill", async () => {
@@ -210,6 +336,34 @@ describe("getFeedPosts hybrid feed", () => {
     expect(result.posts[1]?.isFromFollowed).toBe(true);
     expect(result.nextCursor.redisFetched).toBe(1);
     expect(result.nextCursor.freshnessFetched).toBe(1);
+  });
+
+  it("fetches followed hybrid candidates in one raw query before hydration", async () => {
+    prisma.follow.findMany.mockResolvedValue([{ followingId: FOLLOWED_A }]);
+    const followed = makeCandidate({ id: "followed-1", authorId: FOLLOWED_A });
+    const rest = makeCandidate({ id: "rest-1", authorId: RANDOM_C });
+    mockHybridPostQueries({
+      fallbackFollowed: [followed],
+      rest: [rest],
+      full: [
+        makeRawPost({ id: "followed-1", authorId: FOLLOWED_A }),
+        makeRawPost({ id: "rest-1", authorId: RANDOM_C }),
+      ],
+    });
+
+    const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 2);
+
+    expect(result.posts.map((post) => post.id)).toEqual([
+      "followed-1",
+      "rest-1",
+    ]);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.post.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.any(Object),
+      }),
+    );
   });
 
   it("advances fallback and rest cursors when earlier sources fill the page", async () => {
@@ -318,7 +472,8 @@ describe("getFeedPosts hybrid feed", () => {
       id: "valid-redis",
       authorId: FOLLOWED_A,
       createdAt: new Date("2026-04-02T00:00:00.000Z"),
-    });
+    }) as ReturnType<typeof makeCandidate> & { redisIndex: number };
+    validRedis.redisIndex = 1;
     mockHybridPostQueries({
       personalized: [validRedis],
       celebrity: [celebrity],
@@ -470,22 +625,36 @@ describe("getFeedPosts hybrid feed", () => {
       makeCandidate({ id: "followed-2", authorId: FOLLOWED_A }),
       makeCandidate({ id: "followed-3", authorId: FOLLOWED_A }),
     ];
+    prisma.$queryRaw.mockResolvedValue(
+      hybridRowsFromBuckets({
+        freshness: [freshness],
+        fallbackFollowed: followedCandidates,
+      }),
+    );
     prisma.post.findMany.mockImplementation(
       async (args: {
         include?: unknown;
         where?: {
           id?: { in?: string[] };
+          AND?: Array<{ id?: { in?: string[] } }>;
           authorId?: { in?: string[]; notIn?: string[] };
           createdAt?: { gte?: Date };
         };
         take?: number;
       }) => {
-        if (args.include && args.where?.id?.in) {
+        if (args.include && getWhereIdIn(args.where)) {
           return [
             makeRawPost({ id: "fresh-1", authorId: RANDOM_C }),
             makeRawPost({ id: "followed-1", authorId: FOLLOWED_A }),
             makeRawPost({ id: "followed-2", authorId: FOLLOWED_A }),
           ];
+        }
+        if (args.include && args.where?.createdAt?.gte) {
+          return rawPostsFromCandidates([freshness]);
+        }
+        if (args.include && args.where?.authorId?.notIn) return [];
+        if (args.include && args.where?.authorId?.in) {
+          return rawPostsFromCandidates(followedCandidates.slice(0, args.take));
         }
         if (args.where?.createdAt?.gte) return [freshness];
         if (args.where?.authorId?.notIn) return [];
@@ -498,11 +667,13 @@ describe("getFeedPosts hybrid feed", () => {
 
     const result = await getFeedPosts(VIEWER_ID, INITIAL_FEED_CURSOR, 3);
 
-    const fallbackCall = prisma.post.findMany.mock.calls.find((call) => {
-      const args = call[0] as { where?: { authorId?: { in?: string[] } } };
-      return Boolean(args.where?.authorId?.in);
-    })?.[0] as { take?: number };
-    expect(fallbackCall.take).toBe(3);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(
+      prisma.post.findMany.mock.calls.some((call) => {
+        const args = call[0] as { where?: { authorId?: { in?: string[] } } };
+        return Boolean(args.where?.authorId?.in);
+      }),
+    ).toBe(false);
     expect(result.posts.map((post) => post.id)).toEqual([
       "fresh-1",
       "followed-1",
@@ -542,16 +713,23 @@ describe("getFeedPosts hybrid feed", () => {
         include?: unknown;
         where?: {
           id?: { in?: string[] };
+          AND?: Array<{ id?: { in?: string[] } }>;
           authorId?: { in?: string[]; notIn?: string[] };
           createdAt?: { gte?: Date };
         };
         take?: number;
       }) => {
-        if (args.include && args.where?.id?.in) {
+        if (args.include && getWhereIdIn(args.where)) {
           return [
             makeRawPost({ id: "dup-1", authorId: RANDOM_C }),
             makeRawPost({ id: "rest-2", authorId: RANDOM_C }),
           ];
+        }
+        if (args.include && args.where?.createdAt?.gte) {
+          return rawPostsFromCandidates([duplicate]);
+        }
+        if (args.include && (args.where?.authorId?.notIn || !args.where?.authorId)) {
+          return rawPostsFromCandidates(restCandidates.slice(0, args.take));
         }
         if (args.where?.createdAt?.gte) return [duplicate];
         if (args.where?.authorId?.notIn || !args.where?.authorId) {

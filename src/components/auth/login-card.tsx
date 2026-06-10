@@ -9,18 +9,18 @@ import Link from "next/link"
 
 export function LoginCard() {
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-7 p-6 sm:p-8">
         {/* Tiêu đề */}
-        <div className="text-center mb-10">
-          <h1 className="text-2xl font-bold mb-2">Chào mừng trở lại</h1>
+        <div className="flex flex-col gap-2 text-center">
+          <h1 className="text-2xl font-semibold">Chào mừng trở lại</h1>
           <p className="text-muted-foreground text-sm">
             Truy cập cổng thông tin sinh viên
           </p>
         </div>
 
         {/* Nút đăng nhập */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <SsoButton
             icon={LogIn}
             label="Đăng nhập bằng tài khoản trường"
@@ -37,7 +37,7 @@ export function LoginCard() {
         </div>
 
         {/* Điều khoản */}
-        <div className="mt-8 pt-6 border-t border-border text-center">
+        <div className="border-t border-border/70 pt-6 text-center">
           <p className="text-xs text-muted-foreground">
             Khi đăng nhập, bạn đồng ý với{" "}
             <Link
@@ -56,13 +56,13 @@ export function LoginCard() {
 
 export function LoginCardSkeleton() {
   return (
-    <Card className="shadow-2xl shadow-foreground/5 border">
-      <CardContent className="p-8 lg:p-10 space-y-6">
-        <div className="text-center space-y-2">
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-2 text-center">
           <Skeleton className="h-7 w-48 mx-auto" />
           <Skeleton className="h-4 w-56 mx-auto" />
         </div>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-12 w-full rounded-lg" />
           <Skeleton className="h-4 w-12 mx-auto" />
           <Skeleton className="h-12 w-full rounded-lg" />

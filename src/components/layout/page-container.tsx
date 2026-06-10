@@ -7,8 +7,8 @@ interface PageContainerProps {
 }
 
 const variantStyles = {
-  full: "w-full px-4 lg:px-8 py-6",
-  centered: "w-full lg:w-[70%] max-w-7xl mx-auto px-4 lg:px-0 py-6",
+  full: "mx-auto w-full max-w-7xl px-4 py-5 lg:px-8",
+  centered: "mx-auto w-full max-w-7xl px-4 py-5 lg:w-[70%] lg:px-0",
 } as const
 
 export function PageContainer({

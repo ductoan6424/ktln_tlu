@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -39,9 +40,10 @@ export function PostComposer({
   const [error, setError] = useState<string | null>(null)
   const [poll, setPoll] = useState<PollDraft | null>(null)
   const [isPollModalOpen, setIsPollModalOpen] = useState(false)
+  const [hasOpenedPollModal, setHasOpenedPollModal] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
+  const { refresh } = useRouter()
 
   useEffect(() => {
     return () => {
@@ -136,7 +138,7 @@ export function PostComposer({
         onPostCreated(result.data)
       }
 
-      router.refresh()
+      refresh()
     } catch (submitError) {
       console.error("createPost submit error:", submitError)
       setError("Không thể đăng bài. Vui lòng thử lại.")
@@ -147,7 +149,7 @@ export function PostComposer({
 
   if (variant === "compact") {
     return (
-      <Card className={cn("shadow-sm", className)}>
+      <Card className={cn("rounded-xl border-border/70 shadow-sm", className)}>
         <CardContent className="flex items-center gap-3 p-3">
           <UserAvatar src={userAvatar} name={userName} size="md" />
           <div className="flex-1 cursor-text rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/80">
@@ -160,8 +162,8 @@ export function PostComposer({
   }
 
   return (
-    <Card className={cn("shadow-sm", className)}>
-      <CardContent className="p-3">
+    <Card className={cn("rounded-xl border-border/70 shadow-sm", className)}>
+      <CardContent className="p-4 sm:p-5">
         <input
           ref={fileInputRef}
           type="file"
@@ -187,12 +189,14 @@ export function PostComposer({
             />
 
             {imagePreviewUrl && (
-              <div className="mt-2 overflow-hidden rounded-xl border border-border bg-muted">
+                <div className="mt-2 overflow-hidden rounded-xl border border-border/70 bg-muted">
                 <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={imagePreviewUrl}
                     alt="Xem trước ảnh bài viết"
+                    width={640}
+                    height={192}
+                    unoptimized
                     className="h-48 w-full object-cover"
                   />
                   <Button
@@ -217,7 +221,7 @@ export function PostComposer({
             )}
 
             {poll && (
-              <div className="mt-2 rounded-xl border border-border bg-muted/40 p-3">
+              <div className="mt-2 rounded-xl border border-border/70 bg-muted/40 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -237,7 +241,10 @@ export function PostComposer({
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2 text-[12px]"
-                      onClick={() => setIsPollModalOpen(true)}
+                      onClick={() => {
+                        setHasOpenedPollModal(true)
+                        setIsPollModalOpen(true)
+                      }}
                     >
                       Sửa
                     </Button>
@@ -282,7 +289,10 @@ export function PostComposer({
                     "gap-2 text-muted-foreground",
                     poll && "text-primary",
                   )}
-                  onClick={() => setIsPollModalOpen(true)}
+                  onClick={() => {
+                    setHasOpenedPollModal(true)
+                    setIsPollModalOpen(true)
+                  }}
                 >
                   <BarChart3 className="size-4" />
                   <span className="hidden md:inline">
@@ -309,7 +319,7 @@ export function PostComposer({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 size-4 animate-spin" />
-                    Đang đăng...
+                    Đang đăng…
                   </>
                 ) : (
                   "Đăng bài"
@@ -320,20 +330,23 @@ export function PostComposer({
         </div>
       </CardContent>
 
-      <PollComposerModal
-        open={isPollModalOpen}
-        onOpenChange={setIsPollModalOpen}
-        initialValue={poll}
-        onSubmit={(draft) => setPoll(draft)}
-        onRemove={() => setPoll(null)}
-      />
+      {/* Lazy mount: chỉ render modal sau khi user mở lần đầu; giữ mount để animation đóng mượt */}
+      {hasOpenedPollModal && (
+        <PollComposerModal
+          open={isPollModalOpen}
+          onOpenChange={setIsPollModalOpen}
+          initialValue={poll}
+          onSubmit={(draft) => setPoll(draft)}
+          onRemove={() => setPoll(null)}
+        />
+      )}
     </Card>
   )
 }
 
 export function PostComposerSkeleton() {
   return (
-    <Card className="shadow-sm">
+    <Card className="rounded-xl border-border/70 shadow-sm">
       <CardContent className="flex gap-4 p-4">
         <Skeleton className="size-10 shrink-0 rounded-full" />
         <div className="flex-1 space-y-3">

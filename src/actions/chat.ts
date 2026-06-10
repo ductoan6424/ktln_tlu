@@ -1,5 +1,6 @@
 "use server"
 
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 import { getAblyRestClient } from "@/lib/ably/server"
@@ -13,12 +14,14 @@ import { getCommunityBySlugId, getViewerMembershipRole } from "@/lib/communities
 import type { CommunityType } from "@/lib/communities/types"
 import { prisma } from "@/lib/prisma/client"
 import { sendPushToUser } from "@/lib/push/service"
+import { shouldSendMessageDisturbance } from "@/lib/settings/user-settings"
 import { createClient } from "@/lib/supabase/server"
 import { errorResult, successResult } from "@/types/api"
 import type { ActionResult } from "@/types/api"
 import type {
   ChatInboxNotification,
   ChatConversationItem,
+  ChatDirectDetails,
   ChatGroupDetails,
   ChatMessagesPage,
   ChatMessageItem,
@@ -38,6 +41,7 @@ const conversationMessagesInputSchema = z.object({
 const sendMessageInputSchema = z.object({
   conversationId: z.string().min(1, "Thiếu hội thoại"),
   content: z.string().max(CHAT_INPUT_MAX_LENGTH).default(""),
+  clientMutationId: z.string().trim().min(1).max(100).optional(),
 })
 
 const communityChatInputSchema = z.object({
@@ -115,11 +119,13 @@ function extractSendMessageInput(rawInput: unknown) {
   if (rawInput instanceof FormData) {
     const conversationId = rawInput.get("conversationId")
     const content = rawInput.get("content")
+    const clientMutationId = rawInput.get("clientMutationId")
     const attachment = rawInput.get("attachment")
 
     return {
       conversationId: typeof conversationId === "string" ? conversationId : "",
       content: typeof content === "string" ? content : "",
+      clientMutationId: typeof clientMutationId === "string" ? clientMutationId : undefined,
       attachmentFile: attachment instanceof File && attachment.size > 0 ? attachment : null,
     }
   }
@@ -128,12 +134,14 @@ function extractSendMessageInput(rawInput: unknown) {
     const input = rawInput as {
       conversationId?: unknown
       content?: unknown
+      clientMutationId?: unknown
       attachmentFile?: unknown
     }
 
     return {
       conversationId: typeof input.conversationId === "string" ? input.conversationId : "",
       content: typeof input.content === "string" ? input.content : "",
+      clientMutationId: typeof input.clientMutationId === "string" ? input.clientMutationId : undefined,
       attachmentFile: isAttachmentFile(input.attachmentFile) && input.attachmentFile.size > 0
         ? input.attachmentFile
         : null,
@@ -143,6 +151,7 @@ function extractSendMessageInput(rawInput: unknown) {
   return {
     conversationId: "",
     content: "",
+    clientMutationId: undefined,
     attachmentFile: null,
   }
 }
@@ -412,6 +421,68 @@ async function mapGroupDetails(conversationId: string, currentUserId: string): P
   }
 }
 
+async function mapDirectDetails(conversationId: string, currentUserId: string): Promise<ChatDirectDetails | null> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      id: true,
+      type: true,
+      createdAt: true,
+      participants: {
+        orderBy: { joinedAt: "asc" },
+        include: {
+          user: {
+            select: {
+              userId: true,
+              displayName: true,
+              username: true,
+              avatarUrl: true,
+              bio: true,
+              role: true,
+              studentId: true,
+              major: true,
+              year: true,
+              createdAt: true,
+              deletedAt: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!conversation || conversation.type !== "DIRECT") {
+    return null
+  }
+
+  const activeParticipants = conversation.participants.filter((participant) => !participant.user.deletedAt)
+  const currentParticipant = activeParticipants.find((participant) => participant.userId === currentUserId)
+  const peerParticipant = activeParticipants.find((participant) => participant.userId !== currentUserId)
+
+  if (!currentParticipant || !peerParticipant) {
+    return null
+  }
+
+  const { user } = peerParticipant
+
+  return {
+    conversationId: conversation.id,
+    createdAt: conversation.createdAt.toISOString(),
+    peer: {
+      userId: user.userId,
+      displayName: user.displayName,
+      username: user.username,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      role: user.role,
+      studentId: user.studentId,
+      major: user.major,
+      year: user.year,
+      createdAt: user.createdAt.toISOString(),
+    },
+  }
+}
+
 export async function canSendCommunityChatMessage(
   type: CommunityType,
   slugId: string,
@@ -596,28 +667,36 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
       },
     })
 
-    const unreadCountResults = await Promise.all(
-      participations.map((item) =>
-        prisma.message.count({
-          where: {
-            conversationId: item.conversationId,
-            deletedAt: null,
-            senderId: {
-              not: currentUser.userId,
-            },
-            ...(item.lastReadAt
-              ? {
-                  createdAt: {
-                    gt: item.lastReadAt,
-                  },
-                }
-              : {}),
-          },
-        }),
-      ),
+    const conversationIds = participations.map((item) => item.conversationId)
+    const unreadCountRows = conversationIds.length > 0
+      ? await prisma.$queryRaw<
+          Array<{ conversation_id: string; unread_count: number | bigint }>
+        >(Prisma.sql`
+          SELECT participant.conversation_id, COUNT(*) AS unread_count
+          FROM conversation_participants participant
+          INNER JOIN messages message
+            ON message.conversation_id = participant.conversation_id
+          WHERE participant.user_id = ${currentUser.userId}
+            AND participant.conversation_id IN (${Prisma.join(conversationIds)})
+            AND message.deleted_at IS NULL
+            AND message.sender_id <> ${currentUser.userId}
+            AND (
+              participant.last_read_at IS NULL
+              OR message.created_at > participant.last_read_at
+            )
+          GROUP BY participant.conversation_id
+        `)
+      : []
+    const unreadCountByConversationId = new Map(
+      unreadCountRows.map((row) => [
+        row.conversation_id,
+        typeof row.unread_count === "bigint"
+          ? Number(row.unread_count)
+          : Number(row.unread_count),
+      ]),
     )
 
-    const conversations: ChatConversationItem[] = participations.map((item, index) => {
+    const conversations: ChatConversationItem[] = participations.map((item) => {
       const peers = item.conversation.participants
         .filter((participant) => participant.userId !== currentUser.userId)
         .map((participant) => participant.user)
@@ -647,7 +726,7 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
         communityTargetId: item.conversation.communityTargetId,
         isOnline: false,
         participantCount,
-        unreadCount: unreadCountResults[index] ?? 0,
+        unreadCount: unreadCountByConversationId.get(item.conversationId) ?? 0,
         lastMessage: lastMessage?.content ?? "Chưa có tin nhắn",
         lastMessageAt: lastMessage ? formatRelativeTime(lastMessage.createdAt) : null,
       }
@@ -656,6 +735,37 @@ export async function listMyConversations(): Promise<ActionResult<ChatConversati
     return successResult(conversations)
   } catch {
     return errorResult("Không thể tải danh sách hội thoại", "FETCH_FAILED")
+  }
+}
+
+export async function getMyUnreadMessageCount(): Promise<ActionResult<{ unreadCount: number }>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return successResult({ unreadCount: 0 })
+    }
+
+    const rows = await prisma.$queryRaw<Array<{ unread_count: number | bigint }>>`
+      SELECT COUNT(*) AS unread_count
+      FROM messages message
+      INNER JOIN conversation_participants participant
+        ON participant.conversation_id = message.conversation_id
+        AND participant.user_id = ${currentUser.userId}
+      WHERE message.deleted_at IS NULL
+        AND message.sender_id <> ${currentUser.userId}
+        AND (
+          participant.last_read_at IS NULL
+          OR message.created_at > participant.last_read_at
+        )
+    `
+    const rawCount = rows[0]?.unread_count ?? 0
+    const unreadCount =
+      typeof rawCount === "bigint" ? Number(rawCount) : Number(rawCount)
+
+    return successResult({ unreadCount })
+  } catch {
+    return errorResult("KhÃ´ng thá»ƒ láº¥y sá»‘ tin nháº¯n chÆ°a Ä‘á»c.", "FETCH_FAILED")
   }
 }
 
@@ -842,6 +952,33 @@ export async function getGroupConversationDetails(
     }
 
     return errorResult("Không thể tải thông tin nhóm", "FETCH_FAILED")
+  }
+}
+
+export async function getDirectConversationDetails(
+  rawInput: unknown,
+): Promise<ActionResult<ChatDirectDetails>> {
+  try {
+    const currentUser = await getSessionProfile()
+
+    if (!currentUser) {
+      return errorResult("Bạn cần đăng nhập", "UNAUTHORIZED")
+    }
+
+    const input = groupConversationIdInputSchema.parse(rawInput)
+    const details = await mapDirectDetails(input.conversationId, currentUser.userId)
+
+    if (!details) {
+      return errorResult("Không tìm thấy cuộc trò chuyện", "NOT_FOUND")
+    }
+
+    return successResult(details)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return errorResult(error.issues[0]?.message ?? "Dữ liệu không hợp lệ", "VALIDATION_ERROR")
+    }
+
+    return errorResult("Không thể tải thông tin cuộc trò chuyện", "FETCH_FAILED")
   }
 }
 
@@ -1368,6 +1505,7 @@ export async function sendConversationMessage(
     const input = sendMessageInputSchema.parse({
       conversationId: extractedInput.conversationId,
       content: extractedInput.content,
+      clientMutationId: extractedInput.clientMutationId,
     })
     const trimmedContent = input.content.trim()
 
@@ -1432,7 +1570,10 @@ export async function sendConversationMessage(
       return created
     })
 
-    const payload = mapMessageToItem(message, currentUser.userId)
+    const payload: ChatMessageItem = {
+      ...mapMessageToItem(message, currentUser.userId),
+      ...(input.clientMutationId ? { clientMutationId: input.clientMutationId } : {}),
+    }
 
     let deliveryInfo: {
       type: "DIRECT" | "GROUP"
@@ -1474,6 +1615,16 @@ export async function sendConversationMessage(
     const recipientIds = activeParticipants
       .map((p) => p.userId)
       .filter((id) => id !== currentUser.userId)
+    const disturbanceRecipientIds = (
+      await Promise.all(
+        recipientIds.map(async (recipientId) => ({
+          recipientId,
+          allowed: await shouldSendMessageDisturbance(recipientId),
+        })),
+      )
+    )
+      .filter((recipient) => recipient.allowed)
+      .map((recipient) => recipient.recipientId)
     const conversationType = deliveryInfo?.type ?? "DIRECT"
     const inboxNotification: ChatInboxNotification = {
       conversationId: input.conversationId,
@@ -1498,7 +1649,7 @@ export async function sendConversationMessage(
         .publish("message.new", payload)
 
       await Promise.allSettled(
-        recipientIds.map((recipientId) =>
+        disturbanceRecipientIds.map((recipientId) =>
           ably.channels
             .get(getUserInboxChannelName(recipientId))
             .publish("chat.incoming", inboxNotification),
@@ -1507,7 +1658,7 @@ export async function sendConversationMessage(
     } catch {
     }
 
-    if (recipientIds.length > 0) {
+    if (disturbanceRecipientIds.length > 0) {
       const pushPayload = {
         title: formatChatPushTitle({
           senderName: currentUser.displayName,
@@ -1522,7 +1673,7 @@ export async function sendConversationMessage(
       }
 
       await Promise.allSettled(
-        recipientIds.map((recipientId) => sendPushToUser(recipientId, pushPayload)),
+        disturbanceRecipientIds.map((recipientId) => sendPushToUser(recipientId, pushPayload)),
       )
     }
 

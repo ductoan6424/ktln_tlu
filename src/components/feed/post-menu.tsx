@@ -9,18 +9,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, EyeOff, Trash2, Bookmark, BookmarkCheck } from "lucide-react"
+import { MoreHorizontal, EyeOff, Trash2, Bookmark, BookmarkCheck, Flag } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { deletePost } from "@/actions/posts"
 import { hidePost } from "@/actions/hidden-posts"
 import { toggleSavePost } from "@/actions/saved-posts"
 import { DeletePostDialog } from "@/components/feed/delete-post-dialog"
+import {
+  ReportContentDialog,
+  type ReportContentTarget,
+} from "@/components/feed/report-content-dialog"
 
 interface PostMenuProps {
   postId: string
   canDelete: boolean
   canHide: boolean
   deleteRole: "AUTHOR" | "MODERATOR" | null
+  reportTarget?: ReportContentTarget | null
   isSaved?: boolean
   onDeleted?: () => void
   onHidden?: () => void
@@ -31,16 +36,19 @@ export function PostMenu({
   canDelete,
   canHide,
   deleteRole,
+  reportTarget,
   isSaved = false,
   onDeleted,
   onHidden,
 }: PostMenuProps) {
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [saved, setSaved] = useState(isSaved)
+  const [reportDialogOpen, setReportDialogOpen] = useState(false)
+  const [savedOverride, setSavedOverride] = useState<boolean | null>(null)
   const [pending, startTransition] = useTransition()
+  const saved = savedOverride ?? isSaved
 
-  if (!canDelete && !canHide) return null
+  if (!canDelete && !canHide && !reportTarget) return null
 
   const handleHide = () => {
     onHidden?.()
@@ -78,7 +86,7 @@ export function PostMenu({
         return
       }
       const nowSaved = res.data?.saved ?? false
-      setSaved(nowSaved)
+      setSavedOverride(nowSaved)
       toast({
         description: nowSaved ? "Đã lưu bài viết." : "Đã bỏ lưu bài viết.",
         action: nowSaved ? (
@@ -138,6 +146,16 @@ export function PostMenu({
               Ẩn bài viết
             </DropdownMenuItem>
           )}
+          {reportTarget && (
+            <DropdownMenuItem
+              onClick={() => setReportDialogOpen(true)}
+              disabled={pending}
+              className="whitespace-nowrap"
+            >
+              <Flag className="size-4 mr-2" />
+              Báo cáo bài viết
+            </DropdownMenuItem>
+          )}
           {canDelete && (
             <DropdownMenuItem
               onClick={() => setDialogOpen(true)}
@@ -157,6 +175,13 @@ export function PostMenu({
         mode={deleteRole === "AUTHOR" ? "AUTHOR" : "MODERATOR"}
         onConfirm={handleDelete}
         pending={pending}
+      />
+      <ReportContentDialog
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+        contentType="POST"
+        contentId={postId}
+        target={reportTarget ?? null}
       />
     </>
   )

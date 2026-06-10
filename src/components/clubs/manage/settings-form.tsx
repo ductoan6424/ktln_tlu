@@ -28,11 +28,12 @@ export function SettingsForm() {
       {/* Tên */}
       <Card>
         <CardContent className="p-6 space-y-6">
-          <h3 className="font-bold text-sm">Thông tin cơ bản</h3>
+          <h3 className="font-semibold text-sm">Thông tin cơ bản</h3>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tên CLB / Nhóm</label>
+            <label className="text-sm font-medium" htmlFor="club-settings-name">Tên CLB / Nhóm</label>
             <Input
+              id="club-settings-name"
               value={settings.name}
               onChange={(e) => setSettings((s) => ({ ...s, name: e.target.value }))}
               placeholder="Nhập tên CLB hoặc nhóm"
@@ -40,8 +41,9 @@ export function SettingsForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Mô tả</label>
+            <label className="text-sm font-medium" htmlFor="club-settings-description">Mô tả</label>
             <Textarea
+              id="club-settings-description"
               value={settings.description}
               onChange={(e) => setSettings((s) => ({ ...s, description: e.target.value }))}
               placeholder="Mô tả ngắn về CLB hoặc nhóm"
@@ -57,7 +59,7 @@ export function SettingsForm() {
       {/* Ảnh bìa */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <h3 className="font-bold text-sm">Ảnh bìa</h3>
+          <h3 className="font-semibold text-sm">Ảnh bìa</h3>
           <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
             <div className="space-y-2">
               <div className="mx-auto size-12 bg-muted rounded-full flex items-center justify-center">
@@ -75,7 +77,7 @@ export function SettingsForm() {
       {/* Quyền riêng tư */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <h3 className="font-bold text-sm">Quyền riêng tư</h3>
+          <h3 className="font-semibold text-sm">Quyền riêng tư</h3>
 
           <div className="space-y-3">
             <button

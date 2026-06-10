@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation"
 
+import { getOrCreateCommunityConversation } from "@/actions/chat"
 import { CommunityInvitesPanel } from "@/components/communities/manage/community-invites-panel"
+import { CommunityManageChatPanel } from "@/components/communities/manage/community-manage-chat-panel"
 import { CommunityManageShell } from "@/components/communities/manage/community-manage-shell"
 import { CommunityMembersPanel } from "@/components/communities/manage/community-members-panel"
 import { CommunityPostsPanel } from "@/components/communities/manage/community-posts-panel"
@@ -88,7 +90,7 @@ export default async function ClubManagePage({
   if (!permissions.canManage) notFound()
 
   const activeTab = normalizeTab(getParam(queryParams ?? {}, "tab"))
-  const [members, rules, requests, reports, invites, pendingPosts, pinnedPosts] =
+  const [members, rules, requests, reports, invites, pendingPosts, pinnedPosts, chatConversation] =
     await Promise.all([
       prisma.clubMember.findMany({
         where: { clubId: target.id },
@@ -152,6 +154,9 @@ export default async function ClubManagePage({
           },
         },
       }),
+      activeTab === "chat" && target.chatEnabled
+        ? getOrCreateCommunityConversation("CLUB", slugId)
+        : null,
     ])
 
   const tabs = MANAGE_TABS.map((tab) => ({
@@ -252,7 +257,24 @@ export default async function ClubManagePage({
             badgeLabel: `#${pinnedPost.position + 1}`,
           }))}
         />
-      ) : activeTab === "chat" || activeTab === "settings" ? (
+      ) : activeTab === "chat" ? (
+        <CommunityManageChatPanel
+          chatEnabled={target.chatEnabled}
+          chatMode={target.chatMode}
+          canSend={permissions.canSendChatMessage}
+          conversationId={
+            chatConversation?.success && chatConversation.data
+              ? chatConversation.data.conversationId
+              : null
+          }
+          conversationError={
+            chatConversation && !chatConversation.success
+              ? chatConversation.error
+              : null
+          }
+          settingsHref={`${href}/manage?tab=settings`}
+        />
+      ) : activeTab === "settings" ? (
         <CommunitySettingsPanel
           type="CLUB"
           slugId={slugId}

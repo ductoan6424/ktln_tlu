@@ -21,16 +21,16 @@ export function EventItem({
   return (
     <div className={cn("flex gap-4", className)}>
       {/* Nhãn ngày */}
-      <div className="size-12 rounded-lg bg-muted flex flex-col items-center justify-center shrink-0">
-        <span className="text-[10px] uppercase font-bold text-destructive leading-tight">
+      <div className="size-12 rounded-xl bg-official-soft flex flex-col items-center justify-center shrink-0">
+        <span className="text-[10px] uppercase font-bold text-official-foreground leading-tight">
           {month}
         </span>
         <span className="text-lg font-bold leading-tight">{day}</span>
       </div>
       {/* Thông tin sự kiện */}
       <div>
-        <h4 className="text-sm font-bold leading-snug">{title}</h4>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <h4 className="text-sm font-semibold leading-snug">{title}</h4>
+        <p className="mt-0.5 text-xs text-muted-foreground">
           {location} • {time}
         </p>
       </div>
@@ -42,7 +42,7 @@ export function EventItemSkeleton() {
   return (
     <div className="flex gap-4">
       <Skeleton className="size-12 rounded-lg" />
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-3 w-40" />
       </div>

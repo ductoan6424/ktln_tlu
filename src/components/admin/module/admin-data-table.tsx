@@ -1,13 +1,12 @@
 import Link from "next/link"
 
+import { AdminEmptyState } from "@/components/admin/module/admin-empty-state"
 import { Card, CardContent } from "@/components/ui/card"
 import type {
   AdminCellValues,
   AdminColumnDefinition,
   AdminRecord,
 } from "@/lib/admin/admin-types"
-
-import { AdminEmptyState } from "@/components/admin/module/admin-empty-state"
 
 interface AdminDataTableProps<Cells extends AdminCellValues> {
   columns: readonly AdminColumnDefinition<Cells>[]
@@ -38,9 +37,53 @@ export function AdminDataTable<Cells extends AdminCellValues>({
 
   return (
     <Card>
-      <CardContent className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0">
-          <thead>
+      <CardContent className="p-0">
+        <div className="divide-y divide-border md:hidden">
+          {records.map((record) => {
+            const titleValue = String(record.cells.title ?? record.title)
+            const detailColumns = columns.filter((column) => column.key !== "title")
+            const titleContent = record.href ? (
+              <Link href={record.href} className="font-semibold text-foreground hover:underline">
+                {titleValue}
+              </Link>
+            ) : (
+              <span className="font-semibold text-foreground">{titleValue}</span>
+            )
+
+            return (
+              <article key={record.id} className="flex flex-col gap-3 p-4">
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm">{titleContent}</h2>
+                  {record.subtitle ? (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{record.subtitle}</p>
+                  ) : null}
+                </div>
+
+                <dl className="grid grid-cols-1 gap-2 text-sm">
+                  {detailColumns.map((column) => {
+                    const value = String(record.cells[column.key] ?? "")
+                    if (!value) return null
+
+                    return (
+                      <div key={column.key} className="flex items-start justify-between gap-3">
+                        <dt className="shrink-0 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                          {column.header}
+                        </dt>
+                        <dd className="min-w-0 break-words text-right text-sm text-foreground">
+                          {value}
+                        </dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              </article>
+            )
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+          <table className="min-w-full border-separate border-spacing-0">
+          <thead className="bg-muted/50">
             <tr className="border-b border-border">
               {columns.map((column) => (
                 <th
@@ -55,7 +98,7 @@ export function AdminDataTable<Cells extends AdminCellValues>({
           </thead>
           <tbody>
             {records.map((record) => (
-              <tr key={record.id} className="border-b border-border last:border-b-0">
+              <tr key={record.id} className="border-b border-border transition-colors hover:bg-primary/5 last:border-b-0">
                 {columns.map((column) => {
                   const value = String(record.cells[column.key] ?? "")
                   const content =
@@ -72,7 +115,7 @@ export function AdminDataTable<Cells extends AdminCellValues>({
                   return (
                     <td
                       key={column.key}
-                      className="px-4 py-4 text-sm text-muted-foreground"
+                      className="p-4 text-sm text-muted-foreground"
                       style={{ textAlign: column.align }}
                     >
                       {content}
@@ -82,7 +125,8 @@ export function AdminDataTable<Cells extends AdminCellValues>({
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </CardContent>
     </Card>
   )

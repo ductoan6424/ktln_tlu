@@ -18,7 +18,7 @@ vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("next/cache", () => ({ revalidatePath }))
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }))
 
-import { addStudentsToCourseByCodes } from "@/actions/courses"
+import { addStudentsToCourseByCodes, searchCourseStudentCandidates } from "@/actions/courses"
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -36,6 +36,14 @@ beforeEach(() => {
       shortId: "c12345",
       name: "Data Structures",
       code: "CS201",
+      members: [
+        {
+          user: {
+            userId: "student-existing",
+            studentId: "SV000",
+          },
+        },
+      ],
     },
   })
 })
@@ -73,5 +81,52 @@ describe("addStudentsToCourseByCodes", () => {
       }),
     )
     expect(revalidatePath).toHaveBeenCalledWith("/courses/course-1")
+  })
+})
+
+describe("searchCourseStudentCandidates", () => {
+  it("returns matching students that are not already course members", async () => {
+    prisma.userProfile.findMany.mockResolvedValue([
+      {
+        userId: "student-1",
+        displayName: "Student One",
+        email: "student1@example.com",
+        avatarUrl: null,
+        studentId: "SV001",
+      },
+    ])
+
+    const result = await searchCourseStudentCandidates({
+      courseId: "course-1",
+      query: "sv",
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual([
+      {
+        userId: "student-1",
+        displayName: "Student One",
+        email: "student1@example.com",
+        avatarUrl: null,
+        studentId: "SV001",
+      },
+    ])
+    expect(prisma.userProfile.findMany).toHaveBeenCalledWith({
+      where: {
+        role: "STUDENT",
+        deletedAt: null,
+        studentId: { startsWith: "SV", mode: "insensitive" },
+        userId: { notIn: ["student-existing"] },
+      },
+      select: {
+        userId: true,
+        displayName: true,
+        email: true,
+        avatarUrl: true,
+        studentId: true,
+      },
+      orderBy: { studentId: "asc" },
+      take: 8,
+    })
   })
 })

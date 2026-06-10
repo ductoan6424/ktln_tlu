@@ -13,6 +13,8 @@ const DEFAULT_LINKS: FooterLink[] = [
   { label: "Hỗ trợ", href: "/support" },
 ]
 
+const COPYRIGHT_YEAR = new Date().getFullYear()
+
 interface PageFooterProps {
   variant?: "simple" | "full"
   links?: FooterLink[]
@@ -27,16 +29,16 @@ export function PageFooter({
   return (
     <footer
       className={cn(
-        "border-t border-border py-8 bg-card",
+        "border-t border-border/70 bg-card/95 py-8",
         className
       )}
     >
-      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 md:flex-row">
         {variant === "full" ? (
           <AppLogo size="sm" />
         ) : (
           <p className="text-xs text-muted-foreground" suppressHydrationWarning>
-            © {new Date().getFullYear()} TLU Community. Mọi quyền được bảo lưu.
+            © {COPYRIGHT_YEAR} TLU Community. Mọi quyền được bảo lưu.
           </p>
         )}
         <div className="flex items-center gap-6">
@@ -44,7 +46,7 @@ export function PageFooter({
             <Link
               key={link.href}
               href={link.href}
-              className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+              className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
             >
               {link.label}
             </Link>
@@ -52,8 +54,8 @@ export function PageFooter({
         </div>
       </div>
       {variant === "full" && (
-        <p className="text-xs text-muted-foreground text-center mt-4" suppressHydrationWarning>
-          © {new Date().getFullYear()} TLU Community. Mọi quyền được bảo lưu.
+        <p className="mt-4 text-center text-xs text-muted-foreground" suppressHydrationWarning>
+          © {COPYRIGHT_YEAR} TLU Community. Mọi quyền được bảo lưu.
         </p>
       )}
     </footer>

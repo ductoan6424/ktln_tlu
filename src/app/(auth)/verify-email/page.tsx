@@ -1,8 +1,6 @@
 // src/app/(auth)/verify-email/page.tsx
-import Link from "next/link"
-
 import { verifyEmail } from "@/actions/auth"
-import { CheckCircle, XCircle } from "lucide-react"
+import { AuthStatusCard } from "@/components/auth/auth-status-card"
 
 interface PageProps {
   searchParams: Promise<{ token?: string }>
@@ -11,103 +9,36 @@ interface PageProps {
 export default async function VerifyEmailPage({ searchParams }: PageProps) {
   const { token } = await searchParams
 
-
-  if (token) {
-    const result = await verifyEmail(token)
-    if (!result.success) {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
-            <div className="bg-card rounded-2xl border shadow-2xl p-8 text-center space-y-6">
-              <div className="flex justify-center">
-                <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center">
-                  <XCircle className="size-8 text-destructive" />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-destructive">Xác minh thất bại</h1>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {result.error ?? "Xác minh thất bại."}
-                </p>
-              </div>
-              <div className="space-y-3">
-                <Link
-                  href="/login"
-                  className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-                >
-                  Quay về đăng nhập
-                </Link>
-                <Link
-                  href="/register"
-                  className="block w-full py-3 px-4 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
-                >
-                  Đăng ký tài khoản mới
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
+  if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-card rounded-2xl border shadow-2xl p-8 text-center space-y-6">
-            <div className="flex justify-center">
-              <div className="size-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                <CheckCircle className="size-8 text-emerald-600" />
-              </div>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-emerald-600">Xác minh thành công!</h1>
-              <p className="text-sm text-muted-foreground mt-2">
-                Tài khoản của bạn đã được xác minh. Bây giờ bạn có thể đăng nhập.
-              </p>
-            </div>
-            <Link
-              href="/login"
-              className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-            >
-              Đăng nhập ngay
-            </Link>
-          </div>
-        </div>
+      <div className="flex w-full items-center justify-center">
+        <AuthStatusCard
+          variant="error"
+          title="Liên kết không hợp lệ"
+          description="Không có mã xác minh trong liên kết."
+          actions={[{ label: "Quay về đăng nhập", href: "/login" }]}
+        />
       </div>
     )
   }
 
+  const result = await verifyEmail(token)
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-card rounded-2xl border shadow-2xl p-8 text-center space-y-6">
-          <div className="flex justify-center">
-            <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center">
-              <XCircle className="size-8 text-destructive" />
-            </div>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-destructive">Liên kết không hợp lệ</h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              Không có mã xác minh trong liên kết.
-            </p>
-          </div>
-          <div className="space-y-3">
-            <Link
-              href="/login"
-              className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-            >
-              Quay về đăng nhập
-            </Link>
-            <Link
-              href="/register"
-              className="block w-full py-3 px-4 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
-            >
-              Đăng ký tài khoản mới
-            </Link>
-          </div>
-        </div>
-      </div>
+    <div className="flex w-full items-center justify-center">
+      <AuthStatusCard
+        variant={result.success ? "success" : "error"}
+        title={result.success ? "Xác minh thành công!" : "Xác minh thất bại"}
+        description={
+          result.success
+            ? "Tài khoản của bạn đã được xác minh. Bây giờ bạn có thể đăng nhập."
+            : result.error ?? "Xác minh thất bại."
+        }
+        actions={[{
+          label: result.success ? "Đăng nhập ngay" : "Quay về đăng nhập",
+          href: "/login",
+        }]}
+      />
     </div>
   )
 }

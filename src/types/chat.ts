@@ -1,4 +1,5 @@
 import type { CommunityType } from "@/lib/communities/types"
+import type { BaseRole } from "@/lib/auth/base-role"
 
 export type UserPresenceStatus = "online" | "offline"
 
@@ -12,6 +13,7 @@ export type ChatAttachment = {
 
 export type ChatMessageItem = {
   id: string
+  clientMutationId?: string
   conversationId: string
   content: string
   senderId: string
@@ -90,6 +92,23 @@ export type ChatGroupDetails = {
   currentUserId: string
   currentUserIsAdmin: boolean
   members: ChatGroupMember[]
+}
+
+export type ChatDirectDetails = {
+  conversationId: string
+  createdAt: string
+  peer: {
+    userId: string
+    displayName: string
+    username: string | null
+    avatarUrl: string | null
+    bio: string | null
+    role: BaseRole
+    studentId: string | null
+    major: string | null
+    year: number | null
+    createdAt: string
+  }
 }
 
 export type ChatMessagesPage = {

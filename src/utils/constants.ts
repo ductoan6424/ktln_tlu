@@ -13,6 +13,10 @@ export const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 export const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"];
 
+export const PROFILE_DISPLAY_NAME_MIN_LENGTH = 2;
+export const PROFILE_DISPLAY_NAME_MAX_LENGTH = 100;
+export const PROFILE_BIO_MAX_LENGTH = 500;
+
 // Routes
 export const ROUTES = {
   HOME: "/",

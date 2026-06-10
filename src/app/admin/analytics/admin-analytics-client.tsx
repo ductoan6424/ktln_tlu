@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { TabNavigation } from "@/components/shared/tab-navigation"
 import { ProgressBar } from "@/components/shared/progress-bar"
@@ -41,13 +41,12 @@ function formatTrendLabel(value: number): { label: string; positive: boolean } {
 }
 
 export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const { push } = useRouter()
 
   function handleRangeChange(nextRange: string) {
-    const params = new URLSearchParams(searchParams?.toString() ?? "")
+    const params = new URLSearchParams()
     params.set("range", nextRange)
-    router.push(`/admin/analytics?${params.toString()}`)
+    push(`/admin/analytics?${params.toString()}`)
   }
 
   const userTrend = formatTrendLabel(overview.newUsersTrend)
@@ -61,8 +60,8 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
       sub: `${overview.newUsers.toLocaleString("vi-VN")} mới`,
       change: userTrend.label,
       positive: userTrend.positive,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
       icon: FileText,
@@ -71,8 +70,8 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
       sub: `${overview.newPosts.toLocaleString("vi-VN")} mới`,
       change: postTrend.label,
       positive: postTrend.positive,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      color: "text-success",
+      bgColor: "bg-success-soft",
     },
     {
       icon: MessageSquare,
@@ -81,8 +80,8 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
       sub: `${overview.newComments.toLocaleString("vi-VN")} mới trong kỳ`,
       change: "",
       positive: true,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
+      color: "text-info",
+      bgColor: "bg-info/10",
     },
     {
       icon: Heart,
@@ -91,8 +90,8 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
       sub: `${overview.activeUsers.toLocaleString("vi-VN")} người đăng bài`,
       change: "",
       positive: true,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
+      color: "text-warning",
+      bgColor: "bg-warning-soft",
     },
   ]
 
@@ -100,7 +99,7 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Phân tích</h1>
+          <h1 className="text-2xl font-semibold">Phân tích</h1>
           <p className="text-sm text-muted-foreground">
             Dữ liệu thực từ cơ sở dữ liệu UniConnect — cập nhật theo khoảng thời gian bạn chọn
           </p>
@@ -128,7 +127,7 @@ export default function AdminAnalyticsClient({ overview }: AdminAnalyticsClientP
                   </div>
                   {stat.change && (
                     <span
-                      className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-green-600" : "text-orange-600"}`}
+                      className={`text-xs font-bold flex items-center gap-0.5 ${stat.positive ? "text-success" : "text-warning"}`}
                     >
                       <TrendIcon className="size-3.5" />
                       {stat.change}
@@ -282,3 +281,4 @@ export function AdminAnalyticsSkeleton() {
     </div>
   )
 }
+

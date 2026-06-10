@@ -1,6 +1,8 @@
-import type { UserProfile } from "@prisma/client"
+import { cache } from "react"
+import type { UserProfile, UserRole } from "@prisma/client"
 
 import { assertBaseRole, type BaseRole } from "@/lib/auth/base-role"
+import { getCurrentUserContext } from "@/lib/auth/current-user-context"
 import { AuthError, ForbiddenError, NotFoundError } from "@/lib/errors"
 import { prisma } from "@/lib/prisma/client"
 import { createClient } from "@/lib/supabase/server"
@@ -28,14 +30,14 @@ export type AuthorizationContext = {
   adminRoleCodes: string[]
 }
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   return user
-}
+})
 
 export async function requireAuth() {
   const user = await getCurrentUser()
@@ -100,19 +102,48 @@ function buildAuthorizationContext(profile: AuthorizationProfile): Authorization
   }
 }
 
-export async function getAuthorizationContext(): Promise<AuthorizationContext | null> {
-  const user = await getCurrentUser()
+export const hasAdminAccess = cache(async (userId: string, role: UserRole) => {
+  if (role === "ADMIN") {
+    return true
+  }
 
-  if (!user) {
+  const accessRole = await prisma.userAdminRole.findFirst({
+    where: {
+      userId,
+      adminRole: {
+        adminRolePermissions: {
+          some: {
+            adminPermission: {
+              code: ADMIN_ACCESS_PERMISSION,
+            },
+          },
+        },
+      },
+    },
+    select: { userId: true },
+  })
+
+  return Boolean(accessRole)
+})
+
+export async function getAuthorizationContext(): Promise<AuthorizationContext | null> {
+  const context = await getCurrentUserContext()
+
+  if (!context.userId) {
     return null
   }
 
-  return buildAuthorizationContext(await getAuthorizationProfile(user.id))
+  return buildAuthorizationContext(await getAuthorizationProfile(context.userId))
 }
 
 async function requireAuthorizationContext(): Promise<AuthorizationContext> {
-  const user = await requireAuth()
-  return buildAuthorizationContext(await getAuthorizationProfile(user.id))
+  const context = await getCurrentUserContext()
+
+  if (!context.userId) {
+    throw new AuthError("Vui l\u00f2ng \u0111\u0103ng nh\u1eadp")
+  }
+
+  return buildAuthorizationContext(await getAuthorizationProfile(context.userId))
 }
 
 export async function requireBaseRole(allowedRoles: BaseRole[]) {

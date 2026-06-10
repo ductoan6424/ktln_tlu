@@ -5,8 +5,10 @@ const createClient = vi.hoisted(() => vi.fn())
 const getAblyRestClient = vi.hoisted(() => vi.fn())
 const publish = vi.hoisted(() => vi.fn())
 const sendPushToUser = vi.hoisted(() => vi.fn())
+const shouldSendMessageDisturbance = vi.hoisted(() => vi.fn())
 const uploadChatAttachment = vi.hoisted(() => vi.fn())
 const prisma = vi.hoisted(() => ({
+  $queryRaw: vi.fn(),
   userProfile: {
     findUnique: vi.fn(),
   },
@@ -35,17 +37,24 @@ vi.mock("@/lib/supabase/server", () => ({ createClient }))
 vi.mock("@/lib/ably/server", () => ({ getAblyRestClient }))
 vi.mock("@/lib/prisma/client", () => ({ prisma }))
 vi.mock("@/lib/push/service", () => ({ sendPushToUser }))
+vi.mock("@/lib/settings/user-settings", () => ({ shouldSendMessageDisturbance }))
 vi.mock("@/lib/cloudinary/upload", () => ({
   UploadValidationError: class UploadValidationError extends Error {},
   uploadChatAttachment,
 }))
 
-import { getChatSessionUser, sendConversationMessage } from "@/actions/chat"
+import {
+  getChatSessionUser,
+  getDirectConversationDetails,
+  getMyUnreadMessageCount,
+  sendConversationMessage,
+} from "@/actions/chat"
 
 beforeEach(() => {
   vi.clearAllMocks()
   uploadChatAttachment.mockReset()
   sendPushToUser.mockResolvedValue(undefined)
+  shouldSendMessageDisturbance.mockResolvedValue(true)
   prisma.conversation.findUnique.mockResolvedValue(null)
 
   getAblyRestClient.mockReturnValue({
@@ -83,6 +92,108 @@ describe("getChatSessionUser", () => {
       success: false,
       error: "Bạn cần đăng nhập để sử dụng chat",
       code: "UNAUTHORIZED",
+    })
+  })
+})
+
+describe("getMyUnreadMessageCount", () => {
+  it("returns zero when user is not authenticated", async () => {
+    mockNoSession()
+
+    const result = await getMyUnreadMessageCount()
+
+    expect(result).toEqual({ success: true, data: { unreadCount: 0 } })
+    expect(prisma.$queryRaw).not.toHaveBeenCalled()
+  })
+
+  it("counts unread messages with one aggregate query", async () => {
+    mockWithSession("user-self")
+    prisma.userProfile.findUnique.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Báº¡n",
+      avatarUrl: null,
+      deletedAt: null,
+    })
+    prisma.$queryRaw.mockResolvedValue([{ unread_count: BigInt(7) }])
+
+    const result = await getMyUnreadMessageCount()
+
+    expect(result).toEqual({ success: true, data: { unreadCount: 7 } })
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("getDirectConversationDetails", () => {
+  it("returns the peer profile for a direct conversation the current user belongs to", async () => {
+    mockWithSession("user-self")
+    prisma.userProfile.findUnique.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Bạn",
+      avatarUrl: null,
+      deletedAt: null,
+    })
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: "conv-1",
+      type: "DIRECT",
+      createdAt: new Date("2026-04-24T12:00:00.000Z"),
+      participants: [
+        {
+          userId: "user-self",
+          joinedAt: new Date("2026-04-24T12:00:00.000Z"),
+          user: {
+            userId: "user-self",
+            displayName: "Bạn",
+            username: "ban",
+            avatarUrl: null,
+            bio: null,
+            role: "STUDENT",
+            studentId: "SV001",
+            major: "CNTT",
+            year: 2024,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            deletedAt: null,
+          },
+        },
+        {
+          userId: "user-peer",
+          joinedAt: new Date("2026-04-24T12:00:00.000Z"),
+          user: {
+            userId: "user-peer",
+            displayName: "Nguyễn An",
+            username: "nguyen-an",
+            avatarUrl: "https://cdn.example.com/an.png",
+            bio: "Yêu thích học nhóm.",
+            role: "LECTURER",
+            studentId: null,
+            major: "Khoa học máy tính",
+            year: null,
+            createdAt: new Date("2025-08-01T00:00:00.000Z"),
+            deletedAt: null,
+          },
+        },
+      ],
+    })
+
+    const result = await getDirectConversationDetails({ conversationId: "conv-1" })
+
+    expect(result).toEqual({
+      success: true,
+      data: {
+        conversationId: "conv-1",
+        createdAt: "2026-04-24T12:00:00.000Z",
+        peer: {
+          userId: "user-peer",
+          displayName: "Nguyễn An",
+          username: "nguyen-an",
+          avatarUrl: "https://cdn.example.com/an.png",
+          bio: "Yêu thích học nhóm.",
+          role: "LECTURER",
+          studentId: null,
+          major: "Khoa học máy tính",
+          year: null,
+          createdAt: "2025-08-01T00:00:00.000Z",
+        },
+      },
     })
   })
 })
@@ -369,6 +480,72 @@ describe("sendConversationMessage", () => {
         participantCount: 2,
       }),
     )
+  })
+
+  it("does not publish incoming inbox events or push when the recipient disabled message disturbance", async () => {
+    mockWithSession("user-self")
+    shouldSendMessageDisturbance.mockResolvedValue(false)
+
+    prisma.userProfile.findUnique.mockResolvedValue({
+      userId: "user-self",
+      displayName: "Bạn",
+      avatarUrl: null,
+      deletedAt: null,
+    })
+
+    prisma.conversationParticipant.findUnique.mockResolvedValue({
+      conversationId: "conv-1",
+      userId: "user-self",
+      lastReadAt: null,
+    })
+    prisma.conversation.findUnique.mockResolvedValue({
+      type: "DIRECT",
+      name: null,
+      participants: [
+        { userId: "user-self", user: { deletedAt: null } },
+        { userId: "user-peer", user: { deletedAt: null } },
+      ],
+    })
+
+    prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+      return fn({
+        message: {
+          create: vi.fn().mockResolvedValue({
+            id: "msg-1",
+            conversationId: "conv-1",
+            content: "Xin chĂ o",
+            attachmentUrl: null,
+            attachmentType: null,
+            attachmentName: null,
+            attachmentMimeType: null,
+            attachmentSizeBytes: null,
+            senderId: "user-self",
+            createdAt: new Date("2026-04-24T12:00:00.000Z"),
+            sender: {
+              userId: "user-self",
+              displayName: "Bạn",
+              avatarUrl: null,
+            },
+          }),
+        },
+        conversation: {
+          update: vi.fn().mockResolvedValue({ id: "conv-1" }),
+        },
+      })
+    })
+
+    const result = await sendConversationMessage({
+      conversationId: "conv-1",
+      content: "Xin chĂ o",
+    })
+
+    expect(result.success).toBe(true)
+    expect(publish).toHaveBeenCalledWith(
+      "message.new",
+      expect.objectContaining({ id: "msg-1" }),
+    )
+    expect(publish).not.toHaveBeenCalledWith("chat.incoming", expect.anything())
+    expect(sendPushToUser).not.toHaveBeenCalled()
   })
 
   it("uploads attachment and sends message with attachment metadata", async () => {

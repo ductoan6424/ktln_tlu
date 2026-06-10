@@ -39,13 +39,23 @@ export default function SettingsClient({
   initialSettings,
   initialModuleFlags,
 }: SettingsClientProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [activeTab, setActiveTab] = useState("general")
-  const [settings, setSettings] = useState<SystemSettings>(initialSettings)
-  const [moduleFlags, setModuleFlags] = useState<ModuleFlagsMap>(initialModuleFlags)
+  const [settingsOverride, setSettingsOverride] = useState<SystemSettings | null>(null)
+  const [moduleFlagsOverride, setModuleFlagsOverride] = useState<ModuleFlagsMap | null>(null)
   const [newDomain, setNewDomain] = useState("")
   const [isSaving, startSaving] = useTransition()
   const { toast } = useToast()
+  const settings = settingsOverride ?? initialSettings
+  const moduleFlags = moduleFlagsOverride ?? initialModuleFlags
+
+  function setSettings(next: (current: SystemSettings) => SystemSettings) {
+    setSettingsOverride(next(settings))
+  }
+
+  function setModuleFlags(next: (current: ModuleFlagsMap) => ModuleFlagsMap) {
+    setModuleFlagsOverride(next(moduleFlags))
+  }
 
   function handleSaveSettings() {
     startSaving(async () => {
@@ -55,7 +65,7 @@ export default function SettingsClient({
         return
       }
       toast({ title: "Đã lưu", description: "Cập nhật cài đặt thành công" })
-      router.refresh()
+      refresh()
     })
   }
 
@@ -114,15 +124,15 @@ export default function SettingsClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
-          <h1 className="text-2xl font-bold">Cài đặt hệ thống</h1>
+          <h1 className="text-2xl font-semibold">Cài đặt hệ thống</h1>
           <p className="text-sm text-muted-foreground">
             Cấu hình thông tin chung, bật/tắt module và chính sách đăng ký
           </p>
         </div>
         {showSaveButton && (
-          <Button onClick={handleSaveSettings} disabled={isSaving}>
+          <Button onClick={handleSaveSettings} disabled={isSaving} className="w-full sm:w-auto">
             {isSaving ? (
               <Loader2 className="size-4 mr-2 animate-spin" />
             ) : (
@@ -140,16 +150,18 @@ export default function SettingsClient({
           <CardContent className="p-6 space-y-5">
             <SectionHeader title="Thông tin hệ thống" />
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tên hệ thống</label>
+              <label className="text-sm font-medium" htmlFor="system-name">Tên hệ thống</label>
               <Input
+                id="system-name"
                 value={settings.name}
                 onChange={(e) => setSettings((prev) => ({ ...prev, name: e.target.value }))}
                 maxLength={100}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Mô tả ngắn</label>
+              <label className="text-sm font-medium" htmlFor="system-description">Mô tả ngắn</label>
               <Textarea
+                id="system-description"
                 value={settings.description}
                 onChange={(e) => setSettings((prev) => ({ ...prev, description: e.target.value }))}
                 rows={3}
@@ -160,8 +172,9 @@ export default function SettingsClient({
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">URL trang chủ</label>
+              <label className="text-sm font-medium" htmlFor="system-url">URL trang chủ</label>
               <Input
+                id="system-url"
                 type="url"
                 value={settings.url}
                 onChange={(e) => setSettings((prev) => ({ ...prev, url: e.target.value }))}
@@ -169,8 +182,9 @@ export default function SettingsClient({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email liên hệ</label>
+              <label className="text-sm font-medium" htmlFor="system-contact-email">Email liên hệ</label>
               <Input
+                id="system-contact-email"
                 type="email"
                 value={settings.contactEmail}
                 onChange={(e) => setSettings((prev) => ({ ...prev, contactEmail: e.target.value }))}
@@ -200,7 +214,7 @@ export default function SettingsClient({
                 const enabled = moduleFlags[key]
                 return (
                   <div key={key}>
-                    <div className="flex items-center justify-between py-4 gap-4">
+                    <div className="flex items-start justify-between gap-4 py-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold flex items-center gap-2">
                           {MODULE_FLAG_LABELS[key]}
@@ -259,7 +273,7 @@ export default function SettingsClient({
               ))}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 value={newDomain}
                 onChange={(e) => setNewDomain(e.target.value)}
@@ -271,7 +285,7 @@ export default function SettingsClient({
                   }
                 }}
               />
-              <Button type="button" variant="outline" onClick={handleAddDomain}>
+              <Button type="button" variant="outline" onClick={handleAddDomain} className="w-full sm:w-auto">
                 <Plus className="size-4 mr-2" />
                 Thêm
               </Button>

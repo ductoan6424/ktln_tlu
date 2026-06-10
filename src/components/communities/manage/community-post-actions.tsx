@@ -12,9 +12,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  facebookDangerButton,
-  facebookPrimaryButton,
-  facebookSecondaryButton,
+  manageDangerButton,
+  managePrimaryButton,
+  manageSecondaryButton,
   manageInput,
 } from "@/components/communities/manage/manage-ui"
 
@@ -31,14 +31,14 @@ export function CommunityPostActions({
   postId,
   mode,
 }: CommunityPostActionsProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
 
   if (mode === "pinned") {
     return (
       <form
-        className="mt-4 border-t border-[#e4e6eb] pt-3"
+        className="mt-4 border-t border-border pt-3"
         action={(formData) => {
           startTransition(async () => {
             const result = await unpinCommunityPost({
@@ -51,7 +51,7 @@ export function CommunityPostActions({
                 ? "Đã bỏ ghim bài viết."
                 : result.error ?? "Không thể bỏ ghim.",
             )
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }}
       >
@@ -61,18 +61,18 @@ export function CommunityPostActions({
           variant="outline"
           type="submit"
           disabled={pending}
-          className={facebookSecondaryButton}
+          className={manageSecondaryButton}
         >
           <PinOff data-icon="inline-start" />
           Bỏ ghim
         </Button>
-        {message ? <p className="mt-2 text-xs text-[#65676b]">{message}</p> : null}
+        {message ? <p className="mt-2 text-xs text-muted-foreground">{message}</p> : null}
       </form>
     )
   }
 
   return (
-    <div className="mt-4 flex flex-col gap-2 border-t border-[#e4e6eb] pt-3">
+    <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3">
       <div className="flex flex-wrap gap-2">
         <form
           action={(formData) => {
@@ -87,7 +87,7 @@ export function CommunityPostActions({
                   ? "Đã duyệt bài viết."
                   : result.error ?? "Không thể duyệt.",
               )
-              if (result.success) router.refresh()
+              if (result.success) refresh()
             })
           }}
         >
@@ -96,7 +96,7 @@ export function CommunityPostActions({
             size="sm"
             type="submit"
             disabled={pending}
-            className={facebookPrimaryButton}
+            className={managePrimaryButton}
           >
             <Check data-icon="inline-start" />
             Duyệt
@@ -119,7 +119,7 @@ export function CommunityPostActions({
                 ? "Đã từ chối bài viết."
                 : result.error ?? "Không thể từ chối.",
             )
-            if (result.success) router.refresh()
+            if (result.success) refresh()
           })
         }}
       >
@@ -134,14 +134,14 @@ export function CommunityPostActions({
           variant="outline"
           type="submit"
           disabled={pending}
-          className={facebookDangerButton}
+          className={manageDangerButton}
         >
           <X data-icon="inline-start" />
           Từ chối
         </Button>
       </form>
 
-      {message ? <p className="text-xs text-[#65676b]">{message}</p> : null}
+      {message ? <p className="text-xs text-muted-foreground">{message}</p> : null}
     </div>
   )
 }
