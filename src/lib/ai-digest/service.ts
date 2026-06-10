@@ -513,6 +513,11 @@ function enrichReferences(
 
 function mapProviderError(error: unknown): never {
   if (error instanceof DigestProviderError) {
+    console.warn("Announcement AI digest provider failed", {
+      code: error.code,
+      message: error.message,
+    })
+
     if (error.code === "RATE_LIMITED") {
       throw new AiDigestError(PROVIDER_RATE_LIMITED_MESSAGE, "PROVIDER_RATE_LIMITED")
     }

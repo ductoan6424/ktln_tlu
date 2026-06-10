@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
@@ -26,7 +26,9 @@ interface UserHoverCardProps {
 const HOVER_OPEN_DELAY_MS = 300
 const HOVER_CLOSE_DELAY_MS = 200
 const CARD_WIDTH = 320
+const CARD_ESTIMATED_HEIGHT = 210
 const CARD_GAP = 8
+const VIEWPORT_PADDING = 16
 
 export function UserHoverCard({
   userId,
@@ -46,6 +48,7 @@ export function UserHoverCard({
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
   const triggerRef = useRef<HTMLSpanElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
   const openTimerRef = useRef<NodeJS.Timeout | null>(null)
   const closeTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -68,13 +71,22 @@ export function UserHoverCard({
   const computePosition = useCallback(() => {
     if (!triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    let left = rect.left + window.scrollX
-    const top = rect.bottom + window.scrollY + CARD_GAP
+    const cardHeight = cardRef.current?.offsetHeight ?? CARD_ESTIMATED_HEIGHT
+    const maxLeft = window.innerWidth - CARD_WIDTH - VIEWPORT_PADDING
+    const left = Math.min(
+      Math.max(rect.left, VIEWPORT_PADDING),
+      Math.max(VIEWPORT_PADDING, maxLeft),
+    )
+    const belowTop = rect.bottom + CARD_GAP
+    const aboveTop = rect.top - cardHeight - CARD_GAP
+    const maxTop = window.innerHeight - cardHeight - VIEWPORT_PADDING
+    const top =
+      belowTop + cardHeight > window.innerHeight - VIEWPORT_PADDING &&
+      aboveTop >= VIEWPORT_PADDING
+        ? aboveTop
+        : Math.min(Math.max(belowTop, VIEWPORT_PADDING), Math.max(VIEWPORT_PADDING, maxTop))
 
     // Đảm bảo card không tràn ra bên phải viewport
-    const maxLeft = window.innerWidth - CARD_WIDTH - 16
-    if (left > maxLeft) left = Math.max(0, maxLeft)
-
     setPosition({ top, left })
   }, [])
 
@@ -101,6 +113,22 @@ export function UserHoverCard({
       clearTimers()
     }
   }, [clearTimers])
+
+  useLayoutEffect(() => {
+    if (!isOpen) return
+    computePosition()
+  }, [computePosition, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    window.addEventListener("resize", computePosition)
+    window.addEventListener("scroll", computePosition, true)
+    return () => {
+      window.removeEventListener("resize", computePosition)
+      window.removeEventListener("scroll", computePosition, true)
+    }
+  }, [computePosition, isOpen])
 
   // Re-fetch follow status mỗi lần card mở (fix stale state)
   useEffect(() => {
@@ -131,6 +159,7 @@ export function UserHoverCard({
 
   const popoverContent = isOpen && (
     <div
+      ref={cardRef}
       role="dialog"
       aria-label={`Thông tin về ${displayName}`}
       style={{ top: position.top, left: position.left, width: CARD_WIDTH }}

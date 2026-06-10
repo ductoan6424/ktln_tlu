@@ -41,6 +41,7 @@ const conversationMessagesInputSchema = z.object({
 const sendMessageInputSchema = z.object({
   conversationId: z.string().min(1, "Thiếu hội thoại"),
   content: z.string().max(CHAT_INPUT_MAX_LENGTH).default(""),
+  clientMutationId: z.string().trim().min(1).max(100).optional(),
 })
 
 const communityChatInputSchema = z.object({
@@ -118,11 +119,13 @@ function extractSendMessageInput(rawInput: unknown) {
   if (rawInput instanceof FormData) {
     const conversationId = rawInput.get("conversationId")
     const content = rawInput.get("content")
+    const clientMutationId = rawInput.get("clientMutationId")
     const attachment = rawInput.get("attachment")
 
     return {
       conversationId: typeof conversationId === "string" ? conversationId : "",
       content: typeof content === "string" ? content : "",
+      clientMutationId: typeof clientMutationId === "string" ? clientMutationId : undefined,
       attachmentFile: attachment instanceof File && attachment.size > 0 ? attachment : null,
     }
   }
@@ -131,12 +134,14 @@ function extractSendMessageInput(rawInput: unknown) {
     const input = rawInput as {
       conversationId?: unknown
       content?: unknown
+      clientMutationId?: unknown
       attachmentFile?: unknown
     }
 
     return {
       conversationId: typeof input.conversationId === "string" ? input.conversationId : "",
       content: typeof input.content === "string" ? input.content : "",
+      clientMutationId: typeof input.clientMutationId === "string" ? input.clientMutationId : undefined,
       attachmentFile: isAttachmentFile(input.attachmentFile) && input.attachmentFile.size > 0
         ? input.attachmentFile
         : null,
@@ -146,6 +151,7 @@ function extractSendMessageInput(rawInput: unknown) {
   return {
     conversationId: "",
     content: "",
+    clientMutationId: undefined,
     attachmentFile: null,
   }
 }
@@ -1499,6 +1505,7 @@ export async function sendConversationMessage(
     const input = sendMessageInputSchema.parse({
       conversationId: extractedInput.conversationId,
       content: extractedInput.content,
+      clientMutationId: extractedInput.clientMutationId,
     })
     const trimmedContent = input.content.trim()
 
@@ -1563,7 +1570,10 @@ export async function sendConversationMessage(
       return created
     })
 
-    const payload = mapMessageToItem(message, currentUser.userId)
+    const payload: ChatMessageItem = {
+      ...mapMessageToItem(message, currentUser.userId),
+      ...(input.clientMutationId ? { clientMutationId: input.clientMutationId } : {}),
+    }
 
     let deliveryInfo: {
       type: "DIRECT" | "GROUP"

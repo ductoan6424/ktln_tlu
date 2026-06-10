@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 
+import { getOrCreateCommunityConversation } from "@/actions/chat"
+import { CommunityManageChatPanel } from "@/components/communities/manage/community-manage-chat-panel"
 import { CommunityManageShell } from "@/components/communities/manage/community-manage-shell"
 import { CommunityMembersPanel } from "@/components/communities/manage/community-members-panel"
 import { CommunityPostsPanel } from "@/components/communities/manage/community-posts-panel"
@@ -62,7 +64,7 @@ export default async function ManageCoursePage({
   }
 
   const activeTab = normalizeTab(getParam(queryParams ?? {}, "tab"))
-  const [rules, requests, reports, pendingPosts, pinnedPosts] = await Promise.all([
+  const [rules, requests, reports, pendingPosts, pinnedPosts, chatConversation] = await Promise.all([
     prisma.communityRule.findMany({
       where: { targetType: "COURSE", targetId: course.id },
       orderBy: { position: "asc" },
@@ -102,6 +104,9 @@ export default async function ManageCoursePage({
         },
       },
     }),
+    activeTab === "chat" && course.chatEnabled
+      ? getOrCreateCommunityConversation("COURSE", courseId)
+      : null,
   ])
 
   const href = buildCommunityPath("COURSE", course.code, course.shortId)
@@ -210,7 +215,24 @@ export default async function ManageCoursePage({
             badgeLabel: `#${pinnedPost.position + 1}`,
           }))}
         />
-      ) : activeTab === "chat" || activeTab === "settings" ? (
+      ) : activeTab === "chat" ? (
+        <CommunityManageChatPanel
+          chatEnabled={course.chatEnabled}
+          chatMode={course.chatMode}
+          canSend={course.chatEnabled && course.chatMode !== "READ_ONLY"}
+          conversationId={
+            chatConversation?.success && chatConversation.data
+              ? chatConversation.data.conversationId
+              : null
+          }
+          conversationError={
+            chatConversation && !chatConversation.success
+              ? chatConversation.error
+              : null
+          }
+          settingsHref={`${href}/manage?tab=settings`}
+        />
+      ) : activeTab === "settings" ? (
         <CourseSettingsPanel
           courseId={course.id}
           name={course.name}

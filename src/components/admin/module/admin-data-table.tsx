@@ -37,8 +37,52 @@ export function AdminDataTable<Cells extends AdminCellValues>({
 
   return (
     <Card>
-      <CardContent className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0">
+      <CardContent className="p-0">
+        <div className="divide-y divide-border md:hidden">
+          {records.map((record) => {
+            const titleValue = String(record.cells.title ?? record.title)
+            const detailColumns = columns.filter((column) => column.key !== "title")
+            const titleContent = record.href ? (
+              <Link href={record.href} className="font-semibold text-foreground hover:underline">
+                {titleValue}
+              </Link>
+            ) : (
+              <span className="font-semibold text-foreground">{titleValue}</span>
+            )
+
+            return (
+              <article key={record.id} className="flex flex-col gap-3 p-4">
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm">{titleContent}</h2>
+                  {record.subtitle ? (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{record.subtitle}</p>
+                  ) : null}
+                </div>
+
+                <dl className="grid grid-cols-1 gap-2 text-sm">
+                  {detailColumns.map((column) => {
+                    const value = String(record.cells[column.key] ?? "")
+                    if (!value) return null
+
+                    return (
+                      <div key={column.key} className="flex items-start justify-between gap-3">
+                        <dt className="shrink-0 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                          {column.header}
+                        </dt>
+                        <dd className="min-w-0 break-words text-right text-sm text-foreground">
+                          {value}
+                        </dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              </article>
+            )
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+          <table className="min-w-full border-separate border-spacing-0">
           <thead className="bg-muted/50">
             <tr className="border-b border-border">
               {columns.map((column) => (
@@ -81,7 +125,8 @@ export function AdminDataTable<Cells extends AdminCellValues>({
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </CardContent>
     </Card>
   )

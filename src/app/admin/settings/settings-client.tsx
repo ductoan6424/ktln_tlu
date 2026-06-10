@@ -124,7 +124,7 @@ export default function SettingsClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <h1 className="text-2xl font-semibold">Cài đặt hệ thống</h1>
           <p className="text-sm text-muted-foreground">
@@ -132,7 +132,7 @@ export default function SettingsClient({
           </p>
         </div>
         {showSaveButton && (
-          <Button onClick={handleSaveSettings} disabled={isSaving}>
+          <Button onClick={handleSaveSettings} disabled={isSaving} className="w-full sm:w-auto">
             {isSaving ? (
               <Loader2 className="size-4 mr-2 animate-spin" />
             ) : (
@@ -214,7 +214,7 @@ export default function SettingsClient({
                 const enabled = moduleFlags[key]
                 return (
                   <div key={key}>
-                    <div className="flex items-center justify-between py-4 gap-4">
+                    <div className="flex items-start justify-between gap-4 py-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold flex items-center gap-2">
                           {MODULE_FLAG_LABELS[key]}
@@ -273,7 +273,7 @@ export default function SettingsClient({
               ))}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 value={newDomain}
                 onChange={(e) => setNewDomain(e.target.value)}
@@ -285,7 +285,7 @@ export default function SettingsClient({
                   }
                 }}
               />
-              <Button type="button" variant="outline" onClick={handleAddDomain}>
+              <Button type="button" variant="outline" onClick={handleAddDomain} className="w-full sm:w-auto">
                 <Plus className="size-4 mr-2" />
                 Thêm
               </Button>

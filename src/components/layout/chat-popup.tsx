@@ -15,6 +15,11 @@ import { ChatHeader } from "@/components/messages/chat-header"
 import { MessageInput } from "@/components/messages/message-input"
 import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import {
+  createOptimisticMessageId,
+  reconcileIncomingMessage,
+  replaceOptimisticMessage,
+} from "@/lib/chat/optimistic"
 import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/contacts/events"
 import type { ChatConversationBubble, ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime } from "@/utils/formatters"
@@ -80,12 +85,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
   })
 
   const handleIncomingMessage = useCallback((message: ChatMessageItem) => {
-    setMessages((prev) => {
-      if (prev.some((item) => item.id === message.id)) {
-        return prev
-      }
-      return [...prev, message]
-    })
+    setMessages((prev) => reconcileIncomingMessage(prev, message))
   }, [])
 
   const { typingUsers, onlineUserIds, publishTyping } = useChatRealtime({
@@ -207,7 +207,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
     const currentConversationId = conversationId ?? conversation.id
 
-    const optimisticId = `temp-${Date.now()}`
+    const optimisticId = createOptimisticMessageId()
     const optimisticAttachment = attachmentFile
       ? {
           type: attachmentFile.type.startsWith("image/") ? ("image" as const) : ("file" as const),
@@ -220,6 +220,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
 
     const optimisticMessage: ChatMessageItem = {
       id: optimisticId,
+      clientMutationId: optimisticId,
       conversationId: currentConversationId,
       content: message,
       senderId: sessionUser?.userId ?? "",
@@ -236,6 +237,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
     const formData = new FormData()
     formData.append("conversationId", currentConversationId)
     formData.append("content", message)
+    formData.append("clientMutationId", optimisticId)
     if (attachmentFile) {
       formData.append("attachment", attachmentFile)
     }
@@ -268,13 +270,7 @@ export function ChatPopup({ conversation, onClose, onFocus, index }: ChatPopupPr
       URL.revokeObjectURL(optimisticAttachment.url)
     }
 
-    setMessages((prev) => {
-      const withoutOptimistic = prev.filter((item) => item.id !== optimisticId)
-      if (withoutOptimistic.some((item) => item.id === result.data!.id)) {
-        return withoutOptimistic
-      }
-      return [...withoutOptimistic, result.data!]
-    })
+    setMessages((prev) => replaceOptimisticMessage(prev, optimisticId, result.data!))
 
     return true
   }

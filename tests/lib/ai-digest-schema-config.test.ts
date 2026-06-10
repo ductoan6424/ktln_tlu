@@ -70,14 +70,14 @@ describe("getAiDigestConfig", () => {
         AI_DIGEST_PROVIDER: "nexus",
         AI_DIGEST_MODEL: " gpt-5.4 ",
         NEXUS_API_KEY: " nexus-key ",
-        NEXUS_BASE_URL: " https://nexusmmo.store/api4/v1/ ",
+        NEXUS_BASE_URL: " https://nexusmmo.store/api/v1/ ",
         NEXUS_WIRE_API: "chat",
       }),
     ).toEqual({
       provider: "nexus",
       model: "gpt-5.4",
       apiKey: "nexus-key",
-      baseUrl: "https://nexusmmo.store/api4/v1",
+      baseUrl: "https://nexusmmo.store/api/v1",
       wireApi: "chat",
       cacheTtlSeconds: 86400,
       dailyLimit: 5,
@@ -93,7 +93,6 @@ describe("getAiDigestConfig", () => {
       getAiDigestConfig({
         AI_DIGEST_PROVIDER: "nexus",
         AI_DIGEST_MODEL: "gpt-5.4",
-        NEXUS_BASE_URL: "https://nexusmmo.store/api4/v1",
       }),
     ).toThrow("NEXUS_API_KEY")
 
@@ -111,10 +110,31 @@ describe("getAiDigestConfig", () => {
         AI_DIGEST_PROVIDER: "nexus",
         AI_DIGEST_MODEL: "gpt-5.4",
         NEXUS_API_KEY: "nexus-key",
-        NEXUS_BASE_URL: "https://nexusmmo.store/api4/v1",
+        NEXUS_BASE_URL: "https://nexusmmo.store/api/v1",
         NEXUS_WIRE_API: "responses",
       }),
     ).toThrow("NEXUS_WIRE_API")
+  })
+
+  it("defaults Nexus to the current Gateway B base URL", () => {
+    expect(
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "nexus",
+        AI_DIGEST_MODEL: "gpt-5.4",
+        NEXUS_API_KEY: "nexus-key",
+      }).baseUrl,
+    ).toBe("https://nexusmmo.store/api/v1")
+  })
+
+  it("rejects using a Gateway B sk-nexus key with the legacy api4 gateway", () => {
+    expect(() =>
+      getAiDigestConfig({
+        AI_DIGEST_PROVIDER: "nexus",
+        AI_DIGEST_MODEL: "gpt-5.4",
+        NEXUS_API_KEY: "sk-nexus-secret",
+        NEXUS_BASE_URL: "https://nexusmmo.store/api4/v1",
+      }),
+    ).toThrow("sk-nexus")
   })
 
   it("rejects an invalid digest timezone", () => {

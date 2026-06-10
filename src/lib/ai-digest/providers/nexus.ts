@@ -28,6 +28,8 @@ type NexusChatDeltaBody = {
 const NEXUS_MAX_ATTEMPTS = 3
 const NEXUS_DEFAULT_RETRY_DELAY_MS = 1_000
 const NEXUS_MAX_RETRY_DELAY_MS = 30_000
+const NEXUS_OVERVIEW_MAX_LENGTH = 1_500
+const NEXUS_SUMMARY_MAX_LENGTH = 600
 
 export function createNexusDigestProvider(config: AiDigestConfig): DigestProvider {
   if (config.wireApi !== "chat" || !config.baseUrl) {
@@ -65,7 +67,6 @@ async function postNexusChatDigestRequest(
         body: JSON.stringify({
           model: config.model,
           messages: buildNexusMessages(prompt),
-          response_format: { type: "json_object" },
           temperature: 0,
           stream: false,
         }),
@@ -138,11 +139,16 @@ async function readErrorBody(response: Response): Promise<string> {
 
 function isNexusUpstreamQuotaError(status: number, body: string): boolean {
   const normalizedBody = body.toLowerCase()
-  return status === 429 || status === 400 && (
-    normalizedBody.includes("[429]") ||
-    normalizedBody.includes("temporarily blocked") ||
-    normalizedBody.includes("exceeded plan limits") ||
-    normalizedBody.includes("reset after")
+  return status === 429 || (
+    (status === 400 || status === 403) &&
+    (
+      normalizedBody.includes("[429]") ||
+      normalizedBody.includes("temporarily blocked") ||
+      normalizedBody.includes("insufficient_quota") ||
+      normalizedBody.includes("insufficient_user_quota") ||
+      normalizedBody.includes("exceeded plan limits") ||
+      normalizedBody.includes("reset after")
+    )
   )
 }
 
@@ -264,7 +270,7 @@ function parseProviderDigestText(text: string): ProviderDigest {
   }
 
   try {
-    return providerDigestSchema.parse(parsed)
+    return providerDigestSchema.parse(normalizeNexusDigestCandidate(parsed))
   } catch (error) {
     throw new DigestProviderError(
       "INVALID_RESPONSE",
@@ -272,6 +278,92 @@ function parseProviderDigestText(text: string): ProviderDigest {
       { cause: error },
     )
   }
+}
+
+function normalizeNexusDigestCandidate(value: unknown): unknown {
+  const root = unwrapDigestObject(value)
+
+  if (!isObject(root)) {
+    return value
+  }
+
+  return {
+    overview: normalizeNexusText(root.overview, NEXUS_OVERVIEW_MAX_LENGTH),
+    actionItems: normalizeNexusReferences(root.actionItems ?? root.action_items, 20),
+    expiringSoon: normalizeNexusReferences(root.expiringSoon ?? root.expiring_soon, 20),
+    announcements: normalizeNexusReferences(root.announcements, 50),
+  }
+}
+
+function unwrapDigestObject(value: unknown): unknown {
+  if (!isObject(value)) {
+    return value
+  }
+
+  if (hasDigestFields(value)) {
+    return value
+  }
+
+  for (const key of ["digest", "result", "data"]) {
+    const nested = value[key]
+    if (isObject(nested) && hasDigestFields(nested)) {
+      return nested
+    }
+  }
+
+  return value
+}
+
+function hasDigestFields(value: Record<string, unknown>): boolean {
+  return (
+    "overview" in value ||
+    "actionItems" in value ||
+    "action_items" in value ||
+    "expiringSoon" in value ||
+    "expiring_soon" in value ||
+    "announcements" in value
+  )
+}
+
+function normalizeNexusReferences(value: unknown, maxItems: number) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.slice(0, maxItems).flatMap((item) => {
+    if (!isObject(item)) {
+      return []
+    }
+
+    const rawId = item.announcementId ?? item.announcement_id ?? item.sourceId ?? item.id
+    const rawSummary = item.summary ?? item.text ?? item.content
+    const announcementId = normalizeNexusText(rawId, Number.POSITIVE_INFINITY)
+    const summary = normalizeNexusText(rawSummary, NEXUS_SUMMARY_MAX_LENGTH)
+
+    if (
+      typeof announcementId !== "string" ||
+      typeof summary !== "string" ||
+      announcementId.length === 0 ||
+      summary.length === 0
+    ) {
+      return []
+    }
+
+    return [{ announcementId, summary }]
+  })
+}
+
+function normalizeNexusText(value: unknown, maxLength: number): unknown {
+  if (typeof value !== "string") {
+    return value
+  }
+
+  const trimmed = value.trim()
+  if (!Number.isFinite(maxLength)) {
+    return trimmed
+  }
+
+  return trimmed.slice(0, maxLength)
 }
 
 function extractJsonText(text: string): string {
@@ -363,10 +455,14 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError"
 }
 
-function isNexusChatResponseBody(value: unknown): value is NexusChatResponseBody {
+function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
+function isNexusChatResponseBody(value: unknown): value is NexusChatResponseBody {
+  return isObject(value)
+}
+
 function isNexusChatDeltaBody(value: unknown): value is NexusChatDeltaBody {
-  return typeof value === "object" && value !== null
+  return isObject(value)
 }

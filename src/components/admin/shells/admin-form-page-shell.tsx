@@ -182,7 +182,7 @@ export function AdminFormPageShell<Cells extends AdminCellValues>({
         ]}
       />
       <AdminFormSections sections={sections} record={record} />
-      <div className="flex justify-end gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
         <Button variant="outline">Hủy</Button>
         <Button>{isCreate ? `Tạo ${module.entityNameSingular}` : "Lưu thay đổi"}</Button>
       </div>

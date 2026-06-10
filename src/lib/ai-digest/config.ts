@@ -16,6 +16,8 @@ const aiDigestEnvSchema = z.object({
   NEXUS_WIRE_API: z.enum(["chat"]).default("chat"),
 }).strict()
 
+const NEXUS_DEFAULT_BASE_URL = "https://nexusmmo.store/api/v1"
+
 export type AiDigestProviderName = "openai" | "gemini" | "nexus"
 
 export type AiDigestConfig = {
@@ -67,7 +69,7 @@ export function getAiDigestConfig(env: AiDigestEnv = process.env): AiDigestConfi
   }
 
   const baseUrl = parsed.data.AI_DIGEST_PROVIDER === "nexus"
-    ? normalizeBaseUrl(parsed.data.NEXUS_BASE_URL)
+    ? normalizeNexusBaseUrl(parsed.data.NEXUS_BASE_URL, apiKey)
     : null
 
   try {
@@ -97,6 +99,18 @@ function getApiKeyName(provider: AiDigestProviderName) {
   if (provider === "openai") return "OPENAI_API_KEY"
   if (provider === "gemini") return "GOOGLE_AI_API_KEY"
   return "NEXUS_API_KEY"
+}
+
+function normalizeNexusBaseUrl(value: string | undefined, apiKey: string) {
+  const baseUrl = normalizeBaseUrl(value ?? NEXUS_DEFAULT_BASE_URL)
+
+  if (apiKey.startsWith("sk-nexus-") && /\/api4\/v1$/i.test(baseUrl)) {
+    throw new Error(
+      "Cau hinh AI digest sai NEXUS_BASE_URL: key sk-nexus-* phai dung https://nexusmmo.store/api/v1",
+    )
+  }
+
+  return baseUrl
 }
 
 function normalizeBaseUrl(value: string | undefined) {

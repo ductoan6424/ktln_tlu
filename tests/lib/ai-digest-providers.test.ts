@@ -59,7 +59,7 @@ const nexusConfig: AiDigestConfig = {
   provider: "nexus",
   model: "gpt-5.4",
   apiKey: "nexus-secret",
-  baseUrl: "https://nexusmmo.store/api4/v1",
+  baseUrl: "https://nexusmmo.store/api/v1",
   wireApi: "chat",
 }
 
@@ -357,7 +357,7 @@ describe("createNexusDigestProvider", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce()
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe("https://nexusmmo.store/api4/v1/chat/completions")
+    expect(url).toBe("https://nexusmmo.store/api/v1/chat/completions")
     expect(init.method).toBe("POST")
     expect(init.headers).toEqual({
       Authorization: "Bearer nexus-secret",
@@ -368,12 +368,11 @@ describe("createNexusDigestProvider", () => {
     const body = JSON.parse(String(init.body)) as {
       model: string
       messages: Array<{ role: string, content: string }>
-      response_format: { type: string }
       temperature: number
       stream: boolean
     }
     expect(body.model).toBe("gpt-5.4")
-    expect(body.response_format).toEqual({ type: "json_object" })
+    expect(body).not.toHaveProperty("response_format")
     expect(body.temperature).toBe(0)
     expect(body.stream).toBe(false)
     expect(body.messages).toHaveLength(2)
@@ -398,6 +397,62 @@ describe("createNexusDigestProvider", () => {
     )))
 
     await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual(validDigest)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it("normalizes common Nexus chat JSON deviations before schema validation", async () => {
+    const fetchMock = mockFetch(jsonResponse(chatBody(JSON.stringify({
+      digest: {
+        overview: ` ${"T".repeat(1600)} `,
+        action_items: [
+          {
+            announcement_id: " announcement-1 ",
+            summary: ` ${"S".repeat(650)} `,
+            deadline: "ignored",
+          },
+          {
+            announcement_id: "",
+            summary: "ignored empty id",
+          },
+        ],
+        expiring_soon: [
+          {
+            sourceId: "announcement-2",
+            text: "Sap het han",
+          },
+        ],
+        announcements: [
+          {
+            id: "announcement-3",
+            content: "Thong bao chung",
+            extra: "ignored",
+          },
+        ],
+        generatedAt: "ignored",
+      },
+    }))))
+
+    await expect(createNexusDigestProvider(nexusConfig).generate(prompt)).resolves.toEqual({
+      overview: "T".repeat(1500),
+      actionItems: [
+        {
+          announcementId: "announcement-1",
+          summary: "S".repeat(600),
+        },
+      ],
+      expiringSoon: [
+        {
+          announcementId: "announcement-2",
+          summary: "Sap het han",
+        },
+      ],
+      announcements: [
+        {
+          announcementId: "announcement-3",
+          summary: "Thong bao chung",
+        },
+      ],
+    })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
@@ -454,6 +509,33 @@ describe("createNexusDigestProvider", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
+  it("maps Nexus documented upstream quota errors to RATE_LIMITED", async () => {
+    vi.useFakeTimers()
+    const quotaBody = {
+      error: {
+        code: "insufficient_user_quota",
+        message: "Master key upstream has insufficient quota",
+      },
+    }
+    const fetchMock = mockFetchSequence(
+      jsonResponse(quotaBody, { status: 403 }),
+      jsonResponse(quotaBody, { status: 403 }),
+      jsonResponse(quotaBody, { status: 403 }),
+    )
+    const retryConfig = { ...nexusConfig, providerTimeoutMs: 5_000 }
+    const result = expect(createNexusDigestProvider(retryConfig).generate(prompt)).rejects.toSatisfy(
+      (error: unknown) => {
+        expectProviderError(error, "RATE_LIMITED")
+        expect(String(error)).not.toContain("nexus-secret")
+        return true
+      },
+    )
+
+    await vi.advanceTimersByTimeAsync(2_000)
+    await result
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
   it.each([
     ["missing content", chatBody(""), "INVALID_RESPONSE"],
     ["malformed JSON", chatBody("{bad json"), "INVALID_RESPONSE"],
@@ -502,6 +584,6 @@ describe("createDigestProvider", () => {
     const nexusFetch = mockFetch(jsonResponse(chatBody(JSON.stringify(validDigest))))
 
     await createDigestProvider(nexusConfig).generate(prompt)
-    expect(nexusFetch.mock.calls[0]?.[0]).toBe("https://nexusmmo.store/api4/v1/chat/completions")
+    expect(nexusFetch.mock.calls[0]?.[0]).toBe("https://nexusmmo.store/api/v1/chat/completions")
   })
 })

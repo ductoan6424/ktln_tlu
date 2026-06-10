@@ -13,6 +13,7 @@ export type ChatAttachment = {
 
 export type ChatMessageItem = {
   id: string
+  clientMutationId?: string
   conversationId: string
   content: string
   senderId: string

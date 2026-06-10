@@ -25,6 +25,11 @@ import { TypingIndicator } from "@/components/messages/typing-indicator"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/shared/empty-state"
 import { useChatRealtime } from "@/hooks/use-chat-realtime"
+import {
+  createOptimisticMessageId,
+  reconcileIncomingMessage,
+  replaceOptimisticMessage,
+} from "@/lib/chat/optimistic"
 import { notifyContactGroupChanged, notifyContactMessageChanged } from "@/lib/contacts/events"
 import type { ChatConversationItem, ChatMessageItem, ChatSessionUser } from "@/types/chat"
 import { formatChatFullTime, formatChatTime, formatRelativeTime } from "@/utils/formatters"
@@ -143,12 +148,7 @@ function MessagesPageInner() {
   }, [activeConversation, isDirectInfoOpen])
 
   const mergeIncomingMessage = useCallback((message: ChatMessageItem) => {
-    setMessages((prev) => {
-      if (prev.some((item) => item.id === message.id)) {
-        return prev
-      }
-      return [...prev, message]
-    })
+    setMessages((prev) => reconcileIncomingMessage(prev, message))
 
     setConversations((prev) =>
       prev.map((conversation) => {
@@ -369,7 +369,7 @@ function MessagesPageInner() {
         return false
       }
 
-      const optimisticId = `temp-${Date.now()}`
+      const optimisticId = createOptimisticMessageId()
       const optimisticAttachment = attachmentFile
         ? {
             type: attachmentFile.type.startsWith("image/") ? ("image" as const) : ("file" as const),
@@ -382,6 +382,7 @@ function MessagesPageInner() {
 
       const optimisticMessage: ChatMessageItem = {
         id: optimisticId,
+        clientMutationId: optimisticId,
         conversationId: currentConversationId,
         content: message,
         senderId: sessionUser?.userId ?? "",
@@ -398,6 +399,7 @@ function MessagesPageInner() {
       const formData = new FormData()
       formData.append("conversationId", currentConversationId)
       formData.append("content", message)
+      formData.append("clientMutationId", optimisticId)
       if (attachmentFile) {
         formData.append("attachment", attachmentFile)
       }
@@ -430,14 +432,7 @@ function MessagesPageInner() {
         })
       }
 
-      setMessages((prev) => {
-        const withoutOptimistic = prev.filter((item) => item.id !== optimisticId)
-        if (withoutOptimistic.some((item) => item.id === result.data!.id)) {
-          return withoutOptimistic
-        }
-
-        return [...withoutOptimistic, result.data!]
-      })
+      setMessages((prev) => replaceOptimisticMessage(prev, optimisticId, result.data!))
 
       return true
     },

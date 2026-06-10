@@ -61,6 +61,49 @@ export default function AdminEventsClient({ activeTab, events, query }: AdminEve
     })
   }
 
+  function renderEventActions(event: AdminEventItem) {
+    return (
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+        <Link
+          href={`/admin/events/${event.id}/edit`}
+          className={`${buttonVariants({ size: "sm", variant: "outline" })} w-full sm:w-auto`}
+        >
+          Sửa
+        </Link>
+        {event.status !== "PUBLISHED" ? (
+          <Button
+            size="sm"
+            disabled={isPending}
+            className="w-full sm:w-auto"
+            onClick={() => runAction(() => publishEvent(event.id), "Đã đăng sự kiện")}
+          >
+            {isPending && <Loader2 className="mr-2 size-3.5 animate-spin" />}
+            Đăng
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isPending}
+            className="w-full sm:w-auto"
+            onClick={() => runAction(() => cancelEvent(event.id), "Đã hủy sự kiện")}
+          >
+            Hủy
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="destructive"
+          disabled={isPending}
+          className="w-full sm:w-auto"
+          onClick={() => runAction(() => deleteEvent(event.id), "Đã xoá sự kiện")}
+        >
+          Xoá
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -96,8 +139,72 @@ export default function AdminEventsClient({ activeTab, events, query }: AdminEve
             </Card>
           ) : (
             <Card>
-              <CardContent className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0">
+              <CardContent className="p-0">
+                <div className="divide-y divide-border md:hidden">
+                  {events.map((event) => (
+                    <article key={event.id} className="flex flex-col gap-4 p-4">
+                      <div className="min-w-0">
+                        <Link
+                          href={`/admin/events/${event.id}`}
+                          className="font-semibold text-foreground hover:underline"
+                        >
+                          {event.title}
+                        </Link>
+                        <p className="mt-1 text-xs text-muted-foreground">{event.typeLabel}</p>
+                      </div>
+
+                      <dl className="grid grid-cols-1 gap-2 text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                            Thời gian
+                          </dt>
+                          <dd className="text-right text-foreground">
+                            {event.dateLabel} {event.timeLabel}
+                          </dd>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                            Đơn vị
+                          </dt>
+                          <dd className="min-w-0 break-words text-right text-foreground">
+                            {event.organizerName}
+                          </dd>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                            Tham gia
+                          </dt>
+                          <dd className="text-right text-foreground">
+                            {event.attendeeCount}/{event.capacity ?? "∞"}
+                          </dd>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                            Trạng thái
+                          </dt>
+                          <dd>
+                            <StatusBadge
+                              variant={
+                                event.status === "PUBLISHED"
+                                  ? "success"
+                                  : event.status === "CANCELLED"
+                                    ? "warning"
+                                    : "muted"
+                              }
+                            >
+                              {STATUS_LABELS[event.status]}
+                            </StatusBadge>
+                          </dd>
+                        </div>
+                      </dl>
+
+                      {renderEventActions(event)}
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="min-w-full border-separate border-spacing-0">
                   <thead>
                     <tr className="border-b border-border">
                       <TableHead>Tên sự kiện</TableHead>
@@ -177,7 +284,8 @@ export default function AdminEventsClient({ activeTab, events, query }: AdminEve
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           )}

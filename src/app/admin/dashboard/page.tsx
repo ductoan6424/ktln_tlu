@@ -85,22 +85,22 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <h1 className="text-2xl font-semibold">Bảng điều khiển</h1>
           <p className="text-sm text-muted-foreground">
             Dữ liệu tổng quan lấy trực tiếp từ cơ sở dữ liệu UniConnect
           </p>
         </div>
-        <div className="hidden sm:flex gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">
           <Link href="/admin/announcements">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
               <Megaphone className="size-4 mr-2" />
               Đăng thông báo
             </Button>
           </Link>
           <Link href="/admin/analytics">
-            <Button size="sm">
+            <Button size="sm" className="w-full sm:w-auto">
               <BarChart3 className="size-4 mr-2" />
               Phân tích chi tiết
             </Button>

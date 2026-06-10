@@ -76,7 +76,7 @@ function AdminLayoutShell({ pathname, user, notifications, children }: AdminLayo
       )}
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 lg:h-16 lg:px-8">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 sm:px-4 lg:h-16 lg:px-8">
           <div className="flex min-w-0 items-center gap-2">
             <Button
               variant="ghost"
@@ -94,7 +94,7 @@ function AdminLayoutShell({ pathname, user, notifications, children }: AdminLayo
             <AdminNotificationMenu notifications={notifications} />
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">{children}</div>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8">{children}</div>
       </main>
     </div>
   )
@@ -122,7 +122,7 @@ function AdminGlobalSearch() {
   }
 
   return (
-    <div className="relative hidden w-72 md:block">
+    <div className="relative hidden w-48 sm:block md:w-72">
       <SearchInput
         placeholder="Tìm kiếm trong quản trị..."
         value={query}
