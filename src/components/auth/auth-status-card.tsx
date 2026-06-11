@@ -46,11 +46,13 @@ const VARIANT_STYLES: Record<
   },
 }
 
+const EMPTY_ACTIONS: AuthStatusAction[] = []
+
 export function AuthStatusCard({
   variant,
   title,
   description,
-  actions = [],
+  actions = EMPTY_ACTIONS,
   icon,
 }: AuthStatusCardProps) {
   const styles = VARIANT_STYLES[variant]

@@ -31,6 +31,7 @@ export interface AnnouncementFeedCardProps {
 }
 
 const EXPAND_THRESHOLD = 280
+const EMPTY_SCOPE_LABELS: string[] = []
 
 export function AnnouncementFeedCard({
   title,
@@ -42,7 +43,7 @@ export function AnnouncementFeedCard({
   publishedAt,
   pinToTop = false,
   isSaved = false,
-  scopeLabels = [],
+  scopeLabels = EMPTY_SCOPE_LABELS,
   onUnsave,
   className,
 }: AnnouncementFeedCardProps) {

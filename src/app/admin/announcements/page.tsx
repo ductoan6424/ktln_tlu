@@ -35,14 +35,15 @@ export default async function AnnouncementsPage() {
         select: { year: true },
       }),
     ])
-  const authorUnitIds = new Set(
-    assignments
-      .filter((assignment) => assignment.role === "AUTHOR")
-      .map((assignment) => assignment.unitId),
-  )
-  const approverUnitIds = assignments
-    .filter((assignment) => assignment.role === "APPROVER")
-    .map((assignment) => assignment.unitId)
+  const authorUnitIds = new Set<string>()
+  const approverUnitIds: string[] = []
+  for (const assignment of assignments) {
+    if (assignment.role === "AUTHOR") {
+      authorUnitIds.add(assignment.unitId)
+    } else if (assignment.role === "APPROVER") {
+      approverUnitIds.push(assignment.unitId)
+    }
+  }
   const authorUnits =
     actor.baseRole === "ADMIN"
       ? units

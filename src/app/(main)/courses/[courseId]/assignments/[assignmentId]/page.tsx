@@ -5,6 +5,11 @@ import { getCourseAssignmentDetail } from "@/lib/courses/course-learning"
 
 import { CourseAssignmentDetailPanel } from "./course-assignment-detail-panel"
 
+export const metadata = {
+  title: "Chi tiết bài tập",
+  description: "Xem yêu cầu, hạn nộp và tài liệu của bài tập trong lớp học.",
+}
+
 export const dynamic = "force-dynamic"
 
 export default async function CourseAssignmentDetailPage({

@@ -1,6 +1,11 @@
 import { searchResults } from "@/actions/search"
 import { SearchResultsPage } from "@/components/search/search-results-page"
 
+export const metadata = {
+  title: "Tìm kiếm",
+  description: "Tìm kiếm người dùng, bài viết, nhóm, lớp học và thông báo.",
+}
+
 type SearchParams = Record<string, string | string[] | undefined>
 
 const TYPE_MAP = {

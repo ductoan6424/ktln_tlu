@@ -14,7 +14,8 @@
     "postinstall": "npm run prisma:generate",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "check:vietnamese": "node scripts/check-vietnamese-encoding.mjs",
-    "seed:admin": "node scripts/seed-admin.mjs"
+    "seed:admin": "node scripts/seed-admin.mjs",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

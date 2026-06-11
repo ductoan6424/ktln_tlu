@@ -140,6 +140,15 @@ function getInitialState(
   initialValues?: AnnouncementFormInitialValues,
 ): AnnouncementFormState {
   const attachments = initialValues?.attachments ?? []
+  const links: LinkValue[] = []
+  const retainedAttachmentIds: string[] = []
+  for (const attachment of attachments) {
+    if (attachment.source === "LINK") {
+      links.push({ name: attachment.name, url: attachment.url })
+    } else if (attachment.source === "UPLOAD") {
+      retainedAttachmentIds.push(attachment.id)
+    }
+  }
   return {
     title: initialValues?.title ?? "",
     content: initialValues?.content ?? "",
@@ -154,12 +163,8 @@ function getInitialState(
     scheduledAt: formatDateTimeLocal(initialValues?.scheduledAt),
     actionDeadlineAt: formatDateTimeLocal(initialValues?.actionDeadlineAt),
     expiresAt: formatDateTimeLocal(initialValues?.expiresAt),
-    links: attachments
-      .filter((attachment) => attachment.source === "LINK")
-      .map((attachment) => ({ name: attachment.name, url: attachment.url })),
-    retainedAttachmentIds: attachments
-      .filter((attachment) => attachment.source === "UPLOAD")
-      .map((attachment) => attachment.id),
+    links,
+    retainedAttachmentIds,
     activeAction: null,
   }
 }
@@ -183,24 +188,25 @@ function draftScopeLabels(
     ]
   }
 
-  const labels = targets
-    .filter((target) => target.type !== "USER")
-    .map((target) => {
-      if (target.type === "COHORT") return `K${target.value}`
-      if (target.type === "FACULTY") {
-        return (
-          targetOptions.faculties.find((faculty) => faculty.id === target.value)
-            ?.code ?? target.value
-        )
-      }
-      if (target.type === "COURSE") {
-        return (
-          targetOptions.courses.find((course) => course.id === target.value)
-            ?.code ?? target.value
-        )
-      }
-      return target.value
-    })
+  const facultyCodeById = new Map(
+    targetOptions.faculties.map((faculty) => [faculty.id, faculty.code]),
+  )
+  const courseCodeById = new Map(
+    targetOptions.courses.map((course) => [course.id, course.code]),
+  )
+  const labels: string[] = []
+  for (const target of targets) {
+    if (target.type === "USER") continue
+    if (target.type === "COHORT") {
+      labels.push(`K${target.value}`)
+    } else if (target.type === "FACULTY") {
+      labels.push(facultyCodeById.get(target.value) ?? target.value)
+    } else if (target.type === "COURSE") {
+      labels.push(courseCodeById.get(target.value) ?? target.value)
+    } else {
+      labels.push(target.value)
+    }
+  }
   return labels.length > 0 ? labels : ["Người nhận riêng"]
 }
 
@@ -310,18 +316,16 @@ export function AnnouncementForm({
     data.set("scheduledAt", toIsoOrEmpty(state.scheduledAt))
     data.set("actionDeadlineAt", toIsoOrEmpty(state.actionDeadlineAt))
     data.set("expiresAt", toIsoOrEmpty(state.expiresAt))
-    data.set(
-      "links",
-      JSON.stringify(
-        state.links
-          .filter((link) => link.name.trim() && link.url.trim())
-          .map((link) => ({
-            source: "LINK",
-            name: link.name.trim(),
-            url: link.url.trim(),
-          })),
-      ),
-    )
+    const normalizedLinks: Array<{ source: "LINK"; name: string; url: string }> =
+      []
+    for (const link of state.links) {
+      const name = link.name.trim()
+      const url = link.url.trim()
+      if (name && url) {
+        normalizedLinks.push({ source: "LINK", name, url })
+      }
+    }
+    data.set("links", JSON.stringify(normalizedLinks))
     data.set(
       "retainedAttachmentIds",
       JSON.stringify(state.retainedAttachmentIds),

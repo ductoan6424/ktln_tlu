@@ -5,6 +5,11 @@ import { EVENTS_PAGE_SIZE } from "@/lib/config/events"
 import { EventsPageClient } from "./events-page-client"
 
 
+export const metadata = {
+  title: "Sự kiện",
+  description: "Khám phá các sự kiện sắp diễn ra trong cộng đồng.",
+}
+
 export default async function EventsPage() {
   const context = await getCurrentUserContext()
   const events = await listPublicEvents({

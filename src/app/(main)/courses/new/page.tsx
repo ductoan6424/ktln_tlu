@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma/client"
 
 import { NewCourseForm } from "./new-course-form"
 
+export const metadata = {
+  title: "Tạo lớp học",
+  description: "Mở lớp học mới và mời giảng viên, sinh viên tham gia.",
+}
+
 export const dynamic = "force-dynamic"
 
 export default async function NewCoursePage() {

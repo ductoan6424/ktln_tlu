@@ -51,6 +51,9 @@ const PRIORITY_LABEL = {
   URGENT: "Khẩn cấp",
 } as const
 
+const EMPTY_ATTACHMENTS: AnnouncementAttachmentDto[] = []
+const EMPTY_SCOPE_LABELS: string[] = []
+
 export function AnnouncementDetailDialog({
   open,
   onOpenChange,
@@ -64,13 +67,13 @@ export function AnnouncementDetailDialog({
   actionDeadlineAt,
   requiresAcknowledgement = false,
   acknowledgedAt: initialAcknowledgedAt,
-  attachments = [],
+  attachments = EMPTY_ATTACHMENTS,
   withdrawalReason,
   replacementId,
   publishedAt,
   pinToTop = false,
   isSaved = false,
-  scopeLabels = [],
+  scopeLabels = EMPTY_SCOPE_LABELS,
 }: AnnouncementDetailDialogProps) {
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()

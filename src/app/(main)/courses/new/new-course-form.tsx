@@ -20,9 +20,11 @@ type NewCourseFormProps = {
   lecturers?: LecturerOption[]
 }
 
+const EMPTY_LECTURERS: LecturerOption[] = []
+
 export function NewCourseForm({
   requireLecturerSelection = false,
-  lecturers = [],
+  lecturers = EMPTY_LECTURERS,
 }: NewCourseFormProps) {
   const [pending, startTransition] = useTransition()
 

@@ -7,6 +7,11 @@ import { PageContainer } from "@/components/layout/page-container"
 import { ProfileConnectionsList } from "@/components/profile/profile-connections-list"
 import { createClient } from "@/lib/supabase/server"
 
+export const metadata = {
+  title: "Kết nối",
+  description: "Danh sách bạn bè và người theo dõi của hồ sơ.",
+}
+
 interface ProfileConnectionsPageProps {
   params: Promise<{
     userId: string

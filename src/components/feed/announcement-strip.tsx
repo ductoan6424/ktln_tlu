@@ -70,6 +70,7 @@ interface AnnouncementStripProps {
 // ---------------------------------------------------------------------------
 
 const SCROLL_STEP = 272
+const EMPTY_SCOPE_LABELS: string[] = []
 const ANNOUNCEMENT_SCROLL_BUTTON_CLASS =
   "rounded-full border border-border bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.20)] hover:bg-white hover:text-black dark:border-[#030b54] dark:bg-[#030b54] dark:text-white dark:hover:bg-[#030b54]/90 dark:hover:text-white"
 
@@ -566,7 +567,7 @@ function AnnouncementCard({
   priority = "NORMAL",
   publishedAt,
   pinToTop = false,
-  scopeLabels = [],
+  scopeLabels = EMPTY_SCOPE_LABELS,
   onClick,
 }: AnnouncementStripItem & { onClick: () => void }) {
   return (
